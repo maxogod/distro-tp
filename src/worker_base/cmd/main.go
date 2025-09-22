@@ -3,7 +3,6 @@ package main
 import (
 	"coffee-analisis/src/worker_base/config"
 	"coffee-analisis/src/worker_base/internal/server"
-	"os"
 
 	"github.com/op/go-logging"
 )
@@ -15,12 +14,10 @@ func main() {
 	cfg, err := config.InitConfig()
 	if err != nil {
 		log.Fatalf("%s", err)
-		os.Exit(1)
 	}
 
 	if err := config.InitLogger(cfg.LogLevel); err != nil {
 		log.Fatalf("%s", err)
-		os.Exit(1)
 	}
 
 	log.Debug(cfg)

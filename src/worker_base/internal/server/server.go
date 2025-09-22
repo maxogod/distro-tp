@@ -45,7 +45,7 @@ func (s *Server) Run() error {
 }
 
 func (s *Server) setupGracefulShutdown() {
-	/// This is a graceful non-blocking setup to shut down the process in case
+	// This is a graceful non-blocking setup to shut down the process in case
 	sigChannel := make(chan os.Signal, 1)
 	signal.Notify(sigChannel, syscall.SIGTERM, syscall.SIGINT)
 
