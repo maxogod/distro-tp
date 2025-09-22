@@ -12,17 +12,13 @@ import (
 
 type Config struct {
 	GatewayAddress string
-	GatewayUser    string
-	GatewayPass    string
 	LogLevel       string
 }
 
 func (c Config) String() string {
 	return fmt.Sprintf(
-		"GatewayAddress: %s | GatewayUser: %s | GatewayPass: %s | LogLevel: %s",
+		"GatewayAddress: %s | LogLevel: %s",
 		c.GatewayAddress,
-		c.GatewayUser,
-		c.GatewayPass,
 		c.LogLevel,
 	)
 }
@@ -42,8 +38,6 @@ func InitConfig() (*Config, error) {
 
 	config := &Config{
 		GatewayAddress: v.GetString("gateway.address"),
-		GatewayUser:    v.GetString("gateway.name"),
-		GatewayPass:    v.GetString("gateway.password"),
 		LogLevel:       v.GetString("log.level"),
 	}
 
