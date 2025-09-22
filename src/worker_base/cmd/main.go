@@ -1,8 +1,8 @@
 package main
 
 import (
-	"coffee-analisis/worker_base/config"
-	"coffee-analisis/worker_base/internal/server"
+	"coffee-analisis/src/worker_base/config"
+	"coffee-analisis/src/worker_base/internal/server"
 	"os"
 
 	"github.com/op/go-logging"

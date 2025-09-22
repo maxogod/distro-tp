@@ -7,11 +7,11 @@ WORKDIR /build/coffee-analisis
 COPY go.mod go.sum ./
 
 # Copy worker_base to the correct location
-COPY worker_base/ ./worker_base/
+COPY src/worker_base/ ./src/worker_base/
 
 COPY src/common/ ./common/
 
-RUN CGO_ENABLED=0 GOOS=linux go build -o bin/worker ./worker_base/cmd
+RUN CGO_ENABLED=0 GOOS=linux go build -o bin/worker ./src/worker_base/cmd
 
 FROM busybox:latest
 COPY --from=builder /build/coffee-analisis/bin/worker /worker

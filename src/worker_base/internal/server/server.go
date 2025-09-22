@@ -1,8 +1,8 @@
 package server
 
 import (
-	"coffee-analisis/worker_base/business"
-	"coffee-analisis/worker_base/config"
+	"coffee-analisis/src/worker_base/business"
+	"coffee-analisis/src/worker_base/config"
 	"os"
 	"os/signal"
 	"syscall"
