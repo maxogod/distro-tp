@@ -1,0 +1,21 @@
+name: tp1
+services:
+  worker:
+    container_name: worker
+    build:
+      context: .
+      dockerfile: ./worker_base/Dockerfile
+    image: worker:latest
+    networks:
+      - testing_net
+    volumes:
+      - ./worker_base/config.yaml:/config.yaml
+
+
+# TODO: change to rabbitMQ
+networks:
+  testing_net:
+    ipam:
+      driver: default
+      config:
+        - subnet: 172.25.125.0/24

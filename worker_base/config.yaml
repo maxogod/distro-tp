@@ -1,0 +1,8 @@
+worker:
+  name: "worker"
+gateway:
+  address: "localhost:5672"
+  name: "guest"
+  password: "guest"
+log:
+  level: "DEBUG"
