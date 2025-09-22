@@ -8,13 +8,8 @@
 
 - [Entrega I: Diseño](./docs/diseño.pdf)
 
-# Inicializacion (Still WIP)
+# Index
 
-Para iniciar el proyecto, ejecute los siguientes comandos:
-
-```bash
-docker compose build   # Construye las imágenes de los servicios definidos
-docker compose up      # Inicia los servicios en contenedores
-```
+## [Worker Base](docs/worker_base.md)
 
 
