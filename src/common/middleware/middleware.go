@@ -25,7 +25,7 @@ type MessageMiddlewareQueue struct {
 type MessageMiddlewareExchange struct {
 	exchangeName   string
 	routeKeys      []string
-	amqpChannel    MiddlewareChannel
+	channel        MiddlewareChannel
 	consumeChannel ConsumeChannel
 }
 
