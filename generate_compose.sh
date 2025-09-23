@@ -7,10 +7,21 @@ OUTPUT_FILE="${2:-docker-compose.yaml}"
 echo "name: tp1
 services:" > "$OUTPUT_FILE"
 
+echo "  rabbitmq:
+    container_name: rabbitmq
+    build:
+      - context: ./src/rabbitmq
+      - dockerfile: Dockerfile
+    image: rabbitmq:latest
+    ports:
+      - '5672:5672'
+      - '15672:15672'
+    networks:
+      - tp_net
+" >> "$OUTPUT_FILE"
+
 while IFS= read -r line; do
     [[ "$line" =~ ^services ]] && continue
-
-    echo "$line"
 
     IFS=":" read -r service replicas <<< "$line"
     service=$(echo "$service" | xargs)
@@ -23,16 +34,16 @@ while IFS= read -r line; do
             name="${service}${i}"
         fi
         echo "  ${name}:
-            container_name: ${name}
-            build:
-              context: ./src/${service}
-              dockerfile: Dockerfile
-            image: ${service}:latest
-            networks:
-              - tp_net
-            volumes:
-              - ./${service}/config.yaml:/config.yaml
-          " >> "$OUTPUT_FILE"
+    container_name: ${name}
+    build:
+      context: ./src/${service}
+      dockerfile: Dockerfile
+    image: ${service}:latest
+    networks:
+      - tp_net
+    volumes:
+      - ./${service}/config.yaml:/config.yaml
+" >> "$OUTPUT_FILE"
     done
 done < "$CONFIG_FILE"
 
