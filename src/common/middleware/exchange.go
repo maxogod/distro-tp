@@ -1,27 +1,27 @@
 package middleware
 
-type exchangeMiddleware struct{}
-
-func NewExchangeMiddleware() MessageMiddleware[MessageMiddlewareExchange] {
-	return &exchangeMiddleware{}
+func NewExchangeMiddleware(exchangeName string) MessageMiddleware {
+	return &MessageMiddlewareExchange{
+		exchangeName: exchangeName,
+	}
 }
 
-func (me *exchangeMiddleware) StartConsuming(m *MessageMiddlewareExchange, onMessageCallback onMessageCallback) (error MessageMiddlewareError) {
+func (me *MessageMiddlewareExchange) StartConsuming(onMessageCallback onMessageCallback) (error MessageMiddlewareError) {
 	return MessageMiddlewareCloseError
 }
 
-func (me *exchangeMiddleware) StopConsuming(m *MessageMiddlewareExchange) (error MessageMiddlewareError) {
+func (me *MessageMiddlewareExchange) StopConsuming() (error MessageMiddlewareError) {
 	return MessageMiddlewareCloseError
 }
 
-func (me *exchangeMiddleware) Send(m *MessageMiddlewareExchange, message []byte) (error MessageMiddlewareError) {
+func (me *MessageMiddlewareExchange) Send(message []byte) (error MessageMiddlewareError) {
 	return MessageMiddlewareCloseError
 }
 
-func (me *exchangeMiddleware) Close(m *MessageMiddlewareExchange) (error MessageMiddlewareError) {
+func (me *MessageMiddlewareExchange) Close() (error MessageMiddlewareError) {
 	return MessageMiddlewareCloseError
 }
 
-func (me *exchangeMiddleware) Delete(m *MessageMiddlewareExchange) (error MessageMiddlewareError) {
+func (me *MessageMiddlewareExchange) Delete() (error MessageMiddlewareError) {
 	return MessageMiddlewareCloseError
 }
