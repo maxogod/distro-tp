@@ -20,15 +20,13 @@ func TestWorkingQueue1to1(t *testing.T) {
 	done := make(chan error, 1)
 
 	e := m.StartConsuming(func(consumeChannel middleware.ConsumeChannel, d chan error) {
-		go func() {
-			for msg := range consumeChannel {
-				t.Log("Received a message:", string(msg.Body))
-				assert.Equal(t, "Hello World!", string(msg.Body))
-				msg.Ack(false)
-				d <- nil
-				return
-			}
-		}()
+		for msg := range consumeChannel {
+			t.Log("Received a message:", string(msg.Body))
+			assert.Equal(t, "Hello World!", string(msg.Body))
+			msg.Ack(false)
+			d <- nil
+			break
+		}
 		done <- nil
 	})
 	assert.Equal(t, 0, int(e))

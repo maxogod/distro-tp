@@ -4,6 +4,7 @@ import (
 	amqp "github.com/rabbitmq/amqp091-go"
 )
 
+type MiddlewareConnection = *amqp.Connection
 type MiddlewareChannel = *amqp.Channel
 type ConsumeChannel = <-chan amqp.Delivery
 
@@ -18,6 +19,7 @@ const (
 
 type MessageMiddlewareQueue struct {
 	queueName      string
+	conn           MiddlewareConnection
 	channel        MiddlewareChannel
 	consumeChannel ConsumeChannel
 	consumerTag    string

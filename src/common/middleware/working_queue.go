@@ -17,14 +17,12 @@ func NewQueueMiddleware(url, queueName string) (MessageMiddleware, error) {
 		logger.GetLogger().Errorln("Failed to connect to RabbitMQ:", err)
 		return m, err
 	}
-	// defer conn.Close()
 
 	ch, err := conn.Channel()
 	if err != nil {
 		logger.GetLogger().Errorln("Failed to open a channel:", err)
 		return m, err
 	}
-	// defer ch.Close()
 
 	_, err = ch.QueueDeclare(
 		queueName, // name
@@ -39,6 +37,8 @@ func NewQueueMiddleware(url, queueName string) (MessageMiddleware, error) {
 		return m, err
 	}
 
+	m.queueName = queueName
+	m.conn = conn
 	m.channel = ch
 
 	return m, nil
@@ -109,9 +109,10 @@ func (mq *MessageMiddlewareQueue) Send(message []byte) (e MessageMiddlewareError
 }
 
 func (mq *MessageMiddlewareQueue) Close() (e MessageMiddlewareError) {
-	err := mq.channel.Close()
-	if err != nil {
-		logger.GetLogger().Errorln("Failed to close channel:", err)
+	errCh := mq.channel.Close()
+	errConn := mq.conn.Close()
+	if errCh != nil || errConn != nil {
+		logger.GetLogger().Errorln("Failed to close middleware connection")
 		return MessageMiddlewareCloseError
 	}
 	return 0
