@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/maxogod/distro-tp/common/middleware"
+	"github.com/maxogod/distro-tp/src/common/middleware"
 	"github.com/stretchr/testify/assert"
 )
 

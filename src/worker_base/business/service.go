@@ -1,6 +1,6 @@
 package business
 
-import "github.com/maxogod/distro-tp/common/logger"
+import "github.com/maxogod/distro-tp/src/common/logger"
 
 var log = logger.GetLogger()
 

@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/maxogod/distro-tp/common/logger"
+	"github.com/maxogod/distro-tp/src/common/logger"
 	amqp "github.com/rabbitmq/amqp091-go"
 )
 

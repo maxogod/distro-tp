@@ -6,9 +6,9 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/maxogod/distro-tp/common/logger"
-	"github.com/maxogod/distro-tp/worker_base/business"
-	"github.com/maxogod/distro-tp/worker_base/config"
+	"github.com/maxogod/distro-tp/src/common/logger"
+	"github.com/maxogod/distro-tp/src/worker_base/business"
+	"github.com/maxogod/distro-tp/src/worker_base/config"
 )
 
 var log = logger.GetLogger()
