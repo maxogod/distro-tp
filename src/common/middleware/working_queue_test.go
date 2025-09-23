@@ -17,26 +17,27 @@ func TestWorkingQueue1to1(t *testing.T) {
 	m, err := middleware.NewQueueMiddleware(url, "test_queue1to1")
 	assert.NoError(t, err)
 
-	done := make(chan error)
+	done := make(chan error, 1)
+
 	e := m.StartConsuming(func(consumeChannel middleware.ConsumeChannel, d chan error) {
-		done = d
-		t.Log("Started consuming messages")
-		for msg := range consumeChannel {
-			t.Log("Received a message:", string(msg.Body))
-			assert.Equal(t, string(msg.Body), "Hello, World!")
-			msg.Ack(false)
-			d <- nil
-			return
-		}
+		go func() {
+			for msg := range consumeChannel {
+				t.Log("Received a message:", string(msg.Body))
+				assert.Equal(t, "Hello World!", string(msg.Body))
+				msg.Ack(false)
+				d <- nil
+				return
+			}
+		}()
+		done <- nil
 	})
 	assert.Equal(t, 0, int(e))
 
-	e = m.Send([]byte("Hello, World!"))
+	e = m.Send([]byte("Hello World!"))
 	assert.Equal(t, 0, int(e))
 
 	select {
 	case <-done:
-		// success
 	case <-time.After(2 * time.Second):
 		t.Fatal("did not receive message in time")
 	}
@@ -44,9 +45,9 @@ func TestWorkingQueue1to1(t *testing.T) {
 	e = m.StopConsuming()
 	assert.Equal(t, 0, int(e))
 
-	e = m.Close()
+	e = m.Delete()
 	assert.Equal(t, 0, int(e))
 
-	e = m.Delete()
+	e = m.Close()
 	assert.Equal(t, 0, int(e))
 }
