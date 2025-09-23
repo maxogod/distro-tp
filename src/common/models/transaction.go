@@ -13,3 +13,11 @@ type Transaction struct {
 	FinalAmount     float64
 	CreatedAt       time.Time
 }
+
+func (t Transaction) GetCreatedAt() time.Time {
+	return t.CreatedAt
+}
+
+func (t Transaction) GetFinalAmount() float64 {
+	return t.FinalAmount
+}

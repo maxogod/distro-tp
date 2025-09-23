@@ -10,3 +10,7 @@ type TransactionItem struct {
 	Subtotal      float64
 	CreatedAt     time.Time
 }
+
+func (ti TransactionItem) GetCreatedAt() time.Time {
+	return ti.CreatedAt
+}
