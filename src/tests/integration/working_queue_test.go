@@ -36,6 +36,7 @@ func TestWorkingQueue1push1consume(t *testing.T) {
 	e = m.Send([]byte("Hello World!"))
 	assert.Equal(t, 0, int(e))
 
+	// Check if consumer finished
 	select {
 	case <-done:
 	case <-time.After(2 * time.Second):
@@ -57,42 +58,45 @@ func TestWorkingQueue1push1consume(t *testing.T) {
 func TestWorkingQueue1pushNconsume(t *testing.T) {
 	url := "amqp://guest:guest@localhost:5672/"
 	num_consumers := 5
+	consumers_ch := make(chan bool, num_consumers)
 
-	for range num_consumers {
-		go func(t *testing.T) {
+	// Launch N independent consumers
+	for consumer := range num_consumers {
+		go func() {
 			m, err := middleware.NewQueueMiddleware(url, "test_queue1toN")
 			assert.NoError(t, err)
 
-			done := make(chan error, 1)
-
 			e := m.StartConsuming(func(consumeChannel middleware.ConsumeChannel, d chan error) {
 				for msg := range consumeChannel {
-					t.Log("Received a message:", string(msg.Body))
+					t.Logf("[Consumer %d] Received a message: %s", consumer, string(msg.Body))
 					assert.Equal(t, "Hello World!", string(msg.Body))
 					msg.Ack(false)
 					d <- nil
 					break
 				}
-				done <- nil
+				consumers_ch <- true
 			})
 			assert.Equal(t, 0, int(e))
-			select {
-			case <-done:
-			case <-time.After(2 * time.Second):
-				t.Fatal("did not receive message in time")
-			}
-		}(t)
+		}()
 	}
 
 	m, err := middleware.NewQueueMiddleware(url, "test_queue1toN")
 	assert.NoError(t, err)
 
+	// Send N messages for the N consumers
 	for range num_consumers {
 		e := m.Send([]byte("Hello World!"))
 		assert.Equal(t, 0, int(e))
 	}
 
-	time.Sleep(10 * time.Second)
+	// Check if all consumers finished
+	for range num_consumers {
+		select {
+		case <-consumers_ch:
+		case <-time.After(2 * time.Second):
+			t.Fatal("did not receive message in time")
+		}
+	}
 
 	e := m.Delete()
 	assert.Equal(t, 0, int(e))
