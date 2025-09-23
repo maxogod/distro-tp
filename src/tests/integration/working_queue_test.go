@@ -59,6 +59,7 @@ func TestWorkingQueue1pushNconsume(t *testing.T) {
 	url := "amqp://guest:guest@localhost:5672/"
 	num_consumers := 5
 	consumers_ch := make(chan bool, num_consumers)
+	ready_ch := make(chan bool, num_consumers)
 
 	// Launch N independent consumers
 	for consumer := range num_consumers {
@@ -67,6 +68,7 @@ func TestWorkingQueue1pushNconsume(t *testing.T) {
 			assert.NoError(t, err)
 
 			e := m.StartConsuming(func(consumeChannel middleware.ConsumeChannel, d chan error) {
+				ready_ch <- true
 				for msg := range consumeChannel {
 					t.Logf("[Consumer %d] Received a message: %s", consumer, string(msg.Body))
 					assert.Equal(t, "Hello World!", string(msg.Body))
@@ -78,6 +80,11 @@ func TestWorkingQueue1pushNconsume(t *testing.T) {
 			})
 			assert.Equal(t, 0, int(e))
 		}()
+	}
+
+	// Wait for all consumers to be ready
+	for range num_consumers {
+		<-ready_ch
 	}
 
 	m, err := middleware.NewQueueMiddleware(url, "test_queue1toN")
