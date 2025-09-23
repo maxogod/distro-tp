@@ -1,4 +1,4 @@
-package middleware_test
+package integration_test
 
 import (
 	"testing"
