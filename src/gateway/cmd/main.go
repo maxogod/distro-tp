@@ -3,5 +3,5 @@ package main
 import "log"
 
 func main() {
-	log.Println("[Client Gateway] initizalizing")
+	log.Println("[Client Gateway] initializing")
 }
