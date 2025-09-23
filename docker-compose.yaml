@@ -1,0 +1,21 @@
+name: tp1
+services:
+  filter:
+    container_name: filter
+    build:
+      context: .
+      dockerfile: ./src/filter/Dockerfile
+    image: filter:latest
+    networks:
+      - testing_net
+    volumes:
+      - ./src/filter/config.yaml:/config.yaml
+
+
+# TODO: change to rabbitMQ
+networks:
+  testing_net:
+    ipam:
+      driver: default
+      config:
+        - subnet: 172.25.125.0/24
