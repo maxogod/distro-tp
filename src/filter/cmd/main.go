@@ -11,18 +11,18 @@ var log = logging.MustGetLogger("log")
 
 func main() {
 
-	cfg, err := config.InitConfig()
+	conf, err := config.InitConfig()
 	if err != nil {
 		log.Fatalf("%s", err)
 	}
 
-	if err := config.InitLogger(cfg.LogLevel); err != nil {
+	if err := config.InitLogger(conf.LogLevel); err != nil {
 		log.Fatalf("%s", err)
 	}
 
-	log.Debug(cfg)
+	log.Debug(conf)
 
-	server := server.InitServer(cfg)
+	server := server.InitServer(conf)
 
 	server.Run()
 

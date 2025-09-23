@@ -16,14 +16,14 @@ var log = logging.MustGetLogger("log")
 type Server struct {
 	config        *config.Config
 	isRunning     bool
-	workerService *business.WorkerService
+	workerService *business.FilterService
 }
 
-func InitServer(cfg *config.Config) *Server {
+func InitServer(conf *config.Config) *Server {
 	return &Server{
-		config:        cfg,
+		config:        conf,
 		isRunning:     true,
-		workerService: business.NewWorkerService(),
+		workerService: business.NewFilterService(),
 	}
 }
 
@@ -36,7 +36,8 @@ func (s *Server) Run() error {
 	for s.isRunning {
 
 		time.Sleep(1 * time.Second)
-		s.workerService.HandleTask()
+		// Here would be the logic to fetch and process tasks
+		// TODO: IMPLEMENT HERE!!!
 
 	}
 
