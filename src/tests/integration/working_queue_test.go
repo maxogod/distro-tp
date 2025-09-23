@@ -53,7 +53,7 @@ func TestWorkingQueue1push1consume(t *testing.T) {
 	assert.Equal(t, 0, int(e))
 }
 
-// TestWorkingQueue1pushNconsume tests the success case of single produce multiple consumers
+// TestWorkingQueue1pushNconsume tests the success case of single producer multiple consumers
 // approach to working queues middleware.
 func TestWorkingQueue1pushNconsume(t *testing.T) {
 	url := "amqp://guest:guest@localhost:5672/"
@@ -109,6 +109,58 @@ func TestWorkingQueue1pushNconsume(t *testing.T) {
 	}
 
 	e := m.Delete()
+	assert.Equal(t, 0, int(e))
+
+	e = m.Close()
+	assert.Equal(t, 0, int(e))
+}
+
+// TestWorkingQueueNpush1consume tests the success case of multiple producers single consumer
+// approach to working queues middleware.
+func TestWorkingQueueNpush1consume(t *testing.T) {
+	url := "amqp://guest:guest@localhost:5672/"
+	num_producers := 5
+
+	// Launch N independent producers
+	for range num_producers {
+		go func() {
+			m, err := middleware.NewQueueMiddleware(url, "test_queueNto1")
+			assert.NoError(t, err)
+
+			e := m.Send([]byte("Hello World!"))
+			assert.Equal(t, 0, int(e))
+
+			e = m.Close()
+			assert.Equal(t, 0, int(e))
+		}()
+	}
+
+	m, err := middleware.NewQueueMiddleware(url, "test_queueNto1")
+	assert.NoError(t, err)
+
+	done := make(chan bool, num_producers)
+
+	e := m.StartConsuming(func(consumeChannel middleware.ConsumeChannel, d chan error) {
+		for msg := range consumeChannel {
+			t.Log("Received a message:", string(msg.Body))
+			assert.Equal(t, "Hello World!", string(msg.Body))
+			msg.Ack(false)
+			done <- true
+		}
+		d <- nil
+	})
+	assert.Equal(t, 0, int(e))
+
+	// Get N messages from the N producers
+	for range num_producers {
+		select {
+		case <-done:
+		case <-time.After(2 * time.Second):
+			t.Fatal("did not receive message in time")
+		}
+	}
+
+	e = m.Delete()
 	assert.Equal(t, 0, int(e))
 
 	e = m.Close()
