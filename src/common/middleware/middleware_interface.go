@@ -8,6 +8,7 @@ type MiddlewareConnection = *amqp.Connection
 type MiddlewareChannel = *amqp.Channel
 type ConsumeChannel = <-chan amqp.Delivery
 
+// TODO: why not use the actual error type?
 type MessageMiddlewareError int
 
 const (
