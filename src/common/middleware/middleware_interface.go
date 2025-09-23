@@ -32,6 +32,7 @@ type MessageMiddlewareExchange struct {
 	consumeChannel ConsumeChannel
 }
 
+// TODO: check if done channel is really necessary (probably not)
 type onMessageCallback func(consumeChannel ConsumeChannel, done chan error)
 
 // Puede especificarse un tipo más específico para T si se desea
