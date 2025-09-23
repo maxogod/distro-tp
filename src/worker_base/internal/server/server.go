@@ -19,9 +19,9 @@ type Server struct {
 	workerService *business.WorkerService
 }
 
-func InitServer(cfg *config.Config) *Server {
+func InitServer(conf *config.Config) *Server {
 	return &Server{
-		config:        cfg,
+		config:        conf,
 		isRunning:     true,
 		workerService: business.NewWorkerService(),
 	}
