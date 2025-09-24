@@ -1,17 +1,17 @@
 package server
 
 import (
-	"coffee-analisis/src/worker_base/business"
-	"coffee-analisis/src/worker_base/config"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
 
-	"github.com/op/go-logging"
+	"github.com/maxogod/distro-tp/src/common/logger"
+	"github.com/maxogod/distro-tp/src/worker_base/business"
+	"github.com/maxogod/distro-tp/src/worker_base/config"
 )
 
-var log = logging.MustGetLogger("log")
+var log = logger.GetLogger()
 
 type Server struct {
 	config        *config.Config

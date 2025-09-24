@@ -1,13 +1,12 @@
 package main
 
 import (
-	"coffee-analisis/src/worker_base/config"
-	"coffee-analisis/src/worker_base/internal/server"
-
-	"github.com/op/go-logging"
+	"github.com/maxogod/distro-tp/src/common/logger"
+	"github.com/maxogod/distro-tp/src/worker_base/config"
+	"github.com/maxogod/distro-tp/src/worker_base/internal/server"
 )
 
-var log = logging.MustGetLogger("log")
+var log = logger.GetLogger()
 
 func main() {
 
@@ -16,11 +15,7 @@ func main() {
 		log.Fatalf("%s", err)
 	}
 
-	if err := config.InitLogger(cfg.LogLevel); err != nil {
-		log.Fatalf("%s", err)
-	}
-
-	log.Debug(cfg)
+	log.Debugln(cfg)
 
 	server := server.InitServer(cfg)
 
