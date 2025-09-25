@@ -10,6 +10,7 @@ import (
 
 type Config struct {
 	GatewayAddress string
+	StorePath      string
 	LogLevel       string
 }
 
@@ -36,6 +37,7 @@ func InitConfig() (*Config, error) {
 
 	config := &Config{
 		GatewayAddress: v.GetString("gateway.address"),
+		StorePath:      v.GetString("datasets.path"),
 		LogLevel:       v.GetString("log.level"),
 	}
 

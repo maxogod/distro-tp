@@ -2,23 +2,26 @@ package main
 
 import (
 	"github.com/maxogod/distro-tp/src/common/logger"
+	"github.com/maxogod/distro-tp/src/joiner/internal/server"
 	"github.com/maxogod/distro-tp/src/worker_base/config"
-	"github.com/maxogod/distro-tp/src/worker_base/internal/server"
 )
 
 var log = logger.GetLogger()
 
 func main() {
 
-	cfg, err := config.InitConfig()
+	initConfig, err := config.InitConfig()
 	if err != nil {
 		log.Fatalf("%s", err)
 	}
 
-	log.Debugln(cfg)
+	log.Debugln(initConfig)
 
-	server := server.InitServer(cfg)
+	server := server.InitServer(initConfig)
 
-	server.Run()
+	err = server.Run()
+	if err != nil {
+		return
+	}
 
 }
