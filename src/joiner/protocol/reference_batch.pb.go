@@ -73,6 +73,42 @@ func (x *ReferenceBatch) GetPayload() []byte {
 	return nil
 }
 
+type Done struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *Done) Reset() {
+	*x = Done{}
+	mi := &file_src_joiner_protocol_reference_batch_proto_msgTypes[1]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Done) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Done) ProtoMessage() {}
+
+func (x *Done) ProtoReflect() protoreflect.Message {
+	mi := &file_src_joiner_protocol_reference_batch_proto_msgTypes[1]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Done.ProtoReflect.Descriptor instead.
+func (*Done) Descriptor() ([]byte, []int) {
+	return file_src_joiner_protocol_reference_batch_proto_rawDescGZIP(), []int{1}
+}
+
 var File_src_joiner_protocol_reference_batch_proto protoreflect.FileDescriptor
 
 const file_src_joiner_protocol_reference_batch_proto_rawDesc = "" +
@@ -80,7 +116,8 @@ const file_src_joiner_protocol_reference_batch_proto_rawDesc = "" +
 	")src/joiner/protocol/reference_batch.proto\x12\bprotocol\"M\n" +
 	"\x0eReferenceBatch\x12!\n" +
 	"\fdataset_type\x18\x01 \x01(\x05R\vdatasetType\x12\x18\n" +
-	"\apayload\x18\x02 \x01(\fR\apayloadB\x1eZ\x1csrc/joiner/protocol;protocolb\x06proto3"
+	"\apayload\x18\x02 \x01(\fR\apayload\"\x06\n" +
+	"\x04DoneB\x1eZ\x1csrc/joiner/protocol;protocolb\x06proto3"
 
 var (
 	file_src_joiner_protocol_reference_batch_proto_rawDescOnce sync.Once
@@ -94,9 +131,10 @@ func file_src_joiner_protocol_reference_batch_proto_rawDescGZIP() []byte {
 	return file_src_joiner_protocol_reference_batch_proto_rawDescData
 }
 
-var file_src_joiner_protocol_reference_batch_proto_msgTypes = make([]protoimpl.MessageInfo, 1)
+var file_src_joiner_protocol_reference_batch_proto_msgTypes = make([]protoimpl.MessageInfo, 2)
 var file_src_joiner_protocol_reference_batch_proto_goTypes = []any{
 	(*ReferenceBatch)(nil), // 0: protocol.ReferenceBatch
+	(*Done)(nil),           // 1: protocol.Done
 }
 var file_src_joiner_protocol_reference_batch_proto_depIdxs = []int32{
 	0, // [0:0] is the sub-list for method output_type
@@ -117,7 +155,7 @@ func file_src_joiner_protocol_reference_batch_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_src_joiner_protocol_reference_batch_proto_rawDesc), len(file_src_joiner_protocol_reference_batch_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   1,
+			NumMessages:   2,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

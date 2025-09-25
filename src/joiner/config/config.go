@@ -12,13 +12,16 @@ type Config struct {
 	GatewayAddress string
 	StorePath      string
 	LogLevel       string
+	StoreTPVQueue  string
 }
 
 func (c Config) String() string {
 	return fmt.Sprintf(
-		"GatewayAddress: %s | LogLevel: %s",
+		"GatewayAddress: %s | LogLevel: %s | StorePath: %s | StoreTPVQueue: %s",
 		c.GatewayAddress,
+		c.StorePath,
 		c.LogLevel,
+		c.StoreTPVQueue,
 	)
 }
 
@@ -39,6 +42,7 @@ func InitConfig() (*Config, error) {
 		GatewayAddress: v.GetString("gateway.address"),
 		StorePath:      v.GetString("datasets.path"),
 		LogLevel:       v.GetString("log.level"),
+		StoreTPVQueue:  v.GetString("store.tpv_queue"),
 	}
 
 	return config, nil

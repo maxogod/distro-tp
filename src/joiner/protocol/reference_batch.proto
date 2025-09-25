@@ -8,3 +8,5 @@ message ReferenceBatch {
   int32 dataset_type = 1;
   bytes payload = 2;
 }
+
+message Done {}
