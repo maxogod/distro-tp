@@ -18,25 +18,35 @@ func SendReferenceBatches(t *testing.T, pub middleware.MessageMiddleware, csvPay
 	t.Helper()
 
 	for _, csvPayload := range csvPayloads {
-		msg1Proto := &protocol.ReferenceBatch{
+		msgProto := &protocol.ReferenceBatch{
 			DatasetType: datasetType,
 			Payload:     csvPayload,
 		}
 
-		msg1Bytes, err := proto.Marshal(msg1Proto)
+		msgBytes, err := proto.Marshal(msgProto)
 		assert.NoError(t, err)
 
-		e := pub.Send(msg1Bytes)
+		e := pub.Send(msgBytes)
 		assert.Equal(t, 0, int(e))
 	}
 }
 
-func StartJoiner(t *testing.T, rabbitURL string, storeDir string, refQueueName string) *joiner.Joiner {
+func SendDoneMessage(t *testing.T, pub middleware.MessageMiddleware) {
+	doneMsg := &protocol.Done{}
+	doneBytes, err := proto.Marshal(doneMsg)
+	assert.NoError(t, err)
+
+	e := pub.Send(doneBytes)
+	assert.Equal(t, 0, int(e))
+}
+
+func StartJoiner(t *testing.T, rabbitURL string, storeDir string, refQueueName string, storeTPVQueue string) *joiner.Joiner {
 	t.Helper()
 
 	joinerConfig := config.Config{
 		GatewayAddress: rabbitURL,
 		StorePath:      storeDir,
+		StoreTPVQueue:  storeTPVQueue,
 	}
 
 	j := joiner.NewJoiner(&joinerConfig)
@@ -81,5 +91,32 @@ func AssertFileContainsPayloads(t *testing.T, expectedFile string, csvPayloads [
 
 	if !found {
 		t.Fatalf("expected payloads not present in file: %s\ncontent: %s", expectedFile, string(data))
+	}
+}
+
+func AssertJoinerConsumed(t *testing.T, m middleware.MessageMiddleware, expected string) {
+	t.Helper()
+
+	time.Sleep(200 * time.Millisecond)
+
+	found := false
+	err := m.StartConsuming(func(consumeChannel middleware.ConsumeChannel, d chan error) {
+		for msg := range consumeChannel {
+			if string(msg.Body) == expected {
+				found = true
+			}
+
+			// Reponemos el mensaje para no perderlo
+			msg.Ack(false)
+			d <- nil
+			break
+		}
+	})
+	assert.Equal(t, 0, int(err))
+
+	_ = m.StopConsuming()
+
+	if found {
+		t.Fatalf("message '%s' was not consumed by the joiner", expected)
 	}
 }

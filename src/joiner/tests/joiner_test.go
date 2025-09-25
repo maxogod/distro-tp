@@ -19,7 +19,7 @@ func TestJoinerPersistReferenceBatchesMenuItems(t *testing.T) {
 	storeDir := t.TempDir()
 	datasetName := "menu_items"
 
-	j := helper.StartJoiner(t, rabbitURL, storeDir, refQueueName)
+	j := helper.StartJoiner(t, rabbitURL, storeDir, refQueueName, "")
 	defer j.Stop()
 
 	pub, err := middleware.NewQueueMiddleware(rabbitURL, refQueueName)
@@ -46,7 +46,7 @@ func TestJoinerPersistReferenceBatchesUsers(t *testing.T) {
 	storeDir := t.TempDir()
 	datasetName := "users"
 
-	j := helper.StartJoiner(t, rabbitURL, storeDir, refQueueName)
+	j := helper.StartJoiner(t, rabbitURL, storeDir, refQueueName, "")
 	defer j.Stop()
 
 	pub, err := middleware.NewQueueMiddleware(rabbitURL, refQueueName)
@@ -67,4 +67,42 @@ func TestJoinerPersistReferenceBatchesUsers(t *testing.T) {
 
 	helper.AssertFileContainsPayloads(t, expectedFile, [][]byte{csvPayloads[0]})
 	helper.AssertFileContainsPayloads(t, anotherExpectedFile, [][]byte{csvPayloads[1]})
+}
+
+func TestJoinerHandlesDoneAndConsumesNextQueueTask3(t *testing.T) {
+	rabbitURL := "amqp://guest:guest@localhost:5672/"
+	refQueueName := "test_menu_items"
+	storesTPVQueue := "test_stores_TPV_queue"
+	storeDir := t.TempDir()
+
+	j := helper.StartJoiner(t, rabbitURL, storeDir, refQueueName, storesTPVQueue)
+	defer j.Stop()
+
+	pubRef, err := middleware.NewQueueMiddleware(rabbitURL, refQueueName)
+	assert.NoError(t, err)
+	defer func() {
+		_ = pubRef.Delete()
+		_ = pubRef.Close()
+	}()
+
+	csvPayloads := [][]byte{
+		[]byte("1,Espresso,coffee,6.0,False,,\n"),
+		[]byte("2,Americano,coffee,7.0,False,,\n"),
+	}
+	helper.SendReferenceBatches(t, pubRef, csvPayloads, datasetTypeMenuItems)
+
+	helper.SendDoneMessage(t, pubRef)
+
+	pubProcessedData, err := middleware.NewQueueMiddleware(rabbitURL, storesTPVQueue)
+	assert.NoError(t, err)
+	defer func() {
+		_ = pubProcessedData.Delete()
+		_ = pubProcessedData.Close()
+	}()
+
+	dataMessage := "Data Message"
+	e := pubProcessedData.Send([]byte(dataMessage))
+	assert.Equal(t, 0, int(e))
+
+	helper.AssertJoinerConsumed(t, pubProcessedData, dataMessage)
 }
