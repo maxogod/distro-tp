@@ -11,6 +11,7 @@ import (
 )
 
 const datasetTypeMenuItems = 0
+const datasetTypeStores = 1
 const datasetTypeUsers = 2
 
 func TestJoinerPersistReferenceBatchesMenuItems(t *testing.T) {
@@ -19,7 +20,7 @@ func TestJoinerPersistReferenceBatchesMenuItems(t *testing.T) {
 	storeDir := t.TempDir()
 	datasetName := "menu_items"
 
-	j := helper.StartJoiner(t, rabbitURL, storeDir, refQueueName, "")
+	j := helper.StartJoiner(t, rabbitURL, storeDir, []string{refQueueName}, "")
 	defer j.Stop()
 
 	pub, err := middleware.NewQueueMiddleware(rabbitURL, refQueueName)
@@ -46,7 +47,7 @@ func TestJoinerPersistReferenceBatchesUsers(t *testing.T) {
 	storeDir := t.TempDir()
 	datasetName := "users"
 
-	j := helper.StartJoiner(t, rabbitURL, storeDir, refQueueName, "")
+	j := helper.StartJoiner(t, rabbitURL, storeDir, []string{refQueueName}, "")
 	defer j.Stop()
 
 	pub, err := middleware.NewQueueMiddleware(rabbitURL, refQueueName)
@@ -75,7 +76,7 @@ func TestJoinerHandlesDoneAndConsumesNextQueueTask3(t *testing.T) {
 	storesTPVQueue := "test_stores_TPV_queue"
 	storeDir := t.TempDir()
 
-	j := helper.StartJoiner(t, rabbitURL, storeDir, refQueueName, storesTPVQueue)
+	j := helper.StartJoiner(t, rabbitURL, storeDir, []string{refQueueName}, storesTPVQueue)
 	defer j.Stop()
 
 	pubRef, err := middleware.NewQueueMiddleware(rabbitURL, refQueueName)
@@ -105,4 +106,54 @@ func TestJoinerHandlesDoneAndConsumesNextQueueTask3(t *testing.T) {
 	assert.Equal(t, 0, int(e))
 
 	helper.AssertJoinerConsumed(t, pubProcessedData, dataMessage)
+}
+
+func TestJoinerPersistReferenceBatchesUsersAndStores(t *testing.T) {
+	rabbitURL := "amqp://guest:guest@localhost:5672/"
+	storeDir := t.TempDir()
+	refQueueNames := []string{"test_users", "test_stores"}
+
+	usersDatasetName := "users"
+	storesDatasetName := "stores"
+
+	j := helper.StartJoiner(t, rabbitURL, storeDir, refQueueNames, "")
+	defer j.Stop()
+
+	usersPub, queueErr := middleware.NewQueueMiddleware(rabbitURL, refQueueNames[0])
+	assert.NoError(t, queueErr)
+	defer func() {
+		_ = usersPub.Delete()
+		_ = usersPub.Close()
+	}()
+
+	storesPub, queueErr := middleware.NewQueueMiddleware(rabbitURL, refQueueNames[1])
+	assert.NoError(t, queueErr)
+	defer func() {
+		_ = storesPub.Delete()
+		_ = storesPub.Close()
+	}()
+
+	usersCsvPayloads := [][]byte{
+		[]byte("1,female,1970-04-22,2023-07-01 08:13:07\n"),
+		[]byte("2,female,1970-04-22,2023-07-01 08:13:07\n"),
+	}
+	helper.SendReferenceBatches(t, usersPub, usersCsvPayloads, datasetTypeUsers)
+	helper.SendDoneMessage(t, usersPub)
+
+	storesCsvPayloads := [][]byte{
+		[]byte("1,G Coffee @ USJ 89q,Jalan Dewan Bahasa 5/9,50998,USJ 89q,Kuala Lumpur,3.117134,101.615027\n"),
+		[]byte("2,G Coffee @ USJ 89q,Jalan Dewan Bahasa 5/9,50998,USJ 89q,Kuala Lumpur,3.117134,101.615027\n"),
+		[]byte("3,G Coffee @ USJ 89q,Jalan Dewan Bahasa 5/9,50998,USJ 89q,Kuala Lumpur,3.117134,101.615027\n"),
+		[]byte("4,G Coffee @ USJ 89q,Jalan Dewan Bahasa 5/9,50998,USJ 89q,Kuala Lumpur,3.117134,101.615027\n"),
+	}
+	helper.SendReferenceBatches(t, storesPub, storesCsvPayloads, datasetTypeStores)
+	helper.SendDoneMessage(t, storesPub)
+
+	expectedFile := filepath.Join(storeDir, fmt.Sprintf("%s_202307.csv", usersDatasetName))
+	anotherExpectedFile := filepath.Join(storeDir, fmt.Sprintf("%s.csv", storesDatasetName))
+
+	helper.AssertFileContainsPayloads(t, expectedFile, usersCsvPayloads)
+	helper.AssertFileContainsPayloads(t, anotherExpectedFile, storesCsvPayloads)
+
+	fmt.Println("boca")
 }

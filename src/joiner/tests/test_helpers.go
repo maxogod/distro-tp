@@ -53,7 +53,7 @@ func SendDoneMessage(t *testing.T, pub middleware.MessageMiddleware) {
 	assert.Equal(t, 0, int(e))
 }
 
-func StartJoiner(t *testing.T, rabbitURL string, storeDir string, refQueueName string, storeTPVQueue string) *joiner.Joiner {
+func StartJoiner(t *testing.T, rabbitURL string, storeDir string, refQueueNames []string, storeTPVQueue string) *joiner.Joiner {
 	t.Helper()
 
 	joinerConfig := config.Config{
@@ -64,8 +64,11 @@ func StartJoiner(t *testing.T, rabbitURL string, storeDir string, refQueueName s
 
 	j := joiner.NewJoiner(&joinerConfig)
 
-	err := j.StartRefConsumer(refQueueName)
-	assert.NoError(t, err)
+	for _, refQueueName := range refQueueNames {
+		err := j.StartRefConsumer(refQueueName)
+		assert.NoError(t, err)
+	}
+
 	return j
 }
 
