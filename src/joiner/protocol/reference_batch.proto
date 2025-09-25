@@ -1,0 +1,10 @@
+syntax = "proto3";
+
+package protocol;
+
+option go_package = "src/joiner/protocol;protocol";
+
+message ReferenceBatch {
+  int32 dataset_type = 1;
+  bytes payload = 2;
+}
