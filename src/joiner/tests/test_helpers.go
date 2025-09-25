@@ -14,14 +14,12 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-const datasetTypeMenuItems = 0
-
-func SendReferenceBatches(t *testing.T, pub middleware.MessageMiddleware, csvPayloads [][]byte) {
+func SendReferenceBatches(t *testing.T, pub middleware.MessageMiddleware, csvPayloads [][]byte, datasetType int32) {
 	t.Helper()
 
 	for _, csvPayload := range csvPayloads {
 		msg1Proto := &protocol.ReferenceBatch{
-			DatasetType: datasetTypeMenuItems,
+			DatasetType: datasetType,
 			Payload:     csvPayload,
 		}
 

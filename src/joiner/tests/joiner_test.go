@@ -10,6 +10,8 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+const datasetTypeMenuItems = 0
+
 func TestJoinerPersistReferenceBatchesMenuItems(t *testing.T) {
 	rabbitURL := "amqp://guest:guest@localhost:5672/"
 	refQueueName := "test_menu_items"
@@ -30,7 +32,7 @@ func TestJoinerPersistReferenceBatchesMenuItems(t *testing.T) {
 		[]byte("1,Espresso,coffee,6.0,False,,\n"),
 		[]byte("2,Americano,coffee,7.0,False,,\n"),
 	}
-	helper.SendReferenceBatches(t, pub, csvPayloads)
+	helper.SendReferenceBatches(t, pub, csvPayloads, datasetTypeMenuItems)
 
 	expectedFile := filepath.Join(storeDir, fmt.Sprintf("%s.csv", datasetName))
 
