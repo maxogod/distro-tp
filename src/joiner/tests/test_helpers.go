@@ -18,9 +18,15 @@ func SendReferenceBatches(t *testing.T, pub middleware.MessageMiddleware, csvPay
 	t.Helper()
 
 	for _, csvPayload := range csvPayloads {
-		msgProto := &protocol.ReferenceBatch{
+		refBatch := &protocol.ReferenceBatch{
 			DatasetType: datasetType,
 			Payload:     csvPayload,
+		}
+
+		msgProto := &protocol.ReferenceQueueMessage{
+			Payload: &protocol.ReferenceQueueMessage_ReferenceBatch{
+				ReferenceBatch: refBatch,
+			},
 		}
 
 		msgBytes, err := proto.Marshal(msgProto)
@@ -33,7 +39,14 @@ func SendReferenceBatches(t *testing.T, pub middleware.MessageMiddleware, csvPay
 
 func SendDoneMessage(t *testing.T, pub middleware.MessageMiddleware) {
 	doneMsg := &protocol.Done{}
-	doneBytes, err := proto.Marshal(doneMsg)
+
+	msgProto := &protocol.ReferenceQueueMessage{
+		Payload: &protocol.ReferenceQueueMessage_Done{
+			Done: doneMsg,
+		},
+	}
+
+	doneBytes, err := proto.Marshal(msgProto)
 	assert.NoError(t, err)
 
 	e := pub.Send(doneBytes)
@@ -105,9 +118,6 @@ func AssertJoinerConsumed(t *testing.T, m middleware.MessageMiddleware, expected
 			if string(msg.Body) == expected {
 				found = true
 			}
-
-			// Reponemos el mensaje para no perderlo
-			msg.Ack(false)
 			d <- nil
 			break
 		}

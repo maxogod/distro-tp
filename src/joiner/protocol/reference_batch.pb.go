@@ -109,6 +109,88 @@ func (*Done) Descriptor() ([]byte, []int) {
 	return file_src_joiner_protocol_reference_batch_proto_rawDescGZIP(), []int{1}
 }
 
+type ReferenceQueueMessage struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Types that are valid to be assigned to Payload:
+	//
+	//	*ReferenceQueueMessage_ReferenceBatch
+	//	*ReferenceQueueMessage_Done
+	Payload       isReferenceQueueMessage_Payload `protobuf_oneof:"payload"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ReferenceQueueMessage) Reset() {
+	*x = ReferenceQueueMessage{}
+	mi := &file_src_joiner_protocol_reference_batch_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ReferenceQueueMessage) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ReferenceQueueMessage) ProtoMessage() {}
+
+func (x *ReferenceQueueMessage) ProtoReflect() protoreflect.Message {
+	mi := &file_src_joiner_protocol_reference_batch_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ReferenceQueueMessage.ProtoReflect.Descriptor instead.
+func (*ReferenceQueueMessage) Descriptor() ([]byte, []int) {
+	return file_src_joiner_protocol_reference_batch_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *ReferenceQueueMessage) GetPayload() isReferenceQueueMessage_Payload {
+	if x != nil {
+		return x.Payload
+	}
+	return nil
+}
+
+func (x *ReferenceQueueMessage) GetReferenceBatch() *ReferenceBatch {
+	if x != nil {
+		if x, ok := x.Payload.(*ReferenceQueueMessage_ReferenceBatch); ok {
+			return x.ReferenceBatch
+		}
+	}
+	return nil
+}
+
+func (x *ReferenceQueueMessage) GetDone() *Done {
+	if x != nil {
+		if x, ok := x.Payload.(*ReferenceQueueMessage_Done); ok {
+			return x.Done
+		}
+	}
+	return nil
+}
+
+type isReferenceQueueMessage_Payload interface {
+	isReferenceQueueMessage_Payload()
+}
+
+type ReferenceQueueMessage_ReferenceBatch struct {
+	ReferenceBatch *ReferenceBatch `protobuf:"bytes,1,opt,name=reference_batch,json=referenceBatch,proto3,oneof"`
+}
+
+type ReferenceQueueMessage_Done struct {
+	Done *Done `protobuf:"bytes,2,opt,name=done,proto3,oneof"`
+}
+
+func (*ReferenceQueueMessage_ReferenceBatch) isReferenceQueueMessage_Payload() {}
+
+func (*ReferenceQueueMessage_Done) isReferenceQueueMessage_Payload() {}
+
 var File_src_joiner_protocol_reference_batch_proto protoreflect.FileDescriptor
 
 const file_src_joiner_protocol_reference_batch_proto_rawDesc = "" +
@@ -117,7 +199,11 @@ const file_src_joiner_protocol_reference_batch_proto_rawDesc = "" +
 	"\x0eReferenceBatch\x12!\n" +
 	"\fdataset_type\x18\x01 \x01(\x05R\vdatasetType\x12\x18\n" +
 	"\apayload\x18\x02 \x01(\fR\apayload\"\x06\n" +
-	"\x04DoneB\x1eZ\x1csrc/joiner/protocol;protocolb\x06proto3"
+	"\x04Done\"\x8d\x01\n" +
+	"\x15ReferenceQueueMessage\x12C\n" +
+	"\x0freference_batch\x18\x01 \x01(\v2\x18.protocol.ReferenceBatchH\x00R\x0ereferenceBatch\x12$\n" +
+	"\x04done\x18\x02 \x01(\v2\x0e.protocol.DoneH\x00R\x04doneB\t\n" +
+	"\apayloadB\x1eZ\x1csrc/joiner/protocol;protocolb\x06proto3"
 
 var (
 	file_src_joiner_protocol_reference_batch_proto_rawDescOnce sync.Once
@@ -131,17 +217,20 @@ func file_src_joiner_protocol_reference_batch_proto_rawDescGZIP() []byte {
 	return file_src_joiner_protocol_reference_batch_proto_rawDescData
 }
 
-var file_src_joiner_protocol_reference_batch_proto_msgTypes = make([]protoimpl.MessageInfo, 2)
+var file_src_joiner_protocol_reference_batch_proto_msgTypes = make([]protoimpl.MessageInfo, 3)
 var file_src_joiner_protocol_reference_batch_proto_goTypes = []any{
-	(*ReferenceBatch)(nil), // 0: protocol.ReferenceBatch
-	(*Done)(nil),           // 1: protocol.Done
+	(*ReferenceBatch)(nil),        // 0: protocol.ReferenceBatch
+	(*Done)(nil),                  // 1: protocol.Done
+	(*ReferenceQueueMessage)(nil), // 2: protocol.ReferenceQueueMessage
 }
 var file_src_joiner_protocol_reference_batch_proto_depIdxs = []int32{
-	0, // [0:0] is the sub-list for method output_type
-	0, // [0:0] is the sub-list for method input_type
-	0, // [0:0] is the sub-list for extension type_name
-	0, // [0:0] is the sub-list for extension extendee
-	0, // [0:0] is the sub-list for field type_name
+	0, // 0: protocol.ReferenceQueueMessage.reference_batch:type_name -> protocol.ReferenceBatch
+	1, // 1: protocol.ReferenceQueueMessage.done:type_name -> protocol.Done
+	2, // [2:2] is the sub-list for method output_type
+	2, // [2:2] is the sub-list for method input_type
+	2, // [2:2] is the sub-list for extension type_name
+	2, // [2:2] is the sub-list for extension extendee
+	0, // [0:2] is the sub-list for field type_name
 }
 
 func init() { file_src_joiner_protocol_reference_batch_proto_init() }
@@ -149,13 +238,17 @@ func file_src_joiner_protocol_reference_batch_proto_init() {
 	if File_src_joiner_protocol_reference_batch_proto != nil {
 		return
 	}
+	file_src_joiner_protocol_reference_batch_proto_msgTypes[2].OneofWrappers = []any{
+		(*ReferenceQueueMessage_ReferenceBatch)(nil),
+		(*ReferenceQueueMessage_Done)(nil),
+	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_src_joiner_protocol_reference_batch_proto_rawDesc), len(file_src_joiner_protocol_reference_batch_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   2,
+			NumMessages:   3,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

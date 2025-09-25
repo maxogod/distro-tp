@@ -10,3 +10,11 @@ message ReferenceBatch {
 }
 
 message Done {}
+
+message ReferenceQueueMessage {
+  oneof payload {
+    ReferenceBatch reference_batch = 1;
+    Done done = 2;
+  }
+}
+
