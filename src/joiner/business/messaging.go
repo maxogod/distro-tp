@@ -42,3 +42,19 @@ func StopConsumer(m middleware.MessageMiddleware) error {
 	}
 	return nil
 }
+
+func StartSender(gatewayAddress, queueName string) (middleware.MessageMiddleware, error) {
+	m, err := middleware.NewQueueMiddleware(gatewayAddress, queueName)
+	if err != nil {
+		return nil, fmt.Errorf("failed to start queue middleware: %w", err)
+	}
+
+	return m, nil
+}
+
+func StopSender(m middleware.MessageMiddleware) error {
+	if m.Close() != middleware.MessageMiddlewareSuccess {
+		return fmt.Errorf("failed to close middleware")
+	}
+	return nil
+}

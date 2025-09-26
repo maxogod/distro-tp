@@ -23,6 +23,7 @@ type Joiner struct {
 	taskQueues           TaskQueues
 	mutex                sync.Mutex
 	aggregatorQueues     AggregatorQueues
+	aggregatorQueue      middleware.MessageMiddleware
 }
 
 func defaultTaskQueues(config *config.Config) TaskQueues {
@@ -113,6 +114,16 @@ func (j *Joiner) HandleDone(queueName string, taskType models.TaskType) error {
 	j.mutex.Unlock()
 
 	if handlerTask != nil {
+		aggQueueName := j.aggregatorQueues[taskType]
+
+		// TODO: Hacer StopSender() en el handle del DoneMsg para los DataBatches
+		aggregatorQueue, senderErr := StartSender(j.config.GatewayAddress, aggQueueName)
+		if senderErr != nil {
+			return senderErr
+		}
+
+		j.aggregatorQueue = aggregatorQueue
+
 		if err := j.startDataConsumer(handlerTask, dataQueueNames); err != nil {
 			return err
 		}
@@ -121,21 +132,13 @@ func (j *Joiner) HandleDone(queueName string, taskType models.TaskType) error {
 	return nil
 }
 
-func (j *Joiner) SendBatchToAggregator(taskType models.TaskType, dataBatch *handler.DataBatch) error {
-	queueName := j.aggregatorQueues[taskType]
-
-	out, err := middleware.NewQueueMiddleware(j.config.GatewayAddress, queueName)
-	if err != nil {
-		return err
-	}
-	defer out.Close()
-
+func (j *Joiner) SendBatchToAggregator(dataBatch *handler.DataBatch) error {
 	dataBytes, err := proto.Marshal(dataBatch)
 	if err != nil {
 		return err
 	}
 
-	returnCode := out.Send(dataBytes)
+	returnCode := j.aggregatorQueue.Send(dataBytes)
 	if returnCode != middleware.MessageMiddlewareSuccess {
 		return fmt.Errorf("failed to send result: %d", returnCode)
 	}

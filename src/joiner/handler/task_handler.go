@@ -10,7 +10,7 @@ import (
 )
 
 type TaskHandlers map[models.TaskType]HandleTask
-type SendBatchToAggregator func(taskType models.TaskType, dataBatch *protocol.DataBatch) error
+type SendBatchToAggregator func(dataBatch *protocol.DataBatch) error
 
 type TaskHandler struct {
 	taskHandlers          TaskHandlers
@@ -70,7 +70,7 @@ func (th *TaskHandler) handleTaskType3(dataBatch *protocol.DataBatch, refDataset
 		return err
 	}
 
-	err = th.sendBatchToAggregator(models.TaskType(dataBatch.TaskType), joinedDataBatch)
+	err = th.sendBatchToAggregator(joinedDataBatch)
 	if err != nil {
 		return err
 	}
