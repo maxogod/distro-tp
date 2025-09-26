@@ -26,7 +26,7 @@ func StartConsumer(gatewayAddress, queueName string, handler MessageHandler) (mi
 		d <- nil
 	})
 
-	if int(e) != 0 {
+	if e != middleware.MessageMiddlewareSuccess {
 		return nil, fmt.Errorf("StartConsuming returned error code %d", int(e))
 	}
 

@@ -7,9 +7,9 @@ import (
 	"time"
 
 	"github.com/maxogod/distro-tp/src/common/middleware"
+	"github.com/maxogod/distro-tp/src/common/protocol"
 	joiner "github.com/maxogod/distro-tp/src/joiner/business"
 	"github.com/maxogod/distro-tp/src/joiner/config"
-	"github.com/maxogod/distro-tp/src/joiner/protocol"
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/protobuf/proto"
 )

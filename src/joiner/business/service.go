@@ -2,33 +2,38 @@ package service
 
 import (
 	"github.com/maxogod/distro-tp/src/common/middleware"
+	"github.com/maxogod/distro-tp/src/common/models"
 	"github.com/maxogod/distro-tp/src/joiner/config"
 	"github.com/maxogod/distro-tp/src/joiner/handler"
 )
 
+type TaskQueues map[models.TaskType][]string
+type MessageMiddlewares map[string]middleware.MessageMiddleware
+
 type Joiner struct {
 	config               *config.Config
-	referenceMiddlewares map[string]middleware.MessageMiddleware
-	dataMiddlewares      map[string]middleware.MessageMiddleware
+	referenceMiddlewares MessageMiddlewares
+	dataMiddlewares      MessageMiddlewares
 	taskHandler          *handler.TaskHandler
-	dataQueueNames       map[int32][]string
+	taskQueues           TaskQueues
+}
+
+func defaultTaskQueues(config *config.Config) TaskQueues {
+	return TaskQueues{
+		models.T2: {config.TransactionSumQueue, config.TransactionCountedQueue},
+		models.T3: {config.StoreTPVQueue},
+		models.T4: {config.UserTransactionsQueue},
+	}
 }
 
 func NewJoiner(config *config.Config) *Joiner {
-	joiner := &Joiner{
+	return &Joiner{
 		config:               config,
-		referenceMiddlewares: make(map[string]middleware.MessageMiddleware),
+		referenceMiddlewares: make(MessageMiddlewares),
 		taskHandler:          handler.NewTaskHandler(),
-		dataMiddlewares:      make(map[string]middleware.MessageMiddleware),
+		dataMiddlewares:      make(MessageMiddlewares),
+		taskQueues:           defaultTaskQueues(config),
 	}
-
-	joiner.dataQueueNames = map[int32][]string{
-		2: {config.TransactionSumQueue, config.TransactionCountedQueue},
-		3: {config.StoreTPVQueue},
-		4: {config.UserTransactionsQueue},
-	}
-
-	return joiner
 }
 
 func (j *Joiner) StartRefConsumer(referenceDatasetQueue string) error {
@@ -65,7 +70,7 @@ func (j *Joiner) Stop() error {
 	return nil
 }
 
-func (j *Joiner) HandleDone(queueName string, taskType int32) error {
+func (j *Joiner) HandleDone(queueName string, taskType models.TaskType) error {
 	if err := StopConsumer(j.referenceMiddlewares[queueName]); err != nil {
 		return err
 	}
@@ -73,7 +78,7 @@ func (j *Joiner) HandleDone(queueName string, taskType int32) error {
 
 	if len(j.referenceMiddlewares) == 0 {
 		handlerTask := j.taskHandler.HandleTask(taskType)
-		dataQueueNames := j.dataQueueNames[taskType]
+		dataQueueNames := j.taskQueues[models.TaskType(taskType)]
 
 		if err := j.startDataConsumer(handlerTask, dataQueueNames); err != nil {
 			return err

@@ -6,17 +6,17 @@ import (
 	"strings"
 	"time"
 
+	"github.com/maxogod/distro-tp/src/common/models"
+	"github.com/maxogod/distro-tp/src/common/protocol"
 	"github.com/maxogod/distro-tp/src/common/utils"
-	"github.com/maxogod/distro-tp/src/joiner/protocol"
 )
 
-var datasetNames = map[int32]string{
-	0: "menu_items",
-	1: "stores",
-	2: "users",
+var datasetNames = map[models.RefDatasetType]string{
+	models.MenuItems: "menu_items",
+	models.Stores:    "stores",
+	models.Users:     "users",
 }
 
-const datasetTypeUsers = 2
 const separatorBatchData = ","
 const registeredAtColumn = 3
 
@@ -34,14 +34,15 @@ func StoreReferenceData(storePath string, batch *protocol.ReferenceBatch) error 
 }
 
 func getDatasetFilename(storePath string, batch *protocol.ReferenceBatch) (string, bool) {
-	datasetName, ok := datasetNames[batch.DatasetType]
+	refDatasetType := models.RefDatasetType(batch.DatasetType)
+	datasetName, ok := datasetNames[refDatasetType]
 	if !ok {
 		return "", false
 	}
 
 	var datasetFilename string
 
-	if batch.DatasetType == datasetTypeUsers {
+	if refDatasetType == models.Users {
 		year, month, err := getYearMonth(batch.Payload)
 		if err != nil {
 			return "", false

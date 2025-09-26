@@ -1,7 +1,7 @@
 package handler
 
 import (
-	"github.com/maxogod/distro-tp/src/joiner/protocol"
+	"github.com/maxogod/distro-tp/src/common/protocol"
 	"google.golang.org/protobuf/proto"
 )
 
