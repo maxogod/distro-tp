@@ -12,14 +12,15 @@ import (
 )
 
 type Joiner struct {
-	config              *config.Config
-	referenceMiddleware middleware.MessageMiddleware
-	dataMiddleware      middleware.MessageMiddleware
+	config               *config.Config
+	referenceMiddlewares map[string]middleware.MessageMiddleware
+	dataMiddleware       middleware.MessageMiddleware
 }
 
 func NewJoiner(config *config.Config) *Joiner {
 	return &Joiner{
-		config: config,
+		config:               config,
+		referenceMiddlewares: make(map[string]middleware.MessageMiddleware),
 	}
 }
 
@@ -28,11 +29,11 @@ func (j *Joiner) StartRefConsumer(referenceDatasetQueue string) error {
 	if queueErr != nil {
 		return fmt.Errorf("failed to start queue middleware: %w", queueErr)
 	}
-	j.referenceMiddleware = m
+	j.referenceMiddlewares[referenceDatasetQueue] = m
 
-	e := j.referenceMiddleware.StartConsuming(func(consumeChannel middleware.ConsumeChannel, d chan error) {
+	e := m.StartConsuming(func(consumeChannel middleware.ConsumeChannel, d chan error) {
 		for msg := range consumeChannel {
-			j.handleMessage(&msg)
+			j.handleMessage(&msg, referenceDatasetQueue)
 		}
 		d <- nil
 	})
@@ -44,7 +45,7 @@ func (j *Joiner) StartRefConsumer(referenceDatasetQueue string) error {
 	return nil
 }
 
-func (j *Joiner) handleMessage(msg *amqp.Delivery) {
+func (j *Joiner) handleMessage(msg *amqp.Delivery, queueName string) {
 	var refQueueMsg protocol.ReferenceQueueMessage
 	if err := proto.Unmarshal(msg.Body, &refQueueMsg); err != nil {
 		_ = msg.Nack(false, false)
@@ -55,8 +56,14 @@ func (j *Joiner) handleMessage(msg *amqp.Delivery) {
 	case *protocol.ReferenceQueueMessage_ReferenceBatch:
 		joinerUtils.StoreReferenceData(j.config.StorePath, msg, payload.ReferenceBatch)
 	case *protocol.ReferenceQueueMessage_Done:
-		err := j.startDataConsumer(msg)
-		if err != nil {
+		stopErr := j.stopRefConsumer(queueName)
+		if stopErr != nil {
+			_ = msg.Nack(false, false)
+			return
+		}
+
+		startErr := j.startDataConsumer(msg)
+		if startErr != nil {
 			_ = msg.Nack(false, false)
 			return
 		}
@@ -64,6 +71,15 @@ func (j *Joiner) handleMessage(msg *amqp.Delivery) {
 		// Unknown message
 		_ = msg.Nack(false, false)
 	}
+}
+
+func (j *Joiner) stopRefConsumer(queueName string) error {
+	stopErr := j.stopRefMiddleware(j.referenceMiddlewares[queueName])
+	if stopErr != nil {
+		return stopErr
+	}
+	delete(j.referenceMiddlewares, queueName)
+	return nil
 }
 
 func (j *Joiner) startDataConsumer(msg *amqp.Delivery) error {
@@ -90,12 +106,10 @@ func (j *Joiner) startDataConsumer(msg *amqp.Delivery) error {
 }
 
 func (j *Joiner) Stop() error {
-	if j.referenceMiddleware != nil {
-		if err := j.referenceMiddleware.StopConsuming(); err == middleware.MessageMiddlewareMessageError {
-			return fmt.Errorf("failed to stop consuming")
-		}
-		if err := j.referenceMiddleware.Close(); err == middleware.MessageMiddlewareMessageError {
-			return fmt.Errorf("failed to close middleware")
+	for _, referenceMiddleware := range j.referenceMiddlewares {
+		err := j.stopRefMiddleware(referenceMiddleware)
+		if err != nil {
+			return err
 		}
 	}
 	return nil
@@ -103,4 +117,15 @@ func (j *Joiner) Stop() error {
 
 func (j *Joiner) handleTaskType3(msg amqp.Delivery) {
 
+}
+
+func (j *Joiner) stopRefMiddleware(referenceMiddleware middleware.MessageMiddleware) error {
+	if referenceMiddleware.StopConsuming() != middleware.MessageMiddlewareSuccess {
+		return fmt.Errorf("failed to stop consuming")
+	}
+	if referenceMiddleware.Close() != middleware.MessageMiddlewareSuccess {
+		return fmt.Errorf("failed to close middleware")
+	}
+
+	return nil
 }
