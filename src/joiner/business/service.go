@@ -62,10 +62,12 @@ func (j *Joiner) handleMessage(msg *amqp.Delivery, queueName string) {
 			return
 		}
 
-		startErr := j.startDataConsumer(msg)
-		if startErr != nil {
-			_ = msg.Nack(false, false)
-			return
+		if len(j.referenceMiddlewares) == 0 {
+			startErr := j.startDataConsumer(msg)
+			if startErr != nil {
+				_ = msg.Nack(false, false)
+				return
+			}
 		}
 	default:
 		// Unknown message
