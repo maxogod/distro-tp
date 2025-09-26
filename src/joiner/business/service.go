@@ -2,6 +2,7 @@ package service
 
 import (
 	"fmt"
+	"sync"
 
 	"github.com/maxogod/distro-tp/src/common/middleware"
 	"github.com/maxogod/distro-tp/src/common/models"
@@ -19,6 +20,7 @@ type Joiner struct {
 	dataMiddlewares      MessageMiddlewares
 	taskHandler          *handler.TaskHandler
 	taskQueues           TaskQueues
+	mutex                sync.Mutex
 }
 
 func defaultTaskQueues(config *config.Config) TaskQueues {
@@ -68,24 +70,38 @@ func (j *Joiner) startDataConsumer(handlerTask handler.HandleTask, dataQueueName
 }
 
 func (j *Joiner) Stop() error {
+	j.mutex.Lock()
+	defer j.mutex.Unlock()
+
 	for _, refMiddleware := range j.referenceMiddlewares {
 		if err := StopConsumer(refMiddleware); err != nil {
 			return err
 		}
 	}
+	j.referenceMiddlewares = make(MessageMiddlewares)
 	return nil
 }
 
 func (j *Joiner) HandleDone(queueName string, taskType models.TaskType) error {
-	if err := StopConsumer(j.referenceMiddlewares[queueName]); err != nil {
-		return err
+	j.mutex.Lock()
+
+	if referenceMiddleware, ok := j.referenceMiddlewares[queueName]; ok {
+		if err := StopConsumer(referenceMiddleware); err != nil {
+			return err
+		}
+		delete(j.referenceMiddlewares, queueName)
 	}
-	delete(j.referenceMiddlewares, queueName)
 
+	var handlerTask handler.HandleTask
+	var dataQueueNames []string
 	if len(j.referenceMiddlewares) == 0 {
-		handlerTask := j.taskHandler.HandleTask(taskType)
-		dataQueueNames := j.taskQueues[taskType]
+		handlerTask = j.taskHandler.HandleTask(taskType)
+		dataQueueNames = j.taskQueues[taskType]
+	}
 
+	j.mutex.Unlock()
+
+	if handlerTask != nil {
 		if err := j.startDataConsumer(handlerTask, dataQueueNames); err != nil {
 			return err
 		}
