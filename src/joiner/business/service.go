@@ -12,6 +12,7 @@ import (
 )
 
 type TaskQueues map[models.TaskType][]string
+type AggregatorQueues map[models.TaskType]string
 type MessageMiddlewares map[string]middleware.MessageMiddleware
 
 type Joiner struct {
@@ -21,6 +22,7 @@ type Joiner struct {
 	taskHandler          *handler.TaskHandler
 	taskQueues           TaskQueues
 	mutex                sync.Mutex
+	aggregatorQueues     AggregatorQueues
 }
 
 func defaultTaskQueues(config *config.Config) TaskQueues {
@@ -31,12 +33,21 @@ func defaultTaskQueues(config *config.Config) TaskQueues {
 	}
 }
 
+func defaultAggregatorQueues(config *config.Config) AggregatorQueues {
+	return AggregatorQueues{
+		models.T2: config.JoinedTransactionsQueue,
+		models.T3: config.JoinedStoresTPVQueue,
+		models.T4: config.JoinedUserTransactionsQueue,
+	}
+}
+
 func NewJoiner(config *config.Config) *Joiner {
 	joiner := &Joiner{
 		config:               config,
 		referenceMiddlewares: make(MessageMiddlewares),
 		dataMiddlewares:      make(MessageMiddlewares),
 		taskQueues:           defaultTaskQueues(config),
+		aggregatorQueues:     defaultAggregatorQueues(config),
 	}
 
 	joiner.taskHandler = handler.NewTaskHandler(joiner.SendBatchToAggregator)
@@ -111,8 +122,7 @@ func (j *Joiner) HandleDone(queueName string, taskType models.TaskType) error {
 }
 
 func (j *Joiner) SendBatchToAggregator(taskType models.TaskType, dataBatch *handler.DataBatch) error {
-	// TODO: Get queue name from config based on task type
-	queueName := j.config.AggregatorQueue
+	queueName := j.aggregatorQueues[taskType]
 
 	out, err := middleware.NewQueueMiddleware(j.config.GatewayAddress, queueName)
 	if err != nil {

@@ -102,13 +102,15 @@ func StartJoiner(t *testing.T, rabbitURL string, storeDir string, refQueueNames 
 	t.Helper()
 
 	joinerConfig := config.Config{
-		GatewayAddress:          rabbitURL,
-		StorePath:               storeDir,
-		StoreTPVQueue:           "store_tpv",
-		TransactionCountedQueue: "transaction_counted",
-		TransactionSumQueue:     "transaction_sum",
-		UserTransactionsQueue:   "user_transactions",
-		AggregatorQueue:         "aggregator",
+		GatewayAddress:              rabbitURL,
+		StorePath:                   storeDir,
+		StoreTPVQueue:               "store_tpv",
+		TransactionCountedQueue:     "transaction_counted",
+		TransactionSumQueue:         "transaction_sum",
+		UserTransactionsQueue:       "user_transactions",
+		JoinedTransactionsQueue:     "joined_transactions_queue",
+		JoinedStoresTPVQueue:        "joined_stores_tpv_queue",
+		JoinedUserTransactionsQueue: "joined_user_transactions_queue",
 	}
 
 	j := joiner.NewJoiner(&joinerConfig)
