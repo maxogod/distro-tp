@@ -1,0 +1,11 @@
+syntax = "proto3";
+
+package protocol;
+
+option go_package = "src/joiner/protocol;protocol";
+
+message DataBatch {
+  int32 task_type = 1;
+  bytes payload = 2;
+}
+

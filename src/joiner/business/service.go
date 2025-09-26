@@ -5,6 +5,7 @@ import (
 
 	"github.com/maxogod/distro-tp/src/common/middleware"
 	"github.com/maxogod/distro-tp/src/joiner/config"
+	"github.com/maxogod/distro-tp/src/joiner/handler"
 	"github.com/maxogod/distro-tp/src/joiner/protocol"
 	joinerUtils "github.com/maxogod/distro-tp/src/joiner/utils"
 	amqp "github.com/rabbitmq/amqp091-go"
@@ -14,14 +15,26 @@ import (
 type Joiner struct {
 	config               *config.Config
 	referenceMiddlewares map[string]middleware.MessageMiddleware
-	dataMiddleware       middleware.MessageMiddleware
+	dataMiddlewares      map[string]middleware.MessageMiddleware
+	taskHandler          *handler.TaskHandler
+	dataQueueNames       map[int32][]string
 }
 
 func NewJoiner(config *config.Config) *Joiner {
-	return &Joiner{
+	joiner := &Joiner{
 		config:               config,
 		referenceMiddlewares: make(map[string]middleware.MessageMiddleware),
+		taskHandler:          handler.NewTaskHandler(),
+		dataMiddlewares:      make(map[string]middleware.MessageMiddleware),
 	}
+
+	joiner.dataQueueNames = map[int32][]string{
+		2: {config.TransactionSumQueue, config.TransactionCountedQueue},
+		3: {config.StoreTPVQueue},
+		4: {config.UserTransactionsQueue},
+	}
+
+	return joiner
 }
 
 func (j *Joiner) StartRefConsumer(referenceDatasetQueue string) error {
@@ -63,7 +76,10 @@ func (j *Joiner) handleMessage(msg *amqp.Delivery, queueName string) {
 		}
 
 		if len(j.referenceMiddlewares) == 0 {
-			startErr := j.startDataConsumer(msg)
+			handlerTask := j.taskHandler.HandleTask(payload.Done.TaskType)
+			dataQueueNames := j.dataQueueNames[payload.Done.TaskType]
+
+			startErr := j.startDataConsumer(msg, handlerTask, dataQueueNames)
 			if startErr != nil {
 				_ = msg.Nack(false, false)
 				return
@@ -84,25 +100,33 @@ func (j *Joiner) stopRefConsumer(queueName string) error {
 	return nil
 }
 
-func (j *Joiner) startDataConsumer(msg *amqp.Delivery) error {
-	m, queueErr := middleware.NewQueueMiddleware(j.config.GatewayAddress, j.config.StoreTPVQueue)
-	if queueErr != nil {
-		return fmt.Errorf("failed to start queue middleware: %w", queueErr)
-	}
-	j.dataMiddleware = m
-	_ = msg.Ack(false)
-
-	e := j.dataMiddleware.StartConsuming(func(consumeChannel middleware.ConsumeChannel, d chan error) {
-		for dataMsg := range consumeChannel {
-			j.handleTaskType3(dataMsg)
-			_ = dataMsg.Ack(false)
+func (j *Joiner) startDataConsumer(msg *amqp.Delivery, handlerMsg func(dataBatch *protocol.DataBatch), dataQueueNames []string) error {
+	for _, dataQueueName := range dataQueueNames {
+		m, queueErr := middleware.NewQueueMiddleware(j.config.GatewayAddress, dataQueueName)
+		if queueErr != nil {
+			return fmt.Errorf("failed to start queue middleware: %w", queueErr)
 		}
-		d <- nil
-	})
+		j.dataMiddlewares[dataQueueName] = m
 
-	if int(e) != 0 {
-		return fmt.Errorf("StartConsuming returned error code %d", int(e))
+		e := m.StartConsuming(func(consumeChannel middleware.ConsumeChannel, d chan error) {
+			for dataMsg := range consumeChannel {
+				var dataBatch protocol.DataBatch
+				if err := proto.Unmarshal(dataMsg.Body, &dataBatch); err != nil {
+					_ = msg.Nack(false, false)
+					return
+				}
+
+				handlerMsg(&dataBatch)
+			}
+			d <- nil
+		})
+
+		if int(e) != 0 {
+			return fmt.Errorf("StartConsuming returned error code %d", int(e))
+		}
 	}
+
+	_ = msg.Ack(false)
 
 	return nil
 }
@@ -115,10 +139,6 @@ func (j *Joiner) Stop() error {
 		}
 	}
 	return nil
-}
-
-func (j *Joiner) handleTaskType3(msg amqp.Delivery) {
-
 }
 
 func (j *Joiner) stopRefMiddleware(referenceMiddleware middleware.MessageMiddleware) error {

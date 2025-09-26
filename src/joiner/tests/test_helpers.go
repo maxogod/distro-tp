@@ -37,8 +37,10 @@ func SendReferenceBatches(t *testing.T, pub middleware.MessageMiddleware, csvPay
 	}
 }
 
-func SendDoneMessage(t *testing.T, pub middleware.MessageMiddleware) {
-	doneMsg := &protocol.Done{}
+func SendDoneMessage(t *testing.T, pub middleware.MessageMiddleware, datasetType int32) {
+	doneMsg := &protocol.Done{
+		TaskType: datasetType,
+	}
 
 	msgProto := &protocol.ReferenceQueueMessage{
 		Payload: &protocol.ReferenceQueueMessage_Done{
@@ -53,13 +55,16 @@ func SendDoneMessage(t *testing.T, pub middleware.MessageMiddleware) {
 	assert.Equal(t, 0, int(e))
 }
 
-func StartJoiner(t *testing.T, rabbitURL string, storeDir string, refQueueNames []string, storeTPVQueue string) *joiner.Joiner {
+func StartJoiner(t *testing.T, rabbitURL string, storeDir string, refQueueNames []string) *joiner.Joiner {
 	t.Helper()
 
 	joinerConfig := config.Config{
-		GatewayAddress: rabbitURL,
-		StorePath:      storeDir,
-		StoreTPVQueue:  storeTPVQueue,
+		GatewayAddress:          rabbitURL,
+		StorePath:               storeDir,
+		StoreTPVQueue:           "store_tpv",
+		TransactionCountedQueue: "transaction_counted",
+		TransactionSumQueue:     "transaction_sum",
+		UserTransactionsQueue:   "user_transactions",
 	}
 
 	j := joiner.NewJoiner(&joinerConfig)

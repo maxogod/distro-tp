@@ -75,6 +75,7 @@ func (x *ReferenceBatch) GetPayload() []byte {
 
 type Done struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
+	TaskType      int32                  `protobuf:"varint,1,opt,name=task_type,json=taskType,proto3" json:"task_type,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -107,6 +108,13 @@ func (x *Done) ProtoReflect() protoreflect.Message {
 // Deprecated: Use Done.ProtoReflect.Descriptor instead.
 func (*Done) Descriptor() ([]byte, []int) {
 	return file_src_joiner_protocol_reference_batch_proto_rawDescGZIP(), []int{1}
+}
+
+func (x *Done) GetTaskType() int32 {
+	if x != nil {
+		return x.TaskType
+	}
+	return 0
 }
 
 type ReferenceQueueMessage struct {
@@ -198,8 +206,9 @@ const file_src_joiner_protocol_reference_batch_proto_rawDesc = "" +
 	")src/joiner/protocol/reference_batch.proto\x12\bprotocol\"M\n" +
 	"\x0eReferenceBatch\x12!\n" +
 	"\fdataset_type\x18\x01 \x01(\x05R\vdatasetType\x12\x18\n" +
-	"\apayload\x18\x02 \x01(\fR\apayload\"\x06\n" +
-	"\x04Done\"\x8d\x01\n" +
+	"\apayload\x18\x02 \x01(\fR\apayload\"#\n" +
+	"\x04Done\x12\x1b\n" +
+	"\ttask_type\x18\x01 \x01(\x05R\btaskType\"\x8d\x01\n" +
 	"\x15ReferenceQueueMessage\x12C\n" +
 	"\x0freference_batch\x18\x01 \x01(\v2\x18.protocol.ReferenceBatchH\x00R\x0ereferenceBatch\x12$\n" +
 	"\x04done\x18\x02 \x01(\v2\x0e.protocol.DoneH\x00R\x04doneB\t\n" +

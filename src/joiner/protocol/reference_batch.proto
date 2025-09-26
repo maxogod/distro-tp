@@ -9,7 +9,9 @@ message ReferenceBatch {
   bytes payload = 2;
 }
 
-message Done {}
+message Done {
+  int32 task_type = 1;
+}
 
 message ReferenceQueueMessage {
   oneof payload {
