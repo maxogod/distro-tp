@@ -154,6 +154,4 @@ func TestJoinerPersistReferenceBatchesUsersAndStores(t *testing.T) {
 
 	helper.AssertFileContainsPayloads(t, expectedFile, usersCsvPayloads)
 	helper.AssertFileContainsPayloads(t, anotherExpectedFile, storesCsvPayloads)
-
-	fmt.Println("boca")
 }
