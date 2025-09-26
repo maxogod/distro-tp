@@ -1,7 +1,6 @@
 package tests_test
 
 import (
-	"fmt"
 	"path/filepath"
 	"testing"
 
@@ -10,92 +9,66 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-const datasetTypeMenuItems = 0
-const datasetTypeStores = 1
-const datasetTypeUsers = 2
-const taskType3 = 3
-const taskType4 = 4
+const (
+	DatasetMenuItems = 0
+	DatasetStores    = 1
+	DatasetUsers     = 2
+	Task3            = 3
+	Task4            = 4
+)
 
 func TestJoinerPersistReferenceBatchesMenuItems(t *testing.T) {
-	rabbitURL := "amqp://guest:guest@localhost:5672/"
-	refQueueName := "test_menu_items"
 	storeDir := t.TempDir()
-	datasetName := "menu_items"
-
-	j := helper.StartJoiner(t, rabbitURL, storeDir, []string{refQueueName})
-	defer j.Stop()
-
-	pub, err := middleware.NewQueueMiddleware(rabbitURL, refQueueName)
-	assert.NoError(t, err)
-	defer func() {
-		_ = pub.Delete()
-		_ = pub.Close()
-	}()
-
-	csvPayloads := [][]byte{
-		[]byte("1,Espresso,coffee,6.0,False,,\n"),
-		[]byte("2,Americano,coffee,7.0,False,,\n"),
+	testCase := helper.TestCase{
+		Queue:       "test_menu_items",
+		DatasetType: DatasetMenuItems,
+		CsvPayloads: [][]byte{
+			[]byte("1,Espresso,coffee,6.0,False,,\n"),
+			[]byte("2,Americano,coffee,7.0,False,,\n"),
+		},
+		ExpectedFiles: []string{filepath.Join(storeDir, "menu_items.csv")},
+		TaskDone:      0,
+		SendDone:      false,
 	}
-	helper.SendReferenceBatches(t, pub, csvPayloads, datasetTypeMenuItems)
-
-	expectedFile := filepath.Join(storeDir, fmt.Sprintf("%s.csv", datasetName))
-
-	helper.AssertFileContainsPayloads(t, expectedFile, csvPayloads)
+	helper.RunTest(t, storeDir, testCase)
 }
 
 func TestJoinerPersistReferenceBatchesUsers(t *testing.T) {
-	rabbitURL := "amqp://guest:guest@localhost:5672/"
-	refQueueName := "test_users"
 	storeDir := t.TempDir()
-	datasetName := "users"
-
-	j := helper.StartJoiner(t, rabbitURL, storeDir, []string{refQueueName})
-	defer j.Stop()
-
-	pub, err := middleware.NewQueueMiddleware(rabbitURL, refQueueName)
-	assert.NoError(t, err)
-	defer func() {
-		_ = pub.Delete()
-		_ = pub.Close()
-	}()
-
-	csvPayloads := [][]byte{
-		[]byte("1,female,1970-04-22,2023-07-01 08:13:07\n"),
-		[]byte("581,male,2004-06-13,2023-08-01 09:39:30\n"),
+	testCase := helper.TestCase{
+		Queue:       "test_users",
+		DatasetType: DatasetUsers,
+		CsvPayloads: [][]byte{
+			[]byte("1,female,1970-04-22,2023-07-01 08:13:07\n"), // payload for expectedFiles[0]
+			[]byte("581,male,2004-06-13,2023-08-01 09:39:30\n"), // payload for expectedFiles[1]
+		},
+		ExpectedFiles: []string{
+			filepath.Join(storeDir, "users_202307.csv"),
+			filepath.Join(storeDir, "users_202308.csv"),
+		},
+		TaskDone: Task4,
+		SendDone: false,
 	}
-	helper.SendReferenceBatches(t, pub, csvPayloads, datasetTypeUsers)
-
-	expectedFile := filepath.Join(storeDir, fmt.Sprintf("%s_202307.csv", datasetName))
-	anotherExpectedFile := filepath.Join(storeDir, fmt.Sprintf("%s_202308.csv", datasetName))
-
-	helper.AssertFileContainsPayloads(t, expectedFile, [][]byte{csvPayloads[0]})
-	helper.AssertFileContainsPayloads(t, anotherExpectedFile, [][]byte{csvPayloads[1]})
+	helper.RunTest(t, storeDir, testCase)
 }
 
 func TestJoinerHandlesDoneAndConsumesNextQueueTask3(t *testing.T) {
-	rabbitURL := "amqp://guest:guest@localhost:5672/"
-	refQueueName := "test_stores"
-	storesTPVQueue := "store_tpv"
 	storeDir := t.TempDir()
-
-	j := helper.StartJoiner(t, rabbitURL, storeDir, []string{refQueueName})
-	defer j.Stop()
-
-	pubRef, err := middleware.NewQueueMiddleware(rabbitURL, refQueueName)
-	assert.NoError(t, err)
-	defer func() {
-		_ = pubRef.Delete()
-		_ = pubRef.Close()
-	}()
-
-	csvPayloads := [][]byte{
-		[]byte("1,G Coffee @ USJ 89q,Jalan Dewan Bahasa 5/9,50998,USJ 89q,Kuala Lumpur,3.117134,101.615027\n"),
-		[]byte("2,G Coffee @ USJ 89q,Jalan Dewan Bahasa 5/9,50998,USJ 89q,Kuala Lumpur,3.117134,101.615027\n"),
+	testCase := helper.TestCase{
+		Queue:       "test_stores",
+		DatasetType: DatasetStores,
+		CsvPayloads: [][]byte{
+			[]byte("1,G Coffee @ USJ 89q,Jalan Dewan Bahasa 5/9,50998,USJ 89q,Kuala Lumpur,3.117134,101.615027\n"),
+			[]byte("2,G Coffee @ USJ 89q,Jalan Dewan Bahasa 5/9,50998,USJ 89q,Kuala Lumpur,3.117134,101.615027\n"),
+		},
+		ExpectedFiles: []string{filepath.Join(storeDir, "stores.csv")},
+		TaskDone:      Task3,
+		SendDone:      true,
 	}
-	helper.SendReferenceBatches(t, pubRef, csvPayloads, datasetTypeStores)
-	helper.SendDoneMessage(t, pubRef, taskType3)
+	helper.RunTest(t, storeDir, testCase)
 
-	pubProcessedData, err := middleware.NewQueueMiddleware(rabbitURL, storesTPVQueue)
+	storesTPVQueue := "store_tpv"
+	pubProcessedData, err := middleware.NewQueueMiddleware(helper.RabbitURL, storesTPVQueue)
 	assert.NoError(t, err)
 	defer func() {
 		_ = pubProcessedData.Delete()
@@ -110,49 +83,32 @@ func TestJoinerHandlesDoneAndConsumesNextQueueTask3(t *testing.T) {
 }
 
 func TestJoinerPersistReferenceBatchesUsersAndStores(t *testing.T) {
-	rabbitURL := "amqp://guest:guest@localhost:5672/"
 	storeDir := t.TempDir()
-	refQueueNames := []string{"test_users", "test_stores"}
-
-	usersDatasetName := "users"
-	storesDatasetName := "stores"
-
-	j := helper.StartJoiner(t, rabbitURL, storeDir, refQueueNames)
-	defer j.Stop()
-
-	usersPub, queueErr := middleware.NewQueueMiddleware(rabbitURL, refQueueNames[0])
-	assert.NoError(t, queueErr)
-	defer func() {
-		_ = usersPub.Delete()
-		_ = usersPub.Close()
-	}()
-
-	storesPub, queueErr := middleware.NewQueueMiddleware(rabbitURL, refQueueNames[1])
-	assert.NoError(t, queueErr)
-	defer func() {
-		_ = storesPub.Delete()
-		_ = storesPub.Close()
-	}()
-
-	usersCsvPayloads := [][]byte{
-		[]byte("1,female,1970-04-22,2023-07-01 08:13:07\n"),
-		[]byte("2,female,1970-04-22,2023-07-01 08:13:07\n"),
+	testCaseStores := helper.TestCase{
+		Queue:       "test_stores",
+		DatasetType: DatasetStores,
+		CsvPayloads: [][]byte{
+			[]byte("1,G Coffee @ USJ 89q,Jalan Dewan Bahasa 5/9,50998,USJ 89q,Kuala Lumpur,3.117134,101.615027\n"),
+			[]byte("2,G Coffee @ USJ 89q,Jalan Dewan Bahasa 5/9,50998,USJ 89q,Kuala Lumpur,3.117134,101.615027\n"),
+			[]byte("3,G Coffee @ USJ 89q,Jalan Dewan Bahasa 5/9,50998,USJ 89q,Kuala Lumpur,3.117134,101.615027\n"),
+			[]byte("4,G Coffee @ USJ 89q,Jalan Dewan Bahasa 5/9,50998,USJ 89q,Kuala Lumpur,3.117134,101.615027\n"),
+		},
+		ExpectedFiles: []string{filepath.Join(storeDir, "stores.csv")},
+		TaskDone:      Task4,
+		SendDone:      true,
 	}
-	helper.SendReferenceBatches(t, usersPub, usersCsvPayloads, datasetTypeUsers)
-	helper.SendDoneMessage(t, usersPub, taskType4)
+	helper.RunTest(t, storeDir, testCaseStores)
 
-	storesCsvPayloads := [][]byte{
-		[]byte("1,G Coffee @ USJ 89q,Jalan Dewan Bahasa 5/9,50998,USJ 89q,Kuala Lumpur,3.117134,101.615027\n"),
-		[]byte("2,G Coffee @ USJ 89q,Jalan Dewan Bahasa 5/9,50998,USJ 89q,Kuala Lumpur,3.117134,101.615027\n"),
-		[]byte("3,G Coffee @ USJ 89q,Jalan Dewan Bahasa 5/9,50998,USJ 89q,Kuala Lumpur,3.117134,101.615027\n"),
-		[]byte("4,G Coffee @ USJ 89q,Jalan Dewan Bahasa 5/9,50998,USJ 89q,Kuala Lumpur,3.117134,101.615027\n"),
+	testCaseUsers := helper.TestCase{
+		Queue:       "test_users",
+		DatasetType: DatasetUsers,
+		CsvPayloads: [][]byte{
+			[]byte("1,female,1970-04-22,2023-07-01 08:13:07\n"),
+			[]byte("2,female,1970-04-22,2023-07-01 08:13:07\n"),
+		},
+		ExpectedFiles: []string{filepath.Join(storeDir, "users_202307.csv")},
+		TaskDone:      Task4,
+		SendDone:      true,
 	}
-	helper.SendReferenceBatches(t, storesPub, storesCsvPayloads, datasetTypeStores)
-	helper.SendDoneMessage(t, storesPub, taskType4)
-
-	expectedFile := filepath.Join(storeDir, fmt.Sprintf("%s_202307.csv", usersDatasetName))
-	anotherExpectedFile := filepath.Join(storeDir, fmt.Sprintf("%s.csv", storesDatasetName))
-
-	helper.AssertFileContainsPayloads(t, expectedFile, usersCsvPayloads)
-	helper.AssertFileContainsPayloads(t, anotherExpectedFile, storesCsvPayloads)
+	helper.RunTest(t, storeDir, testCaseUsers)
 }

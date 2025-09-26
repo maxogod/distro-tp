@@ -14,6 +14,46 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
+const (
+	DatasetUsers = 2
+	RabbitURL    = "amqp://guest:guest@localhost:5672/"
+)
+
+type TestCase struct {
+	Queue         string
+	DatasetType   int32
+	CsvPayloads   [][]byte
+	ExpectedFiles []string
+	TaskDone      int32
+	SendDone      bool
+}
+
+func RunTest(t *testing.T, storeDir string, c TestCase) {
+	j := StartJoiner(t, RabbitURL, storeDir, []string{c.Queue})
+	defer j.Stop()
+
+	pub, err := middleware.NewQueueMiddleware(RabbitURL, c.Queue)
+	assert.NoError(t, err)
+	defer func() {
+		_ = pub.Delete()
+		_ = pub.Close()
+	}()
+
+	SendReferenceBatches(t, pub, c.CsvPayloads, c.DatasetType)
+
+	for i, expectedFile := range c.ExpectedFiles {
+		if c.DatasetType != DatasetUsers {
+			AssertFileContainsPayloads(t, expectedFile, c.CsvPayloads)
+		} else {
+			AssertFileContainsPayloads(t, expectedFile, [][]byte{c.CsvPayloads[i]})
+		}
+	}
+
+	if c.SendDone {
+		SendDoneMessage(t, pub, c.TaskDone)
+	}
+}
+
 func SendReferenceBatches(t *testing.T, pub middleware.MessageMiddleware, csvPayloads [][]byte, datasetType int32) {
 	t.Helper()
 
