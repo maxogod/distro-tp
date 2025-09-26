@@ -8,10 +8,6 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestMain(t *testing.M) {
-	t.Run()
-}
-
 // TestWorkingQueue1push1consume tests the success case of a single producer single consumer
 // approach to working queues middleware.
 func TestWorkingQueue1push1consume(t *testing.T) {

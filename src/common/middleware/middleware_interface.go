@@ -28,10 +28,13 @@ type MessageMiddlewareQueue struct {
 }
 
 type MessageMiddlewareExchange struct {
-	exchangeName   string
-	routeKeys      []string
-	channel        MiddlewareChannel
-	consumeChannel ConsumeChannel
+	exchangeName      string
+	routeKeys         []string
+	conn              MiddlewareConnection
+	channel           MiddlewareChannel
+	consumerQueueName string
+	consumeChannel    ConsumeChannel
+	consumerTag       string
 }
 
 // TODO: check if done channel is really necessary (probably not)
