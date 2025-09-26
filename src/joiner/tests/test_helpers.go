@@ -3,7 +3,6 @@ package tests
 import (
 	"bytes"
 	"os"
-	"path/filepath"
 	"testing"
 	"time"
 
@@ -31,6 +30,8 @@ type TestCase struct {
 }
 
 func RunTest(t *testing.T, storeDir string, c TestCase) {
+	t.Helper()
+
 	j := StartJoiner(t, RabbitURL, storeDir, []string{c.Queue})
 	defer j.Stop()
 
@@ -182,30 +183,15 @@ func AssertJoinerConsumed(t *testing.T, m middleware.MessageMiddleware, expected
 	}
 }
 
-func PrepareStoresCSV(t *testing.T) {
+func PrepareDataBatch(t *testing.T, tpvs []*jProtocol.StoreTPV) *protocol.DataBatch {
 	t.Helper()
 
-	dir := t.TempDir()
-	storesCSV := filepath.Join(dir, "stores.csv")
-
-	storesContent := `store_id,store_name,street,postal_code,city,state,latitude,longitude
-	5,G Coffee @ Seksyen 21,Jalan 1,12345,CityA,StateA,1.0,2.0
-	6,G Coffee @ Alam Tun Hussein Onn,Jalan 2,23456,CityB,StateB,3.0,4.0
-	4,G Coffee @ Kampung Changkat,Jalan 3,34567,CityC,StateC,5.0,6.0
-	`
-
-	if err := os.WriteFile(storesCSV, []byte(storesContent), 0644); err != nil {
-		t.Fatalf("failed to write stores.csv: %v", err)
+	container := &jProtocol.StoresTPV{
+		Items: tpvs,
 	}
-}
 
-func PrepareDataBatch(t *testing.T, tpvs []*jProtocol.StoreTPV) *protocol.DataBatch {
-	var payload []byte
-	for _, tpv := range tpvs {
-		b, err := proto.Marshal(tpv)
-		assert.NoError(t, err)
-		payload = append(payload, b...)
-	}
+	payload, err := proto.Marshal(container)
+	assert.NoError(t, err)
 
 	return &protocol.DataBatch{
 		TaskType: 3,
@@ -214,6 +200,8 @@ func PrepareDataBatch(t *testing.T, tpvs []*jProtocol.StoreTPV) *protocol.DataBa
 }
 
 func SendDataBatch(t *testing.T, inputQueue string, dataBatch *protocol.DataBatch) {
+	t.Helper()
+
 	pubProcessedData, err := middleware.NewQueueMiddleware(RabbitURL, inputQueue)
 	assert.NoError(t, err)
 	defer func() {
@@ -228,6 +216,8 @@ func SendDataBatch(t *testing.T, inputQueue string, dataBatch *protocol.DataBatc
 }
 
 func GetOutputMessage(t *testing.T, outputQueue string) *protocol.DataBatch {
+	t.Helper()
+
 	consumer, err := middleware.NewQueueMiddleware(RabbitURL, outputQueue)
 	assert.NoError(t, err)
 	defer consumer.Close()
@@ -257,6 +247,8 @@ func GetOutputMessage(t *testing.T, outputQueue string) *protocol.DataBatch {
 }
 
 func AssertJoinedBatchIsTheExpected(t *testing.T, received *protocol.DataBatch, expected []*jProtocol.JoinStoreTPV) {
+	t.Helper()
+
 	assert.NotNil(t, received, "received DataBatch should not be nil")
 
 	var joinedBatch jProtocol.JoinStoreTPVBatch

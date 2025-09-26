@@ -1,10 +1,13 @@
 package service
 
 import (
+	"fmt"
+
 	"github.com/maxogod/distro-tp/src/common/middleware"
 	"github.com/maxogod/distro-tp/src/common/models"
 	"github.com/maxogod/distro-tp/src/joiner/config"
 	"github.com/maxogod/distro-tp/src/joiner/handler"
+	"google.golang.org/protobuf/proto"
 )
 
 type TaskQueues map[models.TaskType][]string
@@ -27,13 +30,16 @@ func defaultTaskQueues(config *config.Config) TaskQueues {
 }
 
 func NewJoiner(config *config.Config) *Joiner {
-	return &Joiner{
+	joiner := &Joiner{
 		config:               config,
 		referenceMiddlewares: make(MessageMiddlewares),
-		taskHandler:          handler.NewTaskHandler(),
 		dataMiddlewares:      make(MessageMiddlewares),
 		taskQueues:           defaultTaskQueues(config),
 	}
+
+	joiner.taskHandler = handler.NewTaskHandler(joiner.SendBatchToAggregator)
+
+	return joiner
 }
 
 func (j *Joiner) StartRefConsumer(referenceDatasetQueue string) error {
@@ -50,7 +56,7 @@ func (j *Joiner) StartRefConsumer(referenceDatasetQueue string) error {
 
 func (j *Joiner) startDataConsumer(handlerTask handler.HandleTask, dataQueueNames []string) error {
 	for _, dataQueueName := range dataQueueNames {
-		dataHandler := handler.NewDataHandler(handlerTask)
+		dataHandler := handler.NewDataHandler(handlerTask, j.config.StorePath)
 
 		m, err := StartConsumer(j.config.GatewayAddress, dataQueueName, dataHandler.HandleDataMessage)
 		if err != nil {
@@ -78,11 +84,34 @@ func (j *Joiner) HandleDone(queueName string, taskType models.TaskType) error {
 
 	if len(j.referenceMiddlewares) == 0 {
 		handlerTask := j.taskHandler.HandleTask(taskType)
-		dataQueueNames := j.taskQueues[models.TaskType(taskType)]
+		dataQueueNames := j.taskQueues[taskType]
 
 		if err := j.startDataConsumer(handlerTask, dataQueueNames); err != nil {
 			return err
 		}
+	}
+
+	return nil
+}
+
+func (j *Joiner) SendBatchToAggregator(taskType models.TaskType, dataBatch *handler.DataBatch) error {
+	// TODO: Get queue name from config based on task type
+	queueName := j.config.AggregatorQueue
+
+	out, err := middleware.NewQueueMiddleware(j.config.GatewayAddress, queueName)
+	if err != nil {
+		return err
+	}
+	defer out.Close()
+
+	dataBytes, err := proto.Marshal(dataBatch)
+	if err != nil {
+		return err
+	}
+
+	returnCode := out.Send(dataBytes)
+	if returnCode != middleware.MessageMiddlewareSuccess {
+		return fmt.Errorf("failed to send result: %d", returnCode)
 	}
 
 	return nil

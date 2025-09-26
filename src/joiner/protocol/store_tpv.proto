@@ -9,3 +9,7 @@ message StoreTPV {
   int32 store_id = 2;
   int64 tpv = 3;
 }
+
+message StoresTPV {
+  repeated StoreTPV items = 1;
+}

@@ -1,0 +1,16 @@
+syntax = "proto3";
+
+package protocol;
+
+option go_package = "src/joiner/protocol;protocol";
+
+message Store {
+  int32 StoreID = 1;
+  string StoreName = 2;
+  string Street = 3;
+  int32 PostalCode = 4;
+  string City = 5;
+  string State = 6;
+  double Latitude = 7;
+  double Longitude = 8;
+}

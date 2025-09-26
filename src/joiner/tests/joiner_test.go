@@ -115,7 +115,20 @@ func TestJoinerPersistReferenceBatchesUsersAndStores(t *testing.T) {
 }
 
 func TestHandleTaskType3_ProducesJoinedBatch(t *testing.T) {
-	helper.PrepareStoresCSV(t)
+	storeDir := t.TempDir()
+	testCase := helper.TestCase{
+		Queue:       "test_stores",
+		DatasetType: DatasetStores,
+		CsvPayloads: [][]byte{
+			[]byte("5,G Coffee @ Seksyen 21,Jalan 1,12345,CityA,StateA,1.0,2.0\n"),
+			[]byte("6,G Coffee @ Alam Tun Hussein Onn,Jalan 2,23456,CityB,StateB,3.0,4.0\n"),
+			[]byte("4,G Coffee @ Kampung Changkat,Jalan 3,34567,CityC,StateC,5.0,6.0\n"),
+		},
+		ExpectedFiles: []string{filepath.Join(storeDir, "stores.csv")},
+		TaskDone:      Task3,
+		SendDone:      true,
+	}
+	helper.RunTest(t, storeDir, testCase)
 
 	tpvs := []*jProtocol.StoreTPV{
 		{YearHalfCreatedAt: "2024-H1", StoreId: 5, Tpv: 12102556},
