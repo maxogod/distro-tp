@@ -4,10 +4,9 @@ import (
 	"fmt"
 
 	"github.com/maxogod/distro-tp/src/common/middleware"
-	amqp "github.com/rabbitmq/amqp091-go"
 )
 
-type MessageHandler func(msg *amqp.Delivery)
+type MessageHandler func(msgBody []byte) error
 
 func StartConsumer(gatewayAddress, queueName string, handler MessageHandler) (middleware.MessageMiddleware, error) {
 	m, err := middleware.NewQueueMiddleware(gatewayAddress, queueName)
@@ -17,7 +16,12 @@ func StartConsumer(gatewayAddress, queueName string, handler MessageHandler) (mi
 
 	e := m.StartConsuming(func(consumeChannel middleware.ConsumeChannel, d chan error) {
 		for msg := range consumeChannel {
-			handler(&msg)
+			handlerErr := handler(msg.Body)
+			if handlerErr != nil {
+				_ = msg.Nack(false, false)
+				continue
+			}
+			_ = msg.Ack(false)
 		}
 		d <- nil
 	})

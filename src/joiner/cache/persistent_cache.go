@@ -8,7 +8,6 @@ import (
 
 	"github.com/maxogod/distro-tp/src/common/utils"
 	"github.com/maxogod/distro-tp/src/joiner/protocol"
-	amqp "github.com/rabbitmq/amqp091-go"
 )
 
 var datasetNames = map[int32]string{
@@ -21,19 +20,17 @@ const datasetTypeUsers = 2
 const separatorBatchData = ","
 const registeredAtColumn = 3
 
-func StoreReferenceData(storePath string, referenceData *amqp.Delivery, batch *protocol.ReferenceBatch) {
+func StoreReferenceData(storePath string, batch *protocol.ReferenceBatch) error {
 	datasetFilename, ok := getDatasetFilename(storePath, batch)
 	if !ok {
-		_ = referenceData.Nack(false, false)
-		return
+		return fmt.Errorf("failed to get dataset filename for dataset type: %d", batch.DatasetType)
 	}
 
 	if err := utils.AppendToCSVFile(datasetFilename, batch.Payload); err != nil {
-		_ = referenceData.Nack(false, true)
-		return
+		return err
 	}
 
-	_ = referenceData.Ack(false)
+	return nil
 }
 
 func getDatasetFilename(storePath string, batch *protocol.ReferenceBatch) (string, bool) {

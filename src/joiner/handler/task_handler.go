@@ -5,13 +5,13 @@ import (
 )
 
 type TaskHandler struct {
-	taskHandlers map[int32]func(*protocol.DataBatch)
+	taskHandlers map[int32]HandleTask
 }
 
 func NewTaskHandler() *TaskHandler {
 	th := &TaskHandler{}
 
-	th.taskHandlers = map[int32]func(*protocol.DataBatch){
+	th.taskHandlers = map[int32]HandleTask{
 		2: th.handleTaskType2,
 		3: th.handleTaskType3,
 		4: th.handleTaskType4,
@@ -20,18 +20,18 @@ func NewTaskHandler() *TaskHandler {
 	return th
 }
 
-func (th *TaskHandler) HandleTask(taskType int32) func(*protocol.DataBatch) {
+func (th *TaskHandler) HandleTask(taskType int32) HandleTask {
 	return th.taskHandlers[taskType]
 }
 
-func (th *TaskHandler) handleTaskType2(dataBatch *protocol.DataBatch) {
-
+func (th *TaskHandler) handleTaskType2(dataBatch *protocol.DataBatch) error {
+	return nil
 }
 
-func (th *TaskHandler) handleTaskType3(dataBatch *protocol.DataBatch) {
-
+func (th *TaskHandler) handleTaskType3(dataBatch *protocol.DataBatch) error {
+	return nil
 }
 
-func (th *TaskHandler) handleTaskType4(dataBatch *protocol.DataBatch) {
-
+func (th *TaskHandler) handleTaskType4(dataBatch *protocol.DataBatch) error {
+	return nil
 }

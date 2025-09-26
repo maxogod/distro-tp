@@ -4,7 +4,6 @@ import (
 	"github.com/maxogod/distro-tp/src/common/middleware"
 	"github.com/maxogod/distro-tp/src/joiner/config"
 	"github.com/maxogod/distro-tp/src/joiner/handler"
-	amqp "github.com/rabbitmq/amqp091-go"
 )
 
 type Joiner struct {
@@ -44,9 +43,9 @@ func (j *Joiner) StartRefConsumer(referenceDatasetQueue string) error {
 	return nil
 }
 
-func (j *Joiner) startDataConsumer(handlerMsg func(dataBatch *handler.DataBatch), dataQueueNames []string) error {
+func (j *Joiner) startDataConsumer(handlerTask handler.HandleTask, dataQueueNames []string) error {
 	for _, dataQueueName := range dataQueueNames {
-		dataHandler := handler.NewDataHandler(handlerMsg)
+		dataHandler := handler.NewDataHandler(handlerTask)
 
 		m, err := StartConsumer(j.config.GatewayAddress, dataQueueName, dataHandler.HandleDataMessage)
 		if err != nil {
@@ -66,10 +65,9 @@ func (j *Joiner) Stop() error {
 	return nil
 }
 
-func (j *Joiner) HandleDone(msg *amqp.Delivery, queueName string, taskType int32) {
+func (j *Joiner) HandleDone(queueName string, taskType int32) error {
 	if err := StopConsumer(j.referenceMiddlewares[queueName]); err != nil {
-		_ = msg.Nack(false, false)
-		return
+		return err
 	}
 	delete(j.referenceMiddlewares, queueName)
 
@@ -78,10 +76,9 @@ func (j *Joiner) HandleDone(msg *amqp.Delivery, queueName string, taskType int32
 		dataQueueNames := j.dataQueueNames[taskType]
 
 		if err := j.startDataConsumer(handlerTask, dataQueueNames); err != nil {
-			_ = msg.Nack(false, false)
-			return
+			return err
 		}
 	}
 
-	_ = msg.Ack(false)
+	return nil
 }

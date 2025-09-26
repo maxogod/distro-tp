@@ -2,26 +2,24 @@ package handler
 
 import (
 	"github.com/maxogod/distro-tp/src/joiner/protocol"
-	amqp "github.com/rabbitmq/amqp091-go"
 	"google.golang.org/protobuf/proto"
 )
 
 type DataBatch = protocol.DataBatch
+type HandleTask = func(dataBatch *DataBatch) error
 
 type DataHandler struct {
-	handler func(dataBatch *DataBatch)
+	handlerTask HandleTask
 }
 
-func NewDataHandler(handler func(dataBatch *DataBatch)) *DataHandler {
-	return &DataHandler{handler: handler}
+func NewDataHandler(handler HandleTask) *DataHandler {
+	return &DataHandler{handlerTask: handler}
 }
 
-func (h *DataHandler) HandleDataMessage(msg *amqp.Delivery) {
+func (h *DataHandler) HandleDataMessage(msgBody []byte) error {
 	var batch DataBatch
-	if err := proto.Unmarshal(msg.Body, &batch); err != nil {
-		_ = msg.Nack(false, false)
-		return
+	if err := proto.Unmarshal(msgBody, &batch); err != nil {
+		return err
 	}
-	h.handler(&batch)
-	_ = msg.Ack(false)
+	return h.handlerTask(&batch)
 }

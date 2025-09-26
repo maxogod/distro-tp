@@ -1,35 +1,39 @@
 package handler
 
 import (
+	"fmt"
+
 	"github.com/maxogod/distro-tp/src/joiner/cache"
 	"github.com/maxogod/distro-tp/src/joiner/protocol"
-	amqp "github.com/rabbitmq/amqp091-go"
 	"google.golang.org/protobuf/proto"
 )
 
+type DoneMsgHandler func(queueName string, taskType int32) error
+type ReferenceBatchMsg = protocol.ReferenceQueueMessage_ReferenceBatch
+type DoneMsg = protocol.ReferenceQueueMessage_Done
+
 type ReferenceHandler struct {
-	handlerDone func(msg *amqp.Delivery, queueName string, taskType int32)
+	handlerDone DoneMsgHandler
 	queue       string
 	storeDir    string
 }
 
-func NewReferenceHandler(handlerDone func(msg *amqp.Delivery, queueName string, taskType int32), queueName, storeDir string) *ReferenceHandler {
+func NewReferenceHandler(handlerDone DoneMsgHandler, queueName, storeDir string) *ReferenceHandler {
 	return &ReferenceHandler{handlerDone: handlerDone, queue: queueName, storeDir: storeDir}
 }
 
-func (h *ReferenceHandler) HandleReferenceQueueMessage(msg *amqp.Delivery) {
+func (h *ReferenceHandler) HandleReferenceQueueMessage(msgBody []byte) error {
 	var refMsg protocol.ReferenceQueueMessage
-	if err := proto.Unmarshal(msg.Body, &refMsg); err != nil {
-		_ = msg.Nack(false, false)
-		return
+	if err := proto.Unmarshal(msgBody, &refMsg); err != nil {
+		return err
 	}
 
 	switch payload := refMsg.Payload.(type) {
-	case *protocol.ReferenceQueueMessage_ReferenceBatch:
-		cache.StoreReferenceData(h.storeDir, msg, payload.ReferenceBatch)
-	case *protocol.ReferenceQueueMessage_Done:
-		h.handlerDone(msg, h.queue, payload.Done.TaskType)
+	case *ReferenceBatchMsg:
+		return cache.StoreReferenceData(h.storeDir, payload.ReferenceBatch)
+	case *DoneMsg:
+		return h.handlerDone(h.queue, payload.Done.TaskType)
 	default:
-		_ = msg.Nack(false, false)
+		return fmt.Errorf("unknown message type")
 	}
 }
