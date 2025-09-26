@@ -16,6 +16,7 @@ type Config struct {
 	TransactionCountedQueue string
 	TransactionSumQueue     string
 	UserTransactionsQueue   string
+	AggregatorQueue         string
 }
 
 func (c Config) String() string {
