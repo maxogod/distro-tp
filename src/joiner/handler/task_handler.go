@@ -6,7 +6,6 @@ import (
 	"github.com/maxogod/distro-tp/src/common/models"
 	"github.com/maxogod/distro-tp/src/common/protocol"
 	"github.com/maxogod/distro-tp/src/joiner/cache"
-	jProtocol "github.com/maxogod/distro-tp/src/joiner/protocol"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -47,7 +46,7 @@ func (th *TaskHandler) handleTaskType3(dataBatch *protocol.DataBatch, refDataset
 		return loadErr
 	}
 
-	var storeTPVsContainer jProtocol.StoresTPV
+	var storeTPVsContainer protocol.StoresTPV
 	err := proto.Unmarshal(dataBatch.Payload, &storeTPVsContainer)
 	if err != nil {
 		return err
@@ -55,10 +54,10 @@ func (th *TaskHandler) handleTaskType3(dataBatch *protocol.DataBatch, refDataset
 
 	storeTPVs := storeTPVsContainer.Items
 
-	joined := make([]*jProtocol.JoinStoreTPV, 0)
+	joined := make([]*protocol.JoinStoreTPV, 0)
 	for _, entry := range storeTPVs {
 		if store, ok := storesMap[entry.StoreId]; ok {
-			joined = append(joined, &jProtocol.JoinStoreTPV{
+			joined = append(joined, &protocol.JoinStoreTPV{
 				YearHalfCreatedAt: entry.YearHalfCreatedAt,
 				StoreName:         store.StoreName,
 				Tpv:               entry.Tpv,

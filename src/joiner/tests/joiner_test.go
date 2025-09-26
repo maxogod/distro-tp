@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"github.com/maxogod/distro-tp/src/common/middleware"
-	jProtocol "github.com/maxogod/distro-tp/src/joiner/protocol"
+	"github.com/maxogod/distro-tp/src/common/protocol"
 	helper "github.com/maxogod/distro-tp/src/joiner/tests"
 	"github.com/stretchr/testify/assert"
 )
@@ -130,7 +130,7 @@ func TestHandleTaskType3_ProducesJoinedBatch(t *testing.T) {
 	}
 	helper.RunTest(t, storeDir, testCase)
 
-	tpvs := []*jProtocol.StoreTPV{
+	tpvs := []*protocol.StoreTPV{
 		{YearHalfCreatedAt: "2024-H1", StoreId: 5, Tpv: 12102556},
 		{YearHalfCreatedAt: "2024-H2", StoreId: 6, Tpv: 12201348},
 		{YearHalfCreatedAt: "2025-H1", StoreId: 4, Tpv: 12067810},
@@ -143,7 +143,7 @@ func TestHandleTaskType3_ProducesJoinedBatch(t *testing.T) {
 	// consumir de la cola de salida
 	received := helper.GetOutputMessage(t, "aggregator")
 
-	expectedTpvs := []*jProtocol.JoinStoreTPV{
+	expectedTpvs := []*protocol.JoinStoreTPV{
 		{YearHalfCreatedAt: "2024-H1", StoreName: "G Coffee @ Seksyen 21", Tpv: 12102556},
 		{YearHalfCreatedAt: "2024-H2", StoreName: "G Coffee @ Alam Tun Hussein Onn", Tpv: 12201348},
 		{YearHalfCreatedAt: "2025-H1", StoreName: "G Coffee @ Kampung Changkat", Tpv: 12067810},

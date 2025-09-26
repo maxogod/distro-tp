@@ -10,7 +10,6 @@ import (
 	"github.com/maxogod/distro-tp/src/common/protocol"
 	joiner "github.com/maxogod/distro-tp/src/joiner/business"
 	"github.com/maxogod/distro-tp/src/joiner/config"
-	jProtocol "github.com/maxogod/distro-tp/src/joiner/protocol"
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/protobuf/proto"
 )
@@ -185,10 +184,10 @@ func AssertJoinerConsumed(t *testing.T, m middleware.MessageMiddleware, expected
 	}
 }
 
-func PrepareDataBatch(t *testing.T, tpvs []*jProtocol.StoreTPV) *protocol.DataBatch {
+func PrepareDataBatch(t *testing.T, tpvs []*protocol.StoreTPV) *protocol.DataBatch {
 	t.Helper()
 
-	container := &jProtocol.StoresTPV{
+	container := &protocol.StoresTPV{
 		Items: tpvs,
 	}
 
@@ -248,12 +247,12 @@ func GetOutputMessage(t *testing.T, outputQueue string) *protocol.DataBatch {
 	return received
 }
 
-func AssertJoinedBatchIsTheExpected(t *testing.T, received *protocol.DataBatch, expected []*jProtocol.JoinStoreTPV) {
+func AssertJoinedBatchIsTheExpected(t *testing.T, received *protocol.DataBatch, expected []*protocol.JoinStoreTPV) {
 	t.Helper()
 
 	assert.NotNil(t, received, "received DataBatch should not be nil")
 
-	var joinedBatch jProtocol.JoinStoreTPVBatch
+	var joinedBatch protocol.JoinStoreTPVBatch
 	err := proto.Unmarshal(received.Payload, &joinedBatch)
 	assert.NoError(t, err, "failed to unmarshal DataBatch.Payload into JoinStoreTPVBatch")
 

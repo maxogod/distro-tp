@@ -12,7 +12,6 @@ import (
 	"github.com/maxogod/distro-tp/src/common/models"
 	"github.com/maxogod/distro-tp/src/common/protocol"
 	"github.com/maxogod/distro-tp/src/common/utils"
-	jProtocol "github.com/maxogod/distro-tp/src/joiner/protocol"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -113,8 +112,8 @@ func LoadStores(path string) (map[int32]*protocol.Store, error) {
 	return storesMap, nil
 }
 
-func CreateDataBatchFromJoined(taskType int32, joined []*jProtocol.JoinStoreTPV) (*protocol.DataBatch, error) {
-	batch := &jProtocol.JoinStoreTPVBatch{
+func CreateDataBatchFromJoined(taskType int32, joined []*protocol.JoinStoreTPV) (*protocol.DataBatch, error) {
+	batch := &protocol.JoinStoreTPVBatch{
 		Items: joined,
 	}
 
