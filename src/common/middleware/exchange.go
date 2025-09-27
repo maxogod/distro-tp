@@ -54,7 +54,7 @@ func (me *MessageMiddlewareExchange) StartConsuming(onMessageCallback onMessageC
 	q, err := me.channel.QueueDeclare(
 		"",    // name
 		false, // durable
-		false, // delete when unused
+		true,  // delete when unused
 		true,  // exclusive
 		false, // no-wait
 		nil,   // arguments
@@ -85,7 +85,7 @@ func (me *MessageMiddlewareExchange) StartConsuming(onMessageCallback onMessageC
 		q.Name,      // queue
 		consumerTag, // consumer
 		false,       // auto-ack
-		false,       // exclusive
+		true,        // exclusive
 		false,       // no-local
 		false,       // no-wait
 		nil,         // args
@@ -96,7 +96,6 @@ func (me *MessageMiddlewareExchange) StartConsuming(onMessageCallback onMessageC
 	}
 
 	me.consumeChannel = consumeChannel
-	me.consumerQueueName = q.Name
 
 	done := make(chan error, 1)
 	go onMessageCallback(me.consumeChannel, done)
@@ -117,17 +116,6 @@ func (me *MessageMiddlewareExchange) StopConsuming() (error MessageMiddlewareErr
 	}
 	me.consumerTag = ""
 
-	_, err = me.channel.QueueDelete(
-		me.consumerQueueName, // name
-		false,                // ifUnused
-		false,                // ifEmpty
-		false,                // noWait
-	)
-	if err != nil {
-		logger.GetLogger().Errorln("Failed to delete queue:", err)
-		return MessageMiddlewareDeleteError
-	}
-
 	return MessageMiddlewareSuccess
 }
 
@@ -141,7 +129,6 @@ func (me *MessageMiddlewareExchange) Send(message []byte) MessageMiddlewareError
 	defer cancel()
 
 	for _, key := range me.routeKeys {
-		logger.GetLogger().Debugf("Publishing message to route %s: %s", key, string(message))
 		err := me.channel.PublishWithContext(ctx,
 			me.exchangeName, // exchange
 			key,             // routing key

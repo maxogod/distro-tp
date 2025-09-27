@@ -34,9 +34,8 @@ type MessageMiddlewareExchange struct {
 	channel      MiddlewareChannel
 	routeKeys    []string
 
-	consumeChannel    ConsumeChannel
-	consumerQueueName string
-	consumerTag       string
+	consumeChannel ConsumeChannel
+	consumerTag    string
 }
 
 // TODO: check if done channel is really necessary (probably not)
