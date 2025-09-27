@@ -1,8 +1,9 @@
 package business
 
 import (
-	"coffee-analisis/src/common/models"
 	"time"
+
+	"github.com/maxogod/github.com/maxogod/distro-tp/src/common/models"
 )
 
 // Generic constraint that ensures

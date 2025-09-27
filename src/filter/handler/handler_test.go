@@ -1,11 +1,12 @@
 package handler_test
 
 import (
-	"coffee-analisis/src/common/models"
-	"coffee-analisis/src/filter/business"
-	"coffee-analisis/src/filter/handler"
-	"coffee-analisis/src/filter/test/mock"
 	"testing"
+
+	"github.com/maxogod/distro-tp/src/common/models"
+	"github.com/maxogod/distro-tp/src/filter/business"
+	"github.com/maxogod/distro-tp/src/filter/handler"
+	"github.com/maxogod/distro-tp/src/filter/test/mock"
 )
 
 var taskConfig = &handler.TaskConfig{

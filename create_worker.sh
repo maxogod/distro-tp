@@ -30,13 +30,13 @@ sed -i "s/bin\/worker/bin\/$WORKER_NAME_LOWER/g" "src/$WORKER_NAME_LOWER/Dockerf
 sed -i "s/\/worker/\/$WORKER_NAME_LOWER/g" "src/$WORKER_NAME_LOWER/Dockerfile"
 
 echo "Updating Go imports..."
-find "src/$WORKER_NAME_LOWER" -name "*.go" -type f -exec sed -i "s/coffee-analisis\/src\/worker_base/coffee-analisis\/src\/$WORKER_NAME_LOWER/g" {} \;
+find "src/$WORKER_NAME_LOWER" -name "*.go" -type f -exec sed -i "s/github.com/maxogod/distro-tp\/src\/worker_base/github.com/maxogod/distro-tp\/src\/$WORKER_NAME_LOWER/g" {} \;
 
-find "src/$WORKER_NAME_LOWER" -name "*.go" -type f -exec sed -i "s/coffee-analisis\/src\/worker_base/coffee-analisis\/src\/$WORKER_NAME_LOWER/g" {} \;
+find "src/$WORKER_NAME_LOWER" -name "*.go" -type f -exec sed -i "s/github.com/maxogod/distro-tp\/src\/worker_base/github.com/maxogod/distro-tp\/src\/$WORKER_NAME_LOWER/g" {} \;
 
 if [ -f "src/$WORKER_NAME_LOWER/go.mod" ]; then
     sed -i "s/worker_base/$WORKER_NAME_LOWER/g" "src/$WORKER_NAME_LOWER/go.mod"
 fi
 
 echo "Worker '$WORKER_NAME' created successfully in src/$WORKER_NAME_LOWER!"
-echo "Updated imports from 'coffee-analisis/src/worker_base' to 'coffee-analisis/src/$WORKER_NAME_LOWER'"
+echo "Updated imports from 'github.com/maxogod/distro-tp/src/worker_base' to 'github.com/maxogod/distro-tp/src/$WORKER_NAME_LOWER'"

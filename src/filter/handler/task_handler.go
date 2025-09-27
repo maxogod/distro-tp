@@ -1,9 +1,10 @@
 package handler
 
 import (
-	"coffee-analisis/src/common/models"
-	"coffee-analisis/src/filter/business"
 	"fmt"
+
+	"github.com/maxogod/distro-tp/src/common/models"
+	"github.com/maxogod/distro-tp/src/filter/business"
 
 	"github.com/op/go-logging"
 )

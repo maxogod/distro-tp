@@ -1,10 +1,11 @@
 package business_test
 
 import (
-	"coffee-analisis/src/common/models"
-	"coffee-analisis/src/filter/business"
 	"testing"
 	"time"
+
+	"github.com/maxogod/distro-tp/src/common/models"
+	"github.com/maxogod/distro-tp/src/filter/business"
 )
 
 func TestFilterByYearBetween(t *testing.T) {

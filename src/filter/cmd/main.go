@@ -1,8 +1,8 @@
 package main
 
 import (
-	"coffee-analisis/src/filter/config"
-	"coffee-analisis/src/filter/internal/server"
+	"github.com/maxogod/distro-tp/src/filter/config"
+	"github.com/maxogod/distro-tp/src/filter/internal/server"
 
 	"github.com/op/go-logging"
 )

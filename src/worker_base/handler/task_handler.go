@@ -1,14 +1,14 @@
 package handler
 
 import (
-	"coffee-analisis/src/common/models"
-	"coffee-analisis/src/worker_base/business"
 	"fmt"
 
-	"github.com/op/go-logging"
+	"github.com/maxogod/distro-tp/src/common/logger"
+	"github.com/maxogod/distro-tp/src/common/models"
+	"github.com/maxogod/distro-tp/src/worker_base/business"
 )
 
-var log = logging.MustGetLogger("task-handler")
+var log = logger.GetLogger()
 
 type TaskHandler struct {
 	WorkerService *business.WorkerService

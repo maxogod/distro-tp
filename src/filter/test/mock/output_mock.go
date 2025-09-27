@@ -1,8 +1,9 @@
 package mock
 
 import (
-	"coffee-analisis/src/common/models"
 	"time"
+
+	"github.com/maxogod/distro-tp/src/common/models"
 )
 
 var MockTransactionsOutputT1 = map[string]models.Transaction{

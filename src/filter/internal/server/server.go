@@ -1,13 +1,13 @@
 package server
 
 import (
-	"coffee-analisis/src/filter/business"
-	"coffee-analisis/src/filter/config"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
 
+	"github.com/maxogod/github.com/maxogod/distro-tp/src/filter/business"
+	"github.com/maxogod/github.com/maxogod/distro-tp/src/filter/config"
 	"github.com/op/go-logging"
 )
 
