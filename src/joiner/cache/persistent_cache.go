@@ -1,17 +1,17 @@
 package cache
 
 import (
-	"encoding/csv"
+	"encoding/binary"
+	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"time"
 
 	"github.com/maxogod/distro-tp/src/common/models"
 	"github.com/maxogod/distro-tp/src/common/protocol"
-	"github.com/maxogod/distro-tp/src/common/utils"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -30,11 +30,27 @@ func StoreReferenceData(storePath string, batch *protocol.ReferenceBatch) error 
 		return fmt.Errorf("failed to get dataset filename for dataset type: %d", batch.DatasetType)
 	}
 
-	if err := utils.AppendToCSVFile(datasetFilename, batch.Payload); err != nil {
-		return err
+	data, protoErr := proto.Marshal(batch)
+	if protoErr != nil {
+		return protoErr
 	}
 
-	return nil
+	f, openErr := os.OpenFile(datasetFilename, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
+	if openErr != nil {
+		return openErr
+	}
+	defer f.Close()
+
+	length := uint32(len(data))
+	if writeLenErr := binary.Write(f, binary.LittleEndian, length); writeLenErr != nil {
+		return writeLenErr
+	}
+
+	if _, writeDataErr := f.Write(data); writeDataErr != nil {
+		return writeDataErr
+	}
+
+	return f.Sync()
 }
 
 func getDatasetFilename(storePath string, batch *protocol.ReferenceBatch) (string, bool) {
@@ -73,42 +89,49 @@ func getYearMonth(batchPayload []byte) (int, string, error) {
 	return t.Year(), fmt.Sprintf("%02d", int(t.Month())), nil
 }
 
-func LoadStores(path string) (map[int32]*protocol.Store, error) {
-	file, err := os.Open(path)
-	if err != nil {
-		return nil, err
+func LoadReferenceData[T proto.Message](path string, createRefDatasetProto func() T) ([]T, error) {
+	f, openErr := os.Open(path)
+	if openErr != nil {
+		return nil, openErr
 	}
-	defer file.Close()
+	defer f.Close()
 
-	csvReader := csv.NewReader(file)
-	csvStores, err := csvReader.ReadAll()
+	var referenceDataset []T
+	for {
+		var length uint32
+		if err := binary.Read(f, binary.LittleEndian, &length); err != nil {
+			if errors.Is(err, io.EOF) {
+				break
+			}
+			return nil, err
+		}
+
+		refDatasetBytes := make([]byte, length)
+		if _, err := io.ReadFull(f, refDatasetBytes); err != nil {
+			return nil, err
+		}
+
+		refDatasetMsg := createRefDatasetProto()
+		if err := proto.Unmarshal(refDatasetBytes, refDatasetMsg); err != nil {
+			return nil, err
+		}
+
+		referenceDataset = append(referenceDataset, refDatasetMsg)
+	}
+
+	return referenceDataset, nil
+}
+
+func LoadStores(path string) (map[int32]*protocol.Store, error) {
+	stores, err := LoadReferenceData(path, func() *protocol.Store { return &protocol.Store{} })
 	if err != nil {
 		return nil, err
 	}
 
 	storesMap := make(map[int32]*protocol.Store)
-	for _, row := range csvStores {
-		if len(row) < 8 {
-			continue
-		}
-
-		storeID, _ := strconv.Atoi(row[0])
-		postalCode, _ := strconv.Atoi(row[3])
-		latitude, _ := strconv.ParseFloat(row[6], 64)
-		longitude, _ := strconv.ParseFloat(row[7], 64)
-
-		storesMap[int32(storeID)] = &protocol.Store{
-			StoreID:    int32(storeID),
-			StoreName:  row[1],
-			Street:     row[2],
-			PostalCode: int32(postalCode),
-			City:       row[4],
-			State:      row[5],
-			Latitude:   latitude,
-			Longitude:  longitude,
-		}
+	for _, store := range stores {
+		storesMap[store.StoreID] = store
 	}
-
 	return storesMap, nil
 }
 
