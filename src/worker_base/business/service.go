@@ -1,10 +1,8 @@
 package business
 
-import (
-	"github.com/op/go-logging"
-)
+import "github.com/maxogod/distro-tp/src/common/logger"
 
-var log = logging.MustGetLogger("log")
+var log = logger.GetLogger()
 
 type WorkerService struct{}
 
