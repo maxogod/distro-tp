@@ -7,7 +7,6 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"strings"
 	"time"
 
 	"github.com/maxogod/distro-tp/src/common/models"
@@ -20,9 +19,6 @@ var datasetNames = map[models.RefDatasetType]string{
 	models.Stores:    "stores",
 	models.Users:     "users",
 }
-
-const separatorBatchData = ","
-const registeredAtColumn = 3
 
 func StoreReferenceData(storePath string, batch *protocol.ReferenceBatch) error {
 	datasetFilename, ok := getDatasetFilename(storePath, batch)
@@ -63,7 +59,12 @@ func getDatasetFilename(storePath string, batch *protocol.ReferenceBatch) (strin
 	var datasetFilename string
 
 	if refDatasetType == models.Users {
-		year, month, err := getYearMonth(batch.Payload)
+		user := &protocol.User{}
+		if err := proto.Unmarshal(batch.Payload, user); err != nil {
+			return "", false
+		}
+
+		year, month, err := getYearMonth(user.RegisteredAt)
 		if err != nil {
 			return "", false
 		}
@@ -75,13 +76,8 @@ func getDatasetFilename(storePath string, batch *protocol.ReferenceBatch) (strin
 	return datasetFilename, ok
 }
 
-func getYearMonth(batchPayload []byte) (int, string, error) {
-	row := string(batchPayload)
-	cols := strings.Split(row, separatorBatchData)
-
-	dateStr := strings.TrimSpace(cols[registeredAtColumn])
-
-	t, err := time.Parse(time.DateTime, dateStr)
+func getYearMonth(userRegisteredAt string) (int, string, error) {
+	t, err := time.Parse(time.DateTime, userRegisteredAt)
 	if err != nil {
 		return 0, "", err
 	}

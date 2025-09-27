@@ -3,10 +3,13 @@ package tests
 import (
 	"bytes"
 	"os"
+	"strconv"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/maxogod/distro-tp/src/common/middleware"
+	"github.com/maxogod/distro-tp/src/common/models"
 	"github.com/maxogod/distro-tp/src/common/protocol"
 	joiner "github.com/maxogod/distro-tp/src/joiner/business"
 	"github.com/maxogod/distro-tp/src/joiner/config"
@@ -45,9 +48,9 @@ func RunTest(t *testing.T, storeDir string, c TestCase) {
 
 	for i, expectedFile := range c.ExpectedFiles {
 		if c.DatasetType != DatasetUsers {
-			AssertFileContainsPayloads(t, expectedFile, c.CsvPayloads)
+			AssertFileContainsPayloads(t, expectedFile, c.CsvPayloads, c.DatasetType)
 		} else {
-			AssertFileContainsPayloads(t, expectedFile, [][]byte{c.CsvPayloads[i]})
+			AssertFileContainsPayloads(t, expectedFile, [][]byte{c.CsvPayloads[i]}, c.DatasetType)
 		}
 	}
 
@@ -60,9 +63,17 @@ func SendReferenceBatches(t *testing.T, pub middleware.MessageMiddleware, csvPay
 	t.Helper()
 
 	for _, csvPayload := range csvPayloads {
+		payload := csvPayload
+		var err error
+
+		if models.RefDatasetType(datasetType) == models.Users {
+			payload, err = marshalPayloadForUsersDataset(t, csvPayload)
+			assert.NoError(t, err)
+		}
+
 		refBatch := &protocol.ReferenceBatch{
 			DatasetType: datasetType,
-			Payload:     csvPayload,
+			Payload:     payload,
 		}
 
 		msgProto := &protocol.ReferenceQueueMessage{
@@ -77,6 +88,27 @@ func SendReferenceBatches(t *testing.T, pub middleware.MessageMiddleware, csvPay
 		e := pub.Send(msgBytes)
 		assert.Equal(t, 0, int(e))
 	}
+}
+
+func marshalPayloadForUsersDataset(t *testing.T, csvPayload []byte) ([]byte, error) {
+	row := string(csvPayload)
+	cols := strings.Split(strings.TrimSpace(row), ",")
+	if len(cols) < 4 {
+		t.Fatalf("invalid csv payload: %s", row)
+	}
+
+	userID, _ := strconv.Atoi(cols[0])
+	birthdate := cols[2]
+	registeredAt := cols[3]
+
+	user := &protocol.User{
+		UserId:       int32(userID),
+		Gender:       cols[1],
+		Birthdate:    birthdate,
+		RegisteredAt: registeredAt,
+	}
+
+	return proto.Marshal(user)
 }
 
 func SendDoneMessage(t *testing.T, pub middleware.MessageMiddleware, datasetType int32) {
@@ -122,12 +154,23 @@ func StartJoiner(t *testing.T, rabbitURL string, storeDir string, refQueueNames 
 	return j
 }
 
-func AssertFileContainsPayloads(t *testing.T, expectedFile string, csvPayloads [][]byte) {
+func AssertFileContainsPayloads(t *testing.T, expectedFile string, csvPayloads [][]byte, datasetType int32) {
 	t.Helper()
 
 	timeout := time.After(6 * time.Second)
 	tick := time.NewTicker(200 * time.Millisecond)
 	defer tick.Stop()
+
+	var expectedPayloads [][]byte
+	for _, csvPayload := range csvPayloads {
+		if models.RefDatasetType(datasetType) == models.Users {
+			userPayload, err := marshalPayloadForUsersDataset(t, csvPayload)
+			assert.NoError(t, err)
+			expectedPayloads = append(expectedPayloads, userPayload)
+		} else {
+			expectedPayloads = append(expectedPayloads, csvPayload)
+		}
+	}
 
 	var data []byte
 	found := false
@@ -141,8 +184,9 @@ func AssertFileContainsPayloads(t *testing.T, expectedFile string, csvPayloads [
 				if fileErr != nil {
 					t.Fatalf("read error: %v", fileErr)
 				}
+
 				allPresent := true
-				for _, payload := range csvPayloads {
+				for _, payload := range expectedPayloads {
 					if !bytes.Contains(data, payload) {
 						allPresent = false
 						break
@@ -156,7 +200,7 @@ func AssertFileContainsPayloads(t *testing.T, expectedFile string, csvPayloads [
 	}
 
 	if !found {
-		t.Fatalf("expected payloads not present in file: %s\ncontent: %s", expectedFile, string(data))
+		t.Fatalf("expected payloads not present in file: %s", expectedFile)
 	}
 }
 
