@@ -11,7 +11,7 @@ import (
 // TestExchange1pub1sub tests the success case of a publisher-subscriber scenario with an exchange.
 func TestExchange1pub1sub(t *testing.T) {
 	url := "amqp://guest:guest@localhost:5672/"
-	m, err := middleware.NewExchangeMiddleware(url, "test_exchange1to1")
+	m, err := middleware.NewExchangeMiddleware(url, "test_exchange1to1", "fanout")
 	assert.NoError(t, err)
 
 	done := make(chan bool, 1)

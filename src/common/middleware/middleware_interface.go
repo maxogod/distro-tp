@@ -32,8 +32,8 @@ type MessageMiddlewareExchange struct {
 	routeKeys         []string
 	conn              MiddlewareConnection
 	channel           MiddlewareChannel
-	consumerQueueName string
 	consumeChannel    ConsumeChannel
+	consumerQueueName string
 	consumerTag       string
 }
 

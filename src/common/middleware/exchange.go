@@ -9,7 +9,7 @@ import (
 	amqp "github.com/rabbitmq/amqp091-go"
 )
 
-func NewExchangeMiddleware(url, exchangeName string) (MessageMiddleware, error) {
+func NewExchangeMiddleware(url, exchangeName, exchangeType string) (MessageMiddleware, error) {
 	m := &MessageMiddlewareExchange{}
 
 	conn, err := amqp.Dial(url)
@@ -26,7 +26,7 @@ func NewExchangeMiddleware(url, exchangeName string) (MessageMiddleware, error) 
 
 	err = ch.ExchangeDeclare(
 		exchangeName, // name
-		"fanout",     // type
+		exchangeType, // type
 		true,         // durable (persistant exchange)
 		false,        // auto-deleted
 		false,        // internal
