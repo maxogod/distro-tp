@@ -11,5 +11,6 @@
 # Index
 
 ## [Worker Base](docs/worker_base.md)
+## [Middleware](docs/middleware.md)
 
 
