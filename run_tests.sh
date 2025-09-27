@@ -1,73 +1,46 @@
 #!/bin/bash
 
-# Color codes
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
-NC='\033[0m' # No Color
+NC='\033[0m'
 
 echo -e "${BLUE}Running tests for all workers in src directory...${NC}"
 
-# Helper to extract test status and name
-parse_test_line() {
-    local line="$1"
-    local status="$2"
-    # Remove status and any trailing "(...)" 
-    echo "$line" | sed "s/^--- $status:[[:space:]]*//" | sed 's/ (.*//'
-}
+for dir in src/*/; do
+    DIR_NAME=$(basename "$dir")
+    echo -e "${YELLOW}Testing $DIR_NAME...${NC}"
 
-# Run tests in a given directory
-run_tests_in_dir() {
-    local test_dir="$1"
-    local worker_name="$2"
+    test_output=$(go test "./src/$DIR_NAME/..." 2>&1)
+    cover_output=$(go test "./src/$DIR_NAME/..." -cover 2>&1)
 
-    echo -e "${BLUE}Testing $worker_name:${NC}"
-
-    # Run tests and capture output
-    local output
-    output=$(go test -v "./$test_dir" 2>&1 || true)
-
-    # Track current test name
-    local current_test=""
-
-    # Process output line by line
+    # Filter lines
     while IFS= read -r line; do
-        case "$line" in
-            "=== RUN"* )
-                current_test="${line#=== RUN }"
-                ;;
-            "--- PASS"* )
-                test_name=$(parse_test_line "$line" "PASS")
-                echo -e "  $worker_name.$test_name | ${GREEN}PASS${NC}"
-                ;;
-            "--- FAIL"* )
-                test_name=$(parse_test_line "$line" "FAIL")
-                echo -e "  $worker_name.$test_name | ${RED}FAIL${NC}"
-                # Optional: show lines with "expected" keyword
-                error_msg=$(echo "$output" | grep expected || true)
-                if [ -n "$error_msg" ]; then
-                    echo -e "    ${RED}$error_msg${NC}"
-                fi
-                ;;
-            "--- SKIP"* )
-                test_name=$(parse_test_line "$line" "SKIP")
-                echo -e "  $worker_name.$test_name | ${YELLOW}SKIP${NC}"
-                ;;
-        esac
-    done <<< "$output"
+        if [[ "$line" == ok* ]]; then
+            echo -e "${GREEN}$line${NC}"
+        elif [[ "$line" == FAIL* ]]; then
+            echo -e "${RED}$line${NC}"
+        elif [[ "$line" == "--- FAIL"* ]]; then
+            echo -e "${RED}$line${NC}"
+        elif [[ "$line" == *"Expected"* || "$line" == *"got"* ]]; then
+            echo -e "${RED}$line${NC}"
+        elif [[ "$line" == coverage* ]]; then
+            echo "$line"
+        fi
+    done <<< "$test_output"
+
+    while IFS= read -r line; do
+        if [[ "$line" == ok* ]]; then
+            echo -e "${GREEN}$line${NC}"
+        elif [[ "$line" == FAIL* ]]; then
+            echo -e "${RED}$line${NC}"
+        elif [[ "$line" == coverage* ]]; then
+            echo "$line"
+        fi
+    done <<< "$cover_output"
 
     echo ""
-}
-
-# Main loop: look for test directories
-for worker_dir in src/*/; do
-    worker_name=$(basename "$worker_dir")
-    test_dir="$worker_dir/test"
-
-    if [ -d "$test_dir" ]; then
-        run_tests_in_dir "$test_dir" "$worker_name"
-    fi
 done
 
 echo -e "${BLUE}Test run completed${NC}"
