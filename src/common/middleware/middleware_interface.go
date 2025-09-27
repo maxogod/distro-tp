@@ -20,18 +20,22 @@ const (
 )
 
 type MessageMiddlewareQueue struct {
+	conn    MiddlewareConnection
+	channel MiddlewareChannel
+
 	queueName      string
-	conn           MiddlewareConnection
-	channel        MiddlewareChannel
 	consumeChannel ConsumeChannel
 	consumerTag    string
 }
 
 type MessageMiddlewareExchange struct {
-	exchangeName   string
-	routeKeys      []string
-	channel        MiddlewareChannel
+	exchangeName string
+	conn         MiddlewareConnection
+	channel      MiddlewareChannel
+	routeKeys    []string
+
 	consumeChannel ConsumeChannel
+	consumerTag    string
 }
 
 // TODO: check if done channel is really necessary (probably not)
