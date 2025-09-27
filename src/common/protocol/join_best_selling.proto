@@ -1,0 +1,15 @@
+syntax = "proto3";
+
+package protocol;
+
+option go_package = "src/common/protocol;protocol";
+
+message JoinBestSellingProducts {
+  string year_month_created_at = 1;
+  string item_name = 2;
+  int64 sellings_qty = 3;
+}
+
+message JoinBestSellingProductsBatch {
+  repeated JoinBestSellingProducts items = 1;
+}

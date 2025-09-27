@@ -135,13 +135,13 @@ func TestHandleTaskType3_ProducesJoinedBatch(t *testing.T) {
 		{YearHalfCreatedAt: "2024-H2", StoreId: 6, Tpv: 12201348},
 		{YearHalfCreatedAt: "2025-H1", StoreId: 4, Tpv: 12067810},
 	}
-	dataBatch := helper.PrepareDataBatch(t, tpvs)
+	dataBatch := helper.PrepareStoreTPVBatch(t, tpvs)
 
 	// Mando a la cola de entrada
 	helper.SendDataBatch(t, "store_tpv", dataBatch)
 
 	// consumir de la cola de salida
-	received := helper.GetOutputMessage(t, "aggregator")
+	received := helper.GetOutputMessage(t, "joined_stores_tpv_queue")
 
 	expectedTpvs := []*protocol.JoinStoreTPV{
 		{YearHalfCreatedAt: "2024-H1", StoreName: "G Coffee @ Seksyen 21", Tpv: 12102556},
@@ -149,5 +149,52 @@ func TestHandleTaskType3_ProducesJoinedBatch(t *testing.T) {
 		{YearHalfCreatedAt: "2025-H1", StoreName: "G Coffee @ Kampung Changkat", Tpv: 12067810},
 	}
 
-	helper.AssertJoinedBatchIsTheExpected(t, received, expectedTpvs)
+	helper.AssertJoinedStoreTPVIsExpected(t, received, expectedTpvs)
+}
+
+func TestHandleTaskType2_ProducesJoinedBatch(t *testing.T) {
+	storeDir := t.TempDir()
+	testCase := helper.TestCase{
+		Queue:       "test_menu_items",
+		DatasetType: DatasetMenuItems,
+		CsvPayloads: [][]byte{
+			[]byte("1,Espresso,coffee,6.0,False,,\n"),
+			[]byte("2,Americano,coffee,7.0,False,,\n"),
+		},
+		ExpectedFiles: []string{filepath.Join(storeDir, "menu_items.pb")},
+		TaskDone:      0,
+		SendDone:      false,
+	}
+	helper.RunTest(t, storeDir, testCase)
+
+	bestSelling := []*protocol.BestSellingProducts{
+		{YearMonthCreatedAt: "2024-01", ItemId: 1, SellingsQty: 260611},
+		{YearMonthCreatedAt: "2024-02", ItemId: 2, SellingsQty: 91218},
+	}
+	bestSellingBatch := helper.PrepareBestSellingBatch(t, bestSelling)
+	helper.SendDataBatch(t, "transaction_counted", bestSellingBatch)
+	bestSellingJoined := helper.GetOutputMessage(t, "joined_transactions")
+
+	expectedBestSelling := []*protocol.JoinBestSellingProducts{
+		{YearMonthCreatedAt: "2024-01", ItemName: "Espresso", SellingsQty: 260611},
+		{YearMonthCreatedAt: "2024-02", ItemName: "Americano", SellingsQty: 91218},
+	}
+
+	helper.AssertJoinedBestSellingIsExpected(t, bestSellingJoined, expectedBestSelling)
+
+	mostProfits := []*protocol.MostProfitsProducts{
+		{YearMonthCreatedAt: "2024-01", ItemId: 1, ProfitSum: 260611.0},
+		{YearMonthCreatedAt: "2024-02", ItemId: 2, ProfitSum: 91218.0},
+	}
+	mostProfitsBatch := helper.PrepareMostProfitsBatch(t, mostProfits)
+	helper.SendDataBatch(t, "transaction_counted", mostProfitsBatch)
+	mostProfitsJoined := helper.GetOutputMessage(t, "joined_transactions")
+
+	expectedMostProfits := []*protocol.JoinMostProfitsProducts{
+		{YearMonthCreatedAt: "2024-01", ItemName: "Espresso", ProfitSum: 260611.0},
+		{YearMonthCreatedAt: "2024-02", ItemName: "Americano", ProfitSum: 91218.0},
+	}
+
+	helper.AssertJoinedMostProfitsIsExpected(t, mostProfitsJoined, expectedMostProfits)
+
 }

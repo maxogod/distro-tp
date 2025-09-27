@@ -228,20 +228,41 @@ func AssertJoinerConsumed(t *testing.T, m middleware.MessageMiddleware, expected
 	}
 }
 
-func PrepareDataBatch(t *testing.T, tpvs []*protocol.StoreTPV) *protocol.DataBatch {
+func PrepareDataBatch[T any](
+	t *testing.T,
+	taskType int32,
+	items []*T,
+	createContainer func([]*T) proto.Message,
+) *protocol.DataBatch {
 	t.Helper()
 
-	container := &protocol.StoresTPV{
-		Items: tpvs,
-	}
+	container := createContainer(items)
 
 	payload, err := proto.Marshal(container)
 	assert.NoError(t, err)
 
 	return &protocol.DataBatch{
-		TaskType: 3,
+		TaskType: taskType,
 		Payload:  payload,
 	}
+}
+
+func PrepareStoreTPVBatch(t *testing.T, tpvs []*protocol.StoreTPV) *protocol.DataBatch {
+	return PrepareDataBatch(t, 3, tpvs, func(items []*protocol.StoreTPV) proto.Message {
+		return &protocol.StoresTPV{Items: items}
+	})
+}
+
+func PrepareBestSellingBatch(t *testing.T, records []*protocol.BestSellingProducts) *protocol.DataBatch {
+	return PrepareDataBatch(t, 4, records, func(items []*protocol.BestSellingProducts) proto.Message {
+		return &protocol.BestSellingProductsBatch{Items: items}
+	})
+}
+
+func PrepareMostProfitsBatch(t *testing.T, records []*protocol.MostProfitsProducts) *protocol.DataBatch {
+	return PrepareDataBatch(t, 4, records, func(items []*protocol.MostProfitsProducts) proto.Message {
+		return &protocol.MostProfitsProductsBatch{Items: items}
+	})
 }
 
 func SendDataBatch(t *testing.T, inputQueue string, dataBatch *protocol.DataBatch) {
@@ -291,25 +312,94 @@ func GetOutputMessage(t *testing.T, outputQueue string) *protocol.DataBatch {
 	return received
 }
 
-func AssertJoinedBatchIsTheExpected(t *testing.T, received *protocol.DataBatch, expected []*protocol.JoinStoreTPV) {
+func AssertJoinedBatchIsTheExpected[T any, B proto.Message](
+	t *testing.T,
+	received *protocol.DataBatch,
+	expected []*T,
+	unmarshalBatch func([]byte) (B, []*T, error),
+	compare func(exp, got *T, idx int, t *testing.T),
+) {
 	t.Helper()
 
 	assert.NotNil(t, received, "received DataBatch should not be nil")
 
-	var joinedBatch protocol.JoinStoreTPVBatch
-	err := proto.Unmarshal(received.Payload, &joinedBatch)
-	assert.NoError(t, err, "failed to unmarshal DataBatch.Payload into JoinStoreTPVBatch")
+	// Deserialize into the right batch type
+	_, items, err := unmarshalBatch(received.Payload)
+	assert.NoError(t, err, "failed to unmarshal DataBatch.Payload")
 
-	assert.Len(t, joinedBatch.Items, len(expected), "unexpected number of joined records")
+	assert.Len(t, items, len(expected), "unexpected number of joined records")
 
 	for i, exp := range expected {
-		if i >= len(joinedBatch.Items) {
-			t.Fatalf("expected at least %d items but got %d", len(expected), len(joinedBatch.Items))
+		if i >= len(items) {
+			t.Fatalf("expected at least %d items but got %d", len(expected), len(items))
 		}
-		got := joinedBatch.Items[i]
-
-		assert.Equal(t, exp.YearHalfCreatedAt, got.YearHalfCreatedAt, "YearHalfCreatedAt mismatch at index %d", i)
-		assert.Equal(t, exp.StoreName, got.StoreName, "StoreName mismatch at index %d", i)
-		assert.Equal(t, exp.Tpv, got.Tpv, "TPV mismatch at index %d", i)
+		got := items[i]
+		compare(exp, got, i, t)
 	}
+}
+
+func AssertJoinedStoreTPVIsExpected(
+	t *testing.T,
+	received *protocol.DataBatch,
+	expected []*protocol.JoinStoreTPV,
+) {
+	unmarshal := func(payload []byte) (*protocol.JoinStoreTPVBatch, []*protocol.JoinStoreTPV, error) {
+		var batch protocol.JoinStoreTPVBatch
+		if err := proto.Unmarshal(payload, &batch); err != nil {
+			return nil, nil, err
+		}
+		return &batch, batch.Items, nil
+	}
+
+	compare := func(exp, got *protocol.JoinStoreTPV, idx int, t *testing.T) {
+		assert.Equal(t, exp.YearHalfCreatedAt, got.YearHalfCreatedAt, "YearHalfCreatedAt mismatch at index %d", idx)
+		assert.Equal(t, exp.StoreName, got.StoreName, "StoreName mismatch at index %d", idx)
+		assert.Equal(t, exp.Tpv, got.Tpv, "TPV mismatch at index %d", idx)
+	}
+
+	AssertJoinedBatchIsTheExpected(t, received, expected, unmarshal, compare)
+}
+
+func AssertJoinedBestSellingIsExpected(
+	t *testing.T,
+	received *protocol.DataBatch,
+	expected []*protocol.JoinBestSellingProducts,
+) {
+	unmarshal := func(payload []byte) (*protocol.JoinBestSellingProductsBatch, []*protocol.JoinBestSellingProducts, error) {
+		var batch protocol.JoinBestSellingProductsBatch
+		if err := proto.Unmarshal(payload, &batch); err != nil {
+			return nil, nil, err
+		}
+		return &batch, batch.Items, nil
+	}
+
+	compare := func(exp, got *protocol.JoinBestSellingProducts, idx int, t *testing.T) {
+		assert.Equal(t, exp.YearMonthCreatedAt, got.YearMonthCreatedAt, "YearMonthCreatedAt mismatch at index %d", idx)
+		assert.Equal(t, exp.ItemName, got.ItemName, "ItemName mismatch at index %d", idx)
+		assert.Equal(t, exp.SellingsQty, got.SellingsQty, "SellingsQty mismatch at index %d", idx)
+	}
+
+	AssertJoinedBatchIsTheExpected(t, received, expected, unmarshal, compare)
+}
+
+func AssertJoinedMostProfitsIsExpected(
+	t *testing.T,
+	received *protocol.DataBatch,
+	expected []*protocol.JoinMostProfitsProducts,
+) {
+	unmarshal := func(payload []byte) (*protocol.JoinMostProfitsProductsBatch, []*protocol.JoinMostProfitsProducts, error) {
+		var batch protocol.JoinMostProfitsProductsBatch
+		if err := proto.Unmarshal(payload, &batch); err != nil {
+			return nil, nil, err
+		}
+		return &batch, batch.Items, nil
+	}
+
+	compare := func(exp, got *protocol.JoinMostProfitsProducts, idx int, t *testing.T) {
+		assert.Equal(t, exp.YearMonthCreatedAt, got.YearMonthCreatedAt, "YearMonthCreatedAt mismatch at index %d", idx)
+		assert.Equal(t, exp.ItemName, got.ItemName, "ItemName mismatch at index %d", idx)
+		assert.Equal(t, exp.ProfitSum, got.ProfitSum, "ProfitSum mismatch at index %d", idx)
+	}
+
+	AssertJoinedBatchIsTheExpected(t, received, expected, unmarshal, compare)
 }

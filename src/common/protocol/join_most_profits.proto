@@ -1,0 +1,15 @@
+syntax = "proto3";
+
+package protocol;
+
+option go_package = "src/common/protocol;protocol";
+
+message JoinMostProfitsProducts {
+  string year_month_created_at = 1;
+  string item_name = 2;
+  double profit_sum = 3;
+}
+
+message JoinMostProfitsProductsBatch {
+  repeated JoinMostProfitsProducts items = 1;
+}
