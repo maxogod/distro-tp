@@ -100,3 +100,46 @@ func AssertMiddleware1toNWorks(newMiddleware func() middleware.MessageMiddleware
 	}
 
 }
+
+func AssertMiddlewareNto1Works(newMiddleware func() middleware.MessageMiddleware, num_producers int, t *testing.T) {
+	m := newMiddleware()
+	defer m.StopConsuming()
+	defer m.Delete()
+	defer m.Close()
+
+	done := make(chan bool, num_producers)
+	ready := make(chan bool, 1)
+
+	e := m.StartConsuming(func(consumeChannel middleware.ConsumeChannel, d chan error) {
+		ready <- true
+		for msg := range consumeChannel {
+			t.Log("Received a message:", string(msg.Body))
+			assert.Equal(t, "Hello World!", string(msg.Body))
+			msg.Ack(false)
+			done <- true
+		}
+	})
+	assert.Equal(t, 0, int(e))
+
+	<-ready // Wait until consumer is ready
+
+	// Launch N independent producers
+	for range num_producers {
+		go func() {
+			m := newMiddleware()
+			defer m.Close()
+
+			e := m.Send([]byte("Hello World!"))
+			assert.Equal(t, 0, int(e))
+		}()
+	}
+
+	// Get N messages from the N producers
+	for range num_producers {
+		select {
+		case <-done:
+		case <-time.After(2 * time.Second):
+			t.Fatal("did not receive message in time")
+		}
+	}
+}

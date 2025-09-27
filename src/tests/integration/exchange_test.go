@@ -34,3 +34,12 @@ func TestExchange1pubNsub(t *testing.T) {
 		return m
 	}, 5, t)
 }
+
+func TestExchangeNpub1sub(t *testing.T) {
+	// Uses fanout exchange to send messages to all subscribers at once
+	AssertMiddlewareNto1Works(func() middleware.MessageMiddleware {
+		m, err := middleware.NewExchangeMiddleware(url, "test_exchangeNto1", "fanout", []string{})
+		assert.NoError(t, err)
+		return m
+	}, 5, t)
+}
