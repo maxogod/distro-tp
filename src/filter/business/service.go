@@ -3,11 +3,7 @@ package business
 import (
 	"coffee-analisis/src/common/models"
 	"time"
-
-	"github.com/op/go-logging"
 )
-
-var log = logging.MustGetLogger("log")
 
 // Generic constraint that ensures
 // the type implements our required methods
@@ -21,9 +17,7 @@ func NewFilterService() *FilterService {
 	return &FilterService{}
 }
 
-// Generic filter methods that preserve the original type
 func FilterByYearBetween[T TransactionCommon](from, to int, transactions []T) []T {
-	log.Debug("Task being processed... | Filtering by year")
 
 	var filtered []T
 	for _, transaction := range transactions {
@@ -36,12 +30,14 @@ func FilterByYearBetween[T TransactionCommon](from, to int, transactions []T) []
 }
 
 func FilterByHourBetween[T TransactionCommon](from, to int, transactions []T) []T {
-	log.Debug("Task being processed... | Filtering by hour")
-
 	var filtered []T
 	for _, transaction := range transactions {
-		hour := transaction.GetCreatedAt().Hour()
-		if hour >= from && hour <= to {
+		createdAt := transaction.GetCreatedAt()
+
+		// Extract hour and minute as decimal (e.g., 11:45 = 11.75)
+		timeDecimal := float64(createdAt.Hour()) + float64(createdAt.Minute())/60.0
+
+		if timeDecimal >= float64(from) && timeDecimal < float64(to+1) {
 			filtered = append(filtered, transaction)
 		}
 	}
@@ -49,7 +45,6 @@ func FilterByHourBetween[T TransactionCommon](from, to int, transactions []T) []
 }
 
 func FilterByTotalAmountGreaterThan(totalAmount float64, transactions []models.Transaction) []models.Transaction {
-	log.Debug("Task being processed... | Filtering by amount")
 
 	var filtered []models.Transaction
 	for _, transaction := range transactions {
