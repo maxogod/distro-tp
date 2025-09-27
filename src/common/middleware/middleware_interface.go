@@ -20,18 +20,20 @@ const (
 )
 
 type MessageMiddlewareQueue struct {
+	conn    MiddlewareConnection
+	channel MiddlewareChannel
+
 	queueName      string
-	conn           MiddlewareConnection
-	channel        MiddlewareChannel
 	consumeChannel ConsumeChannel
 	consumerTag    string
 }
 
 type MessageMiddlewareExchange struct {
-	exchangeName      string
-	routeKeys         []string
-	conn              MiddlewareConnection
-	channel           MiddlewareChannel
+	exchangeName string
+	conn         MiddlewareConnection
+	channel      MiddlewareChannel
+	routeKeys    []string
+
 	consumeChannel    ConsumeChannel
 	consumerQueueName string
 	consumerTag       string

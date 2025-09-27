@@ -9,8 +9,12 @@ import (
 	amqp "github.com/rabbitmq/amqp091-go"
 )
 
-func NewExchangeMiddleware(url, exchangeName, exchangeType string) (MessageMiddleware, error) {
+func NewExchangeMiddleware(url, exchangeName, exchangeType string, routingKeys []string) (MessageMiddleware, error) {
 	m := &MessageMiddlewareExchange{}
+
+	if len(routingKeys) == 0 {
+		routingKeys = []string{""} // Default
+	}
 
 	conn, err := amqp.Dial(url)
 	if err != nil {
@@ -39,6 +43,7 @@ func NewExchangeMiddleware(url, exchangeName, exchangeType string) (MessageMiddl
 	}
 
 	m.exchangeName = exchangeName
+	m.routeKeys = routingKeys
 	m.conn = conn
 	m.channel = ch
 
@@ -59,7 +64,7 @@ func (me *MessageMiddlewareExchange) StartConsuming(onMessageCallback onMessageC
 
 	err = me.channel.QueueBind(
 		q.Name,          // queue name
-		"",              // routing key
+		me.routeKeys[0], // routing key
 		me.exchangeName, // exchange
 		false,
 		nil,
@@ -134,7 +139,7 @@ func (me *MessageMiddlewareExchange) Send(message []byte) (error MessageMiddlewa
 
 	err := me.channel.PublishWithContext(ctx,
 		me.exchangeName, // exchange
-		"",              // routing key
+		me.routeKeys[0], // routing key
 		false,           // mandatory
 		false,           // immediate
 		amqp.Publishing{
