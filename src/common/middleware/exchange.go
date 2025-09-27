@@ -62,16 +62,19 @@ func (me *MessageMiddlewareExchange) StartConsuming(onMessageCallback onMessageC
 	if err != nil {
 	}
 
-	err = me.channel.QueueBind(
-		q.Name,          // queue name
-		me.routeKeys[0], // routing key
-		me.exchangeName, // exchange
-		false,
-		nil,
-	)
-	if err != nil {
-		logger.GetLogger().Errorln("Failed to bind consumer queue to exchange:", err)
-		return MessageMiddlewareMessageError
+	for _, key := range me.routeKeys {
+		logger.GetLogger().Debugf("Binding queue %s to exchange %s with routing key %s", q.Name, me.exchangeName, key)
+		err = me.channel.QueueBind(
+			q.Name,          // queue name
+			key,             // routing key
+			me.exchangeName, // exchange
+			false,           // no-wait
+			nil,
+		)
+		if err != nil {
+			logger.GetLogger().Errorln("Failed to bind consumer queue to exchange:", err)
+			return MessageMiddlewareMessageError
+		}
 	}
 
 	// TODO: prefetch count and size (Qos)
@@ -128,7 +131,7 @@ func (me *MessageMiddlewareExchange) StopConsuming() (error MessageMiddlewareErr
 	return MessageMiddlewareSuccess
 }
 
-func (me *MessageMiddlewareExchange) Send(message []byte) (error MessageMiddlewareError) {
+func (me *MessageMiddlewareExchange) Send(message []byte) MessageMiddlewareError {
 	if me.conn.IsClosed() {
 		logger.GetLogger().Errorln("Connection is closed")
 		return MessageMiddlewareDisconnectedError
@@ -137,20 +140,22 @@ func (me *MessageMiddlewareExchange) Send(message []byte) (error MessageMiddlewa
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	err := me.channel.PublishWithContext(ctx,
-		me.exchangeName, // exchange
-		me.routeKeys[0], // routing key
-		false,           // mandatory
-		false,           // immediate
-		amqp.Publishing{
-			DeliveryMode: amqp.Persistent,
-			ContentType:  "text/plain",
-			Body:         message,
-		})
-
-	if err != nil {
-		logger.GetLogger().Errorln("Failed to publish a message:", err)
-		return MessageMiddlewareMessageError
+	for _, key := range me.routeKeys {
+		logger.GetLogger().Debugf("Publishing message to route %s: %s", key, string(message))
+		err := me.channel.PublishWithContext(ctx,
+			me.exchangeName, // exchange
+			key,             // routing key
+			false,           // mandatory
+			false,           // immediate
+			amqp.Publishing{
+				DeliveryMode: amqp.Persistent,
+				ContentType:  "text/plain",
+				Body:         message,
+			})
+		if err != nil {
+			logger.GetLogger().Errorf("Failed to publish a message to route %s: %v", key, err)
+			return MessageMiddlewareMessageError
+		}
 	}
 
 	logger.GetLogger().Debugln("Sent message:", string(message))

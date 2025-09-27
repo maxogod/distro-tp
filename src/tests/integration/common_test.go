@@ -20,7 +20,6 @@ func AssertMiddleware1to1Works(sender, receiver middleware.MessageMiddleware, me
 			assert.Equal(t, "Hello World!", string(msg.Body))
 			msg.Ack(false)
 
-			d <- nil
 			messagesReceived++
 			if messagesReceived == messagesToWait {
 				break
@@ -30,10 +29,8 @@ func AssertMiddleware1to1Works(sender, receiver middleware.MessageMiddleware, me
 	})
 	assert.Equal(t, 0, int(e))
 
-	for range messagesToWait {
-		e = sender.Send([]byte("Hello World!"))
-		assert.Equal(t, 0, int(e))
-	}
+	e = sender.Send([]byte("Hello World!"))
+	assert.Equal(t, 0, int(e))
 
 	// Check if consumer finished
 	select {
