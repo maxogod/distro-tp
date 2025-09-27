@@ -1,5 +1,7 @@
 package protocol
 
 type Protocol interface {
-	GetTransactionsBatch()
+	// GetTransactionBatch() ([]Transaction, error)
+
+	// SendTransactionBatch(t []Transaction) error
 }

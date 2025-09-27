@@ -15,5 +15,7 @@ message Transaction {
 }
 
 message TransactionBatch {
-    repeated Transaction transactions = 1;
+    int32 task_type = 1;
+    bool is_transaction_items = 2;
+    repeated Transaction transactions = 3;
 }
