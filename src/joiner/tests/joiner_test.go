@@ -14,6 +14,7 @@ const (
 	DatasetMenuItems = 0
 	DatasetStores    = 1
 	DatasetUsers     = 2
+	Task2            = 2
 	Task3            = 3
 	Task4            = 4
 )
@@ -162,8 +163,8 @@ func TestHandleTaskType2_ProducesJoinedBatch(t *testing.T) {
 			[]byte("2,Americano,coffee,7.0,False,,\n"),
 		},
 		ExpectedFiles: []string{filepath.Join(storeDir, "menu_items.pb")},
-		TaskDone:      0,
-		SendDone:      false,
+		TaskDone:      Task2,
+		SendDone:      true,
 	}
 	helper.RunTest(t, storeDir, testCase)
 
@@ -173,28 +174,27 @@ func TestHandleTaskType2_ProducesJoinedBatch(t *testing.T) {
 	}
 	bestSellingBatch := helper.PrepareBestSellingBatch(t, bestSelling)
 	helper.SendDataBatch(t, "transaction_counted", bestSellingBatch)
-	bestSellingJoined := helper.GetOutputMessage(t, "joined_transactions")
-
-	expectedBestSelling := []*protocol.JoinBestSellingProducts{
-		{YearMonthCreatedAt: "2024-01", ItemName: "Espresso", SellingsQty: 260611},
-		{YearMonthCreatedAt: "2024-02", ItemName: "Americano", SellingsQty: 91218},
-	}
-
-	helper.AssertJoinedBestSellingIsExpected(t, bestSellingJoined, expectedBestSelling)
 
 	mostProfits := []*protocol.MostProfitsProducts{
 		{YearMonthCreatedAt: "2024-01", ItemId: 1, ProfitSum: 260611.0},
 		{YearMonthCreatedAt: "2024-02", ItemId: 2, ProfitSum: 91218.0},
 	}
 	mostProfitsBatch := helper.PrepareMostProfitsBatch(t, mostProfits)
-	helper.SendDataBatch(t, "transaction_counted", mostProfitsBatch)
-	mostProfitsJoined := helper.GetOutputMessage(t, "joined_transactions")
+	helper.SendDataBatch(t, "transaction_sum", mostProfitsBatch)
+
+	expectedBestSelling := []*protocol.JoinBestSellingProducts{
+		{YearMonthCreatedAt: "2024-01", ItemName: "Espresso", SellingsQty: 260611},
+		{YearMonthCreatedAt: "2024-02", ItemName: "Americano", SellingsQty: 91218},
+	}
 
 	expectedMostProfits := []*protocol.JoinMostProfitsProducts{
 		{YearMonthCreatedAt: "2024-01", ItemName: "Espresso", ProfitSum: 260611.0},
 		{YearMonthCreatedAt: "2024-02", ItemName: "Americano", ProfitSum: 91218.0},
 	}
 
-	helper.AssertJoinedMostProfitsIsExpected(t, mostProfitsJoined, expectedMostProfits)
+	bestSellingJoined := helper.GetOutputMessage(t, "joined_transactions_queue")
+	mostProfitsJoined := helper.GetOutputMessage(t, "joined_transactions_queue")
 
+	helper.AssertJoinedBestSellingIsExpected(t, bestSellingJoined, expectedBestSelling)
+	helper.AssertJoinedMostProfitsIsExpected(t, mostProfitsJoined, expectedMostProfits)
 }

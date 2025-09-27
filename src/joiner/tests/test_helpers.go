@@ -306,7 +306,7 @@ func GetOutputMessage(t *testing.T, outputQueue string) *protocol.DataBatch {
 	select {
 	case <-done:
 	case <-time.After(2 * time.Second):
-		t.Fatal("did not receive batch from aggregator")
+		t.Fatalf("did not receive batch from %s", outputQueue)
 	}
 
 	return received
