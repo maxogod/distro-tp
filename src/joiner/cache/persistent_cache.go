@@ -67,9 +67,9 @@ func getDatasetFilename(storePath string, batch *protocol.ReferenceBatch) (strin
 		if err != nil {
 			return "", false
 		}
-		datasetFilename = filepath.Join(storePath, fmt.Sprintf("%s_%d%s.csv", datasetName, year, month))
+		datasetFilename = filepath.Join(storePath, fmt.Sprintf("%s_%d%s.pb", datasetName, year, month))
 	} else {
-		datasetFilename = filepath.Join(storePath, fmt.Sprintf("%s.csv", datasetName))
+		datasetFilename = filepath.Join(storePath, fmt.Sprintf("%s.pb", datasetName))
 	}
 
 	return datasetFilename, ok

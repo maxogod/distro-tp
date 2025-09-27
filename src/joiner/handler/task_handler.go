@@ -40,7 +40,7 @@ func (th *TaskHandler) handleTaskType2(dataBatch *protocol.DataBatch, refDataset
 }
 
 func (th *TaskHandler) handleTaskType3(dataBatch *protocol.DataBatch, refDatasetDir string) error {
-	pathStoresDataset := fmt.Sprintf("%s/stores.csv", refDatasetDir)
+	pathStoresDataset := fmt.Sprintf("%s/stores.pb", refDatasetDir)
 	storesMap, loadErr := cache.LoadStores(pathStoresDataset)
 	if loadErr != nil {
 		return loadErr
