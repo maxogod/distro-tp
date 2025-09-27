@@ -1,13 +1,12 @@
 package main
 
 import (
+	"github.com/maxogod/distro-tp/src/common/logger"
 	"github.com/maxogod/distro-tp/src/filter/config"
 	"github.com/maxogod/distro-tp/src/filter/internal/server"
-
-	"github.com/op/go-logging"
 )
 
-var log = logging.MustGetLogger("log")
+var log = logger.GetLogger()
 
 func main() {
 
@@ -15,12 +14,6 @@ func main() {
 	if err != nil {
 		log.Fatalf("%s", err)
 	}
-
-	if err := config.InitLogger(conf.LogLevel); err != nil {
-		log.Fatalf("%s", err)
-	}
-
-	log.Debug(conf)
 
 	server := server.InitServer(conf)
 

@@ -3,7 +3,7 @@ package business
 import (
 	"time"
 
-	"github.com/maxogod/github.com/maxogod/distro-tp/src/common/models"
+	"github.com/maxogod/distro-tp/src/common/models"
 )
 
 // Generic constraint that ensures

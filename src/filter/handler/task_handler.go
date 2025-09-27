@@ -3,13 +3,12 @@ package handler
 import (
 	"fmt"
 
+	"github.com/maxogod/distro-tp/src/common/logger"
 	"github.com/maxogod/distro-tp/src/common/models"
 	"github.com/maxogod/distro-tp/src/filter/business"
-
-	"github.com/op/go-logging"
 )
 
-var log = logging.MustGetLogger("task-handler")
+var log = logger.GetLogger()
 
 type TaskHandler struct {
 	FilterService *business.FilterService

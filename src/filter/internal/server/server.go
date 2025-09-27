@@ -6,12 +6,12 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/maxogod/github.com/maxogod/distro-tp/src/filter/business"
-	"github.com/maxogod/github.com/maxogod/distro-tp/src/filter/config"
-	"github.com/op/go-logging"
+	"github.com/maxogod/distro-tp/src/common/logger"
+	"github.com/maxogod/distro-tp/src/filter/business"
+	"github.com/maxogod/distro-tp/src/filter/config"
 )
 
-var log = logging.MustGetLogger("log")
+var log = logger.GetLogger()
 
 type Server struct {
 	config        *config.Config
