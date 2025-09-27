@@ -27,6 +27,8 @@ func InitServer(conf *config.Config) *Server {
 	}
 }
 
+//TODO: protobuffs are necesary to implement here before adding server logic
+
 func (s *Server) Run() error {
 	log.Info("Starting Basic Worker server...")
 
