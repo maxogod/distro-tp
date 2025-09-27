@@ -7,8 +7,8 @@ import (
 	"time"
 
 	"github.com/maxogod/distro-tp/src/common/logger"
-	"github.com/maxogod/distro-tp/src/worker_base/business"
-	"github.com/maxogod/distro-tp/src/worker_base/config"
+	"github.com/maxogod/distro-tp/src/filter/business"
+	"github.com/maxogod/distro-tp/src/filter/config"
 )
 
 var log = logger.GetLogger()
@@ -16,16 +16,18 @@ var log = logger.GetLogger()
 type Server struct {
 	config        *config.Config
 	isRunning     bool
-	workerService *business.WorkerService
+	workerService *business.FilterService
 }
 
 func InitServer(conf *config.Config) *Server {
 	return &Server{
 		config:        conf,
 		isRunning:     true,
-		workerService: business.NewWorkerService(),
+		workerService: business.NewFilterService(),
 	}
 }
+
+//TODO: protobuffs are necesary to implement here before adding server logic
 
 func (s *Server) Run() error {
 	log.Info("Starting Basic Worker server...")
@@ -36,7 +38,8 @@ func (s *Server) Run() error {
 	for s.isRunning {
 
 		time.Sleep(1 * time.Second)
-		s.workerService.HandleTask()
+		// Here would be the logic to fetch and process tasks
+		// TODO: IMPLEMENT HERE!!!
 
 	}
 

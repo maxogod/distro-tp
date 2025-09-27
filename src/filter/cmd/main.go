@@ -2,8 +2,8 @@ package main
 
 import (
 	"github.com/maxogod/distro-tp/src/common/logger"
-	"github.com/maxogod/distro-tp/src/worker_base/config"
-	"github.com/maxogod/distro-tp/src/worker_base/internal/server"
+	"github.com/maxogod/distro-tp/src/filter/config"
+	"github.com/maxogod/distro-tp/src/filter/internal/server"
 )
 
 var log = logger.GetLogger()
