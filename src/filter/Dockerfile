@@ -8,8 +8,7 @@ COPY go.mod go.sum ./
 
 # Copy worker_base to the correct location
 COPY src/filter/ ./src/filter/
-
-COPY src/common/ ./common/
+COPY src/common/ ./src/common/
 
 RUN CGO_ENABLED=0 GOOS=linux go build -o bin/filter ./src/filter/cmd
 

@@ -1,15 +1,15 @@
 name: tp1
 services:
-  filter:
-    container_name: filter
+  worker_base:
+    container_name: worker_base
     build:
       context: .
-      dockerfile: ./src/filter/Dockerfile
-    image: filter:latest
+      dockerfile: ./src/worker_base/Dockerfile
+    image: worker_base:latest
     networks:
       - testing_net
     volumes:
-      - ./src/filter/config.yaml:/config.yaml
+      - ./src/worker_base/config.yaml:/config.yaml
 
 
 # TODO: change to rabbitMQ
