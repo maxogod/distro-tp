@@ -60,6 +60,8 @@ func (me *MessageMiddlewareExchange) StartConsuming(onMessageCallback onMessageC
 		nil,   // arguments
 	)
 	if err != nil {
+		logger.GetLogger().Errorln("Failed to declare a queue:", err)
+		return MessageMiddlewareMessageError
 	}
 
 	for _, key := range me.routeKeys {
@@ -168,7 +170,7 @@ func (me *MessageMiddlewareExchange) Delete() (error MessageMiddlewareError) {
 		false,           // noWait
 	)
 	if err != nil {
-		logger.GetLogger().Errorln("Failed to delete queue:", err)
+		logger.GetLogger().Errorln("Failed to delete exchange:", err)
 		return MessageMiddlewareDeleteError
 	}
 
