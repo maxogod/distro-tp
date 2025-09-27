@@ -21,3 +21,15 @@ func (t Transaction) GetCreatedAt() time.Time {
 func (t Transaction) GetFinalAmount() float64 {
 	return t.FinalAmount
 }
+
+func (t Transaction) IsEqual(other Transaction) bool {
+	return t.TransactionId == other.TransactionId &&
+		t.StoreId == other.StoreId &&
+		t.PaymentMethod == other.PaymentMethod &&
+		t.VoucherId == other.VoucherId &&
+		t.UserId == other.UserId &&
+		t.OriginalAmount == other.OriginalAmount &&
+		t.DiscountApplied == other.DiscountApplied &&
+		t.FinalAmount == other.FinalAmount &&
+		t.CreatedAt.Equal(other.CreatedAt)
+}
