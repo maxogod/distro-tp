@@ -1,4 +1,4 @@
-FROM golang:1.23.0 AS builder
+FROM golang:1.24.6 AS builder
 
 # Create the full path to match your imports
 RUN mkdir -p /build/github.com/maxogod/distro-tp
@@ -10,7 +10,7 @@ COPY go.mod go.sum ./
 COPY src/worker_base/ ./src/worker_base/
 COPY src/common/ ./src/common/
 
-RUN CGO_ENABLED=0 GOOS=linux go build -o bin/worker ./src/worker_base/cmd
+RUN go build -o bin/worker ./src/worker_base/cmd
 
 FROM busybox:latest
 COPY --from=builder /build/github.com/maxogod/distro-tp/bin/worker /worker
