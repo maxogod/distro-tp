@@ -7,8 +7,6 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-var url = "amqp://guest:guest@localhost:5672/"
-
 // TestExchange1pub1sub tests the success case of a publisher-subscriber scenario with an exchange.
 func TestExchange1pub1sub(t *testing.T) {
 	m, err := middleware.NewExchangeMiddleware(url, "test_exchange1to1", "fanout", []string{})

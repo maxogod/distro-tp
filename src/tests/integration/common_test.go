@@ -8,6 +8,8 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+var url = "amqp://guest:guest@localhost:5672/"
+
 // AssertMiddleware1to1Works asserts that a middleware works with 1 sender and 1 receiver.
 func AssertMiddleware1to1Works(sender, receiver middleware.MessageMiddleware, messagesToWait int, t *testing.T) {
 	defer receiver.StopConsuming()
