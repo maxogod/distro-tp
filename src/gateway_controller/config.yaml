@@ -1,0 +1,4 @@
+gateway:
+  address: "guest:guest@localhost:5672"
+log:
+  level: "DEBUG"
