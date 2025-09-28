@@ -70,7 +70,8 @@ func (j *Joiner) StartRefConsumer(referenceDatasetQueue string) error {
 
 func (j *Joiner) startDataConsumer(handlerTask handler.HandleTask, dataQueueNames []string) error {
 	for _, dataQueueName := range dataQueueNames {
-		dataHandler := handler.NewDataHandler(handlerTask, j.config.StorePath)
+		isBestSellingTask := j.isBestSellingTask(dataQueueName)
+		dataHandler := handler.NewDataHandler(handlerTask, j.config.StorePath, isBestSellingTask)
 
 		m, err := StartConsumer(j.config.GatewayAddress, dataQueueName, dataHandler.HandleDataMessage)
 		if err != nil {
@@ -144,4 +145,8 @@ func (j *Joiner) SendBatchToAggregator(dataBatch *handler.DataBatch) error {
 	}
 
 	return nil
+}
+
+func (j *Joiner) isBestSellingTask(dataQueueName string) bool {
+	return dataQueueName == j.config.TransactionCountedQueue
 }

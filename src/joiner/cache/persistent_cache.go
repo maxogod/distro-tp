@@ -59,10 +59,11 @@ func getDatasetFilename(storePath string, batch *protocol.ReferenceBatch) (strin
 	var datasetFilename string
 
 	if refDatasetType == models.Users {
-		user := &protocol.User{}
-		if err := proto.Unmarshal(batch.Payload, user); err != nil {
+		users := &protocol.Users{}
+		if err := proto.Unmarshal(batch.Payload, users); err != nil {
 			return "", false
 		}
+		user := users.Users[0]
 
 		year, month, err := getYearMonth(user.RegisteredAt)
 		if err != nil {
@@ -85,7 +86,11 @@ func getYearMonth(userRegisteredAt string) (int, string, error) {
 	return t.Year(), fmt.Sprintf("%02d", int(t.Month())), nil
 }
 
-func LoadReferenceData[T proto.Message](path string, createRefDatasetProto func() T) ([]T, error) {
+func LoadReferenceData[T proto.Message, B proto.Message](
+	path string,
+	createSpecificBatch func() B,
+	extractItems func(B) []T,
+) ([]T, error) {
 	f, openErr := os.Open(path)
 	if openErr != nil {
 		return nil, openErr
@@ -107,19 +112,30 @@ func LoadReferenceData[T proto.Message](path string, createRefDatasetProto func(
 			return nil, err
 		}
 
-		refDatasetMsg := createRefDatasetProto()
-		if err := proto.Unmarshal(refDatasetBytes, refDatasetMsg); err != nil {
+		refBatch := &protocol.ReferenceBatch{}
+		err := proto.Unmarshal(refDatasetBytes, refBatch)
+		if err != nil {
 			return nil, err
 		}
 
-		referenceDataset = append(referenceDataset, refDatasetMsg)
+		specificBatch := createSpecificBatch()
+		if err = proto.Unmarshal(refBatch.Payload, specificBatch); err != nil {
+			return nil, err
+		}
+
+		items := extractItems(specificBatch)
+		referenceDataset = append(referenceDataset, items...)
 	}
 
 	return referenceDataset, nil
 }
 
 func LoadStores(path string) (map[int32]*protocol.Store, error) {
-	stores, err := LoadReferenceData(path, func() *protocol.Store { return &protocol.Store{} })
+	stores, err := LoadReferenceData(
+		path,
+		func() *protocol.Stores { return &protocol.Stores{} },
+		func(batch *protocol.Stores) []*protocol.Store { return batch.Stores },
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -131,20 +147,63 @@ func LoadStores(path string) (map[int32]*protocol.Store, error) {
 	return storesMap, nil
 }
 
-func CreateDataBatchFromJoined(taskType int32, joined []*protocol.JoinStoreTPV) (*protocol.DataBatch, error) {
-	batch := &protocol.JoinStoreTPVBatch{
-		Items: joined,
+func LoadMenuItems(path string) (map[int32]*protocol.MenuItem, error) {
+	menuItems, err := LoadReferenceData(
+		path,
+		func() *protocol.MenuItems { return &protocol.MenuItems{} },
+		func(batch *protocol.MenuItems) []*protocol.MenuItem { return batch.Items },
+	)
+	if err != nil {
+		return nil, err
 	}
+
+	menuItemsMap := make(map[int32]*protocol.MenuItem)
+	for _, menuItem := range menuItems {
+		menuItemsMap[menuItem.ItemId] = menuItem
+	}
+	return menuItemsMap, nil
+}
+
+func createDataBatchFromJoined[T proto.Message](taskType int32, items []T, makeDataBatchMsg func([]T) proto.Message) (*protocol.DataBatch, error) {
+	batch := makeDataBatchMsg(items)
 
 	payloadBytes, err := proto.Marshal(batch)
 	if err != nil {
 		return nil, err
 	}
 
-	dataBatch := &protocol.DataBatch{
+	return &protocol.DataBatch{
 		TaskType: taskType,
 		Payload:  payloadBytes,
-	}
+	}, nil
+}
 
-	return dataBatch, nil
+func CreateJoinStoreTPVBatch(taskType int32, joined []*protocol.JoinStoreTPV) (*protocol.DataBatch, error) {
+	return createDataBatchFromJoined(
+		taskType,
+		joined,
+		func(items []*protocol.JoinStoreTPV) proto.Message {
+			return &protocol.JoinStoreTPVBatch{Items: items}
+		},
+	)
+}
+
+func CreateBestSellingBatch(taskType int32, joined []*protocol.JoinBestSellingProducts) (*protocol.DataBatch, error) {
+	return createDataBatchFromJoined(
+		taskType,
+		joined,
+		func(items []*protocol.JoinBestSellingProducts) proto.Message {
+			return &protocol.JoinBestSellingProductsBatch{Items: items}
+		},
+	)
+}
+
+func CreateMostProfitsBatch(taskType int32, joined []*protocol.JoinMostProfitsProducts) (*protocol.DataBatch, error) {
+	return createDataBatchFromJoined(
+		taskType,
+		joined,
+		func(items []*protocol.JoinMostProfitsProducts) proto.Message {
+			return &protocol.JoinMostProfitsProductsBatch{Items: items}
+		},
+	)
 }
