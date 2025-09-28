@@ -45,3 +45,9 @@ func PrepareMostProfitsBatch(t *testing.T, records []*protocol.MostProfitsProduc
 		return &protocol.MostProfitsProductsBatch{Items: items}
 	})
 }
+
+func PrepareMostPurchasesUserBatch(t *testing.T, tpvs []*protocol.MostPurchasesUser, taskType models.TaskType) *protocol.DataBatch {
+	return prepareDataBatch(t, taskType, tpvs, func(users []*protocol.MostPurchasesUser) proto.Message {
+		return &protocol.MostPurchasesUserBatch{Users: users}
+	})
+}

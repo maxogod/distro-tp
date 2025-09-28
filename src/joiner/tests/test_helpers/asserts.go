@@ -314,3 +314,32 @@ func AssertStoresAreTheExpected(
 
 	assertFileContainsPayloads(t, expectedFile, csvPayloads, datasetType, unmarshal, compare)
 }
+
+func AssertJoinedMostPurchasesUsersIsExpected(
+	t *testing.T,
+	received *protocol.DataBatch,
+	expected []*protocol.JoinMostPurchasesUser,
+) {
+	t.Helper()
+
+	unmarshal := func(payload []byte) ([]*protocol.JoinMostPurchasesUser, error) {
+		var batch protocol.JoinMostPurchasesUserBatch
+		if err := proto.Unmarshal(payload, &batch); err != nil {
+			return nil, err
+		}
+		return batch.Users, nil
+	}
+
+	compare := func(exp, got *protocol.JoinMostPurchasesUser, idx int, t *testing.T) {
+		expDate, err := time.Parse("2006-01-02", exp.UserBirthdate)
+		assert.NoError(t, err, "Failed to parse expected UserBirthdate at index %d", idx)
+		gotDate, err := time.Parse("2006-01-02", got.UserBirthdate)
+		assert.NoError(t, err, "Failed to parse received UserBirthdate at index %d", idx)
+
+		assert.Equal(t, exp.StoreName, got.StoreName, "StoreName mismatch at index %d", idx)
+		assert.True(t, expDate.Equal(gotDate), "UserBirthdate mismatch at index %d", idx)
+		assert.Equal(t, exp.PurchasesQty, got.PurchasesQty, "PurchasesQty mismatch at index %d", idx)
+	}
+
+	AssertJoinedBatchIsTheExpected(t, received, expected, unmarshal, compare)
+}

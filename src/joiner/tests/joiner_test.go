@@ -199,3 +199,48 @@ func TestHandleTaskType2_ProducesJoinedBatch(t *testing.T) {
 	helpers.AssertJoinedBestSellingIsExpected(t, bestSellingJoined, expectedBestSelling)
 	helpers.AssertJoinedMostProfitsIsExpected(t, mostProfitsJoined, expectedMostProfits)
 }
+
+func TestHandleTaskType4_ProducesJoinedBatch(t *testing.T) {
+	storeDir := t.TempDir()
+	testCase := test_helpers.TestCase{
+		Queue:       "test_stores",
+		DatasetType: models.Stores,
+		CsvPayloads: [][]byte{
+			[]byte("5,G Coffee @ Seksyen 21,Jalan 1,12345,CityA,StateA,1.0,2.0\n"),
+			[]byte("6,G Coffee @ Alam Tun Hussein Onn,Jalan 2,23456,CityB,StateB,3.0,4.0\n"),
+		},
+		ExpectedFiles: []string{filepath.Join(storeDir, "stores.pb")},
+		TaskDone:      models.T4,
+		SendDone:      true,
+	}
+	test_helpers.RunTest(t, storeDir, testCase)
+
+	testCaseUsers := test_helpers.TestCase{
+		Queue:       "test_users",
+		DatasetType: models.Users,
+		CsvPayloads: [][]byte{
+			[]byte("1,female,1970-04-22,2023-07-01 08:13:07\n"),
+			[]byte("2,female,1974-06-21,2023-08-01 08:13:07\n"),
+		},
+		ExpectedFiles: []string{filepath.Join(storeDir, "users_202307.pb")},
+		TaskDone:      models.T4,
+		SendDone:      true,
+	}
+	test_helpers.RunTest(t, storeDir, testCaseUsers)
+
+	mostPurchasesUsers := []*protocol.MostPurchasesUser{
+		{StoreId: 5, UserId: 1, PurchasesQty: 260611},
+		{StoreId: 6, UserId: 2, PurchasesQty: 91218},
+	}
+	mostPurchasesUsersBatch := helpers.PrepareMostPurchasesUserBatch(t, mostPurchasesUsers, models.T4)
+	helpers.SendDataBatch(t, "transaction_counted", mostPurchasesUsersBatch)
+
+	expectedMostPurchasesUsers := []*protocol.JoinMostPurchasesUser{
+		{StoreName: "G Coffee @ Seksyen 21", UserBirthdate: "1970-04-22", PurchasesQty: 260611},
+		{StoreName: "G Coffee @ Alam Tun Hussein Onn", UserBirthdate: "1974-06-21", PurchasesQty: 91218},
+	}
+
+	received := helpers.GetAllOutputMessages(t, "joined_user_transactions_queue")[0]
+
+	helpers.AssertJoinedMostPurchasesUsersIsExpected(t, received, expectedMostPurchasesUsers)
+}

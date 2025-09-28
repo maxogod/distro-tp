@@ -122,6 +122,10 @@ func GetAllOutputMessages(t *testing.T, outputQueue string) []*protocol.DataBatc
 	select {
 	case <-done:
 	case <-time.After(200 * time.Millisecond):
+		if len(received) > 0 {
+			return received
+		}
+		t.Fatal("Timeout waiting for messages")
 	}
 
 	return received
