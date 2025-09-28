@@ -3,8 +3,11 @@ package cache
 import (
 	"encoding/binary"
 	"errors"
+	"fmt"
 	"io"
 	"os"
+	"path/filepath"
+	"sort"
 
 	"github.com/maxogod/distro-tp/src/common/models"
 	"github.com/maxogod/distro-tp/src/common/protocol"
@@ -17,6 +20,7 @@ const (
 
 type StoresMap map[int32]*protocol.Store
 type MenuItemsMap map[int32]*protocol.MenuItem
+type UsersMap map[int32]*protocol.User
 
 func loadReferenceData[T proto.Message, B proto.Message](
 	path string,
@@ -94,4 +98,61 @@ func (refStore *ReferenceDatasetStore) LoadMenuItems() (MenuItemsMap, error) {
 		menuItemsMap[menuItem.ItemId] = menuItem
 	}
 	return menuItemsMap, nil
+}
+
+func (refStore *ReferenceDatasetStore) LoadUsers(userIds []int) (UsersMap, error) {
+	sort.Ints(userIds)
+
+	datasetRanges := make(map[int][2]int)
+	for i, usersDatasetPath := range refStore.refDatasets[models.Users] {
+		firstId, lastId, err := getUserIdRangeFromDatasetName(usersDatasetPath)
+		if err != nil {
+			return nil, err
+		}
+		datasetRanges[i] = [2]int{firstId, lastId}
+	}
+
+	datasetsToLoad := make([]int, 0)
+	for i, rng := range datasetRanges {
+		const firstId = 0
+		const lastId = 1
+		if intersects(rng[firstId], rng[lastId], userIds) {
+			datasetsToLoad = append(datasetsToLoad, i)
+		}
+	}
+
+	usersMap := make(UsersMap)
+	for _, idx := range datasetsToLoad {
+		users, err := loadReferenceData(
+			refStore.refDatasets[models.Users][idx],
+			func() *protocol.Users { return &protocol.Users{} },
+			func(batch *protocol.Users) []*protocol.User { return batch.Users },
+		)
+		if err != nil {
+			return nil, err
+		}
+
+		for _, user := range users {
+			usersMap[user.UserId] = user
+		}
+	}
+
+	return usersMap, nil
+}
+
+func getUserIdRangeFromDatasetName(usersDatasetPath string) (int, int, error) {
+	var firstUserId, lastUserId int
+
+	usersDatasetName := filepath.Base(usersDatasetPath)
+
+	_, err := fmt.Sscanf(usersDatasetName, "users_%d-%d.pb", &firstUserId, &lastUserId)
+	if err != nil {
+		return 0, 0, fmt.Errorf("invalid users dataset name: %s", usersDatasetName)
+	}
+	return firstUserId, lastUserId, nil
+}
+
+func intersects(firstId, lastId int, userIds []int) bool {
+	i := sort.SearchInts(userIds, firstId)
+	return i < len(userIds) && userIds[i] <= lastId
 }

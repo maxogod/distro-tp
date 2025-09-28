@@ -136,7 +136,41 @@ func (th *TaskHandler) handleTaskType3(dataBatch *protocol.DataBatch) error {
 }
 
 func (th *TaskHandler) handleTaskType4(dataBatch *protocol.DataBatch) error {
-	return nil
+	storesMap, loadErr := th.refDatasetStore.LoadStores()
+	if loadErr != nil {
+		return loadErr
+	}
+
+	var mostPurchasesUserBatch protocol.MostPurchasesUserBatch
+	err := proto.Unmarshal(dataBatch.Payload, &mostPurchasesUserBatch)
+	if err != nil {
+		return err
+	}
+
+	mostPurchasesUsers := mostPurchasesUserBatch.Users
+	userIDs := make([]int, 0, len(mostPurchasesUsers))
+	for _, user := range mostPurchasesUsers {
+		userIDs = append(userIDs, int(user.UserId))
+	}
+
+	usersMap, loadErr := th.refDatasetStore.LoadUsers(userIDs)
+	if loadErr != nil {
+		return loadErr
+	}
+
+	joined := make([]*protocol.JoinMostPurchasesUser, 0)
+	for _, entry := range mostPurchasesUsers {
+		store := storesMap[entry.StoreId]
+		user := usersMap[entry.UserId]
+
+		joined = append(joined, &protocol.JoinMostPurchasesUser{
+			StoreName:     store.StoreName,
+			UserBirthdate: user.Birthdate,
+			PurchasesQty:  entry.PurchasesQty,
+		})
+	}
+
+	return sendJoinedData(dataBatch, joined, cache.CreateMostPurchasesUserBatch, th.sendBatchToAggregator)
 }
 
 func sendJoinedData[T any](

@@ -49,3 +49,13 @@ func CreateMostProfitsBatch(taskType models.TaskType, joined []*protocol.JoinMos
 		},
 	)
 }
+
+func CreateMostPurchasesUserBatch(taskType models.TaskType, joined []*protocol.JoinMostPurchasesUser) (*protocol.DataBatch, error) {
+	return createDataBatchFromJoined(
+		taskType,
+		joined,
+		func(items []*protocol.JoinMostPurchasesUser) proto.Message {
+			return &protocol.JoinMostPurchasesUserBatch{Users: items}
+		},
+	)
+}
