@@ -45,13 +45,12 @@ func (th *TaskHandler) handleTaskType2(dataBatch *protocol.DataBatch, refDataset
 	}
 
 	if isBestSellingTask {
-		return th.handleTaskType2BestSellingProducts(dataBatch, menuItemsMap)
+		return th.handleBestSellingProducts(dataBatch, menuItemsMap)
 	}
-	return th.handleTaskType2MostProfitsProducts(dataBatch, menuItemsMap)
+	return th.handleMostProfitsProducts(dataBatch, menuItemsMap)
 }
 
-func (th *TaskHandler) handleTaskType2BestSellingProducts(dataBatch *protocol.DataBatch, menuItemsMap map[int32]*protocol.MenuItem) error {
-
+func (th *TaskHandler) handleBestSellingProducts(dataBatch *protocol.DataBatch, menuItemsMap map[int32]*protocol.MenuItem) error {
 	var bestSellingProductsBatch protocol.BestSellingProductsBatch
 	err := proto.Unmarshal(dataBatch.Payload, &bestSellingProductsBatch)
 	if err != nil {
@@ -71,20 +70,10 @@ func (th *TaskHandler) handleTaskType2BestSellingProducts(dataBatch *protocol.Da
 		}
 	}
 
-	joinedDataBatch, err := cache.CreateBestSellingBatch(dataBatch.TaskType, joined)
-	if err != nil {
-		return err
-	}
-
-	err = th.sendBatchToAggregator(joinedDataBatch)
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return sendJoinedData(dataBatch, joined, cache.CreateBestSellingBatch, th.sendBatchToAggregator)
 }
 
-func (th *TaskHandler) handleTaskType2MostProfitsProducts(dataBatch *protocol.DataBatch, menuItemsMap MenuItemsMap) error {
+func (th *TaskHandler) handleMostProfitsProducts(dataBatch *protocol.DataBatch, menuItemsMap MenuItemsMap) error {
 	var mostProfitsProductsBatch protocol.MostProfitsProductsBatch
 	err := proto.Unmarshal(dataBatch.Payload, &mostProfitsProductsBatch)
 	if err != nil {
@@ -104,17 +93,7 @@ func (th *TaskHandler) handleTaskType2MostProfitsProducts(dataBatch *protocol.Da
 		}
 	}
 
-	joinedDataBatch, err := cache.CreateMostProfitsBatch(dataBatch.TaskType, joined)
-	if err != nil {
-		return err
-	}
-
-	err = th.sendBatchToAggregator(joinedDataBatch)
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return sendJoinedData(dataBatch, joined, cache.CreateMostProfitsBatch, th.sendBatchToAggregator)
 }
 
 func (th *TaskHandler) handleTaskType3(dataBatch *protocol.DataBatch, refDatasetDir string, isBestSellingTask bool) error {
@@ -143,19 +122,22 @@ func (th *TaskHandler) handleTaskType3(dataBatch *protocol.DataBatch, refDataset
 		}
 	}
 
-	joinedDataBatch, err := cache.CreateJoinStoreTPVBatch(dataBatch.TaskType, joined)
-	if err != nil {
-		return err
-	}
-
-	err = th.sendBatchToAggregator(joinedDataBatch)
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return sendJoinedData(dataBatch, joined, cache.CreateJoinStoreTPVBatch, th.sendBatchToAggregator)
 }
 
 func (th *TaskHandler) handleTaskType4(dataBatch *protocol.DataBatch, refDatasetDir string, isBestSellingTask bool) error {
 	return nil
+}
+
+func sendJoinedData[T any](
+	dataBatch *protocol.DataBatch,
+	joined []*T,
+	createBatch func(taskType models.TaskType, items []*T) (*protocol.DataBatch, error),
+	sendBatchToAggregator SendBatchToAggregator,
+) error {
+	joinedDataBatch, err := createBatch(models.TaskType(dataBatch.TaskType), joined)
+	if err != nil {
+		return err
+	}
+	return sendBatchToAggregator(joinedDataBatch)
 }
