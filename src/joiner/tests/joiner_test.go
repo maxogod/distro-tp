@@ -7,13 +7,14 @@ import (
 	"github.com/maxogod/distro-tp/src/common/middleware"
 	"github.com/maxogod/distro-tp/src/common/models"
 	"github.com/maxogod/distro-tp/src/common/protocol"
-	helper "github.com/maxogod/distro-tp/src/joiner/tests"
+	"github.com/maxogod/distro-tp/src/joiner/tests/test_helpers"
+	helpers "github.com/maxogod/distro-tp/src/joiner/tests/test_helpers"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestJoinerPersistReferenceBatchesMenuItems(t *testing.T) {
 	storeDir := t.TempDir()
-	testCase := helper.TestCase{
+	testCase := test_helpers.TestCase{
 		Queue:       "test_menu_items",
 		DatasetType: models.MenuItems,
 		CsvPayloads: [][]byte{
@@ -24,12 +25,12 @@ func TestJoinerPersistReferenceBatchesMenuItems(t *testing.T) {
 		TaskDone:      models.T2,
 		SendDone:      false,
 	}
-	helper.RunTest(t, storeDir, testCase)
+	test_helpers.RunTest(t, storeDir, testCase)
 }
 
 func TestJoinerPersistReferenceBatchesUsers(t *testing.T) {
 	storeDir := t.TempDir()
-	testCase := helper.TestCase{
+	testCase := test_helpers.TestCase{
 		Queue:       "test_users",
 		DatasetType: models.Users,
 		CsvPayloads: [][]byte{
@@ -43,12 +44,12 @@ func TestJoinerPersistReferenceBatchesUsers(t *testing.T) {
 		TaskDone: models.T4,
 		SendDone: false,
 	}
-	helper.RunTest(t, storeDir, testCase)
+	test_helpers.RunTest(t, storeDir, testCase)
 }
 
 func TestJoinerHandlesDoneAndConsumesNextQueueTask3(t *testing.T) {
 	storeDir := t.TempDir()
-	testCase := helper.TestCase{
+	testCase := test_helpers.TestCase{
 		Queue:       "test_stores",
 		DatasetType: models.Stores,
 		CsvPayloads: [][]byte{
@@ -59,10 +60,10 @@ func TestJoinerHandlesDoneAndConsumesNextQueueTask3(t *testing.T) {
 		TaskDone:      models.T3,
 		SendDone:      true,
 	}
-	helper.RunTest(t, storeDir, testCase)
+	test_helpers.RunTest(t, storeDir, testCase)
 
 	storesTPVQueue := "store_tpv"
-	pubProcessedData, err := middleware.NewQueueMiddleware(helper.RabbitURL, storesTPVQueue)
+	pubProcessedData, err := middleware.NewQueueMiddleware(test_helpers.RabbitURL, storesTPVQueue)
 	assert.NoError(t, err)
 	defer func() {
 		_ = pubProcessedData.Delete()
@@ -73,12 +74,12 @@ func TestJoinerHandlesDoneAndConsumesNextQueueTask3(t *testing.T) {
 	e := pubProcessedData.Send([]byte(dataMessage))
 	assert.Equal(t, 0, int(e))
 
-	helper.AssertJoinerConsumed(t, pubProcessedData, dataMessage)
+	helpers.AssertJoinerConsumed(t, pubProcessedData, dataMessage)
 }
 
 func TestJoinerPersistReferenceBatchesUsersAndStores(t *testing.T) {
 	storeDir := t.TempDir()
-	testCaseStores := helper.TestCase{
+	testCaseStores := test_helpers.TestCase{
 		Queue:       "test_stores",
 		DatasetType: models.Stores,
 		CsvPayloads: [][]byte{
@@ -91,9 +92,9 @@ func TestJoinerPersistReferenceBatchesUsersAndStores(t *testing.T) {
 		TaskDone:      models.T4,
 		SendDone:      true,
 	}
-	helper.RunTest(t, storeDir, testCaseStores)
+	test_helpers.RunTest(t, storeDir, testCaseStores)
 
-	testCaseUsers := helper.TestCase{
+	testCaseUsers := test_helpers.TestCase{
 		Queue:       "test_users",
 		DatasetType: models.Users,
 		CsvPayloads: [][]byte{
@@ -104,12 +105,12 @@ func TestJoinerPersistReferenceBatchesUsersAndStores(t *testing.T) {
 		TaskDone:      models.T4,
 		SendDone:      true,
 	}
-	helper.RunTest(t, storeDir, testCaseUsers)
+	test_helpers.RunTest(t, storeDir, testCaseUsers)
 }
 
 func TestHandleTaskType3_ProducesJoinedBatch(t *testing.T) {
 	storeDir := t.TempDir()
-	testCase := helper.TestCase{
+	testCase := test_helpers.TestCase{
 		Queue:       "test_stores",
 		DatasetType: models.Stores,
 		CsvPayloads: [][]byte{
@@ -121,20 +122,20 @@ func TestHandleTaskType3_ProducesJoinedBatch(t *testing.T) {
 		TaskDone:      models.T3,
 		SendDone:      true,
 	}
-	helper.RunTest(t, storeDir, testCase)
+	test_helpers.RunTest(t, storeDir, testCase)
 
 	tpvs := []*protocol.StoreTPV{
 		{YearHalfCreatedAt: "2024-H1", StoreId: 5, Tpv: 12102556},
 		{YearHalfCreatedAt: "2024-H2", StoreId: 6, Tpv: 12201348},
 		{YearHalfCreatedAt: "2025-H1", StoreId: 4, Tpv: 12067810},
 	}
-	dataBatch := helper.PrepareStoreTPVBatch(t, tpvs)
+	dataBatch := helpers.PrepareStoreTPVBatch(t, tpvs, models.T3)
 
 	// Mando a la cola de entrada
-	helper.SendDataBatch(t, "store_tpv", dataBatch)
+	helpers.SendDataBatch(t, "store_tpv", dataBatch)
 
 	// consumir de la cola de salida
-	received := helper.GetOutputMessage(t, "joined_stores_tpv_queue")
+	received := helpers.GetOutputMessage(t, "joined_stores_tpv_queue")
 
 	expectedTpvs := []*protocol.JoinStoreTPV{
 		{YearHalfCreatedAt: "2024-H1", StoreName: "G Coffee @ Seksyen 21", Tpv: 12102556},
@@ -142,12 +143,12 @@ func TestHandleTaskType3_ProducesJoinedBatch(t *testing.T) {
 		{YearHalfCreatedAt: "2025-H1", StoreName: "G Coffee @ Kampung Changkat", Tpv: 12067810},
 	}
 
-	helper.AssertJoinedStoreTPVIsExpected(t, received, expectedTpvs)
+	helpers.AssertJoinedStoreTPVIsExpected(t, received, expectedTpvs)
 }
 
 func TestHandleTaskType2_ProducesJoinedBatch(t *testing.T) {
 	storeDir := t.TempDir()
-	testCase := helper.TestCase{
+	testCase := test_helpers.TestCase{
 		Queue:       "test_menu_items",
 		DatasetType: models.MenuItems,
 		CsvPayloads: [][]byte{
@@ -158,21 +159,21 @@ func TestHandleTaskType2_ProducesJoinedBatch(t *testing.T) {
 		TaskDone:      models.T2,
 		SendDone:      true,
 	}
-	helper.RunTest(t, storeDir, testCase)
+	test_helpers.RunTest(t, storeDir, testCase)
 
 	bestSelling := []*protocol.BestSellingProducts{
 		{YearMonthCreatedAt: "2024-01", ItemId: 1, SellingsQty: 260611},
 		{YearMonthCreatedAt: "2024-02", ItemId: 2, SellingsQty: 91218},
 	}
-	bestSellingBatch := helper.PrepareBestSellingBatch(t, bestSelling, models.T2)
-	helper.SendDataBatch(t, "transaction_counted", bestSellingBatch)
+	bestSellingBatch := helpers.PrepareBestSellingBatch(t, bestSelling, models.T2)
+	helpers.SendDataBatch(t, "transaction_counted", bestSellingBatch)
 
 	mostProfits := []*protocol.MostProfitsProducts{
 		{YearMonthCreatedAt: "2024-01", ItemId: 1, ProfitSum: 260611.0},
 		{YearMonthCreatedAt: "2024-02", ItemId: 2, ProfitSum: 91218.0},
 	}
-	mostProfitsBatch := helper.PrepareMostProfitsBatch(t, mostProfits, models.T2)
-	helper.SendDataBatch(t, "transaction_sum", mostProfitsBatch)
+	mostProfitsBatch := helpers.PrepareMostProfitsBatch(t, mostProfits, models.T2)
+	helpers.SendDataBatch(t, "transaction_sum", mostProfitsBatch)
 
 	expectedBestSelling := []*protocol.JoinBestSellingProducts{
 		{YearMonthCreatedAt: "2024-01", ItemName: "Espresso", SellingsQty: 260611},
@@ -184,9 +185,9 @@ func TestHandleTaskType2_ProducesJoinedBatch(t *testing.T) {
 		{YearMonthCreatedAt: "2024-02", ItemName: "Americano", ProfitSum: 91218.0},
 	}
 
-	bestSellingJoined := helper.GetOutputMessage(t, "joined_transactions_queue")
-	mostProfitsJoined := helper.GetOutputMessage(t, "joined_transactions_queue")
+	bestSellingJoined := helpers.GetOutputMessage(t, "joined_transactions_queue")
+	mostProfitsJoined := helpers.GetOutputMessage(t, "joined_transactions_queue")
 
-	helper.AssertJoinedBestSellingIsExpected(t, bestSellingJoined, expectedBestSelling)
-	helper.AssertJoinedMostProfitsIsExpected(t, mostProfitsJoined, expectedMostProfits)
+	helpers.AssertJoinedBestSellingIsExpected(t, bestSellingJoined, expectedBestSelling)
+	helpers.AssertJoinedMostProfitsIsExpected(t, mostProfitsJoined, expectedMostProfits)
 }
