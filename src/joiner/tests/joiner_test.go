@@ -135,7 +135,7 @@ func TestHandleTaskType3_ProducesJoinedBatch(t *testing.T) {
 	helpers.SendDataBatch(t, "store_tpv", dataBatch)
 
 	// consumir de la cola de salida
-	received := helpers.GetOutputMessage(t, "joined_stores_tpv_queue")
+	received := helpers.GetAllOutputMessages(t, "joined_stores_tpv_queue")[0]
 
 	expectedTpvs := []*protocol.JoinStoreTPV{
 		{YearHalfCreatedAt: "2024-H1", StoreName: "G Coffee @ Seksyen 21", Tpv: 12102556},
@@ -185,8 +185,16 @@ func TestHandleTaskType2_ProducesJoinedBatch(t *testing.T) {
 		{YearMonthCreatedAt: "2024-02", ItemName: "Americano", ProfitSum: 91218.0},
 	}
 
-	bestSellingJoined := helpers.GetOutputMessage(t, "joined_transactions_queue")
-	mostProfitsJoined := helpers.GetOutputMessage(t, "joined_transactions_queue")
+	allBatches := helpers.GetAllOutputMessages(t, "joined_transactions_queue")
+
+	var bestSellingJoined, mostProfitsJoined *protocol.DataBatch
+	for _, batch := range allBatches {
+		if helpers.PayloadAsBestSelling(batch.Payload) {
+			bestSellingJoined = batch
+		} else if helpers.PayloadAsMostProfits(batch.Payload) {
+			mostProfitsJoined = batch
+		}
+	}
 
 	helpers.AssertJoinedBestSellingIsExpected(t, bestSellingJoined, expectedBestSelling)
 	helpers.AssertJoinedMostProfitsIsExpected(t, mostProfitsJoined, expectedMostProfits)

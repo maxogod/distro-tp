@@ -94,14 +94,14 @@ func SendReferenceBatches(t *testing.T, pub middleware.MessageMiddleware, csvPay
 	assert.Equal(t, 0, int(e))
 }
 
-func GetOutputMessage(t *testing.T, outputQueue string) *protocol.DataBatch {
+func GetAllOutputMessages(t *testing.T, outputQueue string) []*protocol.DataBatch {
 	t.Helper()
 
 	consumer, err := middleware.NewQueueMiddleware(RabbitURL, outputQueue)
 	assert.NoError(t, err)
 	defer consumer.Close()
 
-	var received *protocol.DataBatch
+	var received []*protocol.DataBatch
 	done := make(chan struct{})
 
 	consumer.StartConsuming(func(ch middleware.ConsumeChannel, d chan error) {
@@ -110,22 +110,57 @@ func GetOutputMessage(t *testing.T, outputQueue string) *protocol.DataBatch {
 			unmErr := proto.Unmarshal(msg.Body, &batch)
 			assert.NoError(t, unmErr)
 
-			received = &batch
+			received = append(received, &batch)
 
 			err = msg.Ack(false)
 			assert.NoError(t, err)
-
-			d <- nil
-			close(done)
-			return
 		}
+		close(done)
+		d <- nil
 	})
 
 	select {
 	case <-done:
-	case <-time.After(20 * time.Second):
-		t.Fatalf("did not receive batch from %s", outputQueue)
+	case <-time.After(200 * time.Millisecond):
 	}
 
 	return received
+}
+
+func PayloadAsBestSelling(payload []byte) bool {
+	var batch protocol.JoinBestSellingProductsBatch
+
+	err := proto.Unmarshal(payload, &batch)
+	if err != nil {
+		return false
+	}
+
+	for _, item := range batch.Items {
+		mf := item.ProtoReflect()
+		unknown := mf.GetUnknown()
+		if len(unknown) > 0 {
+			return false
+		}
+	}
+
+	return true
+}
+
+func PayloadAsMostProfits(payload []byte) bool {
+	var batch protocol.JoinMostProfitsProductsBatch
+
+	err := proto.Unmarshal(payload, &batch)
+	if err != nil {
+		return false
+	}
+
+	for _, item := range batch.Items {
+		mf := item.ProtoReflect()
+		unknown := mf.GetUnknown()
+		if len(unknown) > 0 {
+			return false
+		}
+	}
+
+	return true
 }
