@@ -34,12 +34,11 @@ func TestJoinerPersistReferenceBatchesUsers(t *testing.T) {
 		Queue:       "test_users",
 		DatasetType: models.Users,
 		CsvPayloads: [][]byte{
-			[]byte("1,female,1970-04-22,2023-07-01 08:13:07\n"), // payload for expectedFiles[0]
-			[]byte("581,male,2004-06-13,2023-08-01 09:39:30\n"), // payload for expectedFiles[1]
+			[]byte("1,female,1970-04-22,2023-07-01 08:13:07\n"),
+			[]byte("581,male,2004-06-13,2023-08-01 09:39:30\n"),
 		},
 		ExpectedFiles: []string{
-			filepath.Join(storeDir, "users_202307.pb"),
-			filepath.Join(storeDir, "users_202308.pb"),
+			filepath.Join(storeDir, "users_1-581.pb"),
 		},
 		TaskDone: models.T4,
 		SendDone: false,
@@ -101,7 +100,7 @@ func TestJoinerPersistReferenceBatchesUsersAndStores(t *testing.T) {
 			[]byte("1,female,1970-04-22,2023-07-01 08:13:07\n"),
 			[]byte("2,female,1970-04-22,2023-08-01 08:13:07\n"),
 		},
-		ExpectedFiles: []string{filepath.Join(storeDir, "users_202307.pb")},
+		ExpectedFiles: []string{filepath.Join(storeDir, "users_1-2.pb")},
 		TaskDone:      models.T4,
 		SendDone:      true,
 	}
@@ -222,7 +221,7 @@ func TestHandleTaskType4_ProducesJoinedBatch(t *testing.T) {
 			[]byte("1,female,1970-04-22,2023-07-01 08:13:07\n"),
 			[]byte("2,female,1974-06-21,2023-08-01 08:13:07\n"),
 		},
-		ExpectedFiles: []string{filepath.Join(storeDir, "users_202307.pb")},
+		ExpectedFiles: []string{filepath.Join(storeDir, "users_1-2.pb")},
 		TaskDone:      models.T4,
 		SendDone:      true,
 	}

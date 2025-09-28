@@ -34,18 +34,12 @@ func RunTest(t *testing.T, storeDir string, c TestCase) {
 		_ = pub.Close()
 	}()
 
-	if c.DatasetType == models.Users {
-		for _, csvPayload := range c.CsvPayloads {
-			SendReferenceBatches(t, pub, [][]byte{csvPayload}, c.DatasetType)
-		}
-	} else {
-		SendReferenceBatches(t, pub, c.CsvPayloads, c.DatasetType)
-	}
+	SendReferenceBatches(t, pub, c.CsvPayloads, c.DatasetType)
 
-	for i, expectedFile := range c.ExpectedFiles {
+	for _, expectedFile := range c.ExpectedFiles {
 		switch c.DatasetType {
 		case models.Users:
-			AssertUsersAreTheExpected(t, expectedFile, [][]byte{c.CsvPayloads[i]}, c.DatasetType)
+			AssertUsersAreTheExpected(t, expectedFile, c.CsvPayloads, c.DatasetType)
 		case models.Stores:
 			AssertStoresAreTheExpected(t, expectedFile, c.CsvPayloads, c.DatasetType)
 		case models.MenuItems:

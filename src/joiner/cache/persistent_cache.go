@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"time"
 
 	"github.com/maxogod/distro-tp/src/common/models"
 	"github.com/maxogod/distro-tp/src/common/protocol"
@@ -82,13 +81,10 @@ func (refStore *ReferenceDatasetStore) getDatasetFilename(batch *protocol.Refere
 		if err := proto.Unmarshal(batch.Payload, users); err != nil {
 			return "", false
 		}
-		user := users.Users[0]
+		firstUser := users.Users[0]
+		lastUser := users.Users[len(users.Users)-1]
 
-		year, month, err := getYearMonth(user.RegisteredAt)
-		if err != nil {
-			return "", false
-		}
-		datasetFilename = filepath.Join(refStore.storePath, fmt.Sprintf("%s_%d%s.pb", datasetName, year, month))
+		datasetFilename = filepath.Join(refStore.storePath, fmt.Sprintf("%s_%d-%d.pb", datasetName, firstUser.UserId, lastUser.UserId))
 	} else {
 		datasetFilename = filepath.Join(refStore.storePath, fmt.Sprintf("%s.pb", datasetName))
 	}
@@ -107,13 +103,4 @@ func (refStore *ReferenceDatasetStore) updateRefDatasets(datasetType int32, data
 	} else {
 		refStore.refDatasets[models.RefDatasetType(datasetType)] = []string{datasetFilename}
 	}
-}
-
-func getYearMonth(userRegisteredAt string) (int, string, error) {
-	t, err := time.Parse(time.DateTime, userRegisteredAt)
-	if err != nil {
-		return 0, "", err
-	}
-
-	return t.Year(), fmt.Sprintf("%02d", int(t.Month())), nil
 }
