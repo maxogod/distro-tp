@@ -26,17 +26,19 @@ func defaultReferenceDatasets() RefDatasetNames {
 type ReferenceDatasetStore struct {
 	datasetNames RefDatasetNames
 	refDatasets  RefDatasetPaths
+	storePath    string
 }
 
-func NewCacheStore() *ReferenceDatasetStore {
+func NewCacheStore(storePath string) *ReferenceDatasetStore {
 	return &ReferenceDatasetStore{
 		datasetNames: defaultReferenceDatasets(),
 		refDatasets:  make(RefDatasetPaths),
+		storePath:    storePath,
 	}
 }
 
-func (refStore *ReferenceDatasetStore) StoreReferenceData(storePath string, batch *protocol.ReferenceBatch) error {
-	datasetFilename, ok := refStore.getDatasetFilename(storePath, batch)
+func (refStore *ReferenceDatasetStore) StoreReferenceData(batch *protocol.ReferenceBatch) error {
+	datasetFilename, ok := refStore.getDatasetFilename(batch)
 	if !ok {
 		return fmt.Errorf("failed to get dataset filename for dataset type: %d", batch.DatasetType)
 	}
@@ -66,7 +68,7 @@ func (refStore *ReferenceDatasetStore) StoreReferenceData(storePath string, batc
 	return f.Sync()
 }
 
-func (refStore *ReferenceDatasetStore) getDatasetFilename(storePath string, batch *protocol.ReferenceBatch) (string, bool) {
+func (refStore *ReferenceDatasetStore) getDatasetFilename(batch *protocol.ReferenceBatch) (string, bool) {
 	refDatasetType := models.RefDatasetType(batch.DatasetType)
 	datasetName, ok := refStore.datasetNames[refDatasetType]
 	if !ok {
@@ -86,9 +88,9 @@ func (refStore *ReferenceDatasetStore) getDatasetFilename(storePath string, batc
 		if err != nil {
 			return "", false
 		}
-		datasetFilename = filepath.Join(storePath, fmt.Sprintf("%s_%d%s.pb", datasetName, year, month))
+		datasetFilename = filepath.Join(refStore.storePath, fmt.Sprintf("%s_%d%s.pb", datasetName, year, month))
 	} else {
-		datasetFilename = filepath.Join(storePath, fmt.Sprintf("%s.pb", datasetName))
+		datasetFilename = filepath.Join(refStore.storePath, fmt.Sprintf("%s.pb", datasetName))
 	}
 
 	return datasetFilename, ok

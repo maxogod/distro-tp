@@ -20,11 +20,10 @@ type ReferenceHandler struct {
 	refDatasetStore *cache.ReferenceDatasetStore
 }
 
-func NewReferenceHandler(handlerDone DoneMsgHandler, queueName, storeDir string, referenceDatasetStore *cache.ReferenceDatasetStore) *ReferenceHandler {
+func NewReferenceHandler(handlerDone DoneMsgHandler, queueName string, referenceDatasetStore *cache.ReferenceDatasetStore) *ReferenceHandler {
 	return &ReferenceHandler{
 		handlerDone:     handlerDone,
 		queue:           queueName,
-		storeDir:        storeDir,
 		refDatasetStore: referenceDatasetStore,
 	}
 }
@@ -37,7 +36,7 @@ func (h *ReferenceHandler) HandleReferenceQueueMessage(msgBody []byte) error {
 
 	switch payload := refMsg.Payload.(type) {
 	case *ReferenceBatchMsg:
-		return h.refDatasetStore.StoreReferenceData(h.storeDir, payload.ReferenceBatch)
+		return h.refDatasetStore.StoreReferenceData(payload.ReferenceBatch)
 	case *DoneMsg:
 		return h.handlerDone(h.queue, models.TaskType(payload.Done.TaskType))
 	default:

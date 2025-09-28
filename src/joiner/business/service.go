@@ -51,7 +51,7 @@ func NewJoiner(config *config.Config) *Joiner {
 		dataMiddlewares:      make(MessageMiddlewares),
 		taskQueues:           defaultTaskQueues(config),
 		aggregatorQueues:     defaultAggregatorQueues(config),
-		refDatasetStore:      cache.NewCacheStore(),
+		refDatasetStore:      cache.NewCacheStore(config.StorePath),
 	}
 
 	joiner.taskHandler = handler.NewTaskHandler(joiner.SendBatchToAggregator, joiner.refDatasetStore)
@@ -60,7 +60,7 @@ func NewJoiner(config *config.Config) *Joiner {
 }
 
 func (j *Joiner) StartRefConsumer(referenceDatasetQueue string) error {
-	referenceHandler := handler.NewReferenceHandler(j.HandleDone, referenceDatasetQueue, j.config.StorePath, j.refDatasetStore)
+	referenceHandler := handler.NewReferenceHandler(j.HandleDone, referenceDatasetQueue, j.refDatasetStore)
 
 	m, err := StartConsumer(j.config.GatewayAddress, referenceDatasetQueue, referenceHandler.HandleReferenceQueueMessage)
 	if err != nil {
