@@ -21,23 +21,23 @@ func NewClient(conf *config.Config) Client {
 }
 
 func (c *client) Start() error {
-	log.Infoln("[Client Gateway] started")
+	log.Infoln("started")
 
 	csv_file_path := c.conf.DataPath + "/menu_items/menu_items.csv"
 	file, err := os.Open(csv_file_path)
 	if err != nil {
-		log.Errorln("[Client Gateway] failed to open menu items file:", err)
+		log.Errorln("failed to open menu items file:", err)
 	}
 	defer file.Close()
 
 	reader := csv.NewReader(file)
 	records, err := reader.ReadAll()
 	if err != nil {
-		log.Errorln("[Client Gateway] failed to read menu items file:", err)
+		log.Errorln("failed to read menu items file:", err)
 	}
 
 	for _, record := range records {
-		log.Infoln("[Client Gateway] menu item:", record)
+		log.Infoln("menu item:", record)
 	}
 
 	return nil
