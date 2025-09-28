@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package protocol;
 
-option go_package = "src/joiner/protocol;protocol";
+option go_package = "src/common/protocol;protocol";
 
 message Store {
   int32 StoreID = 1;
@@ -13,4 +13,8 @@ message Store {
   string State = 6;
   double Latitude = 7;
   double Longitude = 8;
+}
+
+message Stores {
+  repeated Store stores = 1;
 }

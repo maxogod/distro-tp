@@ -1,0 +1,21 @@
+syntax = "proto3";
+
+package protocol;
+
+option go_package = "src/common/protocol;protocol";
+
+import "google/protobuf/timestamp.proto";
+
+message MenuItem {
+  int32 item_id = 1;
+  string item_name = 2;
+  string category = 3;
+  double price = 4;
+  bool is_seasonal = 5;
+  google.protobuf.Timestamp available_from = 6;
+  google.protobuf.Timestamp available_to = 7;
+}
+
+message MenuItems {
+  repeated MenuItem items = 1;
+}

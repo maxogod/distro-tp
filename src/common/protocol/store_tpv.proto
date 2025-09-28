@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package protocol;
 
-option go_package = "src/joiner/protocol;protocol";
+option go_package = "src/common/protocol;protocol";
 
 message StoreTPV {
   string year_half_created_at = 1;

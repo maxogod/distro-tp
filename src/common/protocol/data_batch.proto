@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package protocol;
 
-option go_package = "src/joiner/protocol;protocol";
+option go_package = "src/common/protocol;protocol";
 
 message DataBatch {
   int32 task_type = 1;
