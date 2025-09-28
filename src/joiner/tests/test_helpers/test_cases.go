@@ -5,7 +5,6 @@ import (
 
 	"github.com/maxogod/distro-tp/src/common/middleware"
 	"github.com/maxogod/distro-tp/src/common/models"
-	joiner "github.com/maxogod/distro-tp/src/joiner/business"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -18,14 +17,8 @@ type TestCase struct {
 	SendDone      bool
 }
 
-func RunTest(t *testing.T, storeDir string, c TestCase) {
+func RunTest(t *testing.T, c TestCase) {
 	t.Helper()
-
-	j := StartJoiner(t, RabbitURL, storeDir, []string{c.Queue})
-	defer func(j *joiner.Joiner) {
-		err := j.Stop()
-		assert.NoError(t, err)
-	}(j)
 
 	pub, err := middleware.NewQueueMiddleware(RabbitURL, c.Queue)
 	assert.NoError(t, err)
