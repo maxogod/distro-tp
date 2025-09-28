@@ -6,6 +6,7 @@ import (
 
 	"github.com/maxogod/distro-tp/src/common/middleware"
 	"github.com/maxogod/distro-tp/src/common/models"
+	"github.com/maxogod/distro-tp/src/joiner/cache"
 	"github.com/maxogod/distro-tp/src/joiner/config"
 	"github.com/maxogod/distro-tp/src/joiner/handler"
 	"google.golang.org/protobuf/proto"
@@ -24,6 +25,7 @@ type Joiner struct {
 	mutex                sync.Mutex
 	aggregatorQueues     AggregatorQueues
 	aggregatorQueue      middleware.MessageMiddleware
+	refDatasetStore      *cache.ReferenceDatasetStore
 }
 
 func defaultTaskQueues(config *config.Config) TaskQueues {
@@ -49,15 +51,16 @@ func NewJoiner(config *config.Config) *Joiner {
 		dataMiddlewares:      make(MessageMiddlewares),
 		taskQueues:           defaultTaskQueues(config),
 		aggregatorQueues:     defaultAggregatorQueues(config),
+		refDatasetStore:      cache.NewCacheStore(),
 	}
 
-	joiner.taskHandler = handler.NewTaskHandler(joiner.SendBatchToAggregator)
+	joiner.taskHandler = handler.NewTaskHandler(joiner.SendBatchToAggregator, joiner.refDatasetStore)
 
 	return joiner
 }
 
 func (j *Joiner) StartRefConsumer(referenceDatasetQueue string) error {
-	referenceHandler := handler.NewReferenceHandler(j.HandleDone, referenceDatasetQueue, j.config.StorePath)
+	referenceHandler := handler.NewReferenceHandler(j.HandleDone, referenceDatasetQueue, j.config.StorePath, j.refDatasetStore)
 
 	m, err := StartConsumer(j.config.GatewayAddress, referenceDatasetQueue, referenceHandler.HandleReferenceQueueMessage)
 	if err != nil {
@@ -68,17 +71,14 @@ func (j *Joiner) StartRefConsumer(referenceDatasetQueue string) error {
 	return nil
 }
 
-func (j *Joiner) startDataConsumer(handlerTask handler.HandleTask, dataQueueNames []string) error {
-	for _, dataQueueName := range dataQueueNames {
-		isBestSellingTask := j.isBestSellingTask(dataQueueName)
-		dataHandler := handler.NewDataHandler(handlerTask, j.config.StorePath, isBestSellingTask)
+func (j *Joiner) startDataConsumer(handlerTask handler.HandleTask, dataQueueName string) error {
+	dataHandler := handler.NewDataHandler(handlerTask)
 
-		m, err := StartConsumer(j.config.GatewayAddress, dataQueueName, dataHandler.HandleDataMessage)
-		if err != nil {
-			return err
-		}
-		j.dataMiddlewares[dataQueueName] = m
+	m, err := StartConsumer(j.config.GatewayAddress, dataQueueName, dataHandler.HandleDataMessage)
+	if err != nil {
+		return err
 	}
+	j.dataMiddlewares[dataQueueName] = m
 	return nil
 }
 
@@ -105,16 +105,11 @@ func (j *Joiner) HandleDone(queueName string, taskType models.TaskType) error {
 		delete(j.referenceMiddlewares, queueName)
 	}
 
-	var handlerTask handler.HandleTask
-	var dataQueueNames []string
-	if len(j.referenceMiddlewares) == 0 {
-		handlerTask = j.taskHandler.HandleTask(taskType)
-		dataQueueNames = j.taskQueues[taskType]
-	}
+	allRefDatasetsLoaded := len(j.referenceMiddlewares) == 0
 
 	j.mutex.Unlock()
 
-	if handlerTask != nil {
+	if allRefDatasetsLoaded {
 		aggQueueName := j.aggregatorQueues[taskType]
 
 		// TODO: Hacer StopSender() en el handle del DoneMsg para los DataBatches
@@ -125,8 +120,11 @@ func (j *Joiner) HandleDone(queueName string, taskType models.TaskType) error {
 
 		j.aggregatorQueue = aggregatorQueue
 
-		if err := j.startDataConsumer(handlerTask, dataQueueNames); err != nil {
-			return err
+		for _, dataQueueName := range j.taskQueues[taskType] {
+			handlerTask := j.taskHandler.HandleTask(taskType, j.isBestSellingTask(dataQueueName))
+			if err := j.startDataConsumer(handlerTask, dataQueueName); err != nil {
+				return err
+			}
 		}
 	}
 

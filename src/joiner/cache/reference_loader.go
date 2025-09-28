@@ -6,11 +6,19 @@ import (
 	"io"
 	"os"
 
+	"github.com/maxogod/distro-tp/src/common/models"
 	"github.com/maxogod/distro-tp/src/common/protocol"
 	"google.golang.org/protobuf/proto"
 )
 
-func LoadReferenceData[T proto.Message, B proto.Message](
+const (
+	mainDataset = 0
+)
+
+type StoresMap map[int32]*protocol.Store
+type MenuItemsMap map[int32]*protocol.MenuItem
+
+func loadReferenceData[T proto.Message, B proto.Message](
 	path string,
 	createSpecificBatch func() B,
 	extractItems func(B) []T,
@@ -54,9 +62,9 @@ func LoadReferenceData[T proto.Message, B proto.Message](
 	return referenceDataset, nil
 }
 
-func LoadStores(path string) (map[int32]*protocol.Store, error) {
-	stores, err := LoadReferenceData(
-		path,
+func (refStore *ReferenceDatasetStore) LoadStores() (StoresMap, error) {
+	stores, err := loadReferenceData(
+		refStore.refDatasets[models.Stores][mainDataset],
 		func() *protocol.Stores { return &protocol.Stores{} },
 		func(batch *protocol.Stores) []*protocol.Store { return batch.Stores },
 	)
@@ -71,9 +79,9 @@ func LoadStores(path string) (map[int32]*protocol.Store, error) {
 	return storesMap, nil
 }
 
-func LoadMenuItems(path string) (map[int32]*protocol.MenuItem, error) {
-	menuItems, err := LoadReferenceData(
-		path,
+func (refStore *ReferenceDatasetStore) LoadMenuItems() (MenuItemsMap, error) {
+	menuItems, err := loadReferenceData(
+		refStore.refDatasets[models.MenuItems][mainDataset],
 		func() *protocol.MenuItems { return &protocol.MenuItems{} },
 		func(batch *protocol.MenuItems) []*protocol.MenuItem { return batch.Items },
 	)

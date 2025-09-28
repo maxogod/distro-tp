@@ -6,19 +6,15 @@ import (
 )
 
 type DataBatch = protocol.DataBatch
-type HandleTask = func(dataBatch *DataBatch, refDatasetDir string, isBestSellingTask bool) error
+type HandleTask = func(dataBatch *DataBatch) error
 
 type DataHandler struct {
-	handlerTask       HandleTask
-	refDatasetDir     string
-	isBestSellingTask bool
+	handlerTask HandleTask
 }
 
-func NewDataHandler(handler HandleTask, refDatasetDir string, isBestSellingTask bool) *DataHandler {
+func NewDataHandler(handler HandleTask) *DataHandler {
 	return &DataHandler{
-		handlerTask:       handler,
-		refDatasetDir:     refDatasetDir,
-		isBestSellingTask: isBestSellingTask,
+		handlerTask: handler,
 	}
 }
 
@@ -27,5 +23,5 @@ func (h *DataHandler) HandleDataMessage(msgBody []byte) error {
 	if err := proto.Unmarshal(msgBody, &batch); err != nil {
 		return err
 	}
-	return h.handlerTask(&batch, h.refDatasetDir, h.isBestSellingTask)
+	return h.handlerTask(&batch)
 }

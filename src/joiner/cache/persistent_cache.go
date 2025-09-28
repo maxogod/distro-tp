@@ -12,14 +12,31 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-var datasetNames = map[models.RefDatasetType]string{
-	models.MenuItems: "menu_items",
-	models.Stores:    "stores",
-	models.Users:     "users",
+type RefDatasetNames map[models.RefDatasetType]string
+type RefDatasetPaths map[models.RefDatasetType][]string
+
+func defaultReferenceDatasets() RefDatasetNames {
+	return RefDatasetNames{
+		models.MenuItems: "menu_items",
+		models.Stores:    "stores",
+		models.Users:     "users",
+	}
 }
 
-func StoreReferenceData(storePath string, batch *protocol.ReferenceBatch) error {
-	datasetFilename, ok := getDatasetFilename(storePath, batch)
+type ReferenceDatasetStore struct {
+	datasetNames RefDatasetNames
+	refDatasets  RefDatasetPaths
+}
+
+func NewCacheStore() *ReferenceDatasetStore {
+	return &ReferenceDatasetStore{
+		datasetNames: defaultReferenceDatasets(),
+		refDatasets:  make(RefDatasetPaths),
+	}
+}
+
+func (refStore *ReferenceDatasetStore) StoreReferenceData(storePath string, batch *protocol.ReferenceBatch) error {
+	datasetFilename, ok := refStore.getDatasetFilename(storePath, batch)
 	if !ok {
 		return fmt.Errorf("failed to get dataset filename for dataset type: %d", batch.DatasetType)
 	}
@@ -44,12 +61,14 @@ func StoreReferenceData(storePath string, batch *protocol.ReferenceBatch) error 
 		return writeDataErr
 	}
 
+	refStore.updateRefDatasets(batch.DatasetType, datasetFilename)
+
 	return f.Sync()
 }
 
-func getDatasetFilename(storePath string, batch *protocol.ReferenceBatch) (string, bool) {
+func (refStore *ReferenceDatasetStore) getDatasetFilename(storePath string, batch *protocol.ReferenceBatch) (string, bool) {
 	refDatasetType := models.RefDatasetType(batch.DatasetType)
-	datasetName, ok := datasetNames[refDatasetType]
+	datasetName, ok := refStore.datasetNames[refDatasetType]
 	if !ok {
 		return "", false
 	}
@@ -73,6 +92,19 @@ func getDatasetFilename(storePath string, batch *protocol.ReferenceBatch) (strin
 	}
 
 	return datasetFilename, ok
+}
+
+func (refStore *ReferenceDatasetStore) updateRefDatasets(datasetType int32, datasetFilename string) {
+	if paths, exists := refStore.refDatasets[models.RefDatasetType(datasetType)]; exists {
+		for _, p := range paths {
+			if p == datasetFilename {
+				return
+			}
+		}
+		refStore.refDatasets[models.RefDatasetType(datasetType)] = append(paths, datasetFilename)
+	} else {
+		refStore.refDatasets[models.RefDatasetType(datasetType)] = []string{datasetFilename}
+	}
 }
 
 func getYearMonth(userRegisteredAt string) (int, string, error) {
