@@ -5,31 +5,23 @@ import (
 	"testing"
 
 	"github.com/maxogod/distro-tp/src/common/middleware"
+	"github.com/maxogod/distro-tp/src/common/models"
 	"github.com/maxogod/distro-tp/src/common/protocol"
 	helper "github.com/maxogod/distro-tp/src/joiner/tests"
 	"github.com/stretchr/testify/assert"
-)
-
-const (
-	DatasetMenuItems = 0
-	DatasetStores    = 1
-	DatasetUsers     = 2
-	Task2            = 2
-	Task3            = 3
-	Task4            = 4
 )
 
 func TestJoinerPersistReferenceBatchesMenuItems(t *testing.T) {
 	storeDir := t.TempDir()
 	testCase := helper.TestCase{
 		Queue:       "test_menu_items",
-		DatasetType: DatasetMenuItems,
+		DatasetType: models.MenuItems,
 		CsvPayloads: [][]byte{
 			[]byte("1,Espresso,coffee,6.0,False,,\n"),
 			[]byte("2,Americano,coffee,7.0,False,,\n"),
 		},
 		ExpectedFiles: []string{filepath.Join(storeDir, "menu_items.pb")},
-		TaskDone:      0,
+		TaskDone:      models.T2,
 		SendDone:      false,
 	}
 	helper.RunTest(t, storeDir, testCase)
@@ -39,7 +31,7 @@ func TestJoinerPersistReferenceBatchesUsers(t *testing.T) {
 	storeDir := t.TempDir()
 	testCase := helper.TestCase{
 		Queue:       "test_users",
-		DatasetType: DatasetUsers,
+		DatasetType: models.Users,
 		CsvPayloads: [][]byte{
 			[]byte("1,female,1970-04-22,2023-07-01 08:13:07\n"), // payload for expectedFiles[0]
 			[]byte("581,male,2004-06-13,2023-08-01 09:39:30\n"), // payload for expectedFiles[1]
@@ -48,7 +40,7 @@ func TestJoinerPersistReferenceBatchesUsers(t *testing.T) {
 			filepath.Join(storeDir, "users_202307.pb"),
 			filepath.Join(storeDir, "users_202308.pb"),
 		},
-		TaskDone: Task4,
+		TaskDone: models.T4,
 		SendDone: false,
 	}
 	helper.RunTest(t, storeDir, testCase)
@@ -58,13 +50,13 @@ func TestJoinerHandlesDoneAndConsumesNextQueueTask3(t *testing.T) {
 	storeDir := t.TempDir()
 	testCase := helper.TestCase{
 		Queue:       "test_stores",
-		DatasetType: DatasetStores,
+		DatasetType: models.Stores,
 		CsvPayloads: [][]byte{
 			[]byte("1,G Coffee @ USJ 89q,Jalan Dewan Bahasa 5/9,50998,USJ 89q,Kuala Lumpur,3.117134,101.615027\n"),
 			[]byte("2,G Coffee @ USJ 89q,Jalan Dewan Bahasa 5/9,50998,USJ 89q,Kuala Lumpur,3.117134,101.615027\n"),
 		},
 		ExpectedFiles: []string{filepath.Join(storeDir, "stores.pb")},
-		TaskDone:      Task3,
+		TaskDone:      models.T3,
 		SendDone:      true,
 	}
 	helper.RunTest(t, storeDir, testCase)
@@ -88,7 +80,7 @@ func TestJoinerPersistReferenceBatchesUsersAndStores(t *testing.T) {
 	storeDir := t.TempDir()
 	testCaseStores := helper.TestCase{
 		Queue:       "test_stores",
-		DatasetType: DatasetStores,
+		DatasetType: models.Stores,
 		CsvPayloads: [][]byte{
 			[]byte("1,G Coffee @ USJ 89q,Jalan Dewan Bahasa 5/9,50998,USJ 89q,Kuala Lumpur,3.117134,101.615027\n"),
 			[]byte("2,G Coffee @ USJ 89q,Jalan Dewan Bahasa 5/9,50998,USJ 89q,Kuala Lumpur,3.117134,101.615027\n"),
@@ -96,20 +88,20 @@ func TestJoinerPersistReferenceBatchesUsersAndStores(t *testing.T) {
 			[]byte("4,G Coffee @ USJ 89q,Jalan Dewan Bahasa 5/9,50998,USJ 89q,Kuala Lumpur,3.117134,101.615027\n"),
 		},
 		ExpectedFiles: []string{filepath.Join(storeDir, "stores.pb")},
-		TaskDone:      Task4,
+		TaskDone:      models.T4,
 		SendDone:      true,
 	}
 	helper.RunTest(t, storeDir, testCaseStores)
 
 	testCaseUsers := helper.TestCase{
 		Queue:       "test_users",
-		DatasetType: DatasetUsers,
+		DatasetType: models.Users,
 		CsvPayloads: [][]byte{
 			[]byte("1,female,1970-04-22,2023-07-01 08:13:07\n"),
-			[]byte("2,female,1970-04-22,2023-07-01 08:13:07\n"),
+			[]byte("2,female,1970-04-22,2023-08-01 08:13:07\n"),
 		},
 		ExpectedFiles: []string{filepath.Join(storeDir, "users_202307.pb")},
-		TaskDone:      Task4,
+		TaskDone:      models.T4,
 		SendDone:      true,
 	}
 	helper.RunTest(t, storeDir, testCaseUsers)
@@ -119,14 +111,14 @@ func TestHandleTaskType3_ProducesJoinedBatch(t *testing.T) {
 	storeDir := t.TempDir()
 	testCase := helper.TestCase{
 		Queue:       "test_stores",
-		DatasetType: DatasetStores,
+		DatasetType: models.Stores,
 		CsvPayloads: [][]byte{
 			[]byte("5,G Coffee @ Seksyen 21,Jalan 1,12345,CityA,StateA,1.0,2.0\n"),
 			[]byte("6,G Coffee @ Alam Tun Hussein Onn,Jalan 2,23456,CityB,StateB,3.0,4.0\n"),
 			[]byte("4,G Coffee @ Kampung Changkat,Jalan 3,34567,CityC,StateC,5.0,6.0\n"),
 		},
 		ExpectedFiles: []string{filepath.Join(storeDir, "stores.pb")},
-		TaskDone:      Task3,
+		TaskDone:      models.T3,
 		SendDone:      true,
 	}
 	helper.RunTest(t, storeDir, testCase)
@@ -157,13 +149,13 @@ func TestHandleTaskType2_ProducesJoinedBatch(t *testing.T) {
 	storeDir := t.TempDir()
 	testCase := helper.TestCase{
 		Queue:       "test_menu_items",
-		DatasetType: DatasetMenuItems,
+		DatasetType: models.MenuItems,
 		CsvPayloads: [][]byte{
 			[]byte("1,Espresso,coffee,6.0,False,,\n"),
 			[]byte("2,Americano,coffee,7.0,False,,\n"),
 		},
 		ExpectedFiles: []string{filepath.Join(storeDir, "menu_items.pb")},
-		TaskDone:      Task2,
+		TaskDone:      models.T2,
 		SendDone:      true,
 	}
 	helper.RunTest(t, storeDir, testCase)
@@ -172,14 +164,14 @@ func TestHandleTaskType2_ProducesJoinedBatch(t *testing.T) {
 		{YearMonthCreatedAt: "2024-01", ItemId: 1, SellingsQty: 260611},
 		{YearMonthCreatedAt: "2024-02", ItemId: 2, SellingsQty: 91218},
 	}
-	bestSellingBatch := helper.PrepareBestSellingBatch(t, bestSelling)
+	bestSellingBatch := helper.PrepareBestSellingBatch(t, bestSelling, models.T2)
 	helper.SendDataBatch(t, "transaction_counted", bestSellingBatch)
 
 	mostProfits := []*protocol.MostProfitsProducts{
 		{YearMonthCreatedAt: "2024-01", ItemId: 1, ProfitSum: 260611.0},
 		{YearMonthCreatedAt: "2024-02", ItemId: 2, ProfitSum: 91218.0},
 	}
-	mostProfitsBatch := helper.PrepareMostProfitsBatch(t, mostProfits)
+	mostProfitsBatch := helper.PrepareMostProfitsBatch(t, mostProfits, models.T2)
 	helper.SendDataBatch(t, "transaction_sum", mostProfitsBatch)
 
 	expectedBestSelling := []*protocol.JoinBestSellingProducts{
