@@ -1,0 +1,15 @@
+syntax = "proto3";
+
+package protocol;
+
+option go_package = "src/common/protocol;protocol";
+
+message StoreTPV {
+  string year_half_created_at = 1;
+  int32 store_id = 2;
+  int64 tpv = 3;
+}
+
+message StoresTPV {
+  repeated StoreTPV items = 1;
+}

@@ -1,0 +1,15 @@
+syntax = "proto3";
+
+package protocol;
+
+option go_package = "src/common/protocol;protocol";
+
+message JoinMostPurchasesUser {
+  string store_name = 1;
+  string user_birthdate = 2;  // ej: "2011-06-26"
+  int32 purchases_qty = 3;
+}
+
+message JoinMostPurchasesUserBatch {
+  repeated JoinMostPurchasesUser users = 1;
+}
