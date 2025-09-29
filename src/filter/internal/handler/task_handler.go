@@ -41,8 +41,6 @@ func (th *TaskHandler) HandleTask(taskType models.TaskType, payload any) (any, e
 	if !exists {
 		return nil, fmt.Errorf("unknown task type: %d", taskType)
 	}
-
-	log.Infof("Processing task type: %d", taskType)
 	return handler(payload)
 }
 

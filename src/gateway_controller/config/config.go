@@ -2,38 +2,36 @@ package config
 
 import (
 	"fmt"
-	"strings"
 
-	"github.com/pkg/errors"
+	"github.com/joho/godotenv"
 	"github.com/spf13/viper"
 )
 
 type Config struct {
+	Port     int32
 	LogLevel string
 }
 
 func (c Config) String() string {
 	return fmt.Sprintf(
-		"LogLevel: %s",
+		"[CONFIG: Port: %d | LogLevel: %s]",
+		c.Port,
 		c.LogLevel,
 	)
 }
 
-const CONFIG_FILE_PATH = "/config.yaml"
-
 func InitConfig() (*Config, error) {
 
 	v := viper.New()
-	v.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
+
+	// this function will do nothing if the file is missing,
+	// so only environment variables will be used.
+	_ = godotenv.Load(".env")
 	v.AutomaticEnv()
 
-	v.SetConfigFile(CONFIG_FILE_PATH)
-	if err := v.ReadInConfig(); err != nil {
-		return nil, errors.Wrapf(err, "failed to read config file %s", CONFIG_FILE_PATH)
-	}
-
 	config := &Config{
-		LogLevel: v.GetString("log.level"),
+		Port:     v.GetInt32("PORT"),
+		LogLevel: v.GetString("LOG_LEVEL"),
 	}
 
 	return config, nil

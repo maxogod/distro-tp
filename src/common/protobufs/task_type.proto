@@ -1,0 +1,10 @@
+syntax = "proto3";
+
+option go_package = "./task_type";
+
+message TaskType {
+    uint32 task_type = 1;
+
+}
+
+
