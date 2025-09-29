@@ -10,8 +10,8 @@ services:" > "$OUTPUT_FILE"
 echo "  rabbitmq:
     container_name: rabbitmq
     build:
-      - context: ./src/rabbitmq
-      - dockerfile: Dockerfile
+      context: ./src/rabbitmq
+      dockerfile: Dockerfile
     image: rabbitmq:latest
     ports:
       - '5672:5672'
@@ -49,5 +49,5 @@ done < "$CONFIG_FILE"
 
 # networks
 echo "networks:
-  testing_net:
+  tp_net:
     driver: default" >> "$OUTPUT_FILE"
