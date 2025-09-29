@@ -21,7 +21,7 @@ echo "  rabbitmq:
 " >> "$OUTPUT_FILE"
 
 while IFS= read -r line; do
-    [[ "$line" =~ ^services ]] && continue
+    [[ "$line" =~ ^services:?$ ]] && continue
 
     IFS=":" read -r service replicas <<< "$line"
     service=$(echo "$service" | xargs)
@@ -42,7 +42,7 @@ while IFS= read -r line; do
     networks:
       - tp_net
     volumes:
-      - ./${service}/config.yaml:/config.yaml
+      - ./src/${service}/config.yaml:/config.yaml
 " >> "$OUTPUT_FILE"
     done
 done < "$CONFIG_FILE"
@@ -50,4 +50,4 @@ done < "$CONFIG_FILE"
 # networks
 echo "networks:
   tp_net:
-    driver: default" >> "$OUTPUT_FILE"
+    driver: bridge" >> "$OUTPUT_FILE"
