@@ -21,28 +21,27 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
-type Store struct {
-	state           protoimpl.MessageState `protogen:"open.v1"`
-	TaskType        uint32                 `protobuf:"varint,1,opt,name=task_type,json=taskType,proto3" json:"task_type,omitempty"`
-	IsReferenceData bool                   `protobuf:"varint,2,opt,name=is_reference_data,json=isReferenceData,proto3" json:"is_reference_data,omitempty"`
-	unknownFields   protoimpl.UnknownFields
-	sizeCache       protoimpl.SizeCache
+type TaskType struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	TaskType      uint32                 `protobuf:"varint,1,opt,name=task_type,json=taskType,proto3" json:"task_type,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
-func (x *Store) Reset() {
-	*x = Store{}
+func (x *TaskType) Reset() {
+	*x = TaskType{}
 	mi := &file_task_type_proto_msgTypes[0]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *Store) String() string {
+func (x *TaskType) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*Store) ProtoMessage() {}
+func (*TaskType) ProtoMessage() {}
 
-func (x *Store) ProtoReflect() protoreflect.Message {
+func (x *TaskType) ProtoReflect() protoreflect.Message {
 	mi := &file_task_type_proto_msgTypes[0]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -54,33 +53,25 @@ func (x *Store) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use Store.ProtoReflect.Descriptor instead.
-func (*Store) Descriptor() ([]byte, []int) {
+// Deprecated: Use TaskType.ProtoReflect.Descriptor instead.
+func (*TaskType) Descriptor() ([]byte, []int) {
 	return file_task_type_proto_rawDescGZIP(), []int{0}
 }
 
-func (x *Store) GetTaskType() uint32 {
+func (x *TaskType) GetTaskType() uint32 {
 	if x != nil {
 		return x.TaskType
 	}
 	return 0
 }
 
-func (x *Store) GetIsReferenceData() bool {
-	if x != nil {
-		return x.IsReferenceData
-	}
-	return false
-}
-
 var File_task_type_proto protoreflect.FileDescriptor
 
 const file_task_type_proto_rawDesc = "" +
 	"\n" +
-	"\x0ftask_type.proto\"P\n" +
-	"\x05Store\x12\x1b\n" +
-	"\ttask_type\x18\x01 \x01(\rR\btaskType\x12*\n" +
-	"\x11is_reference_data\x18\x02 \x01(\bR\x0fisReferenceDataB\rZ\v./task_typeb\x06proto3"
+	"\x0ftask_type.proto\"'\n" +
+	"\bTaskType\x12\x1b\n" +
+	"\ttask_type\x18\x01 \x01(\rR\btaskTypeB\rZ\v./task_typeb\x06proto3"
 
 var (
 	file_task_type_proto_rawDescOnce sync.Once
@@ -96,7 +87,7 @@ func file_task_type_proto_rawDescGZIP() []byte {
 
 var file_task_type_proto_msgTypes = make([]protoimpl.MessageInfo, 1)
 var file_task_type_proto_goTypes = []any{
-	(*Store)(nil), // 0: Store
+	(*TaskType)(nil), // 0: TaskType
 }
 var file_task_type_proto_depIdxs = []int32{
 	0, // [0:0] is the sub-list for method output_type
