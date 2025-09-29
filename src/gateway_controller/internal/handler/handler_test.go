@@ -8,6 +8,7 @@ import (
 	"github.com/maxogod/distro-tp/src/common/models/transaction_items"
 	"github.com/maxogod/distro-tp/src/gateway_controller/business"
 	"github.com/maxogod/distro-tp/src/gateway_controller/internal/handler"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestTaskHandler_HandleTaskType1(t *testing.T) {
@@ -32,10 +33,10 @@ func TestTaskHandler_HandleTaskType1(t *testing.T) {
 	cleaned := result.([]transaction.Transaction)
 	if cleaned[0].VoucherId != 0 || cleaned[0].DiscountApplied != 0 || cleaned[0].PaymentMethod != 0 ||
 		cleaned[0].OriginalAmount != 0 || cleaned[0].UserId != 0 || cleaned[0].StoreId != 0 {
-		t.Errorf("fields not cleaned as expected for T1: %+v", cleaned[0])
+		t.Errorf("fields not cleaned as expected for T1: VoucherId=%v, DiscountApplied=%v, PaymentMethod=%v, OriginalAmount=%v, UserId=%v, StoreId=%v", cleaned[0].VoucherId, cleaned[0].DiscountApplied, cleaned[0].PaymentMethod, cleaned[0].OriginalAmount, cleaned[0].UserId, cleaned[0].StoreId)
 	}
 	if cleaned[0].FinalAmount == 0 || cleaned[0].CreatedAt == "" {
-		t.Errorf("required fields were cleaned for T1: %+v", cleaned[0])
+		t.Errorf("required fields were cleaned for T1: FinalAmount=%v, CreatedAt=%v", cleaned[0].FinalAmount, cleaned[0].CreatedAt)
 	}
 }
 
@@ -97,20 +98,14 @@ func TestTaskHandler_HandleTaskType3(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	cleaned := result.([]transaction.Transaction)
-	if cleaned[0].VoucherId != 0 || cleaned[0].DiscountApplied != 0 || cleaned[0].PaymentMethod != 0 ||
-		cleaned[0].OriginalAmount != 0 || cleaned[0].UserId != 0 {
-		t.Errorf("fields not cleaned as expected for T3: %+v", cleaned[0])
-	}
-	// These should remain
-	if cleaned[0].StoreId == 0 {
-		t.Errorf("StoreId should not be cleaned for T3")
-	}
-	if cleaned[0].FinalAmount == 0 {
-		t.Errorf("FinalAmount should not be cleaned for T3")
-	}
-	if cleaned[0].CreatedAt == "" {
-		t.Errorf("CreatedAt should not be cleaned for T3")
-	}
+	assert.Equal(t, true, cleaned[0].VoucherId == 0, "VoucherId should be cleaned for T3")
+	assert.Equal(t, true, cleaned[0].DiscountApplied == 0, "DiscountApplied should be cleaned for T3")
+	assert.Equal(t, true, cleaned[0].PaymentMethod == 0, "PaymentMethod should be cleaned for T3")
+	assert.Equal(t, true, cleaned[0].OriginalAmount == 0, "OriginalAmount should be cleaned for T3")
+	assert.Equal(t, true, cleaned[0].UserId == 0, "UserId should be cleaned for T3")
+	assert.Equal(t, true, cleaned[0].StoreId != 0, "StoreId should not be cleaned for T3")
+	assert.Equal(t, true, cleaned[0].FinalAmount != 0, "FinalAmount should not be cleaned for T3")
+	assert.Equal(t, true, cleaned[0].CreatedAt != "", "CreatedAt should not be cleaned for T3")
 }
 
 func TestTaskHandler_HandleTaskType4(t *testing.T) {
@@ -133,23 +128,14 @@ func TestTaskHandler_HandleTaskType4(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	cleaned := result.([]transaction.Transaction)
-	if cleaned[0].VoucherId != 0 || cleaned[0].DiscountApplied != 0 || cleaned[0].PaymentMethod != 0 ||
-		cleaned[0].OriginalAmount != 0 {
-		t.Errorf("fields not cleaned as expected for T4: %+v", cleaned[0])
-	}
-	// These should remain
-	if cleaned[0].StoreId == 0 {
-		t.Errorf("StoreId should not be cleaned for T4")
-	}
-	if cleaned[0].UserId == 0 {
-		t.Errorf("UserId should not be cleaned for T4")
-	}
-	if cleaned[0].FinalAmount == 0 {
-		t.Errorf("FinalAmount should not be cleaned for T4")
-	}
-	if cleaned[0].CreatedAt == "" {
-		t.Errorf("CreatedAt should not be cleaned for T4")
-	}
+	assert.Equal(t, true, cleaned[0].VoucherId == 0, "VoucherId should be cleaned for T4")
+	assert.Equal(t, true, cleaned[0].DiscountApplied == 0, "DiscountApplied should be cleaned for T4")
+	assert.Equal(t, true, cleaned[0].PaymentMethod == 0, "PaymentMethod should be cleaned for T4")
+	assert.Equal(t, true, cleaned[0].OriginalAmount == 0, "OriginalAmount should be cleaned for T4")
+	assert.Equal(t, true, cleaned[0].StoreId != 0, "StoreId should not be cleaned for T4")
+	assert.Equal(t, true, cleaned[0].UserId != 0, "UserId should not be cleaned for T4")
+	assert.Equal(t, true, cleaned[0].FinalAmount != 0, "FinalAmount should not be cleaned for T4")
+	assert.Equal(t, true, cleaned[0].CreatedAt != "", "CreatedAt should not be cleaned for T4")
 }
 
 func TestTaskHandler_UnknownTaskType(t *testing.T) {
