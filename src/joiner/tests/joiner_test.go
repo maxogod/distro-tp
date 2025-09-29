@@ -8,6 +8,8 @@ import (
 	"github.com/maxogod/distro-tp/src/common/models"
 	"github.com/maxogod/distro-tp/src/common/protocol"
 	joiner "github.com/maxogod/distro-tp/src/joiner/business"
+	"github.com/maxogod/distro-tp/src/joiner/config"
+	"github.com/maxogod/distro-tp/src/joiner/internal/server"
 	"github.com/maxogod/distro-tp/src/joiner/tests/test_helpers"
 	helpers "github.com/maxogod/distro-tp/src/joiner/tests/test_helpers"
 	"github.com/stretchr/testify/assert"
@@ -273,6 +275,75 @@ func TestHandleTaskType4_ProducesJoinedBatch(t *testing.T) {
 		err := j.Stop()
 		assert.NoError(t, err)
 	}(j)
+
+	test_helpers.RunTest(t, testCase)
+	test_helpers.RunTest(t, testCaseUsers)
+
+	mostPurchasesUsers := []*protocol.MostPurchasesUser{
+		{StoreId: 5, UserId: 1, PurchasesQty: 260611},
+		{StoreId: 6, UserId: 2, PurchasesQty: 91218},
+	}
+	mostPurchasesUsersBatch := helpers.PrepareMostPurchasesUserBatch(t, mostPurchasesUsers, models.T4)
+	helpers.SendDataBatch(t, "user_transactions", mostPurchasesUsersBatch)
+
+	expectedMostPurchasesUsers := []*protocol.JoinMostPurchasesUser{
+		{StoreName: "G Coffee @ Seksyen 21", UserBirthdate: "1970-04-22", PurchasesQty: 260611},
+		{StoreName: "G Coffee @ Alam Tun Hussein Onn", UserBirthdate: "1974-06-21", PurchasesQty: 91218},
+	}
+
+	received := helpers.GetAllOutputMessages(t, "joined_user_transactions_queue")[0]
+
+	helpers.AssertJoinedMostPurchasesUsersIsExpected(t, received, expectedMostPurchasesUsers)
+}
+
+func TestHandleTaskType4Server(t *testing.T) {
+	storeDir := t.TempDir()
+	testCase := test_helpers.TestCase{
+		Queue:       "stores",
+		DatasetType: models.Stores,
+		CsvPayloads: [][]byte{
+			[]byte("5,G Coffee @ Seksyen 21,Jalan 1,12345,CityA,StateA,1.0,2.0\n"),
+			[]byte("6,G Coffee @ Alam Tun Hussein Onn,Jalan 2,23456,CityB,StateB,3.0,4.0\n"),
+		},
+		ExpectedFiles: []string{filepath.Join(storeDir, "stores.pb")},
+		TaskDone:      models.T4,
+		SendDone:      true,
+	}
+
+	testCaseUsers := test_helpers.TestCase{
+		Queue:       "users",
+		DatasetType: models.Users,
+		CsvPayloads: [][]byte{
+			[]byte("1,female,1970-04-22,2023-07-01 08:13:07\n"),
+			[]byte("2,female,1974-06-21,2023-08-01 08:13:07\n"),
+		},
+		ExpectedFiles: []string{filepath.Join(storeDir, "users_1-2.pb")},
+		TaskDone:      models.T4,
+		SendDone:      true,
+	}
+
+	joinerConfig := config.Config{
+		GatewayAddress:              helpers.RabbitURL,
+		StorePath:                   storeDir,
+		StoreTPVQueue:               "store_tpv",
+		TransactionCountedQueue:     "transaction_counted",
+		TransactionSumQueue:         "transaction_sum",
+		UserTransactionsQueue:       "user_transactions",
+		JoinedTransactionsQueue:     "joined_transactions_queue",
+		JoinedStoresTPVQueue:        "joined_stores_tpv_queue",
+		JoinedUserTransactionsQueue: "joined_user_transactions_queue",
+	}
+
+	joinServer := server.InitServer(&joinerConfig)
+	go func() {
+		err := joinServer.Run()
+		if err != nil {
+			assert.NoError(t, err)
+		}
+	}()
+	defer func() {
+		joinServer.Shutdown()
+	}()
 
 	test_helpers.RunTest(t, testCase)
 	test_helpers.RunTest(t, testCaseUsers)
