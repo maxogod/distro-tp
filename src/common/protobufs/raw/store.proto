@@ -14,7 +14,7 @@ message Store {
 }
 
 message StoreBatch {
-    repeated Store menu_item = 1;
+    repeated Store stores = 1;
 }
 
 
