@@ -37,8 +37,8 @@ func StopConsumer(m middleware.MessageMiddleware) error {
 	if m.StopConsuming() != middleware.MessageMiddlewareSuccess {
 		return fmt.Errorf("failed to stop consuming")
 	}
-	if m.Close() != middleware.MessageMiddlewareSuccess {
-		return fmt.Errorf("failed to close middleware")
+	if m.Delete() != middleware.MessageMiddlewareSuccess {
+		return fmt.Errorf("failed to delete middleware")
 	}
 	return nil
 }
@@ -53,8 +53,8 @@ func StartSender(gatewayAddress, queueName string) (middleware.MessageMiddleware
 }
 
 func StopSender(m middleware.MessageMiddleware) error {
-	if m.Close() != middleware.MessageMiddlewareSuccess {
-		return fmt.Errorf("failed to close middleware")
+	if m.Delete() != middleware.MessageMiddlewareSuccess {
+		return fmt.Errorf("failed to delete middleware")
 	}
 	return nil
 }

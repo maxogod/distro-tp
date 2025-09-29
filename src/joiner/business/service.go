@@ -12,9 +12,16 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
+const (
+	UsersRefQueue     = "users"
+	StoresRefQueue    = "stores"
+	MenuItemsRefQueue = "menu_items"
+)
+
 type TaskQueues map[models.TaskType][]string
 type AggregatorQueues map[models.TaskType]string
 type MessageMiddlewares map[string]middleware.MessageMiddleware
+type ReferenceDoneReceived map[models.TaskType]map[string]bool
 
 type Joiner struct {
 	config               *config.Config
@@ -24,8 +31,10 @@ type Joiner struct {
 	taskQueues           TaskQueues
 	mutex                sync.Mutex
 	aggregatorQueues     AggregatorQueues
-	aggregatorQueue      middleware.MessageMiddleware
+	aggregatorMidd       middleware.MessageMiddleware
 	refDatasetStore      *cache.ReferenceDatasetStore
+	refQueueNames        []string
+	refDoneReceived      ReferenceDoneReceived
 }
 
 func defaultTaskQueues(config *config.Config) TaskQueues {
@@ -44,6 +53,14 @@ func defaultAggregatorQueues(config *config.Config) AggregatorQueues {
 	}
 }
 
+func defaultRequiredRefQueues() ReferenceDoneReceived {
+	return ReferenceDoneReceived{
+		models.T2: {MenuItemsRefQueue: false},
+		models.T3: {StoresRefQueue: false},
+		models.T4: {UsersRefQueue: false, StoresRefQueue: false},
+	}
+}
+
 func NewJoiner(config *config.Config) *Joiner {
 	joiner := &Joiner{
 		config:               config,
@@ -52,6 +69,8 @@ func NewJoiner(config *config.Config) *Joiner {
 		taskQueues:           defaultTaskQueues(config),
 		aggregatorQueues:     defaultAggregatorQueues(config),
 		refDatasetStore:      cache.NewCacheStore(config.StorePath),
+		refQueueNames:        []string{UsersRefQueue, StoresRefQueue, MenuItemsRefQueue},
+		refDoneReceived:      defaultRequiredRefQueues(),
 	}
 
 	joiner.taskHandler = handler.NewTaskHandler(joiner.SendBatchToAggregator, joiner.refDatasetStore)
@@ -92,33 +111,50 @@ func (j *Joiner) Stop() error {
 		}
 	}
 	j.referenceMiddlewares = make(MessageMiddlewares)
+
+	for _, dataMiddleware := range j.dataMiddlewares {
+		if err := StopConsumer(dataMiddleware); err != nil {
+			return err
+		}
+	}
+	j.dataMiddlewares = make(MessageMiddlewares)
+
+	if j.aggregatorMidd != nil {
+		if err := StopSender(j.aggregatorMidd); err != nil {
+			return err
+		}
+		j.aggregatorMidd = nil
+	}
 	return nil
 }
 
-func (j *Joiner) HandleDone(queueName string, taskType models.TaskType) error {
+func (j *Joiner) HandleDone(refQueueName string, taskType models.TaskType) error {
 	j.mutex.Lock()
 
-	if referenceMiddleware, ok := j.referenceMiddlewares[queueName]; ok {
+	if _, ok := j.refDoneReceived[taskType][refQueueName]; !ok {
+		return nil
+	}
+
+	if referenceMiddleware, ok := j.referenceMiddlewares[refQueueName]; ok {
 		if err := StopConsumer(referenceMiddleware); err != nil {
 			return err
 		}
-		delete(j.referenceMiddlewares, queueName)
+		delete(j.referenceMiddlewares, refQueueName)
 	}
 
-	allRefDatasetsLoaded := len(j.referenceMiddlewares) == 0
+	j.refDoneReceived[taskType][refQueueName] = true
 
 	j.mutex.Unlock()
 
-	if allRefDatasetsLoaded {
+	if j.allRefDatasetsLoaded(taskType) {
 		aggQueueName := j.aggregatorQueues[taskType]
 
-		// TODO: Hacer StopSender() en el handle del DoneMsg para los DataBatches
 		aggregatorQueue, senderErr := StartSender(j.config.GatewayAddress, aggQueueName)
 		if senderErr != nil {
 			return senderErr
 		}
 
-		j.aggregatorQueue = aggregatorQueue
+		j.aggregatorMidd = aggregatorQueue
 
 		for _, dataQueueName := range j.taskQueues[taskType] {
 			handlerTask := j.taskHandler.HandleTask(taskType, j.isBestSellingTask(dataQueueName))
@@ -137,7 +173,7 @@ func (j *Joiner) SendBatchToAggregator(dataBatch *handler.DataBatch) error {
 		return err
 	}
 
-	returnCode := j.aggregatorQueue.Send(dataBytes)
+	returnCode := j.aggregatorMidd.Send(dataBytes)
 	if returnCode != middleware.MessageMiddlewareSuccess {
 		return fmt.Errorf("failed to send result: %d", returnCode)
 	}
@@ -147,4 +183,23 @@ func (j *Joiner) SendBatchToAggregator(dataBatch *handler.DataBatch) error {
 
 func (j *Joiner) isBestSellingTask(dataQueueName string) bool {
 	return dataQueueName == j.config.TransactionCountedQueue
+}
+
+func (j *Joiner) InitService() error {
+	for _, refQueueName := range j.refQueueNames {
+		err := j.StartRefConsumer(refQueueName)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (j *Joiner) allRefDatasetsLoaded(taskType models.TaskType) bool {
+	for _, received := range j.refDoneReceived[taskType] {
+		if !received {
+			return false
+		}
+	}
+	return true
 }
