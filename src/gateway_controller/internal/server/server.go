@@ -10,7 +10,7 @@ import (
 	"github.com/maxogod/distro-tp/src/gateway_controller/config"
 	"github.com/maxogod/distro-tp/src/gateway_controller/internal/handler"
 	"github.com/maxogod/distro-tp/src/gateway_controller/internal/network"
-	"github.com/maxogod/distro-tp/src/gateway_controller/session"
+	"github.com/maxogod/distro-tp/src/gateway_controller/internal/session"
 )
 
 var log = logger.GetLogger()
