@@ -18,7 +18,7 @@ import (
 func TestJoinerPersistReferenceBatchesMenuItems(t *testing.T) {
 	storeDir := t.TempDir()
 	testCase := test_helpers.TestCase{
-		Queue:       "test_menu_items",
+		Queue:       "menu_items",
 		DatasetType: models.MenuItems,
 		CsvPayloads: [][]byte{
 			[]byte("1,Espresso,coffee,6.0,False,,\n"),
@@ -41,7 +41,7 @@ func TestJoinerPersistReferenceBatchesMenuItems(t *testing.T) {
 func TestJoinerPersistReferenceBatchesUsers(t *testing.T) {
 	storeDir := t.TempDir()
 	testCase := test_helpers.TestCase{
-		Queue:       "test_users",
+		Queue:       "users",
 		DatasetType: models.Users,
 		CsvPayloads: [][]byte{
 			[]byte("1,female,1970-04-22,2023-07-01 08:13:07\n"),
@@ -66,7 +66,7 @@ func TestJoinerPersistReferenceBatchesUsers(t *testing.T) {
 func TestJoinerHandlesDoneAndConsumesNextQueueTask3(t *testing.T) {
 	storeDir := t.TempDir()
 	testCase := test_helpers.TestCase{
-		Queue:       "test_stores",
+		Queue:       "stores",
 		DatasetType: models.Stores,
 		CsvPayloads: [][]byte{
 			[]byte("1,G Coffee @ USJ 89q,Jalan Dewan Bahasa 5/9,50998,USJ 89q,Kuala Lumpur,3.117134,101.615027\n"),
@@ -103,7 +103,7 @@ func TestJoinerHandlesDoneAndConsumesNextQueueTask3(t *testing.T) {
 func TestJoinerPersistReferenceBatchesUsersAndStores(t *testing.T) {
 	storeDir := t.TempDir()
 	testCaseStores := test_helpers.TestCase{
-		Queue:       "test_stores",
+		Queue:       "stores",
 		DatasetType: models.Stores,
 		CsvPayloads: [][]byte{
 			[]byte("1,G Coffee @ USJ 89q,Jalan Dewan Bahasa 5/9,50998,USJ 89q,Kuala Lumpur,3.117134,101.615027\n"),
@@ -117,7 +117,7 @@ func TestJoinerPersistReferenceBatchesUsersAndStores(t *testing.T) {
 	}
 
 	testCaseUsers := test_helpers.TestCase{
-		Queue:       "test_users",
+		Queue:       "users",
 		DatasetType: models.Users,
 		CsvPayloads: [][]byte{
 			[]byte("1,female,1970-04-22,2023-07-01 08:13:07\n"),
@@ -141,7 +141,7 @@ func TestJoinerPersistReferenceBatchesUsersAndStores(t *testing.T) {
 func TestHandleTaskType3_ProducesJoinedBatch(t *testing.T) {
 	storeDir := t.TempDir()
 	testCase := test_helpers.TestCase{
-		Queue:       "test_stores",
+		Queue:       "stores",
 		DatasetType: models.Stores,
 		CsvPayloads: [][]byte{
 			[]byte("5,G Coffee @ Seksyen 21,Jalan 1,12345,CityA,StateA,1.0,2.0\n"),
@@ -186,7 +186,7 @@ func TestHandleTaskType3_ProducesJoinedBatch(t *testing.T) {
 func TestHandleTaskType2_ProducesJoinedBatch(t *testing.T) {
 	storeDir := t.TempDir()
 	testCase := test_helpers.TestCase{
-		Queue:       "test_menu_items",
+		Queue:       "menu_items",
 		DatasetType: models.MenuItems,
 		CsvPayloads: [][]byte{
 			[]byte("1,Espresso,coffee,6.0,False,,\n"),
@@ -247,7 +247,7 @@ func TestHandleTaskType2_ProducesJoinedBatch(t *testing.T) {
 func TestHandleTaskType4_ProducesJoinedBatch(t *testing.T) {
 	storeDir := t.TempDir()
 	testCase := test_helpers.TestCase{
-		Queue:       "test_stores",
+		Queue:       "stores",
 		DatasetType: models.Stores,
 		CsvPayloads: [][]byte{
 			[]byte("5,G Coffee @ Seksyen 21,Jalan 1,12345,CityA,StateA,1.0,2.0\n"),
@@ -259,7 +259,7 @@ func TestHandleTaskType4_ProducesJoinedBatch(t *testing.T) {
 	}
 
 	testCaseUsers := test_helpers.TestCase{
-		Queue:       "test_users",
+		Queue:       "users",
 		DatasetType: models.Users,
 		CsvPayloads: [][]byte{
 			[]byte("1,female,1970-04-22,2023-07-01 08:13:07\n"),

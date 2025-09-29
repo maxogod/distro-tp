@@ -99,7 +99,10 @@ func GetAllOutputMessages(t *testing.T, outputQueue string) []*protocol.DataBatc
 
 	consumer, err := middleware.NewQueueMiddleware(RabbitURL, outputQueue)
 	assert.NoError(t, err)
-	defer consumer.Close()
+	defer func() {
+		_ = consumer.StopConsuming()
+		_ = consumer.Close()
+	}()
 
 	var received []*protocol.DataBatch
 	done := make(chan struct{})
