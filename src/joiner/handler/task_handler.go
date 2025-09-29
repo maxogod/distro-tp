@@ -1,8 +1,10 @@
 package handler
 
 import (
-	"github.com/maxogod/distro-tp/src/common/models"
-	"github.com/maxogod/distro-tp/src/common/protocol"
+	"github.com/maxogod/distro-tp/src/common/models/data_batch"
+	"github.com/maxogod/distro-tp/src/common/models/enum"
+	"github.com/maxogod/distro-tp/src/common/models/joined"
+	"github.com/maxogod/distro-tp/src/common/models/reduced"
 	"github.com/maxogod/distro-tp/src/joiner/cache"
 	"google.golang.org/protobuf/proto"
 )
@@ -13,8 +15,8 @@ const (
 	mostProfitsHandler = 1
 )
 
-type TaskHandlers map[models.TaskType][]HandleTask
-type SendBatchToAggregator func(dataBatch *protocol.DataBatch) error
+type TaskHandlers map[enum.TaskType][]HandleTask
+type SendBatchToAggregator func(dataBatch *data_batch.DataBatch) error
 
 type TaskHandler struct {
 	taskHandlers          TaskHandlers
@@ -29,17 +31,17 @@ func NewTaskHandler(sender SendBatchToAggregator, referenceDatasetStore *cache.R
 	}
 
 	th.taskHandlers = TaskHandlers{
-		models.T2: []HandleTask{th.handleBestSellingProducts, th.handleMostProfitsProducts},
-		models.T3: []HandleTask{th.handleTaskType3},
-		models.T4: []HandleTask{th.handleTaskType4},
+		enum.T2: []HandleTask{th.handleBestSellingProducts, th.handleMostProfitsProducts},
+		enum.T3: []HandleTask{th.handleTaskType3},
+		enum.T4: []HandleTask{th.handleTaskType4},
 	}
 
 	return th
 }
 
-func (th *TaskHandler) HandleTask(taskType models.TaskType, isBestSellingTask bool) HandleTask {
+func (th *TaskHandler) HandleTask(taskType enum.TaskType, isBestSellingTask bool) HandleTask {
 	taskHandler := th.taskHandlers[taskType]
-	if taskType != models.T2 {
+	if taskType != enum.T2 {
 		return taskHandler[mainHandler]
 	}
 
@@ -51,13 +53,13 @@ func (th *TaskHandler) HandleTask(taskType models.TaskType, isBestSellingTask bo
 	return taskHandler[taskHandlerT2]
 }
 
-func (th *TaskHandler) handleBestSellingProducts(dataBatch *protocol.DataBatch) error {
+func (th *TaskHandler) handleBestSellingProducts(dataBatch *data_batch.DataBatch) error {
 	menuItemsMap, loadErr := th.refDatasetStore.LoadMenuItems()
 	if loadErr != nil {
 		return loadErr
 	}
 
-	var bestSellingProductsBatch protocol.BestSellingProductsBatch
+	var bestSellingProductsBatch reduced.BestSellingProductsBatch
 	err := proto.Unmarshal(dataBatch.Payload, &bestSellingProductsBatch)
 	if err != nil {
 		return err
@@ -65,10 +67,10 @@ func (th *TaskHandler) handleBestSellingProducts(dataBatch *protocol.DataBatch) 
 
 	bestSellingProducts := bestSellingProductsBatch.Items
 
-	joined := make([]*protocol.JoinBestSellingProducts, 0)
+	joinedData := make([]*joined.JoinBestSellingProducts, 0)
 	for _, entry := range bestSellingProducts {
 		if item, ok := menuItemsMap[entry.ItemId]; ok {
-			joined = append(joined, &protocol.JoinBestSellingProducts{
+			joinedData = append(joinedData, &joined.JoinBestSellingProducts{
 				YearMonthCreatedAt: entry.YearMonthCreatedAt,
 				ItemName:           item.ItemName,
 				SellingsQty:        entry.SellingsQty,
@@ -76,16 +78,16 @@ func (th *TaskHandler) handleBestSellingProducts(dataBatch *protocol.DataBatch) 
 		}
 	}
 
-	return sendJoinedData(dataBatch, joined, cache.CreateBestSellingBatch, th.sendBatchToAggregator)
+	return sendJoinedData(dataBatch, joinedData, cache.CreateBestSellingBatch, th.sendBatchToAggregator)
 }
 
-func (th *TaskHandler) handleMostProfitsProducts(dataBatch *protocol.DataBatch) error {
+func (th *TaskHandler) handleMostProfitsProducts(dataBatch *data_batch.DataBatch) error {
 	menuItemsMap, loadErr := th.refDatasetStore.LoadMenuItems()
 	if loadErr != nil {
 		return loadErr
 	}
 
-	var mostProfitsProductsBatch protocol.MostProfitsProductsBatch
+	var mostProfitsProductsBatch reduced.MostProfitsProductsBatch
 	err := proto.Unmarshal(dataBatch.Payload, &mostProfitsProductsBatch)
 	if err != nil {
 		return err
@@ -93,10 +95,10 @@ func (th *TaskHandler) handleMostProfitsProducts(dataBatch *protocol.DataBatch) 
 
 	mostProfitsProducts := mostProfitsProductsBatch.Items
 
-	joined := make([]*protocol.JoinMostProfitsProducts, 0)
+	joinedData := make([]*joined.JoinMostProfitsProducts, 0)
 	for _, entry := range mostProfitsProducts {
 		if item, ok := menuItemsMap[entry.ItemId]; ok {
-			joined = append(joined, &protocol.JoinMostProfitsProducts{
+			joinedData = append(joinedData, &joined.JoinMostProfitsProducts{
 				YearMonthCreatedAt: entry.YearMonthCreatedAt,
 				ItemName:           item.ItemName,
 				ProfitSum:          entry.ProfitSum,
@@ -104,16 +106,16 @@ func (th *TaskHandler) handleMostProfitsProducts(dataBatch *protocol.DataBatch) 
 		}
 	}
 
-	return sendJoinedData(dataBatch, joined, cache.CreateMostProfitsBatch, th.sendBatchToAggregator)
+	return sendJoinedData(dataBatch, joinedData, cache.CreateMostProfitsBatch, th.sendBatchToAggregator)
 }
 
-func (th *TaskHandler) handleTaskType3(dataBatch *protocol.DataBatch) error {
+func (th *TaskHandler) handleTaskType3(dataBatch *data_batch.DataBatch) error {
 	storesMap, loadErr := th.refDatasetStore.LoadStores()
 	if loadErr != nil {
 		return loadErr
 	}
 
-	var storeTPVsContainer protocol.StoresTPV
+	var storeTPVsContainer reduced.StoresTPV
 	err := proto.Unmarshal(dataBatch.Payload, &storeTPVsContainer)
 	if err != nil {
 		return err
@@ -121,10 +123,10 @@ func (th *TaskHandler) handleTaskType3(dataBatch *protocol.DataBatch) error {
 
 	storeTPVs := storeTPVsContainer.Items
 
-	joined := make([]*protocol.JoinStoreTPV, 0)
+	joinedData := make([]*joined.JoinStoreTPV, 0)
 	for _, entry := range storeTPVs {
 		if store, ok := storesMap[entry.StoreId]; ok {
-			joined = append(joined, &protocol.JoinStoreTPV{
+			joinedData = append(joinedData, &joined.JoinStoreTPV{
 				YearHalfCreatedAt: entry.YearHalfCreatedAt,
 				StoreName:         store.StoreName,
 				Tpv:               entry.Tpv,
@@ -132,16 +134,16 @@ func (th *TaskHandler) handleTaskType3(dataBatch *protocol.DataBatch) error {
 		}
 	}
 
-	return sendJoinedData(dataBatch, joined, cache.CreateJoinStoreTPVBatch, th.sendBatchToAggregator)
+	return sendJoinedData(dataBatch, joinedData, cache.CreateJoinStoreTPVBatch, th.sendBatchToAggregator)
 }
 
-func (th *TaskHandler) handleTaskType4(dataBatch *protocol.DataBatch) error {
+func (th *TaskHandler) handleTaskType4(dataBatch *data_batch.DataBatch) error {
 	storesMap, loadErr := th.refDatasetStore.LoadStores()
 	if loadErr != nil {
 		return loadErr
 	}
 
-	var mostPurchasesUserBatch protocol.MostPurchasesUserBatch
+	var mostPurchasesUserBatch reduced.MostPurchasesUserBatch
 	err := proto.Unmarshal(dataBatch.Payload, &mostPurchasesUserBatch)
 	if err != nil {
 		return err
@@ -158,28 +160,28 @@ func (th *TaskHandler) handleTaskType4(dataBatch *protocol.DataBatch) error {
 		return loadErr
 	}
 
-	joined := make([]*protocol.JoinMostPurchasesUser, 0)
+	joinedData := make([]*joined.JoinMostPurchasesUser, 0)
 	for _, entry := range mostPurchasesUsers {
 		store := storesMap[entry.StoreId]
 		user := usersMap[entry.UserId]
 
-		joined = append(joined, &protocol.JoinMostPurchasesUser{
+		joinedData = append(joinedData, &joined.JoinMostPurchasesUser{
 			StoreName:     store.StoreName,
 			UserBirthdate: user.Birthdate,
 			PurchasesQty:  entry.PurchasesQty,
 		})
 	}
 
-	return sendJoinedData(dataBatch, joined, cache.CreateMostPurchasesUserBatch, th.sendBatchToAggregator)
+	return sendJoinedData(dataBatch, joinedData, cache.CreateMostPurchasesUserBatch, th.sendBatchToAggregator)
 }
 
 func sendJoinedData[T any](
-	dataBatch *protocol.DataBatch,
+	dataBatch *data_batch.DataBatch,
 	joined []*T,
-	createBatch func(taskType models.TaskType, items []*T) (*protocol.DataBatch, error),
+	createBatch func(taskType enum.TaskType, items []*T) (*data_batch.DataBatch, error),
 	sendBatchToAggregator SendBatchToAggregator,
 ) error {
-	joinedDataBatch, err := createBatch(models.TaskType(dataBatch.TaskType), joined)
+	joinedDataBatch, err := createBatch(enum.TaskType(dataBatch.TaskType), joined)
 	if err != nil {
 		return err
 	}

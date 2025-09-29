@@ -1,17 +1,13 @@
 package handler
 
 import (
-	"fmt"
-
-	"github.com/maxogod/distro-tp/src/common/models"
-	"github.com/maxogod/distro-tp/src/common/protocol"
+	"github.com/maxogod/distro-tp/src/common/models/data_batch"
+	"github.com/maxogod/distro-tp/src/common/models/enum"
 	"github.com/maxogod/distro-tp/src/joiner/cache"
 	"google.golang.org/protobuf/proto"
 )
 
-type DoneMsgHandler func(queueName string, taskType models.TaskType) error
-type ReferenceBatchMsg = protocol.ReferenceQueueMessage_ReferenceBatch
-type DoneMsg = protocol.ReferenceQueueMessage_Done
+type DoneMsgHandler func(queueName string, taskType enum.TaskType) error
 
 type ReferenceHandler struct {
 	handlerDone     DoneMsgHandler
@@ -29,17 +25,14 @@ func NewReferenceHandler(handlerDone DoneMsgHandler, queueName string, reference
 }
 
 func (h *ReferenceHandler) HandleReferenceQueueMessage(msgBody []byte) error {
-	var refMsg protocol.ReferenceQueueMessage
+	var refMsg data_batch.DataBatch
 	if err := proto.Unmarshal(msgBody, &refMsg); err != nil {
 		return err
 	}
 
-	switch payload := refMsg.Payload.(type) {
-	case *ReferenceBatchMsg:
-		return h.refDatasetStore.StoreReferenceData(payload.ReferenceBatch)
-	case *DoneMsg:
-		return h.handlerDone(h.queue, models.TaskType(payload.Done.TaskType))
-	default:
-		return fmt.Errorf("unknown message type")
+	if refMsg.Done {
+		return h.handlerDone(h.queue, enum.TaskType(refMsg.TaskType))
+	} else {
+		return h.refDatasetStore.StoreReferenceData(&refMsg, h.queue)
 	}
 }

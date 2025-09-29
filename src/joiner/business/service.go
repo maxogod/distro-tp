@@ -5,7 +5,7 @@ import (
 	"sync"
 
 	"github.com/maxogod/distro-tp/src/common/middleware"
-	"github.com/maxogod/distro-tp/src/common/models"
+	"github.com/maxogod/distro-tp/src/common/models/enum"
 	"github.com/maxogod/distro-tp/src/joiner/cache"
 	"github.com/maxogod/distro-tp/src/joiner/config"
 	"github.com/maxogod/distro-tp/src/joiner/handler"
@@ -18,10 +18,10 @@ const (
 	MenuItemsRefQueue = "menu_items"
 )
 
-type TaskQueues map[models.TaskType][]string
-type AggregatorQueues map[models.TaskType]string
+type TaskQueues map[enum.TaskType][]string
+type AggregatorQueues map[enum.TaskType]string
 type MessageMiddlewares map[string]middleware.MessageMiddleware
-type ReferenceDoneReceived map[models.TaskType]map[string]bool
+type ReferenceDoneReceived map[enum.TaskType]map[string]bool
 
 type Joiner struct {
 	config               *config.Config
@@ -39,25 +39,25 @@ type Joiner struct {
 
 func defaultTaskQueues(config *config.Config) TaskQueues {
 	return TaskQueues{
-		models.T2: {config.TransactionSumQueue, config.TransactionCountedQueue},
-		models.T3: {config.StoreTPVQueue},
-		models.T4: {config.UserTransactionsQueue},
+		enum.T2: {config.TransactionSumQueue, config.TransactionCountedQueue},
+		enum.T3: {config.StoreTPVQueue},
+		enum.T4: {config.UserTransactionsQueue},
 	}
 }
 
 func defaultAggregatorQueues(config *config.Config) AggregatorQueues {
 	return AggregatorQueues{
-		models.T2: config.JoinedTransactionsQueue,
-		models.T3: config.JoinedStoresTPVQueue,
-		models.T4: config.JoinedUserTransactionsQueue,
+		enum.T2: config.JoinedTransactionsQueue,
+		enum.T3: config.JoinedStoresTPVQueue,
+		enum.T4: config.JoinedUserTransactionsQueue,
 	}
 }
 
 func defaultRequiredRefQueues() ReferenceDoneReceived {
 	return ReferenceDoneReceived{
-		models.T2: {MenuItemsRefQueue: false},
-		models.T3: {StoresRefQueue: false},
-		models.T4: {UsersRefQueue: false, StoresRefQueue: false},
+		enum.T2: {MenuItemsRefQueue: false},
+		enum.T3: {StoresRefQueue: false},
+		enum.T4: {UsersRefQueue: false, StoresRefQueue: false},
 	}
 }
 
@@ -128,7 +128,7 @@ func (j *Joiner) Stop() error {
 	return nil
 }
 
-func (j *Joiner) HandleDone(refQueueName string, taskType models.TaskType) error {
+func (j *Joiner) HandleDone(refQueueName string, taskType enum.TaskType) error {
 	j.mutex.Lock()
 
 	if _, ok := j.refDoneReceived[taskType][refQueueName]; !ok {
@@ -195,7 +195,7 @@ func (j *Joiner) InitService() error {
 	return nil
 }
 
-func (j *Joiner) allRefDatasetsLoaded(taskType models.TaskType) bool {
+func (j *Joiner) allRefDatasetsLoaded(taskType enum.TaskType) bool {
 	for _, received := range j.refDoneReceived[taskType] {
 		if !received {
 			return false

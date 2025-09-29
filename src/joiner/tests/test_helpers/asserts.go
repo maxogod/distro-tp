@@ -9,8 +9,10 @@ import (
 	"time"
 
 	"github.com/maxogod/distro-tp/src/common/middleware"
-	"github.com/maxogod/distro-tp/src/common/models"
-	"github.com/maxogod/distro-tp/src/common/protocol"
+	"github.com/maxogod/distro-tp/src/common/models/data_batch"
+	"github.com/maxogod/distro-tp/src/common/models/enum"
+	"github.com/maxogod/distro-tp/src/common/models/joined"
+	"github.com/maxogod/distro-tp/src/common/models/raw"
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/protobuf/proto"
 )
@@ -22,7 +24,8 @@ func assertFileContainsPayloads[T any](
 	t *testing.T,
 	expectedFile string,
 	csvPayloads [][]byte,
-	datasetType models.RefDatasetType,
+	datasetType enum.RefDatasetType,
+	taskType enum.TaskType,
 	unmarshalBatch UnmarshalBatchFunc[T],
 	compare CompareFunc[T],
 ) {
@@ -32,7 +35,7 @@ func assertFileContainsPayloads[T any](
 	tick := time.NewTicker(200 * time.Millisecond)
 	defer tick.Stop()
 
-	expectedRefBatch, err := GetPayloadForDatasetType(t, datasetType, csvPayloads)
+	expectedRefBatch, err := GetPayloadForDatasetType(t, datasetType, taskType, csvPayloads)
 	assert.NoError(t, err)
 	expectedPayload, err := proto.Marshal(expectedRefBatch)
 	assert.NoError(t, err)
@@ -111,7 +114,7 @@ func AssertJoinerConsumed(t *testing.T, m middleware.MessageMiddleware, expected
 
 func AssertJoinedBatchIsTheExpected[T any](
 	t *testing.T,
-	received *protocol.DataBatch,
+	received *data_batch.DataBatch,
 	expected []*T,
 	unmarshalBatch UnmarshalBatchFunc[T],
 	compare CompareFunc[T],
@@ -136,18 +139,18 @@ func AssertJoinedBatchIsTheExpected[T any](
 
 func AssertJoinedStoreTPVIsExpected(
 	t *testing.T,
-	received *protocol.DataBatch,
-	expected []*protocol.JoinStoreTPV,
+	received *data_batch.DataBatch,
+	expected []*joined.JoinStoreTPV,
 ) {
-	unmarshal := func(payload []byte) ([]*protocol.JoinStoreTPV, error) {
-		var batch protocol.JoinStoreTPVBatch
+	unmarshal := func(payload []byte) ([]*joined.JoinStoreTPV, error) {
+		var batch joined.JoinStoreTPVBatch
 		if err := proto.Unmarshal(payload, &batch); err != nil {
 			return nil, err
 		}
 		return batch.Items, nil
 	}
 
-	compare := func(exp, got *protocol.JoinStoreTPV, idx int, t *testing.T) {
+	compare := func(exp, got *joined.JoinStoreTPV, idx int, t *testing.T) {
 		assert.Equal(t, exp.YearHalfCreatedAt, got.YearHalfCreatedAt, "YearHalfCreatedAt mismatch at index %d", idx)
 		assert.Equal(t, exp.StoreName, got.StoreName, "StoreName mismatch at index %d", idx)
 		assert.Equal(t, exp.Tpv, got.Tpv, "TPV mismatch at index %d", idx)
@@ -158,18 +161,18 @@ func AssertJoinedStoreTPVIsExpected(
 
 func AssertJoinedBestSellingIsExpected(
 	t *testing.T,
-	received *protocol.DataBatch,
-	expected []*protocol.JoinBestSellingProducts,
+	received *data_batch.DataBatch,
+	expected []*joined.JoinBestSellingProducts,
 ) {
-	unmarshal := func(payload []byte) ([]*protocol.JoinBestSellingProducts, error) {
-		var batch protocol.JoinBestSellingProductsBatch
+	unmarshal := func(payload []byte) ([]*joined.JoinBestSellingProducts, error) {
+		var batch joined.JoinBestSellingProductsBatch
 		if err := proto.Unmarshal(payload, &batch); err != nil {
 			return nil, err
 		}
 		return batch.Items, nil
 	}
 
-	compare := func(exp, got *protocol.JoinBestSellingProducts, idx int, t *testing.T) {
+	compare := func(exp, got *joined.JoinBestSellingProducts, idx int, t *testing.T) {
 		assert.Equal(t, exp.YearMonthCreatedAt, got.YearMonthCreatedAt, "YearMonthCreatedAt mismatch at index %d", idx)
 		assert.Equal(t, exp.ItemName, got.ItemName, "ItemName mismatch at index %d", idx)
 		assert.Equal(t, exp.SellingsQty, got.SellingsQty, "SellingsQty mismatch at index %d", idx)
@@ -180,18 +183,18 @@ func AssertJoinedBestSellingIsExpected(
 
 func AssertJoinedMostProfitsIsExpected(
 	t *testing.T,
-	received *protocol.DataBatch,
-	expected []*protocol.JoinMostProfitsProducts,
+	received *data_batch.DataBatch,
+	expected []*joined.JoinMostProfitsProducts,
 ) {
-	unmarshal := func(payload []byte) ([]*protocol.JoinMostProfitsProducts, error) {
-		var batch protocol.JoinMostProfitsProductsBatch
+	unmarshal := func(payload []byte) ([]*joined.JoinMostProfitsProducts, error) {
+		var batch joined.JoinMostProfitsProductsBatch
 		if err := proto.Unmarshal(payload, &batch); err != nil {
 			return nil, err
 		}
 		return batch.Items, nil
 	}
 
-	compare := func(exp, got *protocol.JoinMostProfitsProducts, idx int, t *testing.T) {
+	compare := func(exp, got *joined.JoinMostProfitsProducts, idx int, t *testing.T) {
 		assert.Equal(t, exp.YearMonthCreatedAt, got.YearMonthCreatedAt, "YearMonthCreatedAt mismatch at index %d", idx)
 		assert.Equal(t, exp.ItemName, got.ItemName, "ItemName mismatch at index %d", idx)
 		assert.Equal(t, exp.ProfitSum, got.ProfitSum, "ProfitSum mismatch at index %d", idx)
@@ -204,23 +207,24 @@ func AssertMenuItemsAreTheExpected(
 	t *testing.T,
 	expectedFile string,
 	csvPayloads [][]byte,
-	datasetType models.RefDatasetType,
+	datasetType enum.RefDatasetType,
+	taskType enum.TaskType,
 ) {
-	unmarshal := func(payload []byte) ([]*protocol.MenuItem, error) {
-		refBatch := &protocol.ReferenceBatch{}
+	unmarshal := func(payload []byte) ([]*raw.MenuItem, error) {
+		refBatch := &data_batch.DataBatch{}
 		if err := proto.Unmarshal(payload, refBatch); err != nil {
 			return nil, err
 		}
 
-		batch := &protocol.MenuItems{}
+		batch := &raw.MenuItemBatch{}
 		if err := proto.Unmarshal(refBatch.Payload, batch); err != nil {
 			return nil, err
 		}
 
-		return batch.Items, nil
+		return batch.MenuItems, nil
 	}
 
-	compare := func(exp, got *protocol.MenuItem, idx int, t *testing.T) {
+	compare := func(exp, got *raw.MenuItem, idx int, t *testing.T) {
 		t.Helper()
 
 		assert.Equal(t, exp.ItemId, got.ItemId, "ItemId mismatch at index %d", idx)
@@ -228,38 +232,27 @@ func AssertMenuItemsAreTheExpected(
 		assert.Equal(t, exp.Category, got.Category, "Category mismatch at index %d", idx)
 		assert.Equal(t, exp.Price, got.Price, "Price mismatch at index %d", idx)
 		assert.Equal(t, exp.IsSeasonal, got.IsSeasonal, "IsSeasonal mismatch at index %d", idx)
-
-		if exp.AvailableFrom != nil && got.AvailableFrom != nil {
-			assert.True(t, exp.AvailableFrom.AsTime().Equal(got.AvailableFrom.AsTime()),
-				"AvailableFrom mismatch at index %d: expected %v, got %v", idx, exp.AvailableFrom.AsTime(), got.AvailableFrom.AsTime())
-		} else {
-			assert.Equal(t, exp.AvailableFrom, got.AvailableFrom, "AvailableFrom nil mismatch at index %d", idx)
-		}
-
-		if exp.AvailableTo != nil && got.AvailableTo != nil {
-			assert.True(t, exp.AvailableTo.AsTime().Equal(got.AvailableTo.AsTime()),
-				"AvailableTo mismatch at index %d: expected %v, got %v", idx, exp.AvailableTo.AsTime(), got.AvailableTo.AsTime())
-		} else {
-			assert.Equal(t, exp.AvailableTo, got.AvailableTo, "AvailableTo nil mismatch at index %d", idx)
-		}
+		assert.Equal(t, exp.AvailableFrom, got.AvailableFrom, "AvailableFrom mismatch at index %d", idx)
+		assert.Equal(t, exp.AvailableTo, got.AvailableTo, "AvailableTo mismatch at index %d", idx)
 	}
 
-	assertFileContainsPayloads(t, expectedFile, csvPayloads, datasetType, unmarshal, compare)
+	assertFileContainsPayloads(t, expectedFile, csvPayloads, datasetType, taskType, unmarshal, compare)
 }
 
 func AssertUsersAreTheExpected(
 	t *testing.T,
 	expectedFile string,
 	csvPayloads [][]byte,
-	datasetType models.RefDatasetType,
+	datasetType enum.RefDatasetType,
+	taskType enum.TaskType,
 ) {
-	unmarshal := func(payload []byte) ([]*protocol.User, error) {
-		refBatch := &protocol.ReferenceBatch{}
+	unmarshal := func(payload []byte) ([]*raw.User, error) {
+		refBatch := &data_batch.DataBatch{}
 		if err := proto.Unmarshal(payload, refBatch); err != nil {
 			return nil, err
 		}
 
-		batch := &protocol.Users{}
+		batch := &raw.UserBatch{}
 		if err := proto.Unmarshal(refBatch.Payload, batch); err != nil {
 			return nil, err
 		}
@@ -267,7 +260,7 @@ func AssertUsersAreTheExpected(
 		return batch.Users, nil
 	}
 
-	compare := func(exp, got *protocol.User, idx int, t *testing.T) {
+	compare := func(exp, got *raw.User, idx int, t *testing.T) {
 		t.Helper()
 
 		assert.Equal(t, exp.UserId, got.UserId, "UserId mismatch at index %d", idx)
@@ -276,22 +269,23 @@ func AssertUsersAreTheExpected(
 		assert.Equal(t, exp.RegisteredAt, got.RegisteredAt, "RegisteredAt mismatch at index %d", idx)
 	}
 
-	assertFileContainsPayloads(t, expectedFile, csvPayloads, datasetType, unmarshal, compare)
+	assertFileContainsPayloads(t, expectedFile, csvPayloads, datasetType, taskType, unmarshal, compare)
 }
 
 func AssertStoresAreTheExpected(
 	t *testing.T,
 	expectedFile string,
 	csvPayloads [][]byte,
-	datasetType models.RefDatasetType,
+	datasetType enum.RefDatasetType,
+	taskType enum.TaskType,
 ) {
-	unmarshal := func(payload []byte) ([]*protocol.Store, error) {
-		refBatch := &protocol.ReferenceBatch{}
+	unmarshal := func(payload []byte) ([]*raw.Store, error) {
+		refBatch := &data_batch.DataBatch{}
 		if err := proto.Unmarshal(payload, refBatch); err != nil {
 			return nil, err
 		}
 
-		batch := &protocol.Stores{}
+		batch := &raw.StoreBatch{}
 		if err := proto.Unmarshal(refBatch.Payload, batch); err != nil {
 			return nil, err
 		}
@@ -299,10 +293,10 @@ func AssertStoresAreTheExpected(
 		return batch.Stores, nil
 	}
 
-	compare := func(exp, got *protocol.Store, idx int, t *testing.T) {
+	compare := func(exp, got *raw.Store, idx int, t *testing.T) {
 		t.Helper()
 
-		assert.Equal(t, exp.StoreID, got.StoreID, "StoreID mismatch at index %d", idx)
+		assert.Equal(t, exp.StoreId, got.StoreId, "StoreID mismatch at index %d", idx)
 		assert.Equal(t, exp.StoreName, got.StoreName, "StoreName mismatch at index %d", idx)
 		assert.Equal(t, exp.Street, got.Street, "Street mismatch at index %d", idx)
 		assert.Equal(t, exp.PostalCode, got.PostalCode, "PostalCode mismatch at index %d", idx)
@@ -312,25 +306,25 @@ func AssertStoresAreTheExpected(
 		assert.Equal(t, exp.Longitude, got.Longitude, "Longitude mismatch at index %d", idx)
 	}
 
-	assertFileContainsPayloads(t, expectedFile, csvPayloads, datasetType, unmarshal, compare)
+	assertFileContainsPayloads(t, expectedFile, csvPayloads, datasetType, taskType, unmarshal, compare)
 }
 
 func AssertJoinedMostPurchasesUsersIsExpected(
 	t *testing.T,
-	received *protocol.DataBatch,
-	expected []*protocol.JoinMostPurchasesUser,
+	received *data_batch.DataBatch,
+	expected []*joined.JoinMostPurchasesUser,
 ) {
 	t.Helper()
 
-	unmarshal := func(payload []byte) ([]*protocol.JoinMostPurchasesUser, error) {
-		var batch protocol.JoinMostPurchasesUserBatch
+	unmarshal := func(payload []byte) ([]*joined.JoinMostPurchasesUser, error) {
+		var batch joined.JoinMostPurchasesUserBatch
 		if err := proto.Unmarshal(payload, &batch); err != nil {
 			return nil, err
 		}
 		return batch.Users, nil
 	}
 
-	compare := func(exp, got *protocol.JoinMostPurchasesUser, idx int, t *testing.T) {
+	compare := func(exp, got *joined.JoinMostPurchasesUser, idx int, t *testing.T) {
 		expDate, err := time.Parse("2006-01-02", exp.UserBirthdate)
 		assert.NoError(t, err, "Failed to parse expected UserBirthdate at index %d", idx)
 		gotDate, err := time.Parse("2006-01-02", got.UserBirthdate)
