@@ -3,10 +3,11 @@ package mock
 import (
 	"time"
 
-	"github.com/maxogod/distro-tp/src/common/models"
+	"github.com/maxogod/distro-tp/src/common/models/transaction"
+	"github.com/maxogod/distro-tp/src/common/models/transaction_items"
 )
 
-var MockTransactionsOutputT1 = map[string]models.Transaction{
+var MockTransactionsOutputT1 = map[string]*transaction.Transaction{
 	"tx1": {
 		TransactionId:   "tx1",
 		StoreId:         101,
@@ -16,11 +17,11 @@ var MockTransactionsOutputT1 = map[string]models.Transaction{
 		OriginalAmount:  200.0,
 		DiscountApplied: 50.0,
 		FinalAmount:     150.0,
-		CreatedAt:       time.Date(2025, 11, 8, 10, 30, 0, 0, time.UTC),
+		CreatedAt:       time.Date(2025, 11, 8, 10, 30, 0, 0, time.UTC).Format("2025-09-28 18:11:05"),
 	},
 }
 
-var MockTransactionsOutputT3 = map[string]models.Transaction{
+var MockTransactionsOutputT3 = map[string]*transaction.Transaction{
 	"tx1": {
 		TransactionId:   "tx1",
 		StoreId:         101,
@@ -30,7 +31,7 @@ var MockTransactionsOutputT3 = map[string]models.Transaction{
 		OriginalAmount:  200.0,
 		DiscountApplied: 50.0,
 		FinalAmount:     150.0,
-		CreatedAt:       time.Date(2025, 11, 8, 10, 30, 0, 0, time.UTC),
+		CreatedAt:       time.Date(2025, 11, 8, 10, 30, 0, 0, time.UTC).Format("2025-09-28 18:11:05"),
 	},
 	"tx2": {
 		TransactionId:   "tx2",
@@ -41,11 +42,11 @@ var MockTransactionsOutputT3 = map[string]models.Transaction{
 		OriginalAmount:  100.0,
 		DiscountApplied: 25.0,
 		FinalAmount:     50.0,
-		CreatedAt:       time.Date(2024, 5, 15, 8, 20, 0, 0, time.UTC),
+		CreatedAt:       time.Date(2024, 5, 15, 8, 20, 0, 0, time.UTC).Format("2025-09-28 18:11:05"),
 	},
 }
 
-var MockTransactionsOutputT4 = map[string]models.Transaction{
+var MockTransactionsOutputT4 = map[string]*transaction.Transaction{
 	"tx1": {
 		TransactionId:   "tx1",
 		StoreId:         101,
@@ -55,7 +56,7 @@ var MockTransactionsOutputT4 = map[string]models.Transaction{
 		OriginalAmount:  200.0,
 		DiscountApplied: 50.0,
 		FinalAmount:     150.0,
-		CreatedAt:       time.Date(2025, 11, 8, 10, 30, 0, 0, time.UTC),
+		CreatedAt:       time.Date(2025, 11, 8, 10, 30, 0, 0, time.UTC).Format("2025-09-28 18:11:05"),
 	},
 	"tx2": {
 		TransactionId:   "tx2",
@@ -66,7 +67,7 @@ var MockTransactionsOutputT4 = map[string]models.Transaction{
 		OriginalAmount:  100.0,
 		DiscountApplied: 25.0,
 		FinalAmount:     50.0,
-		CreatedAt:       time.Date(2024, 5, 15, 8, 20, 0, 0, time.UTC),
+		CreatedAt:       time.Date(2024, 5, 15, 8, 20, 0, 0, time.UTC).Format("2025-09-28 18:11:05"),
 	},
 	"tx3": {
 		TransactionId:   "tx3",
@@ -77,18 +78,18 @@ var MockTransactionsOutputT4 = map[string]models.Transaction{
 		OriginalAmount:  100.0,
 		DiscountApplied: 25.0,
 		FinalAmount:     50.0,
-		CreatedAt:       time.Date(2024, 5, 15, 15, 20, 0, 0, time.UTC),
+		CreatedAt:       time.Date(2024, 5, 15, 15, 20, 0, 0, time.UTC).Format("2025-09-28 18:11:05"),
 	},
 }
 
-var MockTransactionItemsOutputT2 = map[string]models.TransactionItem{
+var MockTransactionItemsOutputT2 = map[string]*transaction_items.TransactionItems{
 	"tx1": {
 		TransactionId: "tx1",
 		ItemId:        1,
 		Quantity:      2,
 		UnitPrice:     30.0,
 		Subtotal:      60.0,
-		CreatedAt:     time.Date(2025, 11, 8, 11, 15, 0, 0, time.UTC),
+		CreatedAt:     time.Date(2025, 11, 8, 11, 15, 0, 0, time.UTC).Format("2025-09-28 18:11:05"),
 	},
 	"tx2": {
 		TransactionId: "tx2",
@@ -96,6 +97,6 @@ var MockTransactionItemsOutputT2 = map[string]models.TransactionItem{
 		Quantity:      1,
 		UnitPrice:     25.0,
 		Subtotal:      25.0,
-		CreatedAt:     time.Date(2024, 6, 10, 16, 45, 0, 0, time.UTC),
+		CreatedAt:     time.Date(2024, 6, 10, 16, 45, 0, 0, time.UTC).Format("2025-09-28 18:11:05"),
 	},
 }

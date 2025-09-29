@@ -2,9 +2,9 @@ package business_test
 
 import (
 	"testing"
-	"time"
 
-	"github.com/maxogod/distro-tp/src/common/models"
+	"github.com/maxogod/distro-tp/src/common/models/transaction"
+	"github.com/maxogod/distro-tp/src/common/models/transaction_items"
 	"github.com/maxogod/distro-tp/src/filter/business"
 )
 
@@ -12,35 +12,35 @@ func TestFilterByYearBetween(t *testing.T) {
 	tests := []struct {
 		name             string
 		from, to         int
-		transactions     []models.Transaction
-		transactionItems []models.TransactionItem
+		transactions     []*transaction.Transaction
+		transactionItems []*transaction_items.TransactionItems
 		wantCount        int
 	}{
 		{
 			name: "include transactions between 2023 and 2024",
 			from: 2023, to: 2024,
-			transactions: []models.Transaction{
-				{CreatedAt: time.Date(2023, 5, 1, 0, 0, 0, 0, time.UTC)},
-				{CreatedAt: time.Date(2024, 6, 1, 0, 0, 0, 0, time.UTC)},
-				{CreatedAt: time.Date(2022, 7, 1, 0, 0, 0, 0, time.UTC)},
+			transactions: []*transaction.Transaction{
+				{CreatedAt: "2023-05-01 00:00:00"},
+				{CreatedAt: "2024-06-01 00:00:00"},
+				{CreatedAt: "2022-07-01 00:00:00"},
 			},
 			wantCount: 2,
 		},
 		{
 			name: "include transaction items between 2023 and 2024",
 			from: 2023, to: 2024,
-			transactionItems: []models.TransactionItem{
-				{CreatedAt: time.Date(2023, 5, 1, 0, 0, 0, 0, time.UTC)},
-				{CreatedAt: time.Date(2024, 6, 1, 0, 0, 0, 0, time.UTC)},
-				{CreatedAt: time.Date(2022, 7, 1, 0, 0, 0, 0, time.UTC)},
+			transactionItems: []*transaction_items.TransactionItems{
+				{CreatedAt: "2023-05-01 00:00:00"},
+				{CreatedAt: "2024-06-01 00:00:00"},
+				{CreatedAt: "2022-07-01 00:00:00"},
 			},
 			wantCount: 2,
 		},
 		{
 			name: "no matches",
 			from: 2010, to: 2015,
-			transactions: []models.Transaction{
-				{CreatedAt: time.Date(2023, 1, 1, 0, 0, 0, 0, time.UTC)},
+			transactions: []*transaction.Transaction{
+				{CreatedAt: "2023-01-01 00:00:00"},
 			},
 			wantCount: 0,
 		},
@@ -70,35 +70,35 @@ func TestFilterByHourBetween(t *testing.T) {
 	tests := []struct {
 		name         string
 		from, to     int
-		transactions []models.TransactionItem
+		transactions []*transaction_items.TransactionItems
 		wantCount    int
 	}{
 		{
 			name: "hours between 10 and 13",
 			from: 10, to: 13,
-			transactions: []models.TransactionItem{
-				{CreatedAt: time.Date(2024, 1, 1, 9, 0, 0, 0, time.UTC)},
-				{CreatedAt: time.Date(2024, 1, 1, 11, 0, 0, 0, time.UTC)},
-				{CreatedAt: time.Date(2024, 1, 1, 15, 0, 0, 0, time.UTC)},
+			transactions: []*transaction_items.TransactionItems{
+				{CreatedAt: "2024-01-01 09:00:00"},
+				{CreatedAt: "2024-01-01 11:00:00"},
+				{CreatedAt: "2024-01-01 15:00:00"},
 			},
 			wantCount: 1,
 		},
 		{
 			name: "hours between 10 and 13 with minutes included",
 			from: 10, to: 13,
-			transactions: []models.TransactionItem{
-				{CreatedAt: time.Date(2024, 1, 1, 9, 0, 0, 0, time.UTC)},
-				{CreatedAt: time.Date(2024, 1, 1, 11, 30, 0, 0, time.UTC)},
-				{CreatedAt: time.Date(2024, 1, 1, 15, 0, 0, 0, time.UTC)},
+			transactions: []*transaction_items.TransactionItems{
+				{CreatedAt: "2024-01-01 09:00:00"},
+				{CreatedAt: "2024-01-01 11:30:00"},
+				{CreatedAt: "2024-01-01 15:00:00"},
 			},
 			wantCount: 1,
 		},
 		{
 			name: "all within range",
 			from: 8, to: 16,
-			transactions: []models.TransactionItem{
-				{CreatedAt: time.Date(2024, 1, 1, 9, 0, 0, 0, time.UTC)},
-				{CreatedAt: time.Date(2024, 1, 1, 12, 0, 0, 0, time.UTC)},
+			transactions: []*transaction_items.TransactionItems{
+				{CreatedAt: "2024-01-01 09:00:00"},
+				{CreatedAt: "2024-01-01 12:00:00"},
 			},
 			wantCount: 2,
 		},
@@ -118,13 +118,13 @@ func TestFilterByTotalAmountGreaterThan(t *testing.T) {
 	tests := []struct {
 		name         string
 		threshold    float64
-		transactions []models.Transaction
+		transactions []*transaction.Transaction
 		wantCount    int
 	}{
 		{
 			name:      "filter above 100",
 			threshold: 100,
-			transactions: []models.Transaction{
+			transactions: []*transaction.Transaction{
 				{FinalAmount: 50},
 				{FinalAmount: 150},
 				{FinalAmount: 200},
@@ -134,7 +134,7 @@ func TestFilterByTotalAmountGreaterThan(t *testing.T) {
 		{
 			name:      "filter above 250",
 			threshold: 250,
-			transactions: []models.Transaction{
+			transactions: []*transaction.Transaction{
 				{FinalAmount: 100},
 				{FinalAmount: 200},
 			},
