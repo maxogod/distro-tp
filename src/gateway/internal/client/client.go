@@ -4,12 +4,9 @@ import (
 	"fmt"
 
 	"github.com/maxogod/distro-tp/src/common/logger"
-	"github.com/maxogod/distro-tp/src/common/models/transaction"
 	"github.com/maxogod/distro-tp/src/common/network"
-	"github.com/maxogod/distro-tp/src/gateway/business/file_service"
+	"github.com/maxogod/distro-tp/src/gateway/business/task_executor"
 	"github.com/maxogod/distro-tp/src/gateway/config"
-	"github.com/maxogod/distro-tp/src/gateway/internal/utils"
-	"google.golang.org/protobuf/proto"
 )
 
 var log = logger.GetLogger()
@@ -24,35 +21,26 @@ func NewClient(conf *config.Config) Client {
 	}
 }
 
-func (c *client) Start() error {
+func (c *client) Start(task string) error {
 	log.Infoln("started")
-
-	csv_file_path := c.conf.DataPath + "/transactions/transactions_202407.csv"
-	fs := file_service.NewFileService[*transaction.Transaction](100)
 
 	conn := network.NewConnectionInterface()
 	conn.Connect(fmt.Sprintf("%s:%d", c.conf.ServerHost, c.conf.ServerPort))
 	defer conn.Close()
 
-	ch := make(chan []*transaction.Transaction)
-	go fs.ReadAsBatches(csv_file_path, ch, utils.TransactionFromRecord)
+	exec := task_executor.NewTaskExecutor(c.conf.DataPath, conn)
 
-	for batch := range ch {
-		tBatch := transaction.TransactionBatch{
-			TaskType:     1,
-			Transactions: batch,
-		}
-		data, err := proto.Marshal(&tBatch)
-		if err != nil {
-			log.Errorf("failed to marshal transaction batch: %v", err)
-			continue
-		}
-
-		err = conn.SendData(data)
-		if err != nil {
-			log.Errorf("failed to send transaction batch: %v", err)
-		}
+	switch task {
+	case ARG_T1:
+		return exec.Task1()
+	case ARG_T2:
+		return exec.Task2()
+	case ARG_T3:
+		return exec.Task3()
+	case ARG_T4:
+		return exec.Task4()
 	}
 
-	return nil
+	log.Errorf("unknown task: %s", task)
+	return fmt.Errorf("unknown task: %s", task)
 }

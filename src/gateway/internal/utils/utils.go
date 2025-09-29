@@ -1,18 +1,14 @@
 package utils
 
 import (
-	"github.com/maxogod/distro-tp/src/common/models/menu_items"
-	"github.com/maxogod/distro-tp/src/common/models/store"
-	"github.com/maxogod/distro-tp/src/common/models/transaction"
-	"github.com/maxogod/distro-tp/src/common/models/transaction_items"
-	"github.com/maxogod/distro-tp/src/common/models/user"
+	"github.com/maxogod/distro-tp/src/common/models/raw"
 	common_utils "github.com/maxogod/distro-tp/src/common/utils"
 )
 
 /* --- Transaction Data --- */
 
-func TransactionFromRecord(record []string) *transaction.Transaction {
-	return &transaction.Transaction{
+func TransactionFromRecord(record []string) *raw.Transaction {
+	return &raw.Transaction{
 		TransactionId:   record[0],
 		StoreId:         int64(common_utils.ParseIntOrDefault(record[1])),
 		PaymentMethod:   int32(common_utils.ParseIntOrDefault(record[2])),
@@ -25,8 +21,8 @@ func TransactionFromRecord(record []string) *transaction.Transaction {
 	}
 }
 
-func TransactionItemsFromRecord(record []string) *transaction_items.TransactionItems {
-	return &transaction_items.TransactionItems{
+func TransactionItemsFromRecord(record []string) *raw.TransactionItems {
+	return &raw.TransactionItems{
 		TransactionId: record[0],
 		ItemId:        int64(common_utils.ParseIntOrDefault(record[1])),
 		Quantity:      int32(common_utils.ParseIntOrDefault(record[2])),
@@ -38,17 +34,17 @@ func TransactionItemsFromRecord(record []string) *transaction_items.TransactionI
 
 /* --- Reference Data --- */
 
-func UserFromRecord(record []string) *user.User {
-	return &user.User{
-		UserId:       record[0],
+func UserFromRecord(record []string) *raw.User {
+	return &raw.User{
+		UserId:       int32(common_utils.ParseIntOrDefault(record[0])),
 		Gender:       record[1],
 		Birthdate:    record[2],
 		RegisteredAt: record[3],
 	}
 }
 
-func MenuItemFromRecord(record []string) *menu_items.MenuItem {
-	return &menu_items.MenuItem{
+func MenuItemFromRecord(record []string) *raw.MenuItem {
+	return &raw.MenuItem{
 		ItemId:        int32(common_utils.ParseIntOrDefault(record[0])),
 		ItemName:      record[1],
 		Category:      record[2],
@@ -59,8 +55,8 @@ func MenuItemFromRecord(record []string) *menu_items.MenuItem {
 	}
 }
 
-func StoreFromRecord(record []string) *store.Store {
-	return &store.Store{
+func StoreFromRecord(record []string) *raw.Store {
+	return &raw.Store{
 		StoreId:    int32(common_utils.ParseIntOrDefault(record[0])),
 		StoreName:  record[1],
 		Street:     record[2],
