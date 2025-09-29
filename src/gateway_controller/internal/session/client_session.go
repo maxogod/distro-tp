@@ -1,9 +1,12 @@
 package session
 
 import (
+	"github.com/maxogod/distro-tp/src/common/logger"
 	"github.com/maxogod/distro-tp/src/common/network"
 	"github.com/maxogod/distro-tp/src/gateway_controller/internal/handler"
 )
+
+var log = logger.GetLogger()
 
 type clientSession struct {
 	Id               int
@@ -21,15 +24,22 @@ func NewClientSession(id int, conn *network.ConnectionInterface, taskHandler *ha
 
 func (cs *clientSession) HandleRequest() error {
 
+	// dataBatch := make([]byte, len(data_batch.DataBatch{}))
 
+	// requestType, err := cs.clientConnection.ReceiveData(dataBatch)
 
+	// if err != nil {
+	// 	log.Errorf("Error receiving request type: %v", err)
+	// 	return err
+	// }
+
+	// log.Infof("Received request of type: %d", requestType)
 
 	return nil
-
 }
 
 func (cs *clientSession) RecieveRequest() {
-	// TODO: see if the request is for transaction data or reference data
+
 }
 
 func (cs *clientSession) HandleTransactionData() {

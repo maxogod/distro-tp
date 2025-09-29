@@ -3,15 +3,14 @@ package business_test
 import (
 	"testing"
 
-	"github.com/maxogod/distro-tp/src/common/models/transaction"
-	"github.com/maxogod/distro-tp/src/common/models/transaction_items"
+	"github.com/maxogod/distro-tp/src/common/models/raw"
 	"github.com/maxogod/distro-tp/src/gateway_controller/business"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestCleanTransactionData_RemovesFields(t *testing.T) {
 	svc := business.NewControllerService()
-	data := []transaction.Transaction{
+	data := []raw.Transaction{
 		{
 			TransactionId:   "tx1",
 			StoreId:         123,
@@ -35,7 +34,7 @@ func TestCleanTransactionData_RemovesFields(t *testing.T) {
 
 func TestCleanTransactionItemData_RemovesFields(t *testing.T) {
 	svc := business.NewControllerService()
-	data := []transaction_items.TransactionItems{
+	data := []raw.TransactionItems{
 		{
 			TransactionId: "tx1",
 			ItemId:        1,
@@ -56,7 +55,7 @@ func TestCleanTransactionItemData_RemovesFields(t *testing.T) {
 
 func TestCleanTransactionData_UnknownColumnError(t *testing.T) {
 	svc := business.NewControllerService()
-	data := []transaction.Transaction{
+	data := []raw.Transaction{
 		{TransactionId: "tx1"},
 	}
 	remove := []string{"not_a_field"}

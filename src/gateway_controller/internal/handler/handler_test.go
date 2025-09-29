@@ -3,9 +3,8 @@ package handler_test
 import (
 	"testing"
 
-	"github.com/maxogod/distro-tp/src/common/models"
-	"github.com/maxogod/distro-tp/src/common/models/transaction"
-	"github.com/maxogod/distro-tp/src/common/models/transaction_items"
+	"github.com/maxogod/distro-tp/src/common/models/enum"
+	"github.com/maxogod/distro-tp/src/common/models/raw"
 	"github.com/maxogod/distro-tp/src/gateway_controller/business"
 	"github.com/maxogod/distro-tp/src/gateway_controller/internal/handler"
 	"github.com/stretchr/testify/assert"
@@ -13,7 +12,7 @@ import (
 
 func TestTaskHandler_HandleTaskType1(t *testing.T) {
 	th := handler.NewTaskHandler(business.NewControllerService())
-	input := []transaction.Transaction{
+	input := []raw.Transaction{
 		{
 			TransactionId:   "tx1",
 			StoreId:         123,
@@ -26,11 +25,11 @@ func TestTaskHandler_HandleTaskType1(t *testing.T) {
 			CreatedAt:       "2025-09-28T10:00:00Z",
 		},
 	}
-	result, err := th.HandleTask(models.T1, input)
+	result, err := th.HandleTask(enum.T1, input)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	cleaned := result.([]transaction.Transaction)
+	cleaned := result.([]raw.Transaction)
 	if cleaned[0].VoucherId != 0 || cleaned[0].DiscountApplied != 0 || cleaned[0].PaymentMethod != 0 ||
 		cleaned[0].OriginalAmount != 0 || cleaned[0].UserId != 0 || cleaned[0].StoreId != 0 {
 		t.Errorf("fields not cleaned as expected for T1: VoucherId=%v, DiscountApplied=%v, PaymentMethod=%v, OriginalAmount=%v, UserId=%v, StoreId=%v", cleaned[0].VoucherId, cleaned[0].DiscountApplied, cleaned[0].PaymentMethod, cleaned[0].OriginalAmount, cleaned[0].UserId, cleaned[0].StoreId)
@@ -42,7 +41,7 @@ func TestTaskHandler_HandleTaskType1(t *testing.T) {
 
 func TestTaskHandler_HandleTaskType2(t *testing.T) {
 	th := handler.NewTaskHandler(business.NewControllerService())
-	input := []transaction_items.TransactionItems{
+	input := []raw.TransactionItems{
 		{
 			TransactionId: "tx2",
 			ItemId:        1,
@@ -52,11 +51,11 @@ func TestTaskHandler_HandleTaskType2(t *testing.T) {
 			CreatedAt:     "2025-09-28T11:00:00Z",
 		},
 	}
-	result, err := th.HandleTask(models.T2, input)
+	result, err := th.HandleTask(enum.T2, input)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	cleaned := result.([]transaction_items.TransactionItems)
+	cleaned := result.([]raw.TransactionItems)
 	if cleaned[0].TransactionId != "" {
 		t.Errorf("TransactionId should be cleaned for T2")
 	}
@@ -80,7 +79,7 @@ func TestTaskHandler_HandleTaskType2(t *testing.T) {
 
 func TestTaskHandler_HandleTaskType3(t *testing.T) {
 	th := handler.NewTaskHandler(business.NewControllerService())
-	input := []transaction.Transaction{
+	input := []raw.Transaction{
 		{
 			TransactionId:   "tx3",
 			StoreId:         321,
@@ -93,11 +92,11 @@ func TestTaskHandler_HandleTaskType3(t *testing.T) {
 			CreatedAt:       "2025-09-28T12:00:00Z",
 		},
 	}
-	result, err := th.HandleTask(models.T3, input)
+	result, err := th.HandleTask(enum.T3, input)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	cleaned := result.([]transaction.Transaction)
+	cleaned := result.([]raw.Transaction)
 	assert.Equal(t, true, cleaned[0].VoucherId == 0, "VoucherId should be cleaned for T3")
 	assert.Equal(t, true, cleaned[0].DiscountApplied == 0, "DiscountApplied should be cleaned for T3")
 	assert.Equal(t, true, cleaned[0].PaymentMethod == 0, "PaymentMethod should be cleaned for T3")
@@ -110,7 +109,7 @@ func TestTaskHandler_HandleTaskType3(t *testing.T) {
 
 func TestTaskHandler_HandleTaskType4(t *testing.T) {
 	th := handler.NewTaskHandler(business.NewControllerService())
-	input := []transaction.Transaction{
+	input := []raw.Transaction{
 		{
 			TransactionId:   "tx4",
 			StoreId:         222,
@@ -123,11 +122,11 @@ func TestTaskHandler_HandleTaskType4(t *testing.T) {
 			CreatedAt:       "2025-09-28T13:00:00Z",
 		},
 	}
-	result, err := th.HandleTask(models.T4, input)
+	result, err := th.HandleTask(enum.T4, input)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	cleaned := result.([]transaction.Transaction)
+	cleaned := result.([]raw.Transaction)
 	assert.Equal(t, true, cleaned[0].VoucherId == 0, "VoucherId should be cleaned for T4")
 	assert.Equal(t, true, cleaned[0].DiscountApplied == 0, "DiscountApplied should be cleaned for T4")
 	assert.Equal(t, true, cleaned[0].PaymentMethod == 0, "PaymentMethod should be cleaned for T4")
@@ -140,7 +139,7 @@ func TestTaskHandler_HandleTaskType4(t *testing.T) {
 
 func TestTaskHandler_UnknownTaskType(t *testing.T) {
 	th := handler.NewTaskHandler(business.NewControllerService())
-	_, err := th.HandleTask(models.TaskType(99), []transaction.Transaction{})
+	_, err := th.HandleTask(enum.TaskType(99), []raw.Transaction{})
 	if err == nil {
 		t.Error("expected error for unknown task type, got nil")
 	}
