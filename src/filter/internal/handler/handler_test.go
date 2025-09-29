@@ -4,9 +4,12 @@ import (
 	"testing"
 
 	"github.com/maxogod/distro-tp/src/common/models"
+	"github.com/maxogod/distro-tp/src/common/models/transaction"
+	"github.com/maxogod/distro-tp/src/common/models/transaction_items"
 	"github.com/maxogod/distro-tp/src/filter/business"
-	"github.com/maxogod/distro-tp/src/filter/handler"
+	"github.com/maxogod/distro-tp/src/filter/internal/handler"
 	"github.com/maxogod/distro-tp/src/filter/test/mock"
+	"github.com/stretchr/testify/assert"
 )
 
 var taskConfig = &handler.TaskConfig{
@@ -33,8 +36,8 @@ func TestTaskHandler_HandleTransactionTasksCorrectly(t *testing.T) {
 	tests := []struct {
 		name        string
 		taskType    models.TaskType
-		payload     []models.Transaction
-		expected    map[string]models.Transaction
+		payload     []*transaction.Transaction
+		expected    map[string]*transaction.Transaction
 		errorString string
 	}{
 		{
@@ -66,8 +69,13 @@ func TestTaskHandler_HandleTransactionTasksCorrectly(t *testing.T) {
 				return
 			}
 
-			if !compareTransactions(result.([]models.Transaction), tt.expected) {
-				t.Errorf("Results don't match expected.\nExpected: %+v\nGot: %+v", tt.expected, result)
+			resultSlice := result.([]*transaction.Transaction)
+			for _, actual := range resultSlice {
+				exp, exists := tt.expected[actual.TransactionId]
+				assert.Equal(t, true, exists, "TransactionId %s not found in expected results", actual.TransactionId)
+				if exists {
+					assert.Equal(t, exp, actual, "Transaction data does not match for TransactionId %s", actual.TransactionId)
+				}
 			}
 		})
 	}
@@ -80,8 +88,8 @@ func TestTaskHandler_HandleTransactionItemsTasksCorrectly(t *testing.T) {
 	tests := []struct {
 		name        string
 		taskType    models.TaskType
-		payload     []models.TransactionItem
-		expected    map[string]models.TransactionItem
+		payload     []*transaction_items.TransactionItems
+		expected    map[string]*transaction_items.TransactionItems
 		errorString string
 	}{
 		{
@@ -101,38 +109,14 @@ func TestTaskHandler_HandleTransactionItemsTasksCorrectly(t *testing.T) {
 				return
 			}
 
-			if !compareTransactionItems(result.([]models.TransactionItem), tt.expected) {
-				t.Errorf("Results don't match expected.\nExpected: %+v\nGot: %+v", tt.expected, result)
+			resultSlice := result.([]*transaction_items.TransactionItems)
+			for _, actual := range resultSlice {
+				exp, exists := tt.expected[actual.TransactionId]
+				assert.Equal(t, true, exists, "TransactionId %s not found in expected results", actual.TransactionId)
+				if exists {
+					assert.Equal(t, exp, actual, "Transaction item data does not match for TransactionId %s", actual.TransactionId)
+				}
 			}
 		})
 	}
-}
-
-func compareTransactions(actual []models.Transaction, expected map[string]models.Transaction) bool {
-	if len(expected) != len(actual) {
-		return false
-	}
-
-	for _, actual := range actual {
-		exp, exists := expected[actual.TransactionId]
-		if !exists || !actual.IsEqual(exp) {
-			return false
-		}
-	}
-
-	return true
-}
-
-func compareTransactionItems(actual []models.TransactionItem, expected map[string]models.TransactionItem) bool {
-	if len(expected) != len(actual) {
-		return false
-	}
-
-	for _, actual := range actual {
-		exp, exists := expected[actual.TransactionId]
-		if !exists || !actual.IsEqual(exp) {
-			return false
-		}
-	}
-	return true
 }

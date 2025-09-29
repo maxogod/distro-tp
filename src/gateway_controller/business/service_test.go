@@ -6,6 +6,7 @@ import (
 	"github.com/maxogod/distro-tp/src/common/models/transaction"
 	"github.com/maxogod/distro-tp/src/common/models/transaction_items"
 	"github.com/maxogod/distro-tp/src/gateway_controller/business"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestCleanTransactionData_RemovesFields(t *testing.T) {
@@ -26,18 +27,10 @@ func TestCleanTransactionData_RemovesFields(t *testing.T) {
 	remove := []string{"store_id", "user_id", "created_at"}
 
 	cleaned, err := svc.CleanTransactionData(data, remove)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if cleaned[0].StoreId != 0 {
-		t.Errorf("expected StoreId to be 0, got %d", cleaned[0].StoreId)
-	}
-	if cleaned[0].UserId != 0 {
-		t.Errorf("expected UserId to be 0, got %d", cleaned[0].UserId)
-	}
-	if cleaned[0].CreatedAt != "" {
-		t.Errorf("expected CreatedAt to be empty, got %s", cleaned[0].CreatedAt)
-	}
+	assert.True(t, err == nil, "unexpected error: %v", err)
+	assert.True(t, cleaned[0].StoreId == 0, "expected StoreId to be 0, got %d", cleaned[0].StoreId)
+	assert.True(t, cleaned[0].UserId == 0, "expected UserId to be 0, got %d", cleaned[0].UserId)
+	assert.True(t, cleaned[0].CreatedAt == "", "expected CreatedAt to be empty, got %s", cleaned[0].CreatedAt)
 }
 
 func TestCleanTransactionItemData_RemovesFields(t *testing.T) {
@@ -55,18 +48,10 @@ func TestCleanTransactionItemData_RemovesFields(t *testing.T) {
 	remove := []string{"item_id", "quantity", "created_at"}
 
 	cleaned, err := svc.CleanTransactionItemData(data, remove)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if cleaned[0].ItemId != 0 {
-		t.Errorf("expected ItemId to be 0, got %d", cleaned[0].ItemId)
-	}
-	if cleaned[0].Quantity != 0 {
-		t.Errorf("expected Quantity to be 0, got %d", cleaned[0].Quantity)
-	}
-	if cleaned[0].CreatedAt != "" {
-		t.Errorf("expected CreatedAt to be empty, got %s", cleaned[0].CreatedAt)
-	}
+	assert.True(t, err == nil, "unexpected error: %v", err)
+	assert.True(t, cleaned[0].ItemId == 0, "expected ItemId to be 0, got %d", cleaned[0].ItemId)
+	assert.True(t, cleaned[0].Quantity == 0, "expected Quantity to be 0, got %d", cleaned[0].Quantity)
+	assert.True(t, cleaned[0].CreatedAt == "", "expected CreatedAt to be empty, got %s", cleaned[0].CreatedAt)
 }
 
 func TestCleanTransactionData_UnknownColumnError(t *testing.T) {
@@ -77,7 +62,5 @@ func TestCleanTransactionData_UnknownColumnError(t *testing.T) {
 	remove := []string{"not_a_field"}
 
 	_, err := svc.CleanTransactionData(data, remove)
-	if err == nil {
-		t.Error("expected error for unknown column, got nil")
-	}
+	assert.True(t, err != nil, "expected error for unknown column, got nil")
 }

@@ -1,15 +1,15 @@
 name: tp1
 services:
-  worker_base:
-    container_name: worker_base
+  gateway_controller:
+    container_name: gateway_controller
     build:
       context: .
-      dockerfile: ./src/worker_base/Dockerfile
-    image: worker_base:latest
+      dockerfile: ./src/gateway_controller/Dockerfile
+    image: gateway_controller:latest
     networks:
       - testing_net
     volumes:
-      - ./src/worker_base/config.yaml:/config.yaml
+      - ./src/gateway_controller/config.yaml:/config.yaml
 
 
 # TODO: change to rabbitMQ

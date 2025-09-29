@@ -5,6 +5,8 @@ import (
 
 	"github.com/maxogod/distro-tp/src/common/logger"
 	"github.com/maxogod/distro-tp/src/common/models"
+	"github.com/maxogod/distro-tp/src/common/models/transaction"
+	"github.com/maxogod/distro-tp/src/common/models/transaction_items"
 	"github.com/maxogod/distro-tp/src/filter/business"
 )
 
@@ -47,7 +49,7 @@ func (th *TaskHandler) HandleTask(taskType models.TaskType, payload any) (any, e
 func (th *TaskHandler) handleTaskType1(payload any) (any, error) {
 	log.Debug("Handling Task Type 1")
 
-	transactions, ok := payload.([]models.Transaction)
+	transactions, ok := payload.([]*transaction.Transaction)
 	if !ok {
 		return nil, fmt.Errorf("task T1 expects a batch of Transactions, got %T", payload)
 	}
@@ -61,7 +63,7 @@ func (th *TaskHandler) handleTaskType1(payload any) (any, error) {
 func (th *TaskHandler) handleTaskType2(payload any) (any, error) {
 	log.Debug("Handling Task Type 2")
 
-	items, ok := payload.([]models.TransactionItem)
+	items, ok := payload.([]*transaction_items.TransactionItems)
 	if !ok {
 		return nil, fmt.Errorf("task T2 expects a batch of Transaction Item, got %T", payload)
 	}
@@ -73,7 +75,7 @@ func (th *TaskHandler) handleTaskType2(payload any) (any, error) {
 func (th *TaskHandler) handleTaskType3(payload any) (any, error) {
 	log.Debug("Handling Task Type 3")
 
-	transactions, ok := payload.([]models.Transaction)
+	transactions, ok := payload.([]*transaction.Transaction)
 	if !ok {
 		return nil, fmt.Errorf("task T3 expects a batch of Transactions, got %T", payload)
 	}
@@ -86,7 +88,7 @@ func (th *TaskHandler) handleTaskType3(payload any) (any, error) {
 func (th *TaskHandler) handleTaskType4(payload any) (any, error) {
 	log.Debug("Handling Task Type 4")
 
-	transactions, ok := payload.([]models.Transaction)
+	transactions, ok := payload.([]*transaction.Transaction)
 	if !ok {
 		return nil, fmt.Errorf("task T4 expects a batch of Transactions, got %T", payload)
 	}
