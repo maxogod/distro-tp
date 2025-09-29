@@ -4,6 +4,7 @@ package protocol;
 
 option go_package = "./joined;joined";
 
+// T4
 message JoinMostPurchasesUser {
   string store_name = 1;
   string user_birthdate = 2;  // ej: "2011-06-26"

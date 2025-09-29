@@ -9,4 +9,3 @@ message DataBatch {
   bool done = 2;
   bytes payload = 3;
 }
-

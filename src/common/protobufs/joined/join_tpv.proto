@@ -4,6 +4,7 @@ package protocol;
 
 option go_package = "./joined;joined";
 
+// T3
 message JoinStoreTPV {
   string year_half_created_at = 1;
   string store_name = 2;
