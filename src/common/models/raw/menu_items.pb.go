@@ -115,7 +115,7 @@ func (x *MenuItem) GetAvailableTo() string {
 
 type MenuItemBatch struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	MenuItem      []*MenuItem            `protobuf:"bytes,1,rep,name=menu_item,json=menuItem,proto3" json:"menu_item,omitempty"`
+	MenuItems     []*MenuItem            `protobuf:"bytes,1,rep,name=menu_items,json=menuItems,proto3" json:"menu_items,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -150,9 +150,9 @@ func (*MenuItemBatch) Descriptor() ([]byte, []int) {
 	return file_menu_items_proto_rawDescGZIP(), []int{1}
 }
 
-func (x *MenuItemBatch) GetMenuItem() []*MenuItem {
+func (x *MenuItemBatch) GetMenuItems() []*MenuItem {
 	if x != nil {
-		return x.MenuItem
+		return x.MenuItems
 	}
 	return nil
 }
@@ -170,9 +170,10 @@ const file_menu_items_proto_rawDesc = "" +
 	"\vis_seasonal\x18\x05 \x01(\bR\n" +
 	"isSeasonal\x12%\n" +
 	"\x0eavailable_from\x18\x06 \x01(\tR\ravailableFrom\x12!\n" +
-	"\favailable_to\x18\a \x01(\tR\vavailableTo\"7\n" +
-	"\rMenuItemBatch\x12&\n" +
-	"\tmenu_item\x18\x01 \x03(\v2\t.MenuItemR\bmenuItemB\vZ\t./raw;rawb\x06proto3"
+	"\favailable_to\x18\a \x01(\tR\vavailableTo\"9\n" +
+	"\rMenuItemBatch\x12(\n" +
+	"\n" +
+	"menu_items\x18\x01 \x03(\v2\t.MenuItemR\tmenuItemsB\vZ\t./raw;rawb\x06proto3"
 
 var (
 	file_menu_items_proto_rawDescOnce sync.Once
@@ -192,7 +193,7 @@ var file_menu_items_proto_goTypes = []any{
 	(*MenuItemBatch)(nil), // 1: MenuItemBatch
 }
 var file_menu_items_proto_depIdxs = []int32{
-	0, // 0: MenuItemBatch.menu_item:type_name -> MenuItem
+	0, // 0: MenuItemBatch.menu_items:type_name -> MenuItem
 	1, // [1:1] is the sub-list for method output_type
 	1, // [1:1] is the sub-list for method input_type
 	1, // [1:1] is the sub-list for extension type_name

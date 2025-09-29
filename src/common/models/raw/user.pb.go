@@ -23,7 +23,7 @@ const (
 
 type User struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	UserId        string                 `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	UserId        int32                  `protobuf:"varint,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
 	Gender        string                 `protobuf:"bytes,2,opt,name=gender,proto3" json:"gender,omitempty"`
 	Birthdate     string                 `protobuf:"bytes,3,opt,name=birthdate,proto3" json:"birthdate,omitempty"`
 	RegisteredAt  string                 `protobuf:"bytes,4,opt,name=registered_at,json=registeredAt,proto3" json:"registered_at,omitempty"` // ISO 8601 format
@@ -61,11 +61,11 @@ func (*User) Descriptor() ([]byte, []int) {
 	return file_user_proto_rawDescGZIP(), []int{0}
 }
 
-func (x *User) GetUserId() string {
+func (x *User) GetUserId() int32 {
 	if x != nil {
 		return x.UserId
 	}
-	return ""
+	return 0
 }
 
 func (x *User) GetGender() string {
@@ -90,10 +90,10 @@ func (x *User) GetRegisteredAt() string {
 }
 
 type UserBatch struct {
-	state            protoimpl.MessageState `protogen:"open.v1"`
-	TransactionItems []*User                `protobuf:"bytes,1,rep,name=transaction_items,json=transactionItems,proto3" json:"transaction_items,omitempty"`
-	unknownFields    protoimpl.UnknownFields
-	sizeCache        protoimpl.SizeCache
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Users         []*User                `protobuf:"bytes,1,rep,name=users,proto3" json:"users,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *UserBatch) Reset() {
@@ -126,9 +126,9 @@ func (*UserBatch) Descriptor() ([]byte, []int) {
 	return file_user_proto_rawDescGZIP(), []int{1}
 }
 
-func (x *UserBatch) GetTransactionItems() []*User {
+func (x *UserBatch) GetUsers() []*User {
 	if x != nil {
-		return x.TransactionItems
+		return x.Users
 	}
 	return nil
 }
@@ -140,12 +140,12 @@ const file_user_proto_rawDesc = "" +
 	"\n" +
 	"user.proto\"z\n" +
 	"\x04User\x12\x17\n" +
-	"\auser_id\x18\x01 \x01(\tR\x06userId\x12\x16\n" +
+	"\auser_id\x18\x01 \x01(\x05R\x06userId\x12\x16\n" +
 	"\x06gender\x18\x02 \x01(\tR\x06gender\x12\x1c\n" +
 	"\tbirthdate\x18\x03 \x01(\tR\tbirthdate\x12#\n" +
-	"\rregistered_at\x18\x04 \x01(\tR\fregisteredAt\"?\n" +
-	"\tUserBatch\x122\n" +
-	"\x11transaction_items\x18\x01 \x03(\v2\x05.UserR\x10transactionItemsB\vZ\t./raw;rawb\x06proto3"
+	"\rregistered_at\x18\x04 \x01(\tR\fregisteredAt\"(\n" +
+	"\tUserBatch\x12\x1b\n" +
+	"\x05users\x18\x01 \x03(\v2\x05.UserR\x05usersB\vZ\t./raw;rawb\x06proto3"
 
 var (
 	file_user_proto_rawDescOnce sync.Once
@@ -165,7 +165,7 @@ var file_user_proto_goTypes = []any{
 	(*UserBatch)(nil), // 1: UserBatch
 }
 var file_user_proto_depIdxs = []int32{
-	0, // 0: UserBatch.transaction_items:type_name -> User
+	0, // 0: UserBatch.users:type_name -> User
 	1, // [1:1] is the sub-list for method output_type
 	1, // [1:1] is the sub-list for method input_type
 	1, // [1:1] is the sub-list for extension type_name

@@ -3,12 +3,12 @@ syntax = "proto3";
 option go_package = "./raw;raw";
 
 message User {
-    string user_id = 1;
+    int32 user_id = 1;
     string gender = 2;
     string birthdate = 3;
     string registered_at = 4; // ISO 8601 format
 }
 
 message UserBatch {
-    repeated User transaction_items = 1;
+    repeated User users = 1;
 }

@@ -123,7 +123,7 @@ func (x *Store) GetLongitude() float64 {
 
 type StoreBatch struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	MenuItem      []*Store               `protobuf:"bytes,1,rep,name=menu_item,json=menuItem,proto3" json:"menu_item,omitempty"`
+	Stores        []*Store               `protobuf:"bytes,1,rep,name=stores,proto3" json:"stores,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -158,9 +158,9 @@ func (*StoreBatch) Descriptor() ([]byte, []int) {
 	return file_store_proto_rawDescGZIP(), []int{1}
 }
 
-func (x *StoreBatch) GetMenuItem() []*Store {
+func (x *StoreBatch) GetStores() []*Store {
 	if x != nil {
-		return x.MenuItem
+		return x.Stores
 	}
 	return nil
 }
@@ -180,10 +180,10 @@ const file_store_proto_rawDesc = "" +
 	"\x04city\x18\x05 \x01(\tR\x04city\x12\x14\n" +
 	"\x05state\x18\x06 \x01(\tR\x05state\x12\x1a\n" +
 	"\blatitude\x18\a \x01(\x01R\blatitude\x12\x1c\n" +
-	"\tlongitude\x18\b \x01(\x01R\tlongitude\"1\n" +
+	"\tlongitude\x18\b \x01(\x01R\tlongitude\",\n" +
 	"\n" +
-	"StoreBatch\x12#\n" +
-	"\tmenu_item\x18\x01 \x03(\v2\x06.StoreR\bmenuItemB\vZ\t./raw;rawb\x06proto3"
+	"StoreBatch\x12\x1e\n" +
+	"\x06stores\x18\x01 \x03(\v2\x06.StoreR\x06storesB\vZ\t./raw;rawb\x06proto3"
 
 var (
 	file_store_proto_rawDescOnce sync.Once
@@ -203,7 +203,7 @@ var file_store_proto_goTypes = []any{
 	(*StoreBatch)(nil), // 1: StoreBatch
 }
 var file_store_proto_depIdxs = []int32{
-	0, // 0: StoreBatch.menu_item:type_name -> Store
+	0, // 0: StoreBatch.stores:type_name -> Store
 	1, // [1:1] is the sub-list for method output_type
 	1, // [1:1] is the sub-list for method input_type
 	1, // [1:1] is the sub-list for extension type_name
