@@ -17,9 +17,9 @@ type TaskHandler struct {
 	taskHandlers      map[models.TaskType]func(any) (any, error)
 }
 
-func NewTaskHandler() *TaskHandler {
+func NewTaskHandler(controllerService *business.GatewayControllerService) *TaskHandler {
 	th := &TaskHandler{
-		ControllerService: business.NewControllerService(),
+		ControllerService: controllerService,
 	}
 
 	th.taskHandlers = map[models.TaskType]func(any) (any, error){

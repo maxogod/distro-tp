@@ -4,29 +4,33 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
-	"time"
 
 	"github.com/maxogod/distro-tp/src/common/logger"
 	"github.com/maxogod/distro-tp/src/gateway_controller/business"
 	"github.com/maxogod/distro-tp/src/gateway_controller/config"
 	"github.com/maxogod/distro-tp/src/gateway_controller/internal/handler"
+	"github.com/maxogod/distro-tp/src/gateway_controller/internal/network"
+	"github.com/maxogod/distro-tp/src/gateway_controller/session"
 )
 
 var log = logger.GetLogger()
 
 type Server struct {
-	// TODO: the config is used for networking params
-	config        *config.Config
-	isRunning     bool
-	workerService *business.GatewayControllerService
-	taskHandler   *handler.TaskHandler
+	config            *config.Config
+	isRunning         bool
+	workerService     *business.GatewayControllerService
+	taskHandler       *handler.TaskHandler
+	connectionManager *network.ConnectionManager
+	clientManager     *session.ClientManager
 }
 
 func InitServer(conf *config.Config) *Server {
 	return &Server{
-		config:      conf,
-		isRunning:   true,
-		taskHandler: handler.NewTaskHandler(),
+		config:            conf,
+		isRunning:         true,
+		taskHandler:       handler.NewTaskHandler(business.NewControllerService()),
+		connectionManager: network.NewConnectionManager(conf.Port),
+		clientManager:     session.NewClientManager(),
 	}
 }
 
@@ -36,10 +40,34 @@ func (s *Server) Run() error {
 	s.setupGracefulShutdown()
 	defer s.Shutdown()
 
+	err := s.connectionManager.StartListening()
+	if err != nil {
+		log.Errorf("Failed to start listening: %v", err)
+		return err
+	}
+
 	for s.isRunning {
 
-		time.Sleep(1 * time.Second)
-		s.taskHandler.HandleTask(1, nil) // Example task handling
+		clientConnection, err := s.connectionManager.AcceptConnection()
+		if err != nil {
+			log.Errorf("Failed to accept connection: %v", err)
+			continue
+		}
+
+		clientSession := s.clientManager.AddClient(clientConnection, s.taskHandler)
+
+		err = clientSession.HandleRequest()
+
+		if err != nil {
+			log.Errorf("Error handling client request: %v", err)
+		}
+
+		err = clientSession.Close()
+		if err != nil {
+			log.Errorf("Error closing client session: %v", err)
+		}
+
+		s.clientManager.RemoveClient(clientSession.Id)
 
 	}
 

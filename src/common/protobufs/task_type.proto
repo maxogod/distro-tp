@@ -1,0 +1,11 @@
+syntax = "proto3";
+
+option go_package = "./task_type";
+
+message Store {
+    uint32 task_type = 1;
+    bool is_reference_data = 2;
+
+}
+
+

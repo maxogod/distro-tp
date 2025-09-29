@@ -6,11 +6,12 @@ import (
 	"github.com/maxogod/distro-tp/src/common/models"
 	"github.com/maxogod/distro-tp/src/common/models/transaction"
 	"github.com/maxogod/distro-tp/src/common/models/transaction_items"
+	"github.com/maxogod/distro-tp/src/gateway_controller/business"
 	"github.com/maxogod/distro-tp/src/gateway_controller/internal/handler"
 )
 
 func TestTaskHandler_HandleTaskType1(t *testing.T) {
-	th := handler.NewTaskHandler()
+	th := handler.NewTaskHandler(business.NewControllerService())
 	input := []transaction.Transaction{
 		{
 			TransactionId:   "tx1",
@@ -39,7 +40,7 @@ func TestTaskHandler_HandleTaskType1(t *testing.T) {
 }
 
 func TestTaskHandler_HandleTaskType2(t *testing.T) {
-	th := handler.NewTaskHandler()
+	th := handler.NewTaskHandler(business.NewControllerService())
 	input := []transaction_items.TransactionItems{
 		{
 			TransactionId: "tx2",
@@ -77,7 +78,7 @@ func TestTaskHandler_HandleTaskType2(t *testing.T) {
 }
 
 func TestTaskHandler_HandleTaskType3(t *testing.T) {
-	th := handler.NewTaskHandler()
+	th := handler.NewTaskHandler(business.NewControllerService())
 	input := []transaction.Transaction{
 		{
 			TransactionId:   "tx3",
@@ -113,7 +114,7 @@ func TestTaskHandler_HandleTaskType3(t *testing.T) {
 }
 
 func TestTaskHandler_HandleTaskType4(t *testing.T) {
-	th := handler.NewTaskHandler()
+	th := handler.NewTaskHandler(business.NewControllerService())
 	input := []transaction.Transaction{
 		{
 			TransactionId:   "tx4",
@@ -152,7 +153,7 @@ func TestTaskHandler_HandleTaskType4(t *testing.T) {
 }
 
 func TestTaskHandler_UnknownTaskType(t *testing.T) {
-	th := handler.NewTaskHandler()
+	th := handler.NewTaskHandler(business.NewControllerService())
 	_, err := th.HandleTask(models.TaskType(99), []transaction.Transaction{})
 	if err == nil {
 		t.Error("expected error for unknown task type, got nil")
