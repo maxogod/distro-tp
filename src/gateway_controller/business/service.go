@@ -14,6 +14,8 @@ type GatewayControllerService struct {
 
 func NewControllerService() *GatewayControllerService {
 
+	// This map defines how to clean each field in the Transaction struct
+	// in the respective clean methods, just pass the columns you want to "remove"
 	transactionCleaner := map[string]func(*transaction.Transaction){
 		"voucher_id":       func(t *transaction.Transaction) { t.VoucherId = 0 },
 		"discount_applied": func(t *transaction.Transaction) { t.DiscountApplied = 0 },

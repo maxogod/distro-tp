@@ -1,0 +1,22 @@
+syntax = "proto3";
+
+package protocol;
+
+option go_package = "src/common/protocol;protocol";
+
+message ReferenceBatch {
+  int32 dataset_type = 1;
+  bytes payload = 2;
+}
+
+message Done {
+  int32 task_type = 1;
+}
+
+message ReferenceQueueMessage {
+  oneof payload {
+    ReferenceBatch reference_batch = 1;
+    Done done = 2;
+  }
+}
+

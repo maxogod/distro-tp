@@ -3,13 +3,13 @@ package business
 import (
 	"time"
 
-	"github.com/maxogod/distro-tp/src/common/models"
+	"github.com/maxogod/distro-tp/src/common/models/transaction"
 )
 
 // Generic constraint that ensures
 // the type implements our required methods
 type TransactionCommon interface {
-	GetCreatedAt() time.Time
+	GetCreatedAt() string
 }
 
 type FilterService struct{}
@@ -22,7 +22,13 @@ func FilterByYearBetween[T TransactionCommon](from, to int, transactions []T) []
 
 	var filtered []T
 	for _, transaction := range transactions {
-		year := transaction.GetCreatedAt().Year()
+
+		date, err := time.Parse("2006-01-02 15:04:05", transaction.GetCreatedAt())
+		if err != nil {
+			continue
+		}
+
+		year := date.Year()
 		if year >= from && year <= to {
 			filtered = append(filtered, transaction)
 		}
@@ -33,10 +39,13 @@ func FilterByYearBetween[T TransactionCommon](from, to int, transactions []T) []
 func FilterByHourBetween[T TransactionCommon](from, to int, transactions []T) []T {
 	var filtered []T
 	for _, transaction := range transactions {
-		createdAt := transaction.GetCreatedAt()
+		date, err := time.Parse("2006-01-02 15:04:05", transaction.GetCreatedAt())
+		if err != nil {
+			continue
+		}
 
 		// Extract hour and minute as decimal (e.g., 11:45 = 11.75)
-		timeDecimal := float64(createdAt.Hour()) + float64(createdAt.Minute())/60.0
+		timeDecimal := float64(date.Hour()) + float64(date.Minute())/60.0
 
 		if timeDecimal >= float64(from) && timeDecimal < float64(to+1) {
 			filtered = append(filtered, transaction)
@@ -45,9 +54,8 @@ func FilterByHourBetween[T TransactionCommon](from, to int, transactions []T) []
 	return filtered
 }
 
-func FilterByTotalAmountGreaterThan(totalAmount float64, transactions []models.Transaction) []models.Transaction {
-
-	var filtered []models.Transaction
+func FilterByTotalAmountGreaterThan(totalAmount float64, transactions []*transaction.Transaction) []*transaction.Transaction {
+	var filtered []*transaction.Transaction
 	for _, transaction := range transactions {
 		if transaction.GetFinalAmount() >= totalAmount {
 			filtered = append(filtered, transaction)
