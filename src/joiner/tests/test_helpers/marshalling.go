@@ -5,18 +5,17 @@ import (
 	"strconv"
 	"strings"
 	"testing"
-	"time"
 
-	"github.com/maxogod/distro-tp/src/common/models"
-	"github.com/maxogod/distro-tp/src/common/protocol"
+	"github.com/maxogod/distro-tp/src/common/models/data_batch"
+	"github.com/maxogod/distro-tp/src/common/models/enum"
+	"github.com/maxogod/distro-tp/src/common/models/raw"
 	"google.golang.org/protobuf/proto"
-	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 func MarshalPayloadForUsersDataset(t *testing.T, csvPayloads [][]byte) ([]byte, error) {
 	t.Helper()
 
-	var users []*protocol.User
+	var users []*raw.User
 	for _, csvPayload := range csvPayloads {
 		row := string(csvPayload)
 		cols := strings.Split(strings.TrimSpace(row), ",")
@@ -28,7 +27,7 @@ func MarshalPayloadForUsersDataset(t *testing.T, csvPayloads [][]byte) ([]byte, 
 		birthdate := cols[2]
 		registeredAt := cols[3]
 
-		users = append(users, &protocol.User{
+		users = append(users, &raw.User{
 			UserId:       int32(userID),
 			Gender:       cols[1],
 			Birthdate:    birthdate,
@@ -36,14 +35,14 @@ func MarshalPayloadForUsersDataset(t *testing.T, csvPayloads [][]byte) ([]byte, 
 		})
 	}
 
-	batch := &protocol.Users{Users: users}
+	batch := &raw.UserBatch{Users: users}
 	return proto.Marshal(batch)
 }
 
 func MarshalPayloadForStoresDataset(t *testing.T, csvPayloads [][]byte) ([]byte, error) {
 	t.Helper()
 
-	var stores []*protocol.Store
+	var stores []*raw.Store
 	for _, csvPayload := range csvPayloads {
 		fields := strings.Split(strings.TrimSpace(string(csvPayload)), ",")
 		if len(fields) < 8 {
@@ -55,8 +54,8 @@ func MarshalPayloadForStoresDataset(t *testing.T, csvPayloads [][]byte) ([]byte,
 		lat, _ := strconv.ParseFloat(fields[6], 64)
 		lng, _ := strconv.ParseFloat(fields[7], 64)
 
-		stores = append(stores, &protocol.Store{
-			StoreID:    int32(storeID),
+		stores = append(stores, &raw.Store{
+			StoreId:    int32(storeID),
 			StoreName:  fields[1],
 			Street:     fields[2],
 			PostalCode: int32(postal),
@@ -67,14 +66,14 @@ func MarshalPayloadForStoresDataset(t *testing.T, csvPayloads [][]byte) ([]byte,
 		})
 	}
 
-	batch := &protocol.Stores{Stores: stores}
+	batch := &raw.StoreBatch{Stores: stores}
 	return proto.Marshal(batch)
 }
 
 func MarshalPayloadForMenuItemsDataset(t *testing.T, csvPayloads [][]byte) ([]byte, error) {
 	t.Helper()
 
-	var items []*protocol.MenuItem
+	var items []*raw.MenuItem
 	for _, csvPayload := range csvPayloads {
 		fields := strings.Split(strings.TrimSpace(string(csvPayload)), ",")
 		if len(fields) < 7 {
@@ -93,54 +92,38 @@ func MarshalPayloadForMenuItemsDataset(t *testing.T, csvPayloads [][]byte) ([]by
 
 		isSeasonal := strings.ToLower(fields[4]) == "true"
 
-		var availableFrom, availableTo *timestamppb.Timestamp
-		if len(fields[5]) > 0 {
-			timeAvailableFrom, timeErr := time.Parse("2006-01-02", fields[5])
-			if timeErr != nil {
-				return nil, fmt.Errorf("invalid available_from date: %s", fields[5])
-			}
-			availableFrom = timestamppb.New(timeAvailableFrom)
-		}
-		if len(fields[6]) > 0 {
-			timeAvailableTo, timeErr := time.Parse("2006-01-02", fields[6])
-			if timeErr != nil {
-				return nil, fmt.Errorf("invalid available_to date: %s", fields[6])
-			}
-			availableTo = timestamppb.New(timeAvailableTo)
-		}
-
-		items = append(items, &protocol.MenuItem{
+		items = append(items, &raw.MenuItem{
 			ItemId:        int32(itemID),
 			ItemName:      fields[1],
 			Category:      fields[2],
 			Price:         price,
 			IsSeasonal:    isSeasonal,
-			AvailableFrom: availableFrom,
-			AvailableTo:   availableTo,
+			AvailableFrom: fields[5],
+			AvailableTo:   fields[6],
 		})
 	}
 
-	batch := &protocol.MenuItems{Items: items}
+	batch := &raw.MenuItemBatch{MenuItems: items}
 	return proto.Marshal(batch)
 }
 
-func GetPayloadForDatasetType(t *testing.T, datasetType models.RefDatasetType, csvPayloads [][]byte) (*protocol.ReferenceBatch, error) {
+func GetPayloadForDatasetType(t *testing.T, datasetType enum.RefDatasetType, taskType enum.TaskType, csvPayloads [][]byte) (*data_batch.DataBatch, error) {
 	var payload []byte
 	var err error
 
 	switch datasetType {
-	case models.Users:
+	case enum.Users:
 		payload, err = MarshalPayloadForUsersDataset(t, csvPayloads)
-	case models.Stores:
+	case enum.Stores:
 		payload, err = MarshalPayloadForStoresDataset(t, csvPayloads)
-	case models.MenuItems:
+	case enum.MenuItems:
 		payload, err = MarshalPayloadForMenuItemsDataset(t, csvPayloads)
 	default:
 		return nil, fmt.Errorf("unknown dataset type: %d", datasetType)
 	}
 
-	return &protocol.ReferenceBatch{
-		DatasetType: int32(datasetType),
-		Payload:     payload,
+	return &data_batch.DataBatch{
+		TaskType: int32(taskType),
+		Payload:  payload,
 	}, err
 }

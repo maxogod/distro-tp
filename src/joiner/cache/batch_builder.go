@@ -1,12 +1,13 @@
 package cache
 
 import (
-	"github.com/maxogod/distro-tp/src/common/models"
-	"github.com/maxogod/distro-tp/src/common/protocol"
+	"github.com/maxogod/distro-tp/src/common/models/data_batch"
+	"github.com/maxogod/distro-tp/src/common/models/enum"
+	"github.com/maxogod/distro-tp/src/common/models/joined"
 	"google.golang.org/protobuf/proto"
 )
 
-func createDataBatchFromJoined[T proto.Message](taskType models.TaskType, items []T, makeDataBatchMsg func([]T) proto.Message) (*protocol.DataBatch, error) {
+func createDataBatchFromJoined[T proto.Message](taskType enum.TaskType, items []T, makeDataBatchMsg func([]T) proto.Message) (*data_batch.DataBatch, error) {
 	batch := makeDataBatchMsg(items)
 
 	payloadBytes, err := proto.Marshal(batch)
@@ -14,48 +15,48 @@ func createDataBatchFromJoined[T proto.Message](taskType models.TaskType, items 
 		return nil, err
 	}
 
-	return &protocol.DataBatch{
+	return &data_batch.DataBatch{
 		TaskType: int32(taskType),
 		Payload:  payloadBytes,
 	}, nil
 }
 
-func CreateJoinStoreTPVBatch(taskType models.TaskType, joined []*protocol.JoinStoreTPV) (*protocol.DataBatch, error) {
+func CreateJoinStoreTPVBatch(taskType enum.TaskType, joinedData []*joined.JoinStoreTPV) (*data_batch.DataBatch, error) {
 	return createDataBatchFromJoined(
 		taskType,
-		joined,
-		func(items []*protocol.JoinStoreTPV) proto.Message {
-			return &protocol.JoinStoreTPVBatch{Items: items}
+		joinedData,
+		func(items []*joined.JoinStoreTPV) proto.Message {
+			return &joined.JoinStoreTPVBatch{Items: items}
 		},
 	)
 }
 
-func CreateBestSellingBatch(taskType models.TaskType, joined []*protocol.JoinBestSellingProducts) (*protocol.DataBatch, error) {
+func CreateBestSellingBatch(taskType enum.TaskType, joinedData []*joined.JoinBestSellingProducts) (*data_batch.DataBatch, error) {
 	return createDataBatchFromJoined(
 		taskType,
-		joined,
-		func(items []*protocol.JoinBestSellingProducts) proto.Message {
-			return &protocol.JoinBestSellingProductsBatch{Items: items}
+		joinedData,
+		func(items []*joined.JoinBestSellingProducts) proto.Message {
+			return &joined.JoinBestSellingProductsBatch{Items: items}
 		},
 	)
 }
 
-func CreateMostProfitsBatch(taskType models.TaskType, joined []*protocol.JoinMostProfitsProducts) (*protocol.DataBatch, error) {
+func CreateMostProfitsBatch(taskType enum.TaskType, joinedData []*joined.JoinMostProfitsProducts) (*data_batch.DataBatch, error) {
 	return createDataBatchFromJoined(
 		taskType,
-		joined,
-		func(items []*protocol.JoinMostProfitsProducts) proto.Message {
-			return &protocol.JoinMostProfitsProductsBatch{Items: items}
+		joinedData,
+		func(items []*joined.JoinMostProfitsProducts) proto.Message {
+			return &joined.JoinMostProfitsProductsBatch{Items: items}
 		},
 	)
 }
 
-func CreateMostPurchasesUserBatch(taskType models.TaskType, joined []*protocol.JoinMostPurchasesUser) (*protocol.DataBatch, error) {
+func CreateMostPurchasesUserBatch(taskType enum.TaskType, joinedData []*joined.JoinMostPurchasesUser) (*data_batch.DataBatch, error) {
 	return createDataBatchFromJoined(
 		taskType,
-		joined,
-		func(items []*protocol.JoinMostPurchasesUser) proto.Message {
-			return &protocol.JoinMostPurchasesUserBatch{Users: items}
+		joinedData,
+		func(items []*joined.JoinMostPurchasesUser) proto.Message {
+			return &joined.JoinMostPurchasesUserBatch{Users: items}
 		},
 	)
 }

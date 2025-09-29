@@ -5,8 +5,9 @@ import (
 	"time"
 
 	"github.com/maxogod/distro-tp/src/common/middleware"
-	"github.com/maxogod/distro-tp/src/common/models"
-	"github.com/maxogod/distro-tp/src/common/protocol"
+	"github.com/maxogod/distro-tp/src/common/models/data_batch"
+	"github.com/maxogod/distro-tp/src/common/models/enum"
+	"github.com/maxogod/distro-tp/src/common/models/joined"
 	joiner "github.com/maxogod/distro-tp/src/joiner/business"
 	"github.com/maxogod/distro-tp/src/joiner/config"
 	"github.com/stretchr/testify/assert"
@@ -17,18 +18,13 @@ const (
 	RabbitURL = "amqp://guest:guest@localhost:5672/"
 )
 
-func SendDoneMessage(t *testing.T, pub middleware.MessageMiddleware, datasetType models.TaskType) {
-	doneMsg := &protocol.Done{
+func SendDoneMessage(t *testing.T, pub middleware.MessageMiddleware, datasetType enum.TaskType) {
+	doneMsg := &data_batch.DataBatch{
 		TaskType: int32(datasetType),
+		Done:     true,
 	}
 
-	msgProto := &protocol.ReferenceQueueMessage{
-		Payload: &protocol.ReferenceQueueMessage_Done{
-			Done: doneMsg,
-		},
-	}
-
-	doneBytes, err := proto.Marshal(msgProto)
+	doneBytes, err := proto.Marshal(doneMsg)
 	assert.NoError(t, err)
 
 	e := pub.Send(doneBytes)
@@ -60,7 +56,7 @@ func StartJoiner(t *testing.T, rabbitURL string, storeDir string, refQueueNames 
 	return j
 }
 
-func SendDataBatch(t *testing.T, inputQueue string, dataBatch *protocol.DataBatch) {
+func SendDataBatch(t *testing.T, inputQueue string, dataBatch *data_batch.DataBatch) {
 	t.Helper()
 
 	pubProcessedData, err := middleware.NewQueueMiddleware(RabbitURL, inputQueue)
@@ -75,26 +71,20 @@ func SendDataBatch(t *testing.T, inputQueue string, dataBatch *protocol.DataBatc
 	assert.Equal(t, 0, int(e))
 }
 
-func SendReferenceBatches(t *testing.T, pub middleware.MessageMiddleware, csvPayloads [][]byte, datasetType models.RefDatasetType) {
+func SendReferenceBatches(t *testing.T, pub middleware.MessageMiddleware, csvPayloads [][]byte, datasetType enum.RefDatasetType, taskType enum.TaskType) {
 	t.Helper()
 
-	refBatch, err := GetPayloadForDatasetType(t, datasetType, csvPayloads)
+	refBatch, err := GetPayloadForDatasetType(t, datasetType, taskType, csvPayloads)
 	assert.NoError(t, err)
 
-	msgProto := &protocol.ReferenceQueueMessage{
-		Payload: &protocol.ReferenceQueueMessage_ReferenceBatch{
-			ReferenceBatch: refBatch,
-		},
-	}
-
-	msgBytes, err := proto.Marshal(msgProto)
+	msgBytes, err := proto.Marshal(refBatch)
 	assert.NoError(t, err)
 
 	e := pub.Send(msgBytes)
 	assert.Equal(t, 0, int(e))
 }
 
-func GetAllOutputMessages(t *testing.T, outputQueue string) []*protocol.DataBatch {
+func GetAllOutputMessages(t *testing.T, outputQueue string) []*data_batch.DataBatch {
 	t.Helper()
 
 	consumer, err := middleware.NewQueueMiddleware(RabbitURL, outputQueue)
@@ -104,12 +94,12 @@ func GetAllOutputMessages(t *testing.T, outputQueue string) []*protocol.DataBatc
 		_ = consumer.Close()
 	}()
 
-	var received []*protocol.DataBatch
+	var received []*data_batch.DataBatch
 	done := make(chan struct{})
 
 	consumer.StartConsuming(func(ch middleware.ConsumeChannel, d chan error) {
 		for msg := range ch {
-			var batch protocol.DataBatch
+			var batch data_batch.DataBatch
 			unmErr := proto.Unmarshal(msg.Body, &batch)
 			assert.NoError(t, unmErr)
 
@@ -135,7 +125,7 @@ func GetAllOutputMessages(t *testing.T, outputQueue string) []*protocol.DataBatc
 }
 
 func PayloadAsBestSelling(payload []byte) bool {
-	var batch protocol.JoinBestSellingProductsBatch
+	var batch joined.JoinBestSellingProductsBatch
 
 	err := proto.Unmarshal(payload, &batch)
 	if err != nil {
@@ -154,7 +144,7 @@ func PayloadAsBestSelling(payload []byte) bool {
 }
 
 func PayloadAsMostProfits(payload []byte) bool {
-	var batch protocol.JoinMostProfitsProductsBatch
+	var batch joined.JoinMostProfitsProductsBatch
 
 	err := proto.Unmarshal(payload, &batch)
 	if err != nil {

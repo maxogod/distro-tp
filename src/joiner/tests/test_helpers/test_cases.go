@@ -4,16 +4,16 @@ import (
 	"testing"
 
 	"github.com/maxogod/distro-tp/src/common/middleware"
-	"github.com/maxogod/distro-tp/src/common/models"
+	"github.com/maxogod/distro-tp/src/common/models/enum"
 	"github.com/stretchr/testify/assert"
 )
 
 type TestCase struct {
 	Queue         string
-	DatasetType   models.RefDatasetType
+	DatasetType   enum.RefDatasetType
 	CsvPayloads   [][]byte
 	ExpectedFiles []string
-	TaskDone      models.TaskType
+	TaskDone      enum.TaskType
 	SendDone      bool
 }
 
@@ -27,16 +27,16 @@ func RunTest(t *testing.T, c TestCase) {
 		_ = pub.Close()
 	}()
 
-	SendReferenceBatches(t, pub, c.CsvPayloads, c.DatasetType)
+	SendReferenceBatches(t, pub, c.CsvPayloads, c.DatasetType, c.TaskDone)
 
 	for _, expectedFile := range c.ExpectedFiles {
 		switch c.DatasetType {
-		case models.Users:
-			AssertUsersAreTheExpected(t, expectedFile, c.CsvPayloads, c.DatasetType)
-		case models.Stores:
-			AssertStoresAreTheExpected(t, expectedFile, c.CsvPayloads, c.DatasetType)
-		case models.MenuItems:
-			AssertMenuItemsAreTheExpected(t, expectedFile, c.CsvPayloads, c.DatasetType)
+		case enum.Users:
+			AssertUsersAreTheExpected(t, expectedFile, c.CsvPayloads, c.DatasetType, c.TaskDone)
+		case enum.Stores:
+			AssertStoresAreTheExpected(t, expectedFile, c.CsvPayloads, c.DatasetType, c.TaskDone)
+		case enum.MenuItems:
+			AssertMenuItemsAreTheExpected(t, expectedFile, c.CsvPayloads, c.DatasetType, c.TaskDone)
 		}
 	}
 

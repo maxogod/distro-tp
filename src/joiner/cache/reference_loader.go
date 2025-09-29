@@ -9,8 +9,9 @@ import (
 	"path/filepath"
 	"sort"
 
-	"github.com/maxogod/distro-tp/src/common/models"
-	"github.com/maxogod/distro-tp/src/common/protocol"
+	"github.com/maxogod/distro-tp/src/common/models/data_batch"
+	"github.com/maxogod/distro-tp/src/common/models/enum"
+	"github.com/maxogod/distro-tp/src/common/models/raw"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -18,9 +19,9 @@ const (
 	mainDataset = 0
 )
 
-type StoresMap map[int32]*protocol.Store
-type MenuItemsMap map[int32]*protocol.MenuItem
-type UsersMap map[int32]*protocol.User
+type StoresMap map[int32]*raw.Store
+type MenuItemsMap map[int32]*raw.MenuItem
+type UsersMap map[int32]*raw.User
 
 func loadReferenceData[T proto.Message, B proto.Message](
 	path string,
@@ -48,7 +49,7 @@ func loadReferenceData[T proto.Message, B proto.Message](
 			return nil, err
 		}
 
-		refBatch := &protocol.ReferenceBatch{}
+		refBatch := &data_batch.DataBatch{}
 		err := proto.Unmarshal(refDatasetBytes, refBatch)
 		if err != nil {
 			return nil, err
@@ -68,32 +69,32 @@ func loadReferenceData[T proto.Message, B proto.Message](
 
 func (refStore *ReferenceDatasetStore) LoadStores() (StoresMap, error) {
 	stores, err := loadReferenceData(
-		refStore.refDatasets[models.Stores][mainDataset],
-		func() *protocol.Stores { return &protocol.Stores{} },
-		func(batch *protocol.Stores) []*protocol.Store { return batch.Stores },
+		refStore.refDatasets[enum.Stores][mainDataset],
+		func() *raw.StoreBatch { return &raw.StoreBatch{} },
+		func(batch *raw.StoreBatch) []*raw.Store { return batch.Stores },
 	)
 	if err != nil {
 		return nil, err
 	}
 
-	storesMap := make(map[int32]*protocol.Store)
+	storesMap := make(map[int32]*raw.Store)
 	for _, store := range stores {
-		storesMap[store.StoreID] = store
+		storesMap[store.StoreId] = store
 	}
 	return storesMap, nil
 }
 
 func (refStore *ReferenceDatasetStore) LoadMenuItems() (MenuItemsMap, error) {
 	menuItems, err := loadReferenceData(
-		refStore.refDatasets[models.MenuItems][mainDataset],
-		func() *protocol.MenuItems { return &protocol.MenuItems{} },
-		func(batch *protocol.MenuItems) []*protocol.MenuItem { return batch.Items },
+		refStore.refDatasets[enum.MenuItems][mainDataset],
+		func() *raw.MenuItemBatch { return &raw.MenuItemBatch{} },
+		func(batch *raw.MenuItemBatch) []*raw.MenuItem { return batch.MenuItems },
 	)
 	if err != nil {
 		return nil, err
 	}
 
-	menuItemsMap := make(map[int32]*protocol.MenuItem)
+	menuItemsMap := make(map[int32]*raw.MenuItem)
 	for _, menuItem := range menuItems {
 		menuItemsMap[menuItem.ItemId] = menuItem
 	}
@@ -104,7 +105,7 @@ func (refStore *ReferenceDatasetStore) LoadUsers(userIds []int) (UsersMap, error
 	sort.Ints(userIds)
 
 	datasetRanges := make(map[int][2]int)
-	for i, usersDatasetPath := range refStore.refDatasets[models.Users] {
+	for i, usersDatasetPath := range refStore.refDatasets[enum.Users] {
 		firstId, lastId, err := getUserIdRangeFromDatasetName(usersDatasetPath)
 		if err != nil {
 			return nil, err
@@ -124,9 +125,9 @@ func (refStore *ReferenceDatasetStore) LoadUsers(userIds []int) (UsersMap, error
 	usersMap := make(UsersMap)
 	for _, idx := range datasetsToLoad {
 		users, err := loadReferenceData(
-			refStore.refDatasets[models.Users][idx],
-			func() *protocol.Users { return &protocol.Users{} },
-			func(batch *protocol.Users) []*protocol.User { return batch.Users },
+			refStore.refDatasets[enum.Users][idx],
+			func() *raw.UserBatch { return &raw.UserBatch{} },
+			func(batch *raw.UserBatch) []*raw.User { return batch.Users },
 		)
 		if err != nil {
 			return nil, err

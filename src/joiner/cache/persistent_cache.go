@@ -6,40 +6,41 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/maxogod/distro-tp/src/common/models"
-	"github.com/maxogod/distro-tp/src/common/protocol"
+	"github.com/maxogod/distro-tp/src/common/models/data_batch"
+	"github.com/maxogod/distro-tp/src/common/models/enum"
+	"github.com/maxogod/distro-tp/src/common/models/raw"
 	"google.golang.org/protobuf/proto"
 )
 
-type RefDatasetNames map[models.RefDatasetType]string
-type RefDatasetPaths map[models.RefDatasetType][]string
+type RefDatasetTypes map[string]enum.RefDatasetType
+type RefDatasetPaths map[enum.RefDatasetType][]string
 
-func defaultReferenceDatasets() RefDatasetNames {
-	return RefDatasetNames{
-		models.MenuItems: "menu_items",
-		models.Stores:    "stores",
-		models.Users:     "users",
+func defaultReferenceDatasets() RefDatasetTypes {
+	return RefDatasetTypes{
+		"menu_items": enum.MenuItems,
+		"stores":     enum.Stores,
+		"users":      enum.Users,
 	}
 }
 
 type ReferenceDatasetStore struct {
-	datasetNames RefDatasetNames
+	datasetTypes RefDatasetTypes
 	refDatasets  RefDatasetPaths
 	storePath    string
 }
 
 func NewCacheStore(storePath string) *ReferenceDatasetStore {
 	return &ReferenceDatasetStore{
-		datasetNames: defaultReferenceDatasets(),
+		datasetTypes: defaultReferenceDatasets(),
 		refDatasets:  make(RefDatasetPaths),
 		storePath:    storePath,
 	}
 }
 
-func (refStore *ReferenceDatasetStore) StoreReferenceData(batch *protocol.ReferenceBatch) error {
-	datasetFilename, ok := refStore.getDatasetFilename(batch)
+func (refStore *ReferenceDatasetStore) StoreReferenceData(batch *data_batch.DataBatch, datasetName string) error {
+	datasetFilename, ok := refStore.getDatasetFilename(batch, datasetName)
 	if !ok {
-		return fmt.Errorf("failed to get dataset filename for dataset type: %d", batch.DatasetType)
+		return fmt.Errorf("failed to get dataset filename for dataset: %s", datasetName)
 	}
 
 	data, protoErr := proto.Marshal(batch)
@@ -62,22 +63,16 @@ func (refStore *ReferenceDatasetStore) StoreReferenceData(batch *protocol.Refere
 		return writeDataErr
 	}
 
-	refStore.updateRefDatasets(batch.DatasetType, datasetFilename)
+	refStore.updateRefDatasets(datasetName, datasetFilename)
 
 	return f.Sync()
 }
 
-func (refStore *ReferenceDatasetStore) getDatasetFilename(batch *protocol.ReferenceBatch) (string, bool) {
-	refDatasetType := models.RefDatasetType(batch.DatasetType)
-	datasetName, ok := refStore.datasetNames[refDatasetType]
-	if !ok {
-		return "", false
-	}
-
+func (refStore *ReferenceDatasetStore) getDatasetFilename(batch *data_batch.DataBatch, datasetName string) (string, bool) {
 	var datasetFilename string
 
-	if refDatasetType == models.Users {
-		users := &protocol.Users{}
+	if refStore.datasetTypes[datasetName] == enum.Users {
+		users := &raw.UserBatch{}
 		if err := proto.Unmarshal(batch.Payload, users); err != nil {
 			return "", false
 		}
@@ -89,18 +84,19 @@ func (refStore *ReferenceDatasetStore) getDatasetFilename(batch *protocol.Refere
 		datasetFilename = filepath.Join(refStore.storePath, fmt.Sprintf("%s.pb", datasetName))
 	}
 
-	return datasetFilename, ok
+	return datasetFilename, true
 }
 
-func (refStore *ReferenceDatasetStore) updateRefDatasets(datasetType int32, datasetFilename string) {
-	if paths, exists := refStore.refDatasets[models.RefDatasetType(datasetType)]; exists {
+func (refStore *ReferenceDatasetStore) updateRefDatasets(datasetName string, datasetFilename string) {
+	datasetType := refStore.datasetTypes[datasetName]
+	if paths, exists := refStore.refDatasets[datasetType]; exists {
 		for _, p := range paths {
 			if p == datasetFilename {
 				return
 			}
 		}
-		refStore.refDatasets[models.RefDatasetType(datasetType)] = append(paths, datasetFilename)
+		refStore.refDatasets[datasetType] = append(paths, datasetFilename)
 	} else {
-		refStore.refDatasets[models.RefDatasetType(datasetType)] = []string{datasetFilename}
+		refStore.refDatasets[datasetType] = []string{datasetFilename}
 	}
 }
