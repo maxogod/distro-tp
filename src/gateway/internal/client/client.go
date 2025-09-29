@@ -1,11 +1,15 @@
 package client
 
 import (
+	"fmt"
+
 	"github.com/maxogod/distro-tp/src/common/logger"
 	"github.com/maxogod/distro-tp/src/common/models/transaction"
-	"github.com/maxogod/distro-tp/src/common/utils"
+	"github.com/maxogod/distro-tp/src/common/network"
 	"github.com/maxogod/distro-tp/src/gateway/business/file_service"
 	"github.com/maxogod/distro-tp/src/gateway/config"
+	"github.com/maxogod/distro-tp/src/gateway/internal/utils"
+	"google.golang.org/protobuf/proto"
 )
 
 var log = logger.GetLogger()
@@ -26,28 +30,28 @@ func (c *client) Start() error {
 	csv_file_path := c.conf.DataPath + "/transactions/transactions_202407.csv"
 	fs := file_service.NewFileService[*transaction.Transaction](100)
 
+	conn := network.NewConnectionInterface()
+	conn.Connect(fmt.Sprintf("%s:%d", c.conf.ServerHost, c.conf.ServerPort))
+	defer conn.Close()
+
 	ch := make(chan []*transaction.Transaction)
-	go fs.ReadAsBatches(csv_file_path, ch, func(record []string) *transaction.Transaction {
-		return &transaction.Transaction{
-			TransactionId:   record[0],
-			StoreId:         int64(utils.ParseIntOrDefault(record[1])),
-			PaymentMethod:   int32(utils.ParseIntOrDefault(record[2])),
-			VoucherId:       int64(utils.ParseIntOrDefault(record[3])),
-			UserId:          int64(utils.ParseIntOrDefault(record[4])),
-			OriginalAmount:  utils.ParseFloatOrDefault(record[5]),
-			DiscountApplied: utils.ParseFloatOrDefault(record[6]),
-			FinalAmount:     utils.ParseFloatOrDefault(record[7]),
-			CreatedAt:       record[8],
-		}
-	})
+	go fs.ReadAsBatches(csv_file_path, ch, utils.TransactionFromRecord)
 
 	for batch := range ch {
-		log.Infof("received batch of %d transactions", len(batch))
-		for _, t := range batch {
-			log.Infof("transaction: %s - %s - %f", t.TransactionId, t.CreatedAt, t.FinalAmount)
-			break
+		tBatch := transaction.TransactionBatch{
+			TaskType:     1,
+			Transactions: batch,
 		}
-		break
+		data, err := proto.Marshal(&tBatch)
+		if err != nil {
+			log.Errorf("failed to marshal transaction batch: %v", err)
+			continue
+		}
+
+		err = conn.SendData(data)
+		if err != nil {
+			log.Errorf("failed to send transaction batch: %v", err)
+		}
 	}
 
 	return nil
