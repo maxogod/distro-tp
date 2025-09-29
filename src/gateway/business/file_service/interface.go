@@ -10,7 +10,7 @@ import (
 
 // FileReader reads the given csv batch by batch and produces to the channel
 type FileService interface {
-	ReadTransactions(path string) (chan []transaction.Transaction, error)
+	ReadTransactions(path string, batches_ch chan []*transaction.Transaction)
 
 	ReadTransactionItems(path string) (chan []transaction_items.TransactionItems, error)
 

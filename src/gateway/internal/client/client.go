@@ -1,10 +1,9 @@
 package client
 
 import (
-	"encoding/csv"
-	"os"
-
 	"github.com/maxogod/distro-tp/src/common/logger"
+	"github.com/maxogod/distro-tp/src/common/models/transaction"
+	"github.com/maxogod/distro-tp/src/gateway/business/file_service"
 	"github.com/maxogod/distro-tp/src/gateway/config"
 )
 
@@ -23,21 +22,19 @@ func NewClient(conf *config.Config) Client {
 func (c *client) Start() error {
 	log.Infoln("started")
 
-	csv_file_path := c.conf.DataPath + "/menu_items/menu_items.csv"
-	file, err := os.Open(csv_file_path)
-	if err != nil {
-		log.Errorln("failed to open menu items file:", err)
-	}
-	defer file.Close()
+	csv_file_path := c.conf.DataPath + "/transactions/transactions_202407.csv"
+	fs := file_service.NewFileService(100)
 
-	reader := csv.NewReader(file)
-	records, err := reader.ReadAll()
-	if err != nil {
-		log.Errorln("failed to read menu items file:", err)
-	}
+	ch := make(chan []*transaction.Transaction)
+	go fs.ReadTransactions(csv_file_path, ch)
 
-	for _, record := range records {
-		log.Infoln("menu item:", record)
+	for batch := range ch {
+		log.Infof("received batch of %d transactions", len(batch))
+		for _, t := range batch {
+			log.Infof("transaction: %s - %s - %f", t.TransactionId, t.CreatedAt, t.FinalAmount)
+			break
+		}
+		break
 	}
 
 	return nil
