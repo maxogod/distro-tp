@@ -1,0 +1,6 @@
+data_path: "./.data"
+server:
+  host: "localhost"
+  port: 5672
+log:
+  level: "DEBUG"
