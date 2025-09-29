@@ -2,6 +2,7 @@ package tests_test
 
 import (
 	"path/filepath"
+	"sync"
 	"testing"
 
 	"github.com/maxogod/distro-tp/src/common/middleware"
@@ -335,7 +336,10 @@ func TestHandleTaskType4Server(t *testing.T) {
 	}
 
 	joinServer := server.InitServer(&joinerConfig)
+	var wg sync.WaitGroup
+	wg.Add(1)
 	go func() {
+		defer wg.Done()
 		err := joinServer.Run()
 		if err != nil {
 			assert.NoError(t, err)
@@ -343,6 +347,7 @@ func TestHandleTaskType4Server(t *testing.T) {
 	}()
 	defer func() {
 		joinServer.Shutdown()
+		wg.Wait()
 	}()
 
 	test_helpers.RunTest(t, testCase)
