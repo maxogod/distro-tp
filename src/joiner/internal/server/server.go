@@ -6,7 +6,7 @@ import (
 	"syscall"
 
 	"github.com/maxogod/distro-tp/src/common/logger"
-	"github.com/maxogod/distro-tp/src/joiner/business"
+	service "github.com/maxogod/distro-tp/src/joiner/business"
 	"github.com/maxogod/distro-tp/src/joiner/config"
 )
 
