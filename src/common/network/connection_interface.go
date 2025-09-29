@@ -34,13 +34,13 @@ func (c *ConnectionInterface) ReceiveData() ([]byte, error) {
 	if err := c.readFull(header); err != nil {
 		return nil, err
 	}
-	dataLen := make([]byte, binary.BigEndian.Uint32(header))
+	data := make([]byte, binary.BigEndian.Uint32(header))
 
-	if err := c.readFull(dataLen); err != nil {
+	if err := c.readFull(data); err != nil {
 		return nil, err
 	}
 
-	return dataLen, nil
+	return data, nil
 }
 
 func (c *ConnectionInterface) SendData(data []byte) error {
