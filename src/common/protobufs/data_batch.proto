@@ -1,0 +1,11 @@
+syntax = "proto3";
+
+package protocol;
+
+option go_package = "./data_batch";
+
+message DataBatch {
+  int32 task_type = 1;
+  bool done = 2;
+  bytes payload = 3;
+}
