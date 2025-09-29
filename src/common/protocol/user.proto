@@ -1,0 +1,16 @@
+syntax = "proto3";
+
+package protocol;
+
+option go_package = "src/common/protocol;protocol";
+
+message User {
+  int32  user_id = 1;
+  string gender = 2;
+  string birthdate = 3;
+  string registered_at = 4;
+}
+
+message Users {
+  repeated User users = 1;
+}
