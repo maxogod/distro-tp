@@ -38,7 +38,7 @@ func (cs *clientSession) HandleRequest() error {
 	return nil
 }
 
-func (cs *clientSession) RecieveRequest() {
+func (cs *clientSession) ReceiveRequest() {
 
 }
 
