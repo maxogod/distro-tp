@@ -384,10 +384,6 @@ func TestHandleConnectionGatewayController(t *testing.T) {
 		joinServer.Shutdown()
 		wg.Wait()
 	}()
-	defer func() {
-		joinServer.Shutdown()
-		wg.Wait()
-	}()
 
 	helpers.AssertConnectionMsg(t, joinerConfig.GatewayControllerQueue, true)
 
