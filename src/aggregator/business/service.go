@@ -1,7 +1,6 @@
 package service
 
 import (
-	"fmt"
 	"sync"
 
 	"github.com/google/uuid"
@@ -10,7 +9,6 @@ import (
 	"github.com/maxogod/distro-tp/src/aggregator/handler"
 	"github.com/maxogod/distro-tp/src/common/middleware"
 	"github.com/maxogod/distro-tp/src/common/models/enum"
-	"google.golang.org/protobuf/proto"
 )
 
 type DataQueueTaskType map[string]enum.TaskType
@@ -81,18 +79,12 @@ func (j *Aggregator) Stop() error {
 		return err
 	}
 
-	if j.gatewayConnectionQueue != nil {
-		if err = StopSender(j.gatewayConnectionQueue); err != nil {
-			return err
-		}
-		j.gatewayConnectionQueue = nil
+	if j.gatewayConnectionQueue, err = StopSender(j.gatewayConnectionQueue); err != nil {
+		return err
 	}
 
-	if j.gatewayDataQueue != nil {
-		if err = StopSender(j.gatewayDataQueue); err != nil {
-			return err
-		}
-		j.gatewayDataQueue = nil
+	if j.gatewayDataQueue, err = StopSender(j.gatewayDataQueue); err != nil {
+		return err
 	}
 
 	if j.finishExchange != nil {
@@ -105,24 +97,10 @@ func (j *Aggregator) Stop() error {
 	return nil
 }
 
-func (j *Aggregator) HandleDone() error {
+func (j *Aggregator) HandleDone([]byte) error {
 	// TODO: Start to send batched data to the gateway controller
-	//  use j.SendBatchToGatewayController(dataBatch *handler.DataBatch)
+	//  use SendDataBatch(dataBatch *handler.DataBatch, j.gatewayDataQueue)
 	//  use StartSender() to initialize j.gatewayDataQueue
-	return nil
-}
-
-func (j *Aggregator) SendBatchToGatewayController(dataBatch *handler.DataBatch) error {
-	dataBytes, err := proto.Marshal(dataBatch)
-	if err != nil {
-		return err
-	}
-
-	returnCode := j.gatewayDataQueue.Send(dataBytes)
-	if returnCode != middleware.MessageMiddlewareSuccess {
-		return fmt.Errorf("failed to send result: %d", returnCode)
-	}
-
 	return nil
 }
 
@@ -136,14 +114,14 @@ func (j *Aggregator) InitService() error {
 		}
 	}
 
-	m, err := StartAnnouncer(j.config.GatewayAddress, j.config.GatewayControllerConnectionQueue)
+	m, err := StartQueueMiddleware(j.config.GatewayAddress, j.config.GatewayControllerConnectionQueue)
 	if err != nil {
 		return err
 	}
 
 	j.gatewayConnectionQueue = m
 
-	err = SendMessageToControllerConnection(j.gatewayConnectionQueue, j.workerName, false)
+	err = SendControllerConnectionMsg(j.gatewayConnectionQueue, j.workerName, false)
 	if err != nil {
 		return err
 	}
