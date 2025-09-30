@@ -12,6 +12,8 @@ type Config struct {
 	ServerHost string
 	ServerPort int
 	DataPath   string
+	OutputPath string
+	BatchSize  int
 }
 
 func (c *Config) String() string {
@@ -34,6 +36,8 @@ func InitConfig() (*Config, error) {
 		ServerHost: v.GetString("server.host"),
 		ServerPort: v.GetInt("server.port"),
 		DataPath:   v.GetString("data_path"),
+		OutputPath: v.GetString("output_path"),
+		BatchSize:  v.GetInt("batch_size"),
 	}
 
 	fmt.Printf("Config loaded: %s\n", config.String())
