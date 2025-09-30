@@ -6,14 +6,11 @@ import (
 	"testing"
 
 	"github.com/maxogod/distro-tp/src/common/middleware"
-	"github.com/maxogod/distro-tp/src/common/models/controller_connection"
 	"github.com/maxogod/distro-tp/src/common/models/data_batch"
 	"github.com/maxogod/distro-tp/src/common/models/enum"
 	"github.com/maxogod/distro-tp/src/common/models/joined"
 	"github.com/maxogod/distro-tp/src/common/models/reduced"
 	joiner "github.com/maxogod/distro-tp/src/joiner/business"
-	"github.com/maxogod/distro-tp/src/joiner/config"
-	"github.com/maxogod/distro-tp/src/joiner/internal/server"
 	"github.com/maxogod/distro-tp/src/joiner/tests/test_helpers"
 	helpers "github.com/maxogod/distro-tp/src/joiner/tests/test_helpers"
 	"github.com/stretchr/testify/assert"
@@ -34,7 +31,7 @@ func TestJoinerPersistReferenceBatchesMenuItems(t *testing.T) {
 		SendDone:      false,
 	}
 
-	j := helpers.StartJoiner(t, helpers.RabbitURL, storeDir, []string{testCase.Queue})
+	j := helpers.StartJoiner(t, storeDir, []string{testCase.Queue})
 	defer func(j *joiner.Joiner) {
 		err := j.Stop()
 		assert.NoError(t, err)
@@ -59,7 +56,7 @@ func TestJoinerPersistReferenceBatchesUsers(t *testing.T) {
 		SendDone: false,
 	}
 
-	j := helpers.StartJoiner(t, helpers.RabbitURL, storeDir, []string{testCase.Queue})
+	j := helpers.StartJoiner(t, storeDir, []string{testCase.Queue})
 	defer func(j *joiner.Joiner) {
 		err := j.Stop()
 		assert.NoError(t, err)
@@ -82,7 +79,7 @@ func TestJoinerHandlesDoneAndConsumesNextQueueTask3(t *testing.T) {
 		SendDone:      true,
 	}
 
-	j := helpers.StartJoiner(t, helpers.RabbitURL, storeDir, []string{testCase.Queue})
+	j := helpers.StartJoiner(t, storeDir, []string{testCase.Queue})
 	defer func(j *joiner.Joiner) {
 		err := j.Stop()
 		assert.NoError(t, err)
@@ -133,7 +130,7 @@ func TestJoinerPersistReferenceBatchesUsersAndStores(t *testing.T) {
 		SendDone:      true,
 	}
 
-	j := helpers.StartJoiner(t, helpers.RabbitURL, storeDir, []string{testCaseStores.Queue, testCaseUsers.Queue})
+	j := helpers.StartJoiner(t, storeDir, []string{testCaseStores.Queue, testCaseUsers.Queue})
 	defer func(j *joiner.Joiner) {
 		err := j.Stop()
 		assert.NoError(t, err)
@@ -158,7 +155,7 @@ func TestHandleTaskType3_ProducesJoinedBatch(t *testing.T) {
 		SendDone:      true,
 	}
 
-	j := helpers.StartJoiner(t, helpers.RabbitURL, storeDir, []string{testCase.Queue})
+	j := helpers.StartJoiner(t, storeDir, []string{testCase.Queue})
 	defer func(j *joiner.Joiner) {
 		err := j.Stop()
 		assert.NoError(t, err)
@@ -206,7 +203,7 @@ func TestHandleTaskType2_ProducesJoinedBatch(t *testing.T) {
 		SendDone:      true,
 	}
 
-	j := helpers.StartJoiner(t, helpers.RabbitURL, storeDir, []string{testCase.Queue})
+	j := helpers.StartJoiner(t, storeDir, []string{testCase.Queue})
 	defer func(j *joiner.Joiner) {
 		err := j.Stop()
 		assert.NoError(t, err)
@@ -285,7 +282,7 @@ func TestHandleTaskType4_ProducesJoinedBatch(t *testing.T) {
 		SendDone:      true,
 	}
 
-	j := helpers.StartJoiner(t, helpers.RabbitURL, storeDir, []string{testCase.Queue, testCaseUsers.Queue})
+	j := helpers.StartJoiner(t, storeDir, []string{testCase.Queue, testCaseUsers.Queue})
 	defer func(j *joiner.Joiner) {
 		err := j.Stop()
 		assert.NoError(t, err)
@@ -343,28 +340,8 @@ func TestHandleTaskType4Server(t *testing.T) {
 		SendDone:      true,
 	}
 
-	joinerConfig := config.Config{
-		GatewayAddress:              helpers.RabbitURL,
-		StorePath:                   storeDir,
-		StoreTPVQueue:               "store_tpv",
-		TransactionCountedQueue:     "transaction_counted",
-		TransactionSumQueue:         "transaction_sum",
-		UserTransactionsQueue:       "user_transactions",
-		JoinedTransactionsQueue:     "joined_transactions_queue",
-		JoinedStoresTPVQueue:        "joined_stores_tpv_queue",
-		JoinedUserTransactionsQueue: "joined_user_transactions_queue",
-	}
-
-	joinServer := server.InitServer(&joinerConfig)
 	var wg sync.WaitGroup
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		err := joinServer.Run()
-		if err != nil {
-			assert.NoError(t, err)
-		}
-	}()
+	joinServer := helpers.InitServer(t, storeDir, &wg)
 	defer func() {
 		joinServer.Shutdown()
 		wg.Wait()
@@ -399,46 +376,20 @@ func TestHandleTaskType4Server(t *testing.T) {
 func TestHandleConnectionGatewayController(t *testing.T) {
 	storeDir := t.TempDir()
 
-	joinerConfig := config.Config{
-		GatewayAddress:              helpers.RabbitURL,
-		StorePath:                   storeDir,
-		StoreTPVQueue:               "store_tpv",
-		TransactionCountedQueue:     "transaction_counted",
-		TransactionSumQueue:         "transaction_sum",
-		UserTransactionsQueue:       "user_transactions",
-		JoinedTransactionsQueue:     "joined_transactions_queue",
-		JoinedStoresTPVQueue:        "joined_stores_tpv_queue",
-		JoinedUserTransactionsQueue: "joined_user_transactions_queue",
-		GatewayControllerQueue:      "node_connections",
-		GatewayControllerExchange:   "finish_exchange",
-		FinishRoutingKey:            "joiner",
-	}
+	joinerConfig := helpers.JoinerConfig(storeDir)
 
-	joinServer := server.InitServer(&joinerConfig)
 	var wg sync.WaitGroup
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		err := joinServer.Run()
-		if err != nil {
-			assert.NoError(t, err)
-		}
+	joinServer := helpers.InitServer(t, storeDir, &wg)
+	defer func() {
+		joinServer.Shutdown()
+		wg.Wait()
 	}()
 	defer func() {
 		joinServer.Shutdown()
 		wg.Wait()
 	}()
 
-	initConnectionMsg := helpers.GetAllOutputMessages(t, joinerConfig.GatewayControllerQueue, func(body []byte) (*controller_connection.ControllerConnection, error) {
-		ctrl := &controller_connection.ControllerConnection{}
-		if err := proto.Unmarshal(body, ctrl); err != nil {
-			return nil, err
-		}
-		return ctrl, nil
-	})[0]
-
-	assert.Regexp(t, `^joiner.*`, initConnectionMsg.WorkerName)
-	assert.False(t, initConnectionMsg.Finished)
+	helpers.AssertConnectionMsg(t, joinerConfig.GatewayControllerQueue, true)
 
 	finishExchange, err := middleware.NewExchangeMiddleware(
 		helpers.RabbitURL,
@@ -458,14 +409,5 @@ func TestHandleConnectionGatewayController(t *testing.T) {
 	e := finishExchange.Send(dataMessage)
 	assert.Equal(t, 0, int(e))
 
-	finishConnectionMsg := helpers.GetAllOutputMessages(t, joinerConfig.GatewayControllerQueue, func(body []byte) (*controller_connection.ControllerConnection, error) {
-		ctrl := &controller_connection.ControllerConnection{}
-		if err = proto.Unmarshal(body, ctrl); err != nil {
-			return nil, err
-		}
-		return ctrl, nil
-	})[0]
-
-	assert.Regexp(t, `^joiner.*`, finishConnectionMsg.WorkerName)
-	assert.True(t, finishConnectionMsg.Finished)
+	helpers.AssertConnectionMsg(t, joinerConfig.GatewayControllerQueue, false)
 }

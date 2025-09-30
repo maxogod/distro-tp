@@ -1,6 +1,7 @@
 package test_helpers
 
 import (
+	"sync"
 	"testing"
 	"time"
 
@@ -10,6 +11,7 @@ import (
 	"github.com/maxogod/distro-tp/src/common/models/joined"
 	joiner "github.com/maxogod/distro-tp/src/joiner/business"
 	"github.com/maxogod/distro-tp/src/joiner/config"
+	"github.com/maxogod/distro-tp/src/joiner/internal/server"
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/protobuf/proto"
 )
@@ -17,6 +19,23 @@ import (
 const (
 	RabbitURL = "amqp://guest:guest@localhost:5672/"
 )
+
+func JoinerConfig(storeDir string) config.Config {
+	return config.Config{
+		GatewayAddress:              RabbitURL,
+		StorePath:                   storeDir,
+		StoreTPVQueue:               "store_tpv",
+		TransactionCountedQueue:     "transaction_counted",
+		TransactionSumQueue:         "transaction_sum",
+		UserTransactionsQueue:       "user_transactions",
+		JoinedTransactionsQueue:     "joined_transactions_queue",
+		JoinedStoresTPVQueue:        "joined_stores_tpv_queue",
+		JoinedUserTransactionsQueue: "joined_user_transactions_queue",
+		GatewayControllerQueue:      "node_connections",
+		GatewayControllerExchange:   "finish_exchange",
+		FinishRoutingKey:            "joiner",
+	}
+}
 
 func SendDoneMessage(t *testing.T, pub middleware.MessageMiddleware, datasetType enum.TaskType) {
 	doneMsg := &data_batch.DataBatch{
@@ -31,20 +50,10 @@ func SendDoneMessage(t *testing.T, pub middleware.MessageMiddleware, datasetType
 	assert.Equal(t, 0, int(e))
 }
 
-func StartJoiner(t *testing.T, rabbitURL string, storeDir string, refQueueNames []string) *joiner.Joiner {
+func StartJoiner(t *testing.T, storeDir string, refQueueNames []string) *joiner.Joiner {
 	t.Helper()
 
-	joinerConfig := config.Config{
-		GatewayAddress:              rabbitURL,
-		StorePath:                   storeDir,
-		StoreTPVQueue:               "store_tpv",
-		TransactionCountedQueue:     "transaction_counted",
-		TransactionSumQueue:         "transaction_sum",
-		UserTransactionsQueue:       "user_transactions",
-		JoinedTransactionsQueue:     "joined_transactions_queue",
-		JoinedStoresTPVQueue:        "joined_stores_tpv_queue",
-		JoinedUserTransactionsQueue: "joined_user_transactions_queue",
-	}
+	joinerConfig := JoinerConfig(storeDir)
 
 	j := joiner.NewJoiner(&joinerConfig)
 
@@ -163,4 +172,20 @@ func PayloadAsMostProfits(payload []byte) bool {
 	}
 
 	return true
+}
+
+func InitServer(t *testing.T, storeDir string, wg *sync.WaitGroup) *server.Server {
+	joinerConfig := JoinerConfig(storeDir)
+
+	joinServer := server.InitServer(&joinerConfig)
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		err := joinServer.Run()
+		if err != nil {
+			assert.NoError(t, err)
+		}
+	}()
+
+	return joinServer
 }
