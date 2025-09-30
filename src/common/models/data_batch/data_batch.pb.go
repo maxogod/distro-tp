@@ -22,12 +22,13 @@ const (
 )
 
 type DataBatch struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	TaskType      int32                  `protobuf:"varint,1,opt,name=task_type,json=taskType,proto3" json:"task_type,omitempty"`
-	Done          bool                   `protobuf:"varint,2,opt,name=done,proto3" json:"done,omitempty"`
-	Payload       []byte                 `protobuf:"bytes,3,opt,name=payload,proto3" json:"payload,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state           protoimpl.MessageState `protogen:"open.v1"`
+	TaskType        int32                  `protobuf:"varint,1,opt,name=task_type,json=taskType,proto3" json:"task_type,omitempty"`
+	IsReferenceData bool                   `protobuf:"varint,2,opt,name=isReferenceData,proto3" json:"isReferenceData,omitempty"`
+	Done            bool                   `protobuf:"varint,3,opt,name=done,proto3" json:"done,omitempty"`
+	Payload         []byte                 `protobuf:"bytes,4,opt,name=payload,proto3" json:"payload,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *DataBatch) Reset() {
@@ -67,6 +68,13 @@ func (x *DataBatch) GetTaskType() int32 {
 	return 0
 }
 
+func (x *DataBatch) GetIsReferenceData() bool {
+	if x != nil {
+		return x.IsReferenceData
+	}
+	return false
+}
+
 func (x *DataBatch) GetDone() bool {
 	if x != nil {
 		return x.Done
@@ -85,11 +93,12 @@ var File_data_batch_proto protoreflect.FileDescriptor
 
 const file_data_batch_proto_rawDesc = "" +
 	"\n" +
-	"\x10data_batch.proto\x12\bprotocol\"V\n" +
+	"\x10data_batch.proto\x12\bprotocol\"\x80\x01\n" +
 	"\tDataBatch\x12\x1b\n" +
-	"\ttask_type\x18\x01 \x01(\x05R\btaskType\x12\x12\n" +
-	"\x04done\x18\x02 \x01(\bR\x04done\x12\x18\n" +
-	"\apayload\x18\x03 \x01(\fR\apayloadB\x0eZ\f./data_batchb\x06proto3"
+	"\ttask_type\x18\x01 \x01(\x05R\btaskType\x12(\n" +
+	"\x0fisReferenceData\x18\x02 \x01(\bR\x0fisReferenceData\x12\x12\n" +
+	"\x04done\x18\x03 \x01(\bR\x04done\x12\x18\n" +
+	"\apayload\x18\x04 \x01(\fR\apayloadB\x0eZ\f./data_batchb\x06proto3"
 
 var (
 	file_data_batch_proto_rawDescOnce sync.Once

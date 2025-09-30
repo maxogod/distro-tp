@@ -17,6 +17,9 @@ func main() {
 
 	server := server.InitServer(conf)
 
-	server.Run()
-
+	err = server.Run()
+	if err != nil {
+		log.Fatalf("Failed to run server: %v", err)
+	}
+	log.Debug("Geodude thanks you for using the Gateway Controller!")
 }
