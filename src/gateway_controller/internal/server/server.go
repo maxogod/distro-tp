@@ -56,10 +56,11 @@ func (s *Server) Run() error {
 
 		clientSession := s.clientManager.AddClient(clientConnection, s.taskHandler)
 
-		err = clientSession.HandleRequest()
+		err = clientSession.ProcessRequest()
 
 		if err != nil {
 			log.Errorf("Error handling client request: %v", err)
+			return err
 		}
 
 		err = clientSession.Close()

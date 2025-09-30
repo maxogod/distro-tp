@@ -2,8 +2,11 @@ package session
 
 import (
 	"github.com/maxogod/distro-tp/src/common/logger"
+	"github.com/maxogod/distro-tp/src/common/models/data_batch"
+	"github.com/maxogod/distro-tp/src/common/models/enum"
 	"github.com/maxogod/distro-tp/src/common/network"
 	"github.com/maxogod/distro-tp/src/gateway_controller/internal/handler"
+	"google.golang.org/protobuf/proto"
 )
 
 var log = logger.GetLogger()
@@ -12,6 +15,7 @@ type clientSession struct {
 	Id               int
 	clientConnection *network.ConnectionInterface
 	taskHandler      *handler.TaskHandler
+	processData      bool
 }
 
 func NewClientSession(id int, conn *network.ConnectionInterface, taskHandler *handler.TaskHandler) *clientSession {
@@ -19,42 +23,79 @@ func NewClientSession(id int, conn *network.ConnectionInterface, taskHandler *ha
 		Id:               id,
 		clientConnection: conn,
 		taskHandler:      taskHandler,
+		processData:      true,
 	}
 }
 
-func (cs *clientSession) HandleRequest() error {
+func (cs *clientSession) ProcessRequest() error {
 
-	// dataBatch := make([]byte, len(data_batch.DataBatch{}))
+	// i know that the variable is not necesary but geodude likes this handleing
+	for cs.processData {
 
-	// requestType, err := cs.clientConnection.ReceiveData(dataBatch)
+		request, err := cs.getRequest()
+		if err != nil {
+			return err
+		}
 
-	// if err != nil {
-	// 	log.Errorf("Error receiving request type: %v", err)
-	// 	return err
-	// }
+		taskType := enum.TaskType(request.GetTaskType())
+		payload := request.GetPayload()
+		isRefData := request.GetIsReferenceData()
 
-	// log.Infof("Received request of type: %d", requestType)
+		if isRefData {
+			return cs.taskHandler.HandleReferenceData(payload)
+		} else if request.GetDone() {
+			cs.processData = false
+			break
+		}
+		cs.taskHandler.HandleTask(taskType, payload)
+	}
 
+	err := cs.taskHandler.SendDone()
+	if err != nil {
+		return err
+	}
+	reportData, err := cs.taskHandler.GetReportData()
+	if err != nil {
+		return err
+	}
+
+	err = cs.sendReportData(reportData)
+	if err != nil {
+		return err
+	}
+
+	return nil
+
+}
+
+func (cs *clientSession) getRequest() (*data_batch.DataBatch, error) {
+	requestBytes, err := cs.clientConnection.ReceiveData()
+	if err != nil {
+		log.Errorf("Error receiving request type: %v", err)
+		return nil, err
+	}
+	request := &data_batch.DataBatch{}
+	err = proto.Unmarshal(requestBytes, request)
+	if err != nil {
+		log.Errorf("Error receiving request type: %v", err)
+		return nil, err
+	}
+	return request, nil
+}
+
+func (cs *clientSession) sendReportData(reportData []byte) error {
+
+	err := cs.clientConnection.SendData(reportData)
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
-func (cs *clientSession) ReceiveRequest() {
+func (cs *clientSession) HandleReferenceData(response *data_batch.DataBatch) error {
 
-}
-
-func (cs *clientSession) HandleTransactionData() {
-	// after receiving the request, handle it with the task handler
-
-}
-
-func (cs *clientSession) HandleReferenceData() {
-	// after receiving the request, handle it with the task handler
-
-}
-
-func (cs *clientSession) SendClientReport(response any) error {
-	// TODO: figure out how to send a report to the client
 	return nil
+
 }
 
 func (cs *clientSession) Close() error {

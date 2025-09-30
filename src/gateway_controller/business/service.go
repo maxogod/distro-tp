@@ -40,23 +40,23 @@ func NewControllerService() *GatewayControllerService {
 	}
 }
 
-func cleanData[T any](data []T, cleanerMap map[string]func(*T), columns []string) ([]T, error) {
+func (s *GatewayControllerService) CleanTransactionData(transactionData []*raw.Transaction, removeColumns []string) ([]*raw.Transaction, error) {
+	return cleanData(transactionData, s.transactionCleaner, removeColumns)
+}
+
+func (s *GatewayControllerService) CleanTransactionItemData(transactionItemData []*raw.TransactionItems, removeColumns []string) ([]*raw.TransactionItems, error) {
+	return cleanData(transactionItemData, s.itemCleaner, removeColumns)
+}
+
+func cleanData[T any](data []*T, cleanerMap map[string]func(*T), columns []string) ([]*T, error) {
 	for i := range data {
 		for _, col := range columns {
 			cleaner, ok := cleanerMap[col]
 			if !ok {
 				return nil, fmt.Errorf("unknown column for cleaning: %s", col)
 			}
-			cleaner(&data[i])
+			cleaner(data[i])
 		}
 	}
 	return data, nil
-}
-
-func (s *GatewayControllerService) CleanTransactionData(transactionData []raw.Transaction, removeColumns []string) ([]raw.Transaction, error) {
-	return cleanData(transactionData, s.transactionCleaner, removeColumns)
-}
-
-func (s *GatewayControllerService) CleanTransactionItemData(transactionItemData []raw.TransactionItems, removeColumns []string) ([]raw.TransactionItems, error) {
-	return cleanData(transactionItemData, s.itemCleaner, removeColumns)
 }
