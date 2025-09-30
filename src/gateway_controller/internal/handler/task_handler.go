@@ -187,5 +187,8 @@ func (th *TaskHandler) sendCleanedDataToFilterQueue(dataBatch *data_batch.DataBa
 
 func (th *TaskHandler) Close() {
 	th.filterQueueMiddleware.Close()
-	th.joinerQueueMiddleware.Close()
+	th.joinerUsersQueueMiddleware.Close()
+	th.joinerStoreQueueMiddleware.Close()
+	th.joinerMenuItemsQueueMiddleware.Close()
+	th.processedDataQueueMiddleware.Close()
 }
