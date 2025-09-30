@@ -19,13 +19,17 @@ type Config struct {
 	JoinedTransactionsQueue     string
 	JoinedStoresTPVQueue        string
 	JoinedUserTransactionsQueue string
+	GatewayControllerQueue      string
+	GatewayControllerExchange   string
+	FinishRoutingKey            string
 }
 
 func (c Config) String() string {
 	return fmt.Sprintf(
 		"GatewayAddress: %s | LogLevel: %s | StorePath: %s | StoreTPVQueue: %s"+
 			" | TransactionCountedQueue: %s | TransactionSumQueue: %s | UserTransactionsQueue: %s "+
-			"| JoinedTransactionsQueue: %s | JoinedStoresTPVQueue: %s | JoinedUserTransactionsQueue: %s",
+			"| JoinedTransactionsQueue: %s | JoinedStoresTPVQueue: %s | JoinedUserTransactionsQueue: %s "+
+			"| GatewayControllerQueue: %s | GatewayControllerExchange: %s | FinishRoutingKey: %s",
 		c.GatewayAddress,
 		c.StorePath,
 		c.LogLevel,
@@ -36,6 +40,9 @@ func (c Config) String() string {
 		c.JoinedTransactionsQueue,
 		c.JoinedStoresTPVQueue,
 		c.JoinedUserTransactionsQueue,
+		c.GatewayControllerQueue,
+		c.GatewayControllerExchange,
+		c.FinishRoutingKey,
 	)
 }
 
@@ -63,6 +70,9 @@ func InitConfig() (*Config, error) {
 		JoinedTransactionsQueue:     v.GetString("aggregator_queues.joined_transactions_queue"),
 		JoinedStoresTPVQueue:        v.GetString("aggregator_queues.joined_stores_tpv_queue"),
 		JoinedUserTransactionsQueue: v.GetString("aggregator_queues.joined_user_transactions_queue"),
+		GatewayControllerQueue:      v.GetString("queues.gateway_controller_queue"),
+		GatewayControllerExchange:   v.GetString("exchanges.gateway_controller_exchange"),
+		FinishRoutingKey:            v.GetString("exchanges.finish_routing_key"),
 	}
 
 	return config, nil

@@ -11,11 +11,10 @@ import (
 	"github.com/maxogod/distro-tp/src/common/models/joined"
 	"github.com/maxogod/distro-tp/src/common/models/reduced"
 	joiner "github.com/maxogod/distro-tp/src/joiner/business"
-	"github.com/maxogod/distro-tp/src/joiner/config"
-	"github.com/maxogod/distro-tp/src/joiner/internal/server"
 	"github.com/maxogod/distro-tp/src/joiner/tests/test_helpers"
 	helpers "github.com/maxogod/distro-tp/src/joiner/tests/test_helpers"
 	"github.com/stretchr/testify/assert"
+	"google.golang.org/protobuf/proto"
 )
 
 func TestJoinerPersistReferenceBatchesMenuItems(t *testing.T) {
@@ -32,7 +31,7 @@ func TestJoinerPersistReferenceBatchesMenuItems(t *testing.T) {
 		SendDone:      false,
 	}
 
-	j := helpers.StartJoiner(t, helpers.RabbitURL, storeDir, []string{testCase.Queue})
+	j := helpers.StartJoiner(t, storeDir, []string{testCase.Queue})
 	defer func(j *joiner.Joiner) {
 		err := j.Stop()
 		assert.NoError(t, err)
@@ -57,7 +56,7 @@ func TestJoinerPersistReferenceBatchesUsers(t *testing.T) {
 		SendDone: false,
 	}
 
-	j := helpers.StartJoiner(t, helpers.RabbitURL, storeDir, []string{testCase.Queue})
+	j := helpers.StartJoiner(t, storeDir, []string{testCase.Queue})
 	defer func(j *joiner.Joiner) {
 		err := j.Stop()
 		assert.NoError(t, err)
@@ -80,7 +79,7 @@ func TestJoinerHandlesDoneAndConsumesNextQueueTask3(t *testing.T) {
 		SendDone:      true,
 	}
 
-	j := helpers.StartJoiner(t, helpers.RabbitURL, storeDir, []string{testCase.Queue})
+	j := helpers.StartJoiner(t, storeDir, []string{testCase.Queue})
 	defer func(j *joiner.Joiner) {
 		err := j.Stop()
 		assert.NoError(t, err)
@@ -131,7 +130,7 @@ func TestJoinerPersistReferenceBatchesUsersAndStores(t *testing.T) {
 		SendDone:      true,
 	}
 
-	j := helpers.StartJoiner(t, helpers.RabbitURL, storeDir, []string{testCaseStores.Queue, testCaseUsers.Queue})
+	j := helpers.StartJoiner(t, storeDir, []string{testCaseStores.Queue, testCaseUsers.Queue})
 	defer func(j *joiner.Joiner) {
 		err := j.Stop()
 		assert.NoError(t, err)
@@ -156,7 +155,7 @@ func TestHandleTaskType3_ProducesJoinedBatch(t *testing.T) {
 		SendDone:      true,
 	}
 
-	j := helpers.StartJoiner(t, helpers.RabbitURL, storeDir, []string{testCase.Queue})
+	j := helpers.StartJoiner(t, storeDir, []string{testCase.Queue})
 	defer func(j *joiner.Joiner) {
 		err := j.Stop()
 		assert.NoError(t, err)
@@ -173,7 +172,13 @@ func TestHandleTaskType3_ProducesJoinedBatch(t *testing.T) {
 
 	helpers.SendDataBatch(t, "store_tpv", dataBatch)
 
-	received := helpers.GetAllOutputMessages(t, "joined_stores_tpv_queue")[0]
+	received := helpers.GetAllOutputMessages(t, "joined_stores_tpv_queue", func(body []byte) (*data_batch.DataBatch, error) {
+		batch := &data_batch.DataBatch{}
+		if err := proto.Unmarshal(body, batch); err != nil {
+			return nil, err
+		}
+		return batch, nil
+	})[0]
 
 	expectedTpvs := []*joined.JoinStoreTPV{
 		{YearHalfCreatedAt: "2024-H1", StoreName: "G Coffee @ Seksyen 21", Tpv: 12102556},
@@ -198,7 +203,7 @@ func TestHandleTaskType2_ProducesJoinedBatch(t *testing.T) {
 		SendDone:      true,
 	}
 
-	j := helpers.StartJoiner(t, helpers.RabbitURL, storeDir, []string{testCase.Queue})
+	j := helpers.StartJoiner(t, storeDir, []string{testCase.Queue})
 	defer func(j *joiner.Joiner) {
 		err := j.Stop()
 		assert.NoError(t, err)
@@ -230,7 +235,13 @@ func TestHandleTaskType2_ProducesJoinedBatch(t *testing.T) {
 		{YearMonthCreatedAt: "2024-02", ItemName: "Americano", ProfitSum: 91218.0},
 	}
 
-	allBatches := helpers.GetAllOutputMessages(t, "joined_transactions_queue")
+	allBatches := helpers.GetAllOutputMessages(t, "joined_transactions_queue", func(body []byte) (*data_batch.DataBatch, error) {
+		batch := &data_batch.DataBatch{}
+		if err := proto.Unmarshal(body, batch); err != nil {
+			return nil, err
+		}
+		return batch, nil
+	})
 
 	var bestSellingJoined, mostProfitsJoined *data_batch.DataBatch
 	for _, batch := range allBatches {
@@ -271,7 +282,7 @@ func TestHandleTaskType4_ProducesJoinedBatch(t *testing.T) {
 		SendDone:      true,
 	}
 
-	j := helpers.StartJoiner(t, helpers.RabbitURL, storeDir, []string{testCase.Queue, testCaseUsers.Queue})
+	j := helpers.StartJoiner(t, storeDir, []string{testCase.Queue, testCaseUsers.Queue})
 	defer func(j *joiner.Joiner) {
 		err := j.Stop()
 		assert.NoError(t, err)
@@ -292,7 +303,13 @@ func TestHandleTaskType4_ProducesJoinedBatch(t *testing.T) {
 		{StoreName: "G Coffee @ Alam Tun Hussein Onn", UserBirthdate: "1974-06-21", PurchasesQty: 91218},
 	}
 
-	received := helpers.GetAllOutputMessages(t, "joined_user_transactions_queue")[0]
+	received := helpers.GetAllOutputMessages(t, "joined_user_transactions_queue", func(body []byte) (*data_batch.DataBatch, error) {
+		batch := &data_batch.DataBatch{}
+		if err := proto.Unmarshal(body, batch); err != nil {
+			return nil, err
+		}
+		return batch, nil
+	})[0]
 
 	helpers.AssertJoinedMostPurchasesUsersIsExpected(t, received, expectedMostPurchasesUsers)
 }
@@ -323,28 +340,8 @@ func TestHandleTaskType4Server(t *testing.T) {
 		SendDone:      true,
 	}
 
-	joinerConfig := config.Config{
-		GatewayAddress:              helpers.RabbitURL,
-		StorePath:                   storeDir,
-		StoreTPVQueue:               "store_tpv",
-		TransactionCountedQueue:     "transaction_counted",
-		TransactionSumQueue:         "transaction_sum",
-		UserTransactionsQueue:       "user_transactions",
-		JoinedTransactionsQueue:     "joined_transactions_queue",
-		JoinedStoresTPVQueue:        "joined_stores_tpv_queue",
-		JoinedUserTransactionsQueue: "joined_user_transactions_queue",
-	}
-
-	joinServer := server.InitServer(&joinerConfig)
 	var wg sync.WaitGroup
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		err := joinServer.Run()
-		if err != nil {
-			assert.NoError(t, err)
-		}
-	}()
+	joinServer := helpers.InitServer(t, storeDir, &wg)
 	defer func() {
 		joinServer.Shutdown()
 		wg.Wait()
@@ -365,7 +362,48 @@ func TestHandleTaskType4Server(t *testing.T) {
 		{StoreName: "G Coffee @ Alam Tun Hussein Onn", UserBirthdate: "1974-06-21", PurchasesQty: 91218},
 	}
 
-	received := helpers.GetAllOutputMessages(t, "joined_user_transactions_queue")[0]
+	received := helpers.GetAllOutputMessages(t, "joined_user_transactions_queue", func(body []byte) (*data_batch.DataBatch, error) {
+		batch := &data_batch.DataBatch{}
+		if err := proto.Unmarshal(body, batch); err != nil {
+			return nil, err
+		}
+		return batch, nil
+	})[0]
 
 	helpers.AssertJoinedMostPurchasesUsersIsExpected(t, received, expectedMostPurchasesUsers)
+}
+
+func TestHandleConnectionGatewayController(t *testing.T) {
+	storeDir := t.TempDir()
+
+	joinerConfig := helpers.JoinerConfig(storeDir)
+
+	var wg sync.WaitGroup
+	joinServer := helpers.InitServer(t, storeDir, &wg)
+	defer func() {
+		joinServer.Shutdown()
+		wg.Wait()
+	}()
+
+	helpers.AssertConnectionMsg(t, joinerConfig.GatewayControllerQueue, true)
+
+	finishExchange, err := middleware.NewExchangeMiddleware(
+		helpers.RabbitURL,
+		joinerConfig.GatewayControllerExchange,
+		"direct",
+		[]string{joinerConfig.FinishRoutingKey},
+	)
+	assert.NoError(t, err)
+
+	finishMsg := &data_batch.DataBatch{
+		TaskType: int32(enum.T4),
+		Done:     true,
+	}
+
+	dataMessage, err := proto.Marshal(finishMsg)
+	assert.NoError(t, err)
+	e := finishExchange.Send(dataMessage)
+	assert.Equal(t, 0, int(e))
+
+	helpers.AssertConnectionMsg(t, joinerConfig.GatewayControllerQueue, false)
 }

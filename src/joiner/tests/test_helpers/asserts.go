@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/maxogod/distro-tp/src/common/middleware"
+	"github.com/maxogod/distro-tp/src/common/models/controller_connection"
 	"github.com/maxogod/distro-tp/src/common/models/data_batch"
 	"github.com/maxogod/distro-tp/src/common/models/enum"
 	"github.com/maxogod/distro-tp/src/common/models/joined"
@@ -336,4 +337,22 @@ func AssertJoinedMostPurchasesUsersIsExpected(
 	}
 
 	AssertJoinedBatchIsTheExpected(t, received, expected, unmarshal, compare)
+}
+
+func AssertConnectionMsg(t *testing.T, gatewayControllerQueue string, shouldBeFalse bool) {
+	initConnectionMsg := GetAllOutputMessages(t, gatewayControllerQueue, func(body []byte) (*controller_connection.ControllerConnection, error) {
+		ctrl := &controller_connection.ControllerConnection{}
+		if err := proto.Unmarshal(body, ctrl); err != nil {
+			return nil, err
+		}
+		return ctrl, nil
+	})[0]
+
+	assert.Regexp(t, `^joiner.*`, initConnectionMsg.WorkerName)
+
+	if shouldBeFalse {
+		assert.False(t, initConnectionMsg.Finished)
+	} else {
+		assert.True(t, initConnectionMsg.Finished)
+	}
 }
