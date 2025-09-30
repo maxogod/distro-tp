@@ -1,11 +1,11 @@
 package handler
 
 import (
-	"github.com/maxogod/distro-tp/src/common/protocol"
+	"github.com/maxogod/distro-tp/src/common/models/data_batch"
 	"google.golang.org/protobuf/proto"
 )
 
-type DataBatch = protocol.DataBatch
+type DataBatch = data_batch.DataBatch
 type HandleTask = func(dataBatch *DataBatch) error
 
 type DataHandler struct {

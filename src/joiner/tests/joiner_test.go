@@ -6,8 +6,10 @@ import (
 	"testing"
 
 	"github.com/maxogod/distro-tp/src/common/middleware"
-	"github.com/maxogod/distro-tp/src/common/models"
-	"github.com/maxogod/distro-tp/src/common/protocol"
+	"github.com/maxogod/distro-tp/src/common/models/data_batch"
+	"github.com/maxogod/distro-tp/src/common/models/enum"
+	"github.com/maxogod/distro-tp/src/common/models/joined"
+	"github.com/maxogod/distro-tp/src/common/models/reduced"
 	joiner "github.com/maxogod/distro-tp/src/joiner/business"
 	"github.com/maxogod/distro-tp/src/joiner/config"
 	"github.com/maxogod/distro-tp/src/joiner/internal/server"
@@ -20,13 +22,13 @@ func TestJoinerPersistReferenceBatchesMenuItems(t *testing.T) {
 	storeDir := t.TempDir()
 	testCase := test_helpers.TestCase{
 		Queue:       "menu_items",
-		DatasetType: models.MenuItems,
+		DatasetType: enum.MenuItems,
 		CsvPayloads: [][]byte{
 			[]byte("1,Espresso,coffee,6.0,False,,\n"),
 			[]byte("2,Americano,coffee,7.0,False,,\n"),
 		},
 		ExpectedFiles: []string{filepath.Join(storeDir, "menu_items.pb")},
-		TaskDone:      models.T2,
+		TaskDone:      enum.T2,
 		SendDone:      false,
 	}
 
@@ -43,7 +45,7 @@ func TestJoinerPersistReferenceBatchesUsers(t *testing.T) {
 	storeDir := t.TempDir()
 	testCase := test_helpers.TestCase{
 		Queue:       "users",
-		DatasetType: models.Users,
+		DatasetType: enum.Users,
 		CsvPayloads: [][]byte{
 			[]byte("1,female,1970-04-22,2023-07-01 08:13:07\n"),
 			[]byte("581,male,2004-06-13,2023-08-01 09:39:30\n"),
@@ -51,7 +53,7 @@ func TestJoinerPersistReferenceBatchesUsers(t *testing.T) {
 		ExpectedFiles: []string{
 			filepath.Join(storeDir, "users_1-581.pb"),
 		},
-		TaskDone: models.T4,
+		TaskDone: enum.T4,
 		SendDone: false,
 	}
 
@@ -68,13 +70,13 @@ func TestJoinerHandlesDoneAndConsumesNextQueueTask3(t *testing.T) {
 	storeDir := t.TempDir()
 	testCase := test_helpers.TestCase{
 		Queue:       "stores",
-		DatasetType: models.Stores,
+		DatasetType: enum.Stores,
 		CsvPayloads: [][]byte{
 			[]byte("1,G Coffee @ USJ 89q,Jalan Dewan Bahasa 5/9,50998,USJ 89q,Kuala Lumpur,3.117134,101.615027\n"),
 			[]byte("2,G Coffee @ USJ 89q,Jalan Dewan Bahasa 5/9,50998,USJ 89q,Kuala Lumpur,3.117134,101.615027\n"),
 		},
 		ExpectedFiles: []string{filepath.Join(storeDir, "stores.pb")},
-		TaskDone:      models.T3,
+		TaskDone:      enum.T3,
 		SendDone:      true,
 	}
 
@@ -105,7 +107,7 @@ func TestJoinerPersistReferenceBatchesUsersAndStores(t *testing.T) {
 	storeDir := t.TempDir()
 	testCaseStores := test_helpers.TestCase{
 		Queue:       "stores",
-		DatasetType: models.Stores,
+		DatasetType: enum.Stores,
 		CsvPayloads: [][]byte{
 			[]byte("1,G Coffee @ USJ 89q,Jalan Dewan Bahasa 5/9,50998,USJ 89q,Kuala Lumpur,3.117134,101.615027\n"),
 			[]byte("2,G Coffee @ USJ 89q,Jalan Dewan Bahasa 5/9,50998,USJ 89q,Kuala Lumpur,3.117134,101.615027\n"),
@@ -113,19 +115,19 @@ func TestJoinerPersistReferenceBatchesUsersAndStores(t *testing.T) {
 			[]byte("4,G Coffee @ USJ 89q,Jalan Dewan Bahasa 5/9,50998,USJ 89q,Kuala Lumpur,3.117134,101.615027\n"),
 		},
 		ExpectedFiles: []string{filepath.Join(storeDir, "stores.pb")},
-		TaskDone:      models.T4,
+		TaskDone:      enum.T4,
 		SendDone:      true,
 	}
 
 	testCaseUsers := test_helpers.TestCase{
 		Queue:       "users",
-		DatasetType: models.Users,
+		DatasetType: enum.Users,
 		CsvPayloads: [][]byte{
 			[]byte("1,female,1970-04-22,2023-07-01 08:13:07\n"),
 			[]byte("2,female,1970-04-22,2023-08-01 08:13:07\n"),
 		},
 		ExpectedFiles: []string{filepath.Join(storeDir, "users_1-2.pb")},
-		TaskDone:      models.T4,
+		TaskDone:      enum.T4,
 		SendDone:      true,
 	}
 
@@ -143,14 +145,14 @@ func TestHandleTaskType3_ProducesJoinedBatch(t *testing.T) {
 	storeDir := t.TempDir()
 	testCase := test_helpers.TestCase{
 		Queue:       "stores",
-		DatasetType: models.Stores,
+		DatasetType: enum.Stores,
 		CsvPayloads: [][]byte{
 			[]byte("5,G Coffee @ Seksyen 21,Jalan 1,12345,CityA,StateA,1.0,2.0\n"),
 			[]byte("6,G Coffee @ Alam Tun Hussein Onn,Jalan 2,23456,CityB,StateB,3.0,4.0\n"),
 			[]byte("4,G Coffee @ Kampung Changkat,Jalan 3,34567,CityC,StateC,5.0,6.0\n"),
 		},
 		ExpectedFiles: []string{filepath.Join(storeDir, "stores.pb")},
-		TaskDone:      models.T3,
+		TaskDone:      enum.T3,
 		SendDone:      true,
 	}
 
@@ -162,20 +164,18 @@ func TestHandleTaskType3_ProducesJoinedBatch(t *testing.T) {
 
 	test_helpers.RunTest(t, testCase)
 
-	tpvs := []*protocol.StoreTPV{
+	tpvs := []*reduced.StoreTPV{
 		{YearHalfCreatedAt: "2024-H1", StoreId: 5, Tpv: 12102556},
 		{YearHalfCreatedAt: "2024-H2", StoreId: 6, Tpv: 12201348},
 		{YearHalfCreatedAt: "2025-H1", StoreId: 4, Tpv: 12067810},
 	}
-	dataBatch := helpers.PrepareStoreTPVBatch(t, tpvs, models.T3)
+	dataBatch := helpers.PrepareStoreTPVBatch(t, tpvs, enum.T3)
 
-	// Mando a la cola de entrada
 	helpers.SendDataBatch(t, "store_tpv", dataBatch)
 
-	// consumir de la cola de salida
 	received := helpers.GetAllOutputMessages(t, "joined_stores_tpv_queue")[0]
 
-	expectedTpvs := []*protocol.JoinStoreTPV{
+	expectedTpvs := []*joined.JoinStoreTPV{
 		{YearHalfCreatedAt: "2024-H1", StoreName: "G Coffee @ Seksyen 21", Tpv: 12102556},
 		{YearHalfCreatedAt: "2024-H2", StoreName: "G Coffee @ Alam Tun Hussein Onn", Tpv: 12201348},
 		{YearHalfCreatedAt: "2025-H1", StoreName: "G Coffee @ Kampung Changkat", Tpv: 12067810},
@@ -188,13 +188,13 @@ func TestHandleTaskType2_ProducesJoinedBatch(t *testing.T) {
 	storeDir := t.TempDir()
 	testCase := test_helpers.TestCase{
 		Queue:       "menu_items",
-		DatasetType: models.MenuItems,
+		DatasetType: enum.MenuItems,
 		CsvPayloads: [][]byte{
 			[]byte("1,Espresso,coffee,6.0,False,,\n"),
 			[]byte("2,Americano,coffee,7.0,False,,\n"),
 		},
 		ExpectedFiles: []string{filepath.Join(storeDir, "menu_items.pb")},
-		TaskDone:      models.T2,
+		TaskDone:      enum.T2,
 		SendDone:      true,
 	}
 
@@ -206,33 +206,33 @@ func TestHandleTaskType2_ProducesJoinedBatch(t *testing.T) {
 
 	test_helpers.RunTest(t, testCase)
 
-	bestSelling := []*protocol.BestSellingProducts{
+	bestSelling := []*reduced.BestSellingProducts{
 		{YearMonthCreatedAt: "2024-01", ItemId: 1, SellingsQty: 260611},
 		{YearMonthCreatedAt: "2024-02", ItemId: 2, SellingsQty: 91218},
 	}
-	bestSellingBatch := helpers.PrepareBestSellingBatch(t, bestSelling, models.T2)
+	bestSellingBatch := helpers.PrepareBestSellingBatch(t, bestSelling, enum.T2)
 	helpers.SendDataBatch(t, "transaction_counted", bestSellingBatch)
 
-	mostProfits := []*protocol.MostProfitsProducts{
+	mostProfits := []*reduced.MostProfitsProducts{
 		{YearMonthCreatedAt: "2024-01", ItemId: 1, ProfitSum: 260611.0},
 		{YearMonthCreatedAt: "2024-02", ItemId: 2, ProfitSum: 91218.0},
 	}
-	mostProfitsBatch := helpers.PrepareMostProfitsBatch(t, mostProfits, models.T2)
+	mostProfitsBatch := helpers.PrepareMostProfitsBatch(t, mostProfits, enum.T2)
 	helpers.SendDataBatch(t, "transaction_sum", mostProfitsBatch)
 
-	expectedBestSelling := []*protocol.JoinBestSellingProducts{
+	expectedBestSelling := []*joined.JoinBestSellingProducts{
 		{YearMonthCreatedAt: "2024-01", ItemName: "Espresso", SellingsQty: 260611},
 		{YearMonthCreatedAt: "2024-02", ItemName: "Americano", SellingsQty: 91218},
 	}
 
-	expectedMostProfits := []*protocol.JoinMostProfitsProducts{
+	expectedMostProfits := []*joined.JoinMostProfitsProducts{
 		{YearMonthCreatedAt: "2024-01", ItemName: "Espresso", ProfitSum: 260611.0},
 		{YearMonthCreatedAt: "2024-02", ItemName: "Americano", ProfitSum: 91218.0},
 	}
 
 	allBatches := helpers.GetAllOutputMessages(t, "joined_transactions_queue")
 
-	var bestSellingJoined, mostProfitsJoined *protocol.DataBatch
+	var bestSellingJoined, mostProfitsJoined *data_batch.DataBatch
 	for _, batch := range allBatches {
 		if helpers.PayloadAsBestSelling(batch.Payload) {
 			bestSellingJoined = batch
@@ -249,25 +249,25 @@ func TestHandleTaskType4_ProducesJoinedBatch(t *testing.T) {
 	storeDir := t.TempDir()
 	testCase := test_helpers.TestCase{
 		Queue:       "stores",
-		DatasetType: models.Stores,
+		DatasetType: enum.Stores,
 		CsvPayloads: [][]byte{
 			[]byte("5,G Coffee @ Seksyen 21,Jalan 1,12345,CityA,StateA,1.0,2.0\n"),
 			[]byte("6,G Coffee @ Alam Tun Hussein Onn,Jalan 2,23456,CityB,StateB,3.0,4.0\n"),
 		},
 		ExpectedFiles: []string{filepath.Join(storeDir, "stores.pb")},
-		TaskDone:      models.T4,
+		TaskDone:      enum.T4,
 		SendDone:      true,
 	}
 
 	testCaseUsers := test_helpers.TestCase{
 		Queue:       "users",
-		DatasetType: models.Users,
+		DatasetType: enum.Users,
 		CsvPayloads: [][]byte{
 			[]byte("1,female,1970-04-22,2023-07-01 08:13:07\n"),
 			[]byte("2,female,1974-06-21,2023-08-01 08:13:07\n"),
 		},
 		ExpectedFiles: []string{filepath.Join(storeDir, "users_1-2.pb")},
-		TaskDone:      models.T4,
+		TaskDone:      enum.T4,
 		SendDone:      true,
 	}
 
@@ -280,14 +280,14 @@ func TestHandleTaskType4_ProducesJoinedBatch(t *testing.T) {
 	test_helpers.RunTest(t, testCase)
 	test_helpers.RunTest(t, testCaseUsers)
 
-	mostPurchasesUsers := []*protocol.MostPurchasesUser{
+	mostPurchasesUsers := []*reduced.MostPurchasesUser{
 		{StoreId: 5, UserId: 1, PurchasesQty: 260611},
 		{StoreId: 6, UserId: 2, PurchasesQty: 91218},
 	}
-	mostPurchasesUsersBatch := helpers.PrepareMostPurchasesUserBatch(t, mostPurchasesUsers, models.T4)
+	mostPurchasesUsersBatch := helpers.PrepareMostPurchasesUserBatch(t, mostPurchasesUsers, enum.T4)
 	helpers.SendDataBatch(t, "user_transactions", mostPurchasesUsersBatch)
 
-	expectedMostPurchasesUsers := []*protocol.JoinMostPurchasesUser{
+	expectedMostPurchasesUsers := []*joined.JoinMostPurchasesUser{
 		{StoreName: "G Coffee @ Seksyen 21", UserBirthdate: "1970-04-22", PurchasesQty: 260611},
 		{StoreName: "G Coffee @ Alam Tun Hussein Onn", UserBirthdate: "1974-06-21", PurchasesQty: 91218},
 	}
@@ -301,25 +301,25 @@ func TestHandleTaskType4Server(t *testing.T) {
 	storeDir := t.TempDir()
 	testCase := test_helpers.TestCase{
 		Queue:       "stores",
-		DatasetType: models.Stores,
+		DatasetType: enum.Stores,
 		CsvPayloads: [][]byte{
 			[]byte("5,G Coffee @ Seksyen 21,Jalan 1,12345,CityA,StateA,1.0,2.0\n"),
 			[]byte("6,G Coffee @ Alam Tun Hussein Onn,Jalan 2,23456,CityB,StateB,3.0,4.0\n"),
 		},
 		ExpectedFiles: []string{filepath.Join(storeDir, "stores.pb")},
-		TaskDone:      models.T4,
+		TaskDone:      enum.T4,
 		SendDone:      true,
 	}
 
 	testCaseUsers := test_helpers.TestCase{
 		Queue:       "users",
-		DatasetType: models.Users,
+		DatasetType: enum.Users,
 		CsvPayloads: [][]byte{
 			[]byte("1,female,1970-04-22,2023-07-01 08:13:07\n"),
 			[]byte("2,female,1974-06-21,2023-08-01 08:13:07\n"),
 		},
 		ExpectedFiles: []string{filepath.Join(storeDir, "users_1-2.pb")},
-		TaskDone:      models.T4,
+		TaskDone:      enum.T4,
 		SendDone:      true,
 	}
 
@@ -353,14 +353,14 @@ func TestHandleTaskType4Server(t *testing.T) {
 	test_helpers.RunTest(t, testCase)
 	test_helpers.RunTest(t, testCaseUsers)
 
-	mostPurchasesUsers := []*protocol.MostPurchasesUser{
+	mostPurchasesUsers := []*reduced.MostPurchasesUser{
 		{StoreId: 5, UserId: 1, PurchasesQty: 260611},
 		{StoreId: 6, UserId: 2, PurchasesQty: 91218},
 	}
-	mostPurchasesUsersBatch := helpers.PrepareMostPurchasesUserBatch(t, mostPurchasesUsers, models.T4)
+	mostPurchasesUsersBatch := helpers.PrepareMostPurchasesUserBatch(t, mostPurchasesUsers, enum.T4)
 	helpers.SendDataBatch(t, "user_transactions", mostPurchasesUsersBatch)
 
-	expectedMostPurchasesUsers := []*protocol.JoinMostPurchasesUser{
+	expectedMostPurchasesUsers := []*joined.JoinMostPurchasesUser{
 		{StoreName: "G Coffee @ Seksyen 21", UserBirthdate: "1970-04-22", PurchasesQty: 260611},
 		{StoreName: "G Coffee @ Alam Tun Hussein Onn", UserBirthdate: "1974-06-21", PurchasesQty: 91218},
 	}
