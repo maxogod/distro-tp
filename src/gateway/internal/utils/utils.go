@@ -3,6 +3,7 @@ package utils
 import (
 	"github.com/maxogod/distro-tp/src/common/models/raw"
 	common_utils "github.com/maxogod/distro-tp/src/common/utils"
+	"google.golang.org/protobuf/proto"
 )
 
 /* --- Transaction Data --- */
@@ -21,6 +22,16 @@ func TransactionFromRecord(record []string) *raw.Transaction {
 	}
 }
 
+func TransactionBatchFromList(list []*raw.Transaction) []byte {
+	data, err := proto.Marshal(&raw.TransactionBatch{
+		Transactions: list,
+	})
+	if err != nil {
+		data = []byte{}
+	}
+	return data
+}
+
 func TransactionItemsFromRecord(record []string) *raw.TransactionItems {
 	return &raw.TransactionItems{
 		TransactionId: record[0],
@@ -32,6 +43,16 @@ func TransactionItemsFromRecord(record []string) *raw.TransactionItems {
 	}
 }
 
+func TransactionItemsBatchFromList(list []*raw.TransactionItems) []byte {
+	data, err := proto.Marshal(&raw.TransactionItemsBatch{
+		TransactionItems: list,
+	})
+	if err != nil {
+		data = []byte{}
+	}
+	return data
+}
+
 /* --- Reference Data --- */
 
 func UserFromRecord(record []string) *raw.User {
@@ -41,6 +62,16 @@ func UserFromRecord(record []string) *raw.User {
 		Birthdate:    record[2],
 		RegisteredAt: record[3],
 	}
+}
+
+func UserBatchFromList(list []*raw.User) []byte {
+	data, err := proto.Marshal(&raw.UserBatch{
+		Users: list,
+	})
+	if err != nil {
+		data = []byte{}
+	}
+	return data
 }
 
 func MenuItemFromRecord(record []string) *raw.MenuItem {
@@ -55,6 +86,16 @@ func MenuItemFromRecord(record []string) *raw.MenuItem {
 	}
 }
 
+func MenuItemBatchFromList(list []*raw.MenuItem) []byte {
+	data, err := proto.Marshal(&raw.MenuItemBatch{
+		MenuItems: list,
+	})
+	if err != nil {
+		data = []byte{}
+	}
+	return data
+}
+
 func StoreFromRecord(record []string) *raw.Store {
 	return &raw.Store{
 		StoreId:    int32(common_utils.ParseIntOrDefault(record[0])),
@@ -66,4 +107,14 @@ func StoreFromRecord(record []string) *raw.Store {
 		Latitude:   common_utils.ParseFloatOrDefault(record[6]),
 		Longitude:  common_utils.ParseFloatOrDefault(record[7]),
 	}
+}
+
+func StoreBatchFromList(list []*raw.Store) []byte {
+	data, err := proto.Marshal(&raw.StoreBatch{
+		Stores: list,
+	})
+	if err != nil {
+		data = []byte{}
+	}
+	return data
 }
