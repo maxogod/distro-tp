@@ -5,10 +5,11 @@ import (
 )
 
 const MIDDLEWARE_CONNECTION_RETRIES = 10
+const WAIT_INTERVAL = 1 * time.Second
 
 // GetFilterQueue retrieves the middleware that the controller uses to put work on the filter queues
 func GetFilterQueue(url string) MessageMiddleware {
-	return retryMiddlewareCreation(MIDDLEWARE_CONNECTION_RETRIES, func() (MessageMiddleware, error) {
+	return retryMiddlewareCreation(MIDDLEWARE_CONNECTION_RETRIES, WAIT_INTERVAL, func() (MessageMiddleware, error) {
 		return NewQueueMiddleware(url, "filter")
 	})
 }
@@ -18,7 +19,7 @@ func GetFilterQueue(url string) MessageMiddleware {
 // GetNodeConnectionsQueue retrieves the middleware to be used by workers to tell
 // controller they connected or they finished
 func GetNodeConnectionsQueue(url string) MessageMiddleware {
-	return retryMiddlewareCreation(MIDDLEWARE_CONNECTION_RETRIES, func() (MessageMiddleware, error) {
+	return retryMiddlewareCreation(MIDDLEWARE_CONNECTION_RETRIES, WAIT_INTERVAL, func() (MessageMiddleware, error) {
 		return NewQueueMiddleware(url, "node_connections")
 	})
 }
@@ -27,7 +28,7 @@ func GetNodeConnectionsQueue(url string) MessageMiddleware {
 // to send or receive with a specific topic pass the topics parameter.
 // Possible topics: filter, groupby, reducer, joiner, aggregator
 func GetFinishExchange(url string, subscriptionTopics []string) MessageMiddleware {
-	return retryMiddlewareCreation(MIDDLEWARE_CONNECTION_RETRIES, func() (MessageMiddleware, error) {
+	return retryMiddlewareCreation(MIDDLEWARE_CONNECTION_RETRIES, WAIT_INTERVAL, func() (MessageMiddleware, error) {
 		return NewExchangeMiddleware(url, "finish_exchange", "direct", subscriptionTopics)
 	})
 }
@@ -36,34 +37,34 @@ func GetFinishExchange(url string, subscriptionTopics []string) MessageMiddlewar
 
 // GetMenuItemsQueue retrieves the middleware used by controller to send menu_items reference data.
 func GetMenuItemsQueue(url string) MessageMiddleware {
-	return retryMiddlewareCreation(MIDDLEWARE_CONNECTION_RETRIES, func() (MessageMiddleware, error) {
+	return retryMiddlewareCreation(MIDDLEWARE_CONNECTION_RETRIES, WAIT_INTERVAL, func() (MessageMiddleware, error) {
 		return NewQueueMiddleware(url, "menu_items")
 	})
 }
 
 // GetStoresQueue retrieves the middleware used by controller to send stores reference data.
 func GetStoresQueue(url string) MessageMiddleware {
-	return retryMiddlewareCreation(MIDDLEWARE_CONNECTION_RETRIES, func() (MessageMiddleware, error) {
+	return retryMiddlewareCreation(MIDDLEWARE_CONNECTION_RETRIES, WAIT_INTERVAL, func() (MessageMiddleware, error) {
 		return NewQueueMiddleware(url, "stores")
 	})
 }
 
 // GetUsersQueue retrieves the middleware used by controller to send users reference data.
 func GetUsersQueue(url string) MessageMiddleware {
-	return retryMiddlewareCreation(MIDDLEWARE_CONNECTION_RETRIES, func() (MessageMiddleware, error) {
+	return retryMiddlewareCreation(MIDDLEWARE_CONNECTION_RETRIES, WAIT_INTERVAL, func() (MessageMiddleware, error) {
 		return NewQueueMiddleware(url, "users")
 	})
 }
 
 /* --- Utils --- */
 
-func retryMiddlewareCreation(retries int, newMiddleware func() (MessageMiddleware, error)) MessageMiddleware {
+func retryMiddlewareCreation(retries int, waitInterval time.Duration, newMiddleware func() (MessageMiddleware, error)) MessageMiddleware {
 	var m MessageMiddleware
 	var err error
 	for range retries {
 		m, err = newMiddleware()
 		if err != nil {
-			time.Sleep(1 * time.Second)
+			time.Sleep(waitInterval)
 			continue
 		} else {
 			break
