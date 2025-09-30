@@ -1,4 +1,5 @@
 data_path: "./.data"
+output_path: "./.output"
 server:
   host: "localhost"
   port: 5672

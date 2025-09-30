@@ -7,6 +7,7 @@ import (
 	"github.com/maxogod/distro-tp/src/common/logger"
 	"github.com/maxogod/distro-tp/src/common/models/data_batch"
 	"github.com/maxogod/distro-tp/src/common/models/enum"
+	"github.com/maxogod/distro-tp/src/common/models/raw"
 	"github.com/maxogod/distro-tp/src/common/network"
 	"github.com/maxogod/distro-tp/src/gateway/business/file_service"
 	"github.com/maxogod/distro-tp/src/gateway/internal/utils"
@@ -16,14 +17,16 @@ import (
 var log = logger.GetLogger()
 
 type taskExecutor struct {
-	dataPath string
-	conn     *network.ConnectionInterface
+	dataPath   string
+	outputPath string
+	conn       *network.ConnectionInterface
 }
 
-func NewTaskExecutor(dataPath string, conn *network.ConnectionInterface) TaskExecutor {
+func NewTaskExecutor(dataPath, outputPath string, conn *network.ConnectionInterface) TaskExecutor {
 	return &taskExecutor{
-		dataPath: dataPath,
-		conn:     conn,
+		dataPath:   dataPath,
+		outputPath: outputPath,
+		conn:       conn,
 	}
 }
 
@@ -39,6 +42,44 @@ func (t *taskExecutor) Task1() error {
 	if err != nil {
 		log.Errorf("failed to send transactions data: %v", err)
 		return err
+	}
+
+	// TODO modularize saving to file
+	outputFile, err := os.Create(t.dataPath + "/output/task1_output.csv")
+	if err != nil {
+		log.Errorf("failed to create output file: %v", err)
+		return err
+	}
+	defer outputFile.Close()
+
+	outputFile.WriteString("transaction_id,store_id,payment_method,voucher_id,user_id,original_amount,discount_applied,final_amount,created_at\n")
+	for {
+		res, err := t.conn.ReceiveData()
+		if err != nil {
+			log.Errorf("failed to receive response from server: %v", err)
+			return err
+		}
+		dataBatch := &data_batch.DataBatch{}
+		if err := proto.Unmarshal(res, dataBatch); err != nil {
+			log.Errorf("failed to unmarshal response from server: %v", err)
+			return err
+		} else if dataBatch.Done {
+			break // No more batches
+		}
+
+		transactionBatch := &raw.TransactionBatch{}
+		if err := proto.Unmarshal(dataBatch.Payload, transactionBatch); err != nil {
+			log.Errorf("failed to unmarshal transaction batch from server: %v", err)
+			return err
+		}
+
+		for _, transaction := range transactionBatch.Transactions {
+			line := utils.TransactionToCsv(transaction)
+			if _, err := outputFile.WriteString(line); err != nil {
+				log.Errorf("failed to write to output file: %v", err)
+				return err
+			}
+		}
 	}
 
 	return nil
@@ -71,6 +112,8 @@ func (t *taskExecutor) Task2() error {
 		return err
 	}
 
+	// TODO save to file
+
 	return nil
 }
 
@@ -100,6 +143,8 @@ func (t *taskExecutor) Task3() error {
 		log.Errorf("failed to send transactions data: %v", err)
 		return err
 	}
+
+	// TODO save to file
 
 	return nil
 }
@@ -143,6 +188,8 @@ func (t *taskExecutor) Task4() error {
 		log.Errorf("failed to send transactions data: %v", err)
 		return err
 	}
+
+	// TODO save to file
 
 	return nil
 }

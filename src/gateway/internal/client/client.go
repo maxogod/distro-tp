@@ -28,7 +28,7 @@ func (c *client) Start(task string) error {
 	conn.Connect(fmt.Sprintf("%s:%d", c.conf.ServerHost, c.conf.ServerPort))
 	defer conn.Close()
 
-	exec := task_executor.NewTaskExecutor(c.conf.DataPath, conn)
+	exec := task_executor.NewTaskExecutor(c.conf.DataPath, c.conf.OutputPath, conn)
 
 	switch task {
 	case ARG_T1:
