@@ -2,3 +2,15 @@ gateway:
   address: "guest:guest@localhost:5672"
 log:
   level: "DEBUG"
+dataset:
+  path: "/aggregated_data/"
+queues:
+  filtered_transactions_queue: "filtered_transactions"
+  joined_transactions_queue: "joined_transactions"
+  joined_stores_tpv_queue: "joined_stores_tpv"
+  joined_user_transactions_queue: "joined_user_transactions"
+  gateway_controller_connection_queue: "node_connections"
+  gateway_controller_data_queue: "processed_data"
+exchanges:
+  gateway_controller_exchange: "finish_exchange"
+  finish_routing_key: "aggregator"

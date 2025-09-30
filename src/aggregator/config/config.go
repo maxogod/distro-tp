@@ -9,19 +9,40 @@ import (
 )
 
 type Config struct {
-	GatewayAddress string
-	LogLevel       string
+	GatewayAddress                   string
+	StorePath                        string
+	LogLevel                         string
+	FilteredTransactionsQueue        string
+	JoinedTransactionsQueue          string
+	JoinedStoresTPVQueue             string
+	JoinedUserTransactionsQueue      string
+	GatewayControllerDataQueue       string
+	GatewayControllerConnectionQueue string
+	GatewayControllerExchange        string
+	FinishRoutingKey                 string
 }
 
 func (c Config) String() string {
 	return fmt.Sprintf(
-		"GatewayAddress: %s | LogLevel: %s",
+		"GatewayAddress: %s | LogLevel: %s | StorePath: %s | FilteredTransactionsQueue: %s "+
+			"| JoinedTransactionsQueue: %s | JoinedStoresTPVQueue: %s | JoinedUserTransactionsQueue: %s "+
+			"| GatewayControllerDataQueue: %s | GatewayControllerConnectionQueue: %s "+
+			"| GatewayControllerExchange: %s | FinishRoutingKey: %s",
 		c.GatewayAddress,
 		c.LogLevel,
+		c.StorePath,
+		c.FilteredTransactionsQueue,
+		c.JoinedTransactionsQueue,
+		c.JoinedStoresTPVQueue,
+		c.JoinedUserTransactionsQueue,
+		c.GatewayControllerDataQueue,
+		c.GatewayControllerConnectionQueue,
+		c.GatewayControllerExchange,
+		c.FinishRoutingKey,
 	)
 }
 
-const CONFIG_FILE_PATH = "/config.yaml"
+const ConfigFilePath = "/config.yaml"
 
 func InitConfig() (*Config, error) {
 
@@ -29,14 +50,23 @@ func InitConfig() (*Config, error) {
 	v.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 	v.AutomaticEnv()
 
-	v.SetConfigFile(CONFIG_FILE_PATH)
+	v.SetConfigFile(ConfigFilePath)
 	if err := v.ReadInConfig(); err != nil {
-		return nil, errors.Wrapf(err, "failed to read config file %s", CONFIG_FILE_PATH)
+		return nil, errors.Wrapf(err, "failed to read config file %s", ConfigFilePath)
 	}
 
 	config := &Config{
-		GatewayAddress: v.GetString("gateway.address"),
-		LogLevel:       v.GetString("log.level"),
+		GatewayAddress:                   v.GetString("gateway.address"),
+		StorePath:                        v.GetString("datasets.path"),
+		LogLevel:                         v.GetString("log.level"),
+		FilteredTransactionsQueue:        v.GetString("queues.filtered_transactions_queue"),
+		JoinedTransactionsQueue:          v.GetString("queues.joined_transactions_queue"),
+		JoinedStoresTPVQueue:             v.GetString("queues.joined_stores_tpv_queue"),
+		JoinedUserTransactionsQueue:      v.GetString("queues.joined_user_transactions_queue"),
+		GatewayControllerDataQueue:       v.GetString("queues.gateway_controller_data_queue"),
+		GatewayControllerConnectionQueue: v.GetString("queues.gateway_controller_connection_queue"),
+		GatewayControllerExchange:        v.GetString("exchanges.gateway_controller_exchange"),
+		FinishRoutingKey:                 v.GetString("exchanges.finish_routing_key"),
 	}
 
 	return config, nil

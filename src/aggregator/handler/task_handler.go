@@ -1,26 +1,24 @@
 package handler
 
 import (
-	"fmt"
-
-	"github.com/maxogod/distro-tp/src/aggregator/business"
-	"github.com/maxogod/distro-tp/src/common/logger"
+	"github.com/maxogod/distro-tp/src/aggregator/cache"
+	"github.com/maxogod/distro-tp/src/common/models/data_batch"
 	"github.com/maxogod/distro-tp/src/common/models/enum"
 )
 
-var log = logger.GetLogger()
+type TaskHandlers map[enum.TaskType]HandleTask
 
 type TaskHandler struct {
-	WorkerService *business.WorkerService
-	taskHandlers  map[enum.TaskType]func(any) (any, error)
+	taskHandlers    TaskHandlers
+	refDatasetStore *cache.ReferenceDatasetStore
 }
 
-func NewTaskHandler() *TaskHandler {
+func NewTaskHandler(referenceDatasetStore *cache.ReferenceDatasetStore) *TaskHandler {
 	th := &TaskHandler{
-		WorkerService: business.NewWorkerService(),
+		refDatasetStore: referenceDatasetStore,
 	}
 
-	th.taskHandlers = map[enum.TaskType]func(any) (any, error){
+	th.taskHandlers = TaskHandlers{
 		enum.T1: th.handleTaskType1,
 		enum.T2: th.handleTaskType2,
 		enum.T3: th.handleTaskType3,
@@ -30,36 +28,22 @@ func NewTaskHandler() *TaskHandler {
 	return th
 }
 
-func (th *TaskHandler) HandleTask(taskType enum.TaskType, payload any) (any, error) {
-	handler, exists := th.taskHandlers[taskType]
-	if !exists {
-		return nil, fmt.Errorf("unknown task type: %d", taskType)
-	}
-
-	log.Infof("Processing task type: %d", taskType)
-	return handler(payload)
+func (th *TaskHandler) HandleTask(taskType enum.TaskType) HandleTask {
+	return th.taskHandlers[taskType]
 }
 
-func (th *TaskHandler) handleTaskType1(payload any) (any, error) {
-	log.Info("Handling Task Type 1")
-
-	return nil, nil
+func (th *TaskHandler) handleTaskType1(dataBatch *data_batch.DataBatch) error {
+	return nil
 }
 
-func (th *TaskHandler) handleTaskType2(payload any) (any, error) {
-	log.Info("Handling Task Type 2")
-
-	return nil, nil
+func (th *TaskHandler) handleTaskType2(dataBatch *data_batch.DataBatch) error {
+	return nil
 }
 
-func (th *TaskHandler) handleTaskType3(payload any) (any, error) {
-	log.Info("Handling Task Type 3")
-
-	return nil, nil
+func (th *TaskHandler) handleTaskType3(dataBatch *data_batch.DataBatch) error {
+	return nil
 }
 
-func (th *TaskHandler) handleTaskType4(payload any) (any, error) {
-	log.Info("Handling Task Type 4")
-
-	return nil, nil
+func (th *TaskHandler) handleTaskType4(dataBatch *data_batch.DataBatch) error {
+	return nil
 }

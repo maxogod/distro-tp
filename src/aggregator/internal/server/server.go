@@ -4,9 +4,8 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
-	"time"
 
-	"github.com/maxogod/distro-tp/src/aggregator/business"
+	service "github.com/maxogod/distro-tp/src/aggregator/business"
 	"github.com/maxogod/distro-tp/src/aggregator/config"
 	"github.com/maxogod/distro-tp/src/common/logger"
 )
@@ -16,14 +15,14 @@ var log = logger.GetLogger()
 type Server struct {
 	config        *config.Config
 	isRunning     bool
-	workerService *business.WorkerService
+	workerService *service.Aggregator
 }
 
-func InitServer(conf *config.Config) *Server {
+func InitServer(config *config.Config) *Server {
 	return &Server{
-		config:        conf,
+		config:        config,
 		isRunning:     true,
-		workerService: business.NewWorkerService(),
+		workerService: service.NewAggregator(config),
 	}
 }
 
@@ -33,11 +32,17 @@ func (s *Server) Run() error {
 	s.setupGracefulShutdown()
 	defer s.Shutdown()
 
+	err := s.workerService.InitService()
+	if err != nil {
+		return err
+	}
+
 	for s.isRunning {
+	}
 
-		time.Sleep(1 * time.Second)
-		s.workerService.HandleTask()
-
+	err = s.workerService.Stop()
+	if err != nil {
+		log.Errorf("Error stopping worker service: %v", err)
 	}
 
 	log.Info("Server shutdown complete")

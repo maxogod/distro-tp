@@ -10,13 +10,18 @@ var log = logger.GetLogger()
 
 func main() {
 
-	conf, err := config.InitConfig()
+	initConfig, err := config.InitConfig()
 	if err != nil {
 		log.Fatalf("%s", err)
 	}
 
-	server := server.InitServer(conf)
+	log.Debugln(initConfig)
 
-	server.Run()
+	server := server.InitServer(initConfig)
+
+	err = server.Run()
+	if err != nil {
+		return
+	}
 
 }
