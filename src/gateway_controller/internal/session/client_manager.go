@@ -27,12 +27,9 @@ func (cm *ClientManager) RemoveClient(id int) {
 	delete(cm.clients, id)
 }
 
-func (cm *ClientManager) Close() error {
+func (cm *ClientManager) Close() {
 	for id, session := range cm.clients {
-		if err := session.Close(); err != nil {
-			return err
-		}
+		session.Close()
 		delete(cm.clients, id)
 	}
-	return nil
 }

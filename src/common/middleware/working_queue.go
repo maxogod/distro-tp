@@ -116,7 +116,7 @@ func (mq *MessageMiddlewareQueue) Send(message []byte) (e MessageMiddlewareError
 		return MessageMiddlewareMessageError
 	}
 
-	logger.GetLogger().Debugln("Sent message:", string(message))
+	//logger.GetLogger().Debugln("Sent message:", string(message))
 
 	return MessageMiddlewareSuccess
 }

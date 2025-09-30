@@ -28,7 +28,7 @@ func InitServer(conf *config.Config) *Server {
 	return &Server{
 		config:            conf,
 		isRunning:         true,
-		taskHandler:       handler.NewTaskHandler(business.NewControllerService(), "guest:guest@localhost:5672"),
+		taskHandler:       handler.NewTaskHandler(business.NewControllerService(), conf.GatewayAddress),
 		connectionManager: network.NewConnectionManager(conf.Port),
 		clientManager:     session.NewClientManager(),
 	}
@@ -51,7 +51,7 @@ func (s *Server) Run() error {
 		clientConnection, err := s.connectionManager.AcceptConnection()
 		if err != nil {
 			log.Errorf("Failed to accept connection: %v", err)
-			continue
+			return err
 		}
 
 		clientSession := s.clientManager.AddClient(clientConnection, s.taskHandler)
@@ -63,10 +63,7 @@ func (s *Server) Run() error {
 			return err
 		}
 
-		err = clientSession.Close()
-		if err != nil {
-			log.Errorf("Error closing client session: %v", err)
-		}
+		clientSession.Close()
 
 		s.clientManager.RemoveClient(clientSession.Id)
 
