@@ -84,7 +84,11 @@ func SendReferenceBatches(t *testing.T, pub middleware.MessageMiddleware, csvPay
 	assert.Equal(t, 0, int(e))
 }
 
-func GetAllOutputMessages(t *testing.T, outputQueue string) []*data_batch.DataBatch {
+func GetAllOutputMessages[T proto.Message](
+	t *testing.T,
+	outputQueue string,
+	unmarshal func([]byte) (T, error),
+) []T {
 	t.Helper()
 
 	consumer, err := middleware.NewQueueMiddleware(RabbitURL, outputQueue)
@@ -94,16 +98,15 @@ func GetAllOutputMessages(t *testing.T, outputQueue string) []*data_batch.DataBa
 		_ = consumer.Close()
 	}()
 
-	var received []*data_batch.DataBatch
+	var received []T
 	done := make(chan struct{})
 
 	consumer.StartConsuming(func(ch middleware.ConsumeChannel, d chan error) {
 		for msg := range ch {
-			var batch data_batch.DataBatch
-			unmErr := proto.Unmarshal(msg.Body, &batch)
-			assert.NoError(t, unmErr)
+			msgProto, unMarshalerr := unmarshal(msg.Body)
+			assert.NoError(t, unMarshalerr)
 
-			received = append(received, &batch)
+			received = append(received, msgProto)
 
 			err = msg.Ack(false)
 			assert.NoError(t, err)

@@ -7,7 +7,10 @@ queues:
   transaction_counted_queue: "transaction_counted"
   transaction_sum_queue: "transaction_sum"
   user_transactions_queue: "user_transactions"
+  gateway_controller_queue: "node_connections"
 aggregator_queues:
   joined_transactions_queue: "joined_transactions"
   joined_stores_tpv_queue: "joined_stores_tpv"
   joined_user_transactions_queue: "joined_user_transactions"
+exchanges:
+  gateway_controller_exchange: "finish_exchange"
