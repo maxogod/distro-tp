@@ -1,3 +1,4 @@
+port: 8080
 gateway:
   address: "guest:guest@localhost:5672"
 log:

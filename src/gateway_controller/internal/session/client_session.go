@@ -4,6 +4,7 @@ import (
 	"github.com/maxogod/distro-tp/src/common/logger"
 	"github.com/maxogod/distro-tp/src/common/models/data_batch"
 	"github.com/maxogod/distro-tp/src/common/models/enum"
+	"github.com/maxogod/distro-tp/src/common/models/raw"
 	"github.com/maxogod/distro-tp/src/common/network"
 	"github.com/maxogod/distro-tp/src/gateway_controller/internal/handler"
 	"google.golang.org/protobuf/proto"
@@ -49,16 +50,18 @@ func (cs *clientSession) ProcessRequest() error {
 		cs.taskHandler.HandleTask(taskType, request)
 	}
 
-	err := cs.taskHandler.SendDone()
-	if err != nil {
-		return err
-	}
-	reportData, err := cs.taskHandler.GetReportData()
-	if err != nil {
-		return err
-	}
+	// err := cs.taskHandler.SendDone()
+	// if err != nil {
+	// 	return err
+	// }
+	// reportData, err := cs.taskHandler.GetReportData()
+	// if err != nil {
+	// 	return err
+	// }
 
-	err = cs.sendReportData(reportData)
+	reportData := []byte("mock report data")
+
+	err := cs.sendReportData(reportData)
 	if err != nil {
 		return err
 	}
@@ -84,7 +87,36 @@ func (cs *clientSession) getRequest() (*data_batch.DataBatch, error) {
 
 func (cs *clientSession) sendReportData(reportData []byte) error {
 
-	err := cs.clientConnection.SendData(reportData)
+	var mockTransactionBatch = &raw.TransactionBatch{
+		Transactions: []*raw.Transaction{
+			{
+				TransactionId:   "mockTx1",
+				StoreId:         101,
+				PaymentMethod:   1,
+				VoucherId:       202,
+				UserId:          303,
+				OriginalAmount:  150.0,
+				DiscountApplied: 15.0,
+				FinalAmount:     135.0,
+				CreatedAt:       "2025-09-30T10:00:00Z",
+			},
+			{
+				TransactionId:   "mockTx2",
+				StoreId:         102,
+				PaymentMethod:   2,
+				VoucherId:       203,
+				UserId:          304,
+				OriginalAmount:  200.0,
+				DiscountApplied: 20.0,
+				FinalAmount:     180.0,
+				CreatedAt:       "2025-09-30T11:00:00Z",
+			},
+		},
+	}
+
+	reportData, err := proto.Marshal(mockTransactionBatch)
+
+	err = cs.clientConnection.SendData(reportData)
 	if err != nil {
 		return err
 	}
@@ -97,6 +129,7 @@ func (cs *clientSession) HandleReferenceData(response *data_batch.DataBatch) err
 
 }
 
-func (cs *clientSession) Close() error {
-	return cs.clientConnection.Close()
+func (cs *clientSession) Close() {
+	cs.taskHandler.Close()
+	cs.clientConnection.Close()
 }

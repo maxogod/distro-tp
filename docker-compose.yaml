@@ -1,21 +1,41 @@
 name: tp1
 services:
+  rabbitmq:
+    container_name: rabbitmq
+    build:
+      context: ./src/rabbitmq
+      dockerfile: Dockerfile
+    image: rabbitmq:latest
+    ports:
+      - '5672:5672'
+      - '15672:15672'
+    networks:
+      - tp_net
+
   gateway_controller:
     container_name: gateway_controller
     build:
-      context: .
       dockerfile: ./src/gateway_controller/Dockerfile
-    image: gateway_controller:latest
+    image: gateway:latest
     networks:
-      - testing_net
+      - tp_net
     volumes:
-      - ./src/gateway_controller/config.yaml:/config.yaml
+      - ./src/gateway/config.yaml:/config.yaml
+    depends_on:
+      - rabbitmq
 
+  gateway:
+    container_name: gateway
+    build:
+      dockerfile: ./src/gateway/Dockerfile
+    image: gateway:latest
+    networks:
+      - tp_net
+    volumes:
+      - /.data:/app/.data
+    depends_on:
+      - gateway_controller
 
-# TODO: change to rabbitMQ
 networks:
-  testing_net:
-    ipam:
-      driver: default
-      config:
-        - subnet: 172.25.125.0/24
+  tp_net:
+    driver: bridge
