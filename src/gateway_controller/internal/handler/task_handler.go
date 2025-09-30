@@ -14,17 +14,6 @@ import (
 
 var log = logger.GetLogger()
 
-type Handler interface {
-	handleTaskType1(dataBatch *data_batch.DataBatch) error
-	handleTaskType2(dataBatch *data_batch.DataBatch) error
-	handleTaskType3(dataBatch *data_batch.DataBatch) error
-	handleTaskType4(dataBatch *data_batch.DataBatch) error
-	HandleTask(taskType enum.TaskType, dataBatch *data_batch.DataBatch) error
-	HandleReferenceData(dataBatch *data_batch.DataBatch) error
-	SendDone() error
-	GetReportData() []byte
-}
-
 const (
 	JoinerQueue = "joiner"
 	FilterQueue = "filter"
