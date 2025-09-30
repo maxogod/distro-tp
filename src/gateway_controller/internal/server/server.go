@@ -28,7 +28,7 @@ func InitServer(conf *config.Config) *Server {
 	return &Server{
 		config:            conf,
 		isRunning:         true,
-		taskHandler:       handler.NewTaskHandler(business.NewControllerService()),
+		taskHandler:       handler.NewTaskHandler(business.NewControllerService(), "guest:guest@localhost:5672"),
 		connectionManager: network.NewConnectionManager(conf.Port),
 		clientManager:     session.NewClientManager(),
 	}

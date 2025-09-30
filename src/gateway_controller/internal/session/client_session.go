@@ -29,7 +29,7 @@ func NewClientSession(id int, conn *network.ConnectionInterface, taskHandler *ha
 
 func (cs *clientSession) ProcessRequest() error {
 
-	// i know that the variable is not necesary but geodude likes this handleing
+	// i know that the variable is not necesary but geodude likes this handling
 	for cs.processData {
 
 		request, err := cs.getRequest()
@@ -38,16 +38,15 @@ func (cs *clientSession) ProcessRequest() error {
 		}
 
 		taskType := enum.TaskType(request.GetTaskType())
-		payload := request.GetPayload()
 		isRefData := request.GetIsReferenceData()
 
 		if isRefData {
-			return cs.taskHandler.HandleReferenceData(payload)
+			return cs.taskHandler.HandleReferenceData(request)
 		} else if request.GetDone() {
 			cs.processData = false
 			break
 		}
-		cs.taskHandler.HandleTask(taskType, payload)
+		cs.taskHandler.HandleTask(taskType, request)
 	}
 
 	err := cs.taskHandler.SendDone()
