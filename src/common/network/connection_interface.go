@@ -2,6 +2,7 @@ package network
 
 import (
 	"encoding/binary"
+	"io"
 	"net"
 )
 
@@ -26,6 +27,10 @@ func (c *ConnectionInterface) Connect(serverAddr string) error {
 	}
 	c.conn = conn
 	return nil
+}
+
+func (c *ConnectionInterface) IsConnected() bool {
+	return c.conn != nil
 }
 
 func (c *ConnectionInterface) ReceiveData() ([]byte, error) {
@@ -57,6 +62,9 @@ func (c *ConnectionInterface) readFull(buf []byte) error {
 	for totalRead < len(buf) {
 		n, err := c.conn.Read(buf[totalRead:])
 		if err != nil {
+			if err == io.EOF {
+				c.conn = nil
+			}
 			return err
 		}
 		totalRead += n
@@ -70,6 +78,9 @@ func (c *ConnectionInterface) writeFull(buf []byte) error {
 	for totalWritten < len(buf) {
 		n, err := c.conn.Write(buf[totalWritten:])
 		if err != nil {
+			if err == io.EOF {
+				c.conn = nil
+			}
 			return err
 		}
 		totalWritten += n
@@ -83,6 +94,7 @@ func (c *ConnectionInterface) Close() error {
 		if err != nil {
 			return err
 		}
+		c.conn = nil
 	}
 	return nil
 }

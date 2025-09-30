@@ -15,36 +15,36 @@ import (
 var log = logger.GetLogger()
 
 const (
-	JoinerQueue = "joiner"
-	FilterQueue = "filter"
+	JoinerQueue   = "joiner"
+	FilterQueue   = "filter"
+	ProcessedData = "processed_data"
 )
 
 type TaskHandler struct {
-	ControllerService     *business.GatewayControllerService
-	taskHandlers          map[enum.TaskType]func(*data_batch.DataBatch) error
-	filterQueueMiddleware middleware.MessageMiddleware
-	joinerQueueMiddleware middleware.MessageMiddleware
+	ControllerService            *business.GatewayControllerService
+	taskHandlers                 map[enum.TaskType]func(*data_batch.DataBatch) error
+	filterQueueMiddleware        middleware.MessageMiddleware
+	joinerQueueMiddleware        middleware.MessageMiddleware
+	processedDataQueueMiddleware middleware.MessageMiddleware
 }
 
-func NewTaskHandler(controllerService *business.GatewayControllerService, url string) *TaskHandler {
+func NewTaskHandler(controllerService *business.GatewayControllerService, url string) Handler {
 	th := &TaskHandler{
 		ControllerService: controllerService,
 	}
 
 	// TODO pass address here somehow or instanciate somewhere else
-	filterQueueMiddleware, err := middleware.NewQueueMiddleware(url, FilterQueue)
-	if err != nil {
-		log.Errorf("Failed to create filter queue middleware: %v", err)
-		return nil
-	}
-	joinerQueueMiddleware, err := middleware.NewQueueMiddleware(url, JoinerQueue)
-	if err != nil {
-		log.Errorf("Failed to create joiner queue middleware: %v", err)
+	filterQueueMiddleware, filterQueueErr := middleware.NewQueueMiddleware(url, FilterQueue)
+	joinerQueueMiddleware, joinerQueueErr := middleware.NewQueueMiddleware(url, JoinerQueue)
+	processedDataQueueMiddleware, ProcessedQueueErr := middleware.NewQueueMiddleware(url, ProcessedData)
+	if filterQueueErr != nil || joinerQueueErr != nil || ProcessedQueueErr != nil {
+		log.Errorln("Failed to create one or more queue middlewares")
 		return nil
 	}
 
 	th.filterQueueMiddleware = filterQueueMiddleware
 	th.joinerQueueMiddleware = joinerQueueMiddleware
+	th.processedDataQueueMiddleware = processedDataQueueMiddleware
 
 	th.taskHandlers = map[enum.TaskType]func(*data_batch.DataBatch) error{
 		enum.T1: th.handleTaskType1,
@@ -66,7 +66,6 @@ func (th *TaskHandler) HandleTask(taskType enum.TaskType, dataBatch *data_batch.
 }
 
 func (th *TaskHandler) HandleReferenceData(dataBatch *data_batch.DataBatch) error {
-
 	log.Debugf("Received reference data")
 
 	serializedRefData, err := proto.Marshal(dataBatch)
@@ -77,7 +76,6 @@ func (th *TaskHandler) HandleReferenceData(dataBatch *data_batch.DataBatch) erro
 	th.joinerQueueMiddleware.Send(serializedRefData)
 
 	return nil
-
 }
 
 func (th *TaskHandler) SendDone() error {
@@ -88,13 +86,24 @@ func (th *TaskHandler) SendDone() error {
 	return nil
 }
 
-func (th *TaskHandler) GetReportData() ([]byte, error) {
+func (th *TaskHandler) GetReportData(data chan []byte, disconnect chan bool) {
+	defer th.processedDataQueueMiddleware.StopConsuming()
 
-	// TODO: gather real report data from aggregator after sendDone is implemented
+	done := make(chan bool)
+	th.processedDataQueueMiddleware.StartConsuming(func(msgs middleware.ConsumeChannel, d chan error) {
+		for msg := range msgs {
+			data <- msg.Body
+			select {
+			case <-done:
+				return
+			default:
+			}
+		}
+	})
 
-	report := "Report: All tasks completed successfully."
-	log.Info(report)
-	return []byte(report), nil
+	// Wait until disconnection signal
+	<-disconnect
+	done <- true
 }
 
 func (th *TaskHandler) handleTaskType1(dataBatch *data_batch.DataBatch) error {
@@ -104,8 +113,6 @@ func (th *TaskHandler) handleTaskType1(dataBatch *data_batch.DataBatch) error {
 	if err != nil {
 		return err
 	}
-	//log.Debugf("T1 Got")
-
 	return th.sendCleanedDataToFilterQueue(dataBatch, cleanedData)
 }
 
@@ -115,8 +122,6 @@ func (th *TaskHandler) handleTaskType2(dataBatch *data_batch.DataBatch) error {
 	if err != nil {
 		return err
 	}
-	log.Debugf("T2 Got")
-
 	return th.sendCleanedDataToFilterQueue(dataBatch, cleanedData)
 }
 
@@ -126,7 +131,6 @@ func (th *TaskHandler) handleTaskType3(dataBatch *data_batch.DataBatch) error {
 	if err != nil {
 		return err
 	}
-	log.Debugf("T3 Got")
 	return th.sendCleanedDataToFilterQueue(dataBatch, cleanedData)
 }
 
@@ -136,7 +140,6 @@ func (th *TaskHandler) handleTaskType4(dataBatch *data_batch.DataBatch) error {
 	if err != nil {
 		return err
 	}
-	log.Debugf("T4 Got")
 	return th.sendCleanedDataToFilterQueue(dataBatch, cleanedData)
 }
 
