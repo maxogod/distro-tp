@@ -24,6 +24,6 @@ func main() {
 
 	c := client.NewClient(conf)
 	if err := c.Start(os.Args[1]); err != nil {
-		log.Fatalln("failed to start client:", err)
+		log.Fatalln("Client error:", err)
 	}
 }

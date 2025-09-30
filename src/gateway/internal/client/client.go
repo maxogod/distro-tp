@@ -22,10 +22,12 @@ func NewClient(conf *config.Config) Client {
 }
 
 func (c *client) Start(task string) error {
-	log.Infoln("started")
-
 	conn := network.NewConnectionInterface()
-	conn.Connect(fmt.Sprintf("%s:%d", c.conf.ServerHost, c.conf.ServerPort))
+	err := conn.Connect(fmt.Sprintf("%s:%d", c.conf.ServerHost, c.conf.ServerPort))
+	if err != nil {
+		log.Errorf("could not connect to server: %v", err)
+		return err
+	}
 	defer conn.Close()
 
 	exec := task_executor.NewTaskExecutor(c.conf.DataPath, c.conf.OutputPath, conn)

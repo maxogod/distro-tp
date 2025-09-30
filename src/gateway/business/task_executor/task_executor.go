@@ -45,7 +45,12 @@ func (t *taskExecutor) Task1() error {
 	}
 
 	// TODO modularize saving to file
-	outputFile, err := os.Create(t.dataPath + "/output/task1_output.csv")
+	if err := os.MkdirAll(t.outputPath, 0755); err != nil {
+		log.Errorf("failed to create output directory: %v", err)
+		return err
+	}
+
+	outputFile, err := os.OpenFile(t.outputPath+"/t1.csv", os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0644)
 	if err != nil {
 		log.Errorf("failed to create output file: %v", err)
 		return err
@@ -202,7 +207,6 @@ func readAndSendData[T any](
 	makeBatchFunc func([]T) []byte,
 ) error {
 	fs := file_service.NewFileService[T](100)
-	ch := make(chan []T)
 
 	files, err := os.ReadDir(dataDir)
 	if err != nil {
@@ -211,6 +215,7 @@ func readAndSendData[T any](
 	}
 
 	for _, file := range files {
+		ch := make(chan []T)
 		go fs.ReadAsBatches(filepath.Join(dataDir, file.Name()), ch, fromRecordFunc)
 
 		for batch := range ch {
