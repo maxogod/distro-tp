@@ -14,18 +14,14 @@ import (
 
 var log = logger.GetLogger()
 
-const (
-	JoinerQueue   = "joiner"
-	FilterQueue   = "filter"
-	ProcessedData = "processed_data"
-)
-
 type TaskHandler struct {
-	ControllerService            *business.GatewayControllerService
-	taskHandlers                 map[enum.TaskType]func(*data_batch.DataBatch) error
-	filterQueueMiddleware        middleware.MessageMiddleware
-	joinerQueueMiddleware        middleware.MessageMiddleware
-	processedDataQueueMiddleware middleware.MessageMiddleware
+	ControllerService              *business.GatewayControllerService
+	taskHandlers                   map[enum.TaskType]func(*data_batch.DataBatch) error
+	filterQueueMiddleware          middleware.MessageMiddleware
+	joinerMenuItemsQueueMiddleware middleware.MessageMiddleware
+	joinerStoreQueueMiddleware     middleware.MessageMiddleware
+	joinerUsersQueueMiddleware     middleware.MessageMiddleware
+	processedDataQueueMiddleware   middleware.MessageMiddleware
 }
 
 func NewTaskHandler(controllerService *business.GatewayControllerService, url string) Handler {
@@ -34,17 +30,11 @@ func NewTaskHandler(controllerService *business.GatewayControllerService, url st
 	}
 
 	// TODO pass address here somehow or instanciate somewhere else
-	filterQueueMiddleware, filterQueueErr := middleware.NewQueueMiddleware(url, FilterQueue)
-	joinerQueueMiddleware, joinerQueueErr := middleware.NewQueueMiddleware(url, JoinerQueue)
-	processedDataQueueMiddleware, ProcessedQueueErr := middleware.NewQueueMiddleware(url, ProcessedData)
-	if filterQueueErr != nil || joinerQueueErr != nil || ProcessedQueueErr != nil {
-		log.Errorln("Failed to create one or more queue middlewares")
-		return nil
-	}
-
-	th.filterQueueMiddleware = filterQueueMiddleware
-	th.joinerQueueMiddleware = joinerQueueMiddleware
-	th.processedDataQueueMiddleware = processedDataQueueMiddleware
+	th.filterQueueMiddleware = middleware.GetFilterQueue(url)
+	th.joinerMenuItemsQueueMiddleware = middleware.GetMenuItemsQueue(url)
+	th.joinerStoreQueueMiddleware = middleware.GetStoresQueue(url)
+	th.joinerUsersQueueMiddleware = middleware.GetUsersQueue(url)
+	th.processedDataQueueMiddleware = middleware.GetProcessedDataQueue(url)
 
 	th.taskHandlers = map[enum.TaskType]func(*data_batch.DataBatch) error{
 		enum.T1: th.handleTaskType1,
@@ -73,7 +63,14 @@ func (th *TaskHandler) HandleReferenceData(dataBatch *data_batch.DataBatch) erro
 		return err
 	}
 
-	th.joinerQueueMiddleware.Send(serializedRefData)
+	switch enum.RefDatasetType(int(dataBatch.RefDataType)) {
+	case enum.MenuItems:
+		th.joinerMenuItemsQueueMiddleware.Send(serializedRefData)
+	case enum.Stores:
+		th.joinerStoreQueueMiddleware.Send(serializedRefData)
+	case enum.Users:
+		th.joinerUsersQueueMiddleware.Send(serializedRefData)
+	}
 
 	return nil
 }

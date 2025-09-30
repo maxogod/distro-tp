@@ -40,7 +40,7 @@ func (t *taskExecutor) Task1() error {
 		enum.T1,
 		transactionsDir,
 		t.batchSize,
-		false,
+		enum.NoRef,
 		utils.TransactionFromRecord,
 		utils.TransactionBatchFromList,
 	)
@@ -78,7 +78,7 @@ func (t *taskExecutor) Task2() error {
 		enum.T2,
 		menuItemsDir,
 		t.batchSize,
-		true,
+		enum.MenuItems,
 		utils.MenuItemFromRecord,
 		utils.MenuItemBatchFromList,
 	)
@@ -93,7 +93,7 @@ func (t *taskExecutor) Task2() error {
 		enum.T2,
 		transactionsItemsDir,
 		t.batchSize,
-		false,
+		enum.NoRef,
 		utils.TransactionItemsFromRecord,
 		utils.TransactionItemsBatchFromList,
 	)
@@ -150,7 +150,7 @@ func (t *taskExecutor) Task3() error {
 		enum.T3,
 		storesDir,
 		t.batchSize,
-		true,
+		enum.Stores,
 		utils.StoreFromRecord,
 		utils.StoreBatchFromList,
 	)
@@ -165,7 +165,7 @@ func (t *taskExecutor) Task3() error {
 		enum.T3,
 		transactionsDir,
 		t.batchSize,
-		false,
+		enum.NoRef,
 		utils.TransactionFromRecord,
 		utils.TransactionBatchFromList,
 	)
@@ -203,7 +203,7 @@ func (t *taskExecutor) Task4() error {
 		enum.T4,
 		usersDir,
 		t.batchSize,
-		true,
+		enum.Users,
 		utils.UserFromRecord,
 		utils.UserBatchFromList,
 	)
@@ -218,7 +218,7 @@ func (t *taskExecutor) Task4() error {
 		enum.T4,
 		storesDir,
 		t.batchSize,
-		true,
+		enum.Stores,
 		utils.StoreFromRecord,
 		utils.StoreBatchFromList,
 	)
@@ -233,7 +233,7 @@ func (t *taskExecutor) Task4() error {
 		enum.T4,
 		transactionsDir,
 		t.batchSize,
-		false,
+		enum.NoRef,
 		utils.TransactionFromRecord,
 		utils.TransactionBatchFromList,
 	)
@@ -271,7 +271,7 @@ func readAndSendData[T any](
 	taskType enum.TaskType,
 	dataDir string,
 	batchSize int,
-	isReferenceData bool,
+	refDataType enum.RefDatasetType,
 	fromRecordFunc func([]string) T,
 	makeBatchFunc func([]T) []byte,
 ) error {
@@ -291,7 +291,8 @@ func readAndSendData[T any](
 			dataBatch, err := proto.Marshal(&data_batch.DataBatch{
 				TaskType:        int32(taskType),
 				Done:            false,
-				IsReferenceData: isReferenceData,
+				IsReferenceData: refDataType != enum.NoRef,
+				RefDataType:     int32(refDataType),
 				Payload:         makeBatchFunc(batch),
 			})
 			if err != nil {
