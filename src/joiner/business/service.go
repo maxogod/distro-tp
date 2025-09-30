@@ -110,36 +110,33 @@ func (j *Joiner) Stop() error {
 	j.mutex.Lock()
 	defer j.mutex.Unlock()
 
-	for _, refMiddleware := range j.referenceMiddlewares {
-		if err := StopConsumer(refMiddleware); err != nil {
-			return err
-		}
+	var err error
+	j.referenceMiddlewares, err = StopConsumers(j.referenceMiddlewares)
+	if err != nil {
+		return err
 	}
-	j.referenceMiddlewares = make(MessageMiddlewares)
 
-	for _, dataMiddleware := range j.dataMiddlewares {
-		if err := StopConsumer(dataMiddleware); err != nil {
-			return err
-		}
+	j.dataMiddlewares, err = StopConsumers(j.dataMiddlewares)
+	if err != nil {
+		return err
 	}
-	j.dataMiddlewares = make(MessageMiddlewares)
 
 	if j.aggregatorMidd != nil {
-		if err := StopSender(j.aggregatorMidd); err != nil {
+		if err = StopSender(j.aggregatorMidd); err != nil {
 			return err
 		}
 		j.aggregatorMidd = nil
 	}
 
 	if j.controllerConnection != nil {
-		if err := StopSender(j.controllerConnection); err != nil {
+		if err = StopSender(j.controllerConnection); err != nil {
 			return err
 		}
 		j.controllerConnection = nil
 	}
 
 	if j.finishExchange != nil {
-		if err := StopConsumer(j.finishExchange); err != nil {
+		if err = StopConsumer(j.finishExchange); err != nil {
 			return err
 		}
 		j.finishExchange = nil
@@ -243,5 +240,17 @@ func (j *Joiner) allRefDatasetsLoaded(taskType enum.TaskType) bool {
 }
 
 func (j *Joiner) HandleDoneDataset() error {
+	j.mutex.Lock()
+	defer j.mutex.Unlock()
+
+	var err error
+	j.dataMiddlewares, err = StopConsumers(j.dataMiddlewares)
+	if err != nil {
+		return err
+	}
+
+	j.refDoneReceived = defaultRequiredRefQueues()
+	j.refDatasetStore.ResetStore()
+
 	return SendMessageToControllerConnection(j.controllerConnection, j.workerName, true)
 }

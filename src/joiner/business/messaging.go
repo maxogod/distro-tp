@@ -36,6 +36,15 @@ func StartConsumer(gatewayAddress, queueName string, handler MessageHandler) (mi
 	return m, nil
 }
 
+func StopConsumers(middlewares MessageMiddlewares) (MessageMiddlewares, error) {
+	for _, midd := range middlewares {
+		if err := StopConsumer(midd); err != nil {
+			return nil, err
+		}
+	}
+	return make(MessageMiddlewares), nil
+}
+
 func StopConsumer(m middleware.MessageMiddleware) error {
 	if m.StopConsuming() != middleware.MessageMiddlewareSuccess {
 		return fmt.Errorf("failed to stop consuming")

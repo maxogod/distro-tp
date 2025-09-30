@@ -100,3 +100,13 @@ func (refStore *ReferenceDatasetStore) updateRefDatasets(datasetName string, dat
 		refStore.refDatasets[datasetType] = []string{datasetFilename}
 	}
 }
+
+func (refStore *ReferenceDatasetStore) ResetStore() {
+	for _, paths := range refStore.refDatasets {
+		for _, p := range paths {
+			_ = os.Remove(p)
+		}
+	}
+
+	refStore.refDatasets = make(RefDatasetPaths)
+}
