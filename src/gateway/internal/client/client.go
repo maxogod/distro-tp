@@ -2,6 +2,7 @@ package client
 
 import (
 	"fmt"
+	"os"
 
 	"github.com/maxogod/distro-tp/src/common/logger"
 	"github.com/maxogod/distro-tp/src/common/network"
@@ -22,6 +23,7 @@ func NewClient(conf *config.Config) Client {
 }
 
 func (c *client) Start(task string) error {
+	// Connect to server
 	conn := network.NewConnectionInterface()
 	err := conn.Connect(fmt.Sprintf("%s:%d", c.conf.ServerHost, c.conf.ServerPort))
 	if err != nil {
@@ -30,7 +32,14 @@ func (c *client) Start(task string) error {
 	}
 	defer conn.Close()
 
-	exec := task_executor.NewTaskExecutor(c.conf.DataPath, c.conf.OutputPath, conn)
+	// Ensure output directory exists
+	if err := os.MkdirAll(c.conf.OutputPath, 0755); err != nil {
+		log.Errorf("failed to create output directory: %v", err)
+		return err
+	}
+
+	// Request processing of a task
+	exec := task_executor.NewTaskExecutor(c.conf.DataPath, c.conf.OutputPath, c.conf.BatchSize, conn)
 
 	switch task {
 	case ARG_T1:

@@ -1,8 +1,6 @@
 package utils
 
 import (
-	"strconv"
-
 	"github.com/maxogod/distro-tp/src/common/models/raw"
 	common_utils "github.com/maxogod/distro-tp/src/common/utils"
 	"google.golang.org/protobuf/proto"
@@ -34,18 +32,6 @@ func TransactionBatchFromList(list []*raw.Transaction) []byte {
 	return data
 }
 
-func TransactionToCsv(record *raw.Transaction) string {
-	return record.TransactionId + "," +
-		strconv.Itoa(int(record.StoreId)) + "," +
-		strconv.Itoa(int(record.PaymentMethod)) + "," +
-		strconv.Itoa(int(record.VoucherId)) + "," +
-		strconv.Itoa(int(record.UserId)) + "," +
-		strconv.Itoa(int(record.OriginalAmount)) + "," +
-		strconv.Itoa(int(record.DiscountApplied)) + "," +
-		strconv.Itoa(int(record.FinalAmount)) + "," +
-		record.CreatedAt + "\n"
-}
-
 /* --- Transaction Items Data --- */
 
 func TransactionItemsFromRecord(record []string) *raw.TransactionItems {
@@ -69,15 +55,6 @@ func TransactionItemsBatchFromList(list []*raw.TransactionItems) []byte {
 	return data
 }
 
-func TransactionItemsToCsv(record *raw.TransactionItems) string {
-	return record.TransactionId + "," +
-		strconv.Itoa(int(record.ItemId)) + "," +
-		strconv.Itoa(int(record.Quantity)) + "," +
-		strconv.Itoa(int(record.UnitPrice)) + "," +
-		strconv.Itoa(int(record.Subtotal)) +
-		record.CreatedAt + "\n"
-}
-
 /* --- Users Data --- */
 
 func UserFromRecord(record []string) *raw.User {
@@ -97,13 +74,6 @@ func UserBatchFromList(list []*raw.User) []byte {
 		data = []byte{}
 	}
 	return data
-}
-
-func UserToCsv(record *raw.User) string {
-	return strconv.Itoa(int(record.UserId)) + "," +
-		record.Gender + "," +
-		record.Birthdate + "," +
-		record.RegisteredAt + "\n"
 }
 
 /* --- Menu Items Data --- */
@@ -130,20 +100,6 @@ func MenuItemBatchFromList(list []*raw.MenuItem) []byte {
 	return data
 }
 
-func MenuItemToCsv(record *raw.MenuItem) string {
-	isSeasonal := "False"
-	if record.IsSeasonal {
-		isSeasonal = "True"
-	}
-	return strconv.Itoa(int(record.ItemId)) + "," +
-		record.ItemName + "," +
-		record.Category + "," +
-		strconv.Itoa(int(record.Price)) + "," +
-		isSeasonal + "," +
-		record.AvailableFrom + "," +
-		record.AvailableTo + "\n"
-}
-
 /* --- Stores Data --- */
 
 func StoreFromRecord(record []string) *raw.Store {
@@ -167,15 +123,4 @@ func StoreBatchFromList(list []*raw.Store) []byte {
 		data = []byte{}
 	}
 	return data
-}
-
-func StoreToCsv(record *raw.Store) string {
-	return strconv.Itoa(int(record.StoreId)) + "," +
-		record.StoreName + "," +
-		record.Street + "," +
-		strconv.Itoa(int(record.PostalCode)) + "," +
-		record.City + "," +
-		record.State + "," +
-		strconv.Itoa(int(record.Latitude)) + "," +
-		strconv.Itoa(int(record.Longitude)) + "\n"
 }

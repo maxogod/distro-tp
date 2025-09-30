@@ -1,5 +1,6 @@
 data_path: "./.data"
 output_path: "./.output"
+batch_size: 100
 server:
   host: "localhost"
   port: 5672
