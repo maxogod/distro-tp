@@ -51,7 +51,7 @@ func (s *Server) Run() error {
 		clientConnection, err := s.connectionManager.AcceptConnection()
 		if err != nil {
 			log.Errorf("Failed to accept connection: %v", err)
-			continue
+			return err
 		}
 
 		clientSession := s.clientManager.AddClient(clientConnection, s.taskHandler)

@@ -115,7 +115,7 @@ func (th *TaskHandler) handleTaskType1(dataBatch *data_batch.DataBatch) error {
 	if err != nil {
 		return err
 	}
-	log.Debugf("T1 | Cleaned data: %+v", cleanedData)
+	//log.Debugf("T1 Got")
 
 	return th.sendCleanedDataToFilterQueue(dataBatch, cleanedData)
 }
@@ -126,7 +126,7 @@ func (th *TaskHandler) handleTaskType2(dataBatch *data_batch.DataBatch) error {
 	if err != nil {
 		return err
 	}
-	log.Debugf("T2 |Cleaned data: %+v", cleanedData)
+	log.Debugf("T2 Got")
 
 	return th.sendCleanedDataToFilterQueue(dataBatch, cleanedData)
 }
@@ -137,7 +137,7 @@ func (th *TaskHandler) handleTaskType3(dataBatch *data_batch.DataBatch) error {
 	if err != nil {
 		return err
 	}
-	log.Debugf("T3 |Cleaned data: %+v", cleanedData)
+	log.Debugf("T3 Got")
 	return th.sendCleanedDataToFilterQueue(dataBatch, cleanedData)
 }
 
@@ -147,7 +147,7 @@ func (th *TaskHandler) handleTaskType4(dataBatch *data_batch.DataBatch) error {
 	if err != nil {
 		return err
 	}
-	log.Debugf("T4 | Cleaned data: %+v", cleanedData)
+	log.Debugf("T4 Got")
 	return th.sendCleanedDataToFilterQueue(dataBatch, cleanedData)
 }
 

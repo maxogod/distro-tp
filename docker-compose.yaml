@@ -7,8 +7,8 @@ services:
       dockerfile: Dockerfile
     image: rabbitmq:latest
     ports:
-      - '5672:5672'
-      - '15672:15672'
+      - '5670:5672'
+      - '15670:15672'
     networks:
       - tp_net
 
@@ -16,26 +16,33 @@ services:
     container_name: gateway_controller
     build:
       dockerfile: ./src/gateway_controller/Dockerfile
-    image: gateway:latest
+    image: gateway_controller:latest
     networks:
       - tp_net
+    ports:
+      - '8080:8080'
     volumes:
-      - ./src/gateway/config.yaml:/config.yaml
+      - ./src/gateway_controller/config.yaml:/config.yaml
     depends_on:
       - rabbitmq
 
   gateway:
     container_name: gateway
+    entrypoint: ["/app/app", "t1"]
     build:
       dockerfile: ./src/gateway/Dockerfile
     image: gateway:latest
     networks:
       - tp_net
     volumes:
-      - /.data:/app/.data
+      - ./.data:/app/.data
+      - ./.output:/app/.output
     depends_on:
       - gateway_controller
 
 networks:
   tp_net:
-    driver: bridge
+    ipam:
+      driver: default
+      config:
+        - subnet: 172.25.125.0/24

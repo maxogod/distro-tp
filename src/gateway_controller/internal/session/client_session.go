@@ -41,6 +41,8 @@ func (cs *clientSession) ProcessRequest() error {
 		taskType := enum.TaskType(request.GetTaskType())
 		isRefData := request.GetIsReferenceData()
 
+		//log.Debugf("Received task type: %v | Done: %v", taskType, request.GetDone())
+
 		if isRefData {
 			return cs.taskHandler.HandleReferenceData(request)
 		} else if request.GetDone() {
@@ -58,6 +60,8 @@ func (cs *clientSession) ProcessRequest() error {
 	// if err != nil {
 	// 	return err
 	// }
+
+	log.Debug("Session finished processing data, sending report")
 
 	reportData := []byte("mock report data")
 
@@ -114,12 +118,32 @@ func (cs *clientSession) sendReportData(reportData []byte) error {
 		},
 	}
 
-	reportData, err := proto.Marshal(mockTransactionBatch)
+	reportDataX, _ := proto.Marshal(mockTransactionBatch)
 
-	err = cs.clientConnection.SendData(reportData)
-	if err != nil {
-		return err
+	dataBatch := &data_batch.DataBatch{
+		TaskType:        int32(enum.T1),
+		IsReferenceData: false,
+		Done:            false,
+		Payload:         reportDataX,
 	}
+
+	done := &data_batch.DataBatch{
+		TaskType:        int32(enum.T1),
+		IsReferenceData: false,
+		Done:            true,
+		Payload:         nil,
+	}
+
+	db, _ := proto.Marshal(dataBatch)
+	dn, _ := proto.Marshal(done)
+
+	log.Debug("Sending report data to client")
+	log.Debugf("Report data size: %d bytes", len(db))
+
+	cs.clientConnection.SendData(db)
+	cs.clientConnection.SendData(dn)
+
+	log.Debug("Sent!")
 	return nil
 }
 

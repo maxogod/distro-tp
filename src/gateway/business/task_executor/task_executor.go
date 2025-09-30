@@ -327,7 +327,7 @@ func receiveAndSaveResults(
 	fs := file_service.NewFileService[string](batchSize)
 
 	batchesCh := make(chan string)
-	fs.SaveCsvAsBatches(path, batchesCh, header)
+	go fs.SaveCsvAsBatches(path, batchesCh, header)
 
 	for {
 		res, err := conn.ReceiveData()
