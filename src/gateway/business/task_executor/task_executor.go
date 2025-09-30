@@ -304,8 +304,10 @@ func readAndSendData[T any](
 	}
 
 	donePayload, err := proto.Marshal(&data_batch.DataBatch{
-		TaskType: int32(taskType),
-		Done:     true,
+		TaskType:        int32(taskType),
+		IsReferenceData: refDataType != enum.NoRef,
+		RefDataType:     int32(refDataType),
+		Done:            true,
 	})
 	if err != nil {
 		return err
