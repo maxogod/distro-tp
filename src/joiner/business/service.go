@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"sync"
 
+	"github.com/google/uuid"
 	"github.com/maxogod/distro-tp/src/common/middleware"
 	"github.com/maxogod/distro-tp/src/common/models/enum"
 	"github.com/maxogod/distro-tp/src/joiner/cache"
@@ -35,6 +36,9 @@ type Joiner struct {
 	refDatasetStore      *cache.ReferenceDatasetStore
 	refQueueNames        []string
 	refDoneReceived      ReferenceDoneReceived
+	workerName           string
+	controllerConnection middleware.MessageMiddleware
+	finishExchange       middleware.MessageMiddleware
 }
 
 func defaultTaskQueues(config *config.Config) TaskQueues {
@@ -71,6 +75,7 @@ func NewJoiner(config *config.Config) *Joiner {
 		refDatasetStore:      cache.NewCacheStore(config.StorePath),
 		refQueueNames:        []string{UsersRefQueue, StoresRefQueue, MenuItemsRefQueue},
 		refDoneReceived:      defaultRequiredRefQueues(),
+		workerName:           "joiner" + uuid.New().String(),
 	}
 
 	joiner.taskHandler = handler.NewTaskHandler(joiner.SendBatchToAggregator, joiner.refDatasetStore)
@@ -125,6 +130,21 @@ func (j *Joiner) Stop() error {
 		}
 		j.aggregatorMidd = nil
 	}
+
+	if j.controllerConnection != nil {
+		if err := StopSender(j.controllerConnection); err != nil {
+			return err
+		}
+		j.controllerConnection = nil
+	}
+
+	if j.finishExchange != nil {
+		if err := StopConsumer(j.finishExchange); err != nil {
+			return err
+		}
+		j.finishExchange = nil
+	}
+
 	return nil
 }
 
@@ -133,13 +153,6 @@ func (j *Joiner) HandleDone(refQueueName string, taskType enum.TaskType) error {
 
 	if _, ok := j.refDoneReceived[taskType][refQueueName]; !ok {
 		return nil
-	}
-
-	if referenceMiddleware, ok := j.referenceMiddlewares[refQueueName]; ok {
-		if err := StopConsumer(referenceMiddleware); err != nil {
-			return err
-		}
-		delete(j.referenceMiddlewares, refQueueName)
 	}
 
 	j.refDoneReceived[taskType][refQueueName] = true
@@ -192,6 +205,31 @@ func (j *Joiner) InitService() error {
 			return err
 		}
 	}
+
+	m, err := StartAnnouncer(j.config.GatewayAddress, j.config.GatewayControllerQueue)
+	if err != nil {
+		return err
+	}
+
+	j.controllerConnection = m
+
+	err = SendMessageToControllerConnection(j.controllerConnection, j.workerName, false)
+	if err != nil {
+		return err
+	}
+
+	exchange, err := StartDirectExchange(
+		j.config.GatewayAddress,
+		j.config.GatewayControllerExchange,
+		j.config.FinishRoutingKey,
+		j.HandleDoneDataset,
+	)
+	if err != nil {
+		return err
+	}
+
+	j.finishExchange = exchange
+
 	return nil
 }
 
@@ -202,4 +240,8 @@ func (j *Joiner) allRefDatasetsLoaded(taskType enum.TaskType) bool {
 		}
 	}
 	return true
+}
+
+func (j *Joiner) HandleDoneDataset() error {
+	return SendMessageToControllerConnection(j.controllerConnection, j.workerName, true)
 }
