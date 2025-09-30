@@ -5,7 +5,6 @@ log:
 dataset:
   path: "/aggregated_data/"
 queues:
-  filtered_transactions_queue: "filtered_transactions"
   joined_transactions_queue: "joined_transactions"
   joined_stores_tpv_queue: "joined_stores_tpv"
   joined_user_transactions_queue: "joined_user_transactions"

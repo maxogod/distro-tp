@@ -19,7 +19,6 @@ func NewTaskHandler(referenceDatasetStore *cache.ReferenceDatasetStore) *TaskHan
 	}
 
 	th.taskHandlers = TaskHandlers{
-		enum.T1: th.handleTaskType1,
 		enum.T2: th.handleTaskType2,
 		enum.T3: th.handleTaskType3,
 		enum.T4: th.handleTaskType4,
@@ -30,10 +29,6 @@ func NewTaskHandler(referenceDatasetStore *cache.ReferenceDatasetStore) *TaskHan
 
 func (th *TaskHandler) HandleTask(taskType enum.TaskType) HandleTask {
 	return th.taskHandlers[taskType]
-}
-
-func (th *TaskHandler) handleTaskType1(dataBatch *data_batch.DataBatch) error {
-	return nil
 }
 
 func (th *TaskHandler) handleTaskType2(dataBatch *data_batch.DataBatch) error {

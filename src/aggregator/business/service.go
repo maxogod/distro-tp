@@ -13,14 +13,12 @@ import (
 
 type DataQueueTaskType map[string]enum.TaskType
 type MessageMiddlewares map[string]middleware.MessageMiddleware
-type ReferenceDoneReceived map[enum.TaskType]map[string]bool
 
 func defaultDataQueueTaskType(config config.Config) DataQueueTaskType {
 	return DataQueueTaskType{
-		config.FilteredTransactionsQueue:   enum.T1,
 		config.JoinedTransactionsQueue:     enum.T2,
 		config.JoinedStoresTPVQueue:        enum.T3,
-		config.JoinedUserTransactionsQueue: enum.T3,
+		config.JoinedUserTransactionsQueue: enum.T4,
 	}
 }
 
@@ -49,7 +47,6 @@ func NewAggregator(config *config.Config) *Aggregator {
 
 	aggregator.taskHandler = handler.NewTaskHandler(aggregator.refDatasetStore)
 	aggregator.dataQueueNames = []string{
-		config.FilteredTransactionsQueue,
 		config.JoinedTransactionsQueue,
 		config.JoinedStoresTPVQueue,
 		config.JoinedUserTransactionsQueue,
@@ -58,7 +55,9 @@ func NewAggregator(config *config.Config) *Aggregator {
 	return aggregator
 }
 
-func (j *Aggregator) StartDataConsumer(handlerTask handler.HandleTask, dataQueueName string) error {
+func (j *Aggregator) StartDataConsumer(dataQueueName string) error {
+	taskType := j.dataQueueTaskType[dataQueueName]
+	handlerTask := j.taskHandler.HandleTask(taskType)
 	dataHandler := handler.NewDataHandler(handlerTask)
 
 	m, err := StartConsumer(j.config.GatewayAddress, dataQueueName, dataHandler.HandleDataMessage)
@@ -106,9 +105,7 @@ func (j *Aggregator) HandleDone([]byte) error {
 
 func (j *Aggregator) InitService() error {
 	for _, dataQueueName := range j.dataQueueNames {
-		taskType := j.dataQueueTaskType[dataQueueName]
-		handlerTask := j.taskHandler.HandleTask(taskType)
-		err := j.StartDataConsumer(handlerTask, dataQueueName)
+		err := j.StartDataConsumer(dataQueueName)
 		if err != nil {
 			return err
 		}

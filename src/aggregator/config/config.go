@@ -12,7 +12,6 @@ type Config struct {
 	GatewayAddress                   string
 	StorePath                        string
 	LogLevel                         string
-	FilteredTransactionsQueue        string
 	JoinedTransactionsQueue          string
 	JoinedStoresTPVQueue             string
 	JoinedUserTransactionsQueue      string
@@ -24,14 +23,13 @@ type Config struct {
 
 func (c Config) String() string {
 	return fmt.Sprintf(
-		"GatewayAddress: %s | LogLevel: %s | StorePath: %s | FilteredTransactionsQueue: %s "+
+		"GatewayAddress: %s | LogLevel: %s | StorePath: %s "+
 			"| JoinedTransactionsQueue: %s | JoinedStoresTPVQueue: %s | JoinedUserTransactionsQueue: %s "+
 			"| GatewayControllerDataQueue: %s | GatewayControllerConnectionQueue: %s "+
 			"| GatewayControllerExchange: %s | FinishRoutingKey: %s",
 		c.GatewayAddress,
 		c.LogLevel,
 		c.StorePath,
-		c.FilteredTransactionsQueue,
 		c.JoinedTransactionsQueue,
 		c.JoinedStoresTPVQueue,
 		c.JoinedUserTransactionsQueue,
@@ -59,7 +57,6 @@ func InitConfig() (*Config, error) {
 		GatewayAddress:                   v.GetString("gateway.address"),
 		StorePath:                        v.GetString("datasets.path"),
 		LogLevel:                         v.GetString("log.level"),
-		FilteredTransactionsQueue:        v.GetString("queues.filtered_transactions_queue"),
 		JoinedTransactionsQueue:          v.GetString("queues.joined_transactions_queue"),
 		JoinedStoresTPVQueue:             v.GetString("queues.joined_stores_tpv_queue"),
 		JoinedUserTransactionsQueue:      v.GetString("queues.joined_user_transactions_queue"),
