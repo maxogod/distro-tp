@@ -93,6 +93,7 @@ func (th *TaskHandler) GetReportData(data chan []byte, disconnect chan bool) {
 	th.processedDataQueueMiddleware.StartConsuming(func(msgs middleware.ConsumeChannel, d chan error) {
 		for msg := range msgs {
 			data <- msg.Body
+			msg.Ack(false)
 			select {
 			case <-done:
 				return
