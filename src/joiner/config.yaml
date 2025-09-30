@@ -14,3 +14,4 @@ aggregator_queues:
   joined_user_transactions_queue: "joined_user_transactions"
 exchanges:
   gateway_controller_exchange: "finish_exchange"
+  finish_routing_key: "joiner"

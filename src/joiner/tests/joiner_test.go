@@ -411,6 +411,7 @@ func TestHandleConnectionGatewayController(t *testing.T) {
 		JoinedUserTransactionsQueue: "joined_user_transactions_queue",
 		GatewayControllerQueue:      "node_connections",
 		GatewayControllerExchange:   "finish_exchange",
+		FinishRoutingKey:            "joiner",
 	}
 
 	joinServer := server.InitServer(&joinerConfig)
@@ -439,12 +440,17 @@ func TestHandleConnectionGatewayController(t *testing.T) {
 	assert.Regexp(t, `^joiner.*`, initConnectionMsg.WorkerName)
 	assert.False(t, initConnectionMsg.Finished)
 
-	finishExchange, err := middleware.NewExchangeMiddleware(helpers.RabbitURL, joinerConfig.GatewayControllerExchange, "direct", []string{"joiner"})
+	finishExchange, err := middleware.NewExchangeMiddleware(
+		helpers.RabbitURL,
+		joinerConfig.GatewayControllerExchange,
+		"direct",
+		[]string{joinerConfig.FinishRoutingKey},
+	)
 	assert.NoError(t, err)
 
 	finishMsg := &data_batch.DataBatch{
 		TaskType: int32(enum.T4),
-		Done:     false,
+		Done:     true,
 	}
 
 	dataMessage, err := proto.Marshal(finishMsg)
