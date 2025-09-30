@@ -7,6 +7,7 @@ option go_package = "./data_batch";
 message DataBatch {
   int32 task_type = 1;
   bool isReferenceData = 2;
-  bool done = 3;
-  bytes payload = 4;
+  int32 refDataType = 3;
+  bool done = 4;
+  bytes payload = 5;
 }

@@ -2,7 +2,7 @@
 // versions:
 // 	protoc-gen-go v1.36.9
 // 	protoc        v3.21.12
-// source: data_batch.proto
+// source: src/common/protobufs/data_batch.proto
 
 package data_batch
 
@@ -25,15 +25,16 @@ type DataBatch struct {
 	state           protoimpl.MessageState `protogen:"open.v1"`
 	TaskType        int32                  `protobuf:"varint,1,opt,name=task_type,json=taskType,proto3" json:"task_type,omitempty"`
 	IsReferenceData bool                   `protobuf:"varint,2,opt,name=isReferenceData,proto3" json:"isReferenceData,omitempty"`
-	Done            bool                   `protobuf:"varint,3,opt,name=done,proto3" json:"done,omitempty"`
-	Payload         []byte                 `protobuf:"bytes,4,opt,name=payload,proto3" json:"payload,omitempty"`
+	RefDataType     int32                  `protobuf:"varint,3,opt,name=refDataType,proto3" json:"refDataType,omitempty"`
+	Done            bool                   `protobuf:"varint,4,opt,name=done,proto3" json:"done,omitempty"`
+	Payload         []byte                 `protobuf:"bytes,5,opt,name=payload,proto3" json:"payload,omitempty"`
 	unknownFields   protoimpl.UnknownFields
 	sizeCache       protoimpl.SizeCache
 }
 
 func (x *DataBatch) Reset() {
 	*x = DataBatch{}
-	mi := &file_data_batch_proto_msgTypes[0]
+	mi := &file_src_common_protobufs_data_batch_proto_msgTypes[0]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -45,7 +46,7 @@ func (x *DataBatch) String() string {
 func (*DataBatch) ProtoMessage() {}
 
 func (x *DataBatch) ProtoReflect() protoreflect.Message {
-	mi := &file_data_batch_proto_msgTypes[0]
+	mi := &file_src_common_protobufs_data_batch_proto_msgTypes[0]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -58,7 +59,7 @@ func (x *DataBatch) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DataBatch.ProtoReflect.Descriptor instead.
 func (*DataBatch) Descriptor() ([]byte, []int) {
-	return file_data_batch_proto_rawDescGZIP(), []int{0}
+	return file_src_common_protobufs_data_batch_proto_rawDescGZIP(), []int{0}
 }
 
 func (x *DataBatch) GetTaskType() int32 {
@@ -75,6 +76,13 @@ func (x *DataBatch) GetIsReferenceData() bool {
 	return false
 }
 
+func (x *DataBatch) GetRefDataType() int32 {
+	if x != nil {
+		return x.RefDataType
+	}
+	return 0
+}
+
 func (x *DataBatch) GetDone() bool {
 	if x != nil {
 		return x.Done
@@ -89,34 +97,35 @@ func (x *DataBatch) GetPayload() []byte {
 	return nil
 }
 
-var File_data_batch_proto protoreflect.FileDescriptor
+var File_src_common_protobufs_data_batch_proto protoreflect.FileDescriptor
 
-const file_data_batch_proto_rawDesc = "" +
+const file_src_common_protobufs_data_batch_proto_rawDesc = "" +
 	"\n" +
-	"\x10data_batch.proto\x12\bprotocol\"\x80\x01\n" +
+	"%src/common/protobufs/data_batch.proto\x12\bprotocol\"\xa2\x01\n" +
 	"\tDataBatch\x12\x1b\n" +
 	"\ttask_type\x18\x01 \x01(\x05R\btaskType\x12(\n" +
-	"\x0fisReferenceData\x18\x02 \x01(\bR\x0fisReferenceData\x12\x12\n" +
-	"\x04done\x18\x03 \x01(\bR\x04done\x12\x18\n" +
-	"\apayload\x18\x04 \x01(\fR\apayloadB\x0eZ\f./data_batchb\x06proto3"
+	"\x0fisReferenceData\x18\x02 \x01(\bR\x0fisReferenceData\x12 \n" +
+	"\vrefDataType\x18\x03 \x01(\x05R\vrefDataType\x12\x12\n" +
+	"\x04done\x18\x04 \x01(\bR\x04done\x12\x18\n" +
+	"\apayload\x18\x05 \x01(\fR\apayloadB\x0eZ\f./data_batchb\x06proto3"
 
 var (
-	file_data_batch_proto_rawDescOnce sync.Once
-	file_data_batch_proto_rawDescData []byte
+	file_src_common_protobufs_data_batch_proto_rawDescOnce sync.Once
+	file_src_common_protobufs_data_batch_proto_rawDescData []byte
 )
 
-func file_data_batch_proto_rawDescGZIP() []byte {
-	file_data_batch_proto_rawDescOnce.Do(func() {
-		file_data_batch_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_data_batch_proto_rawDesc), len(file_data_batch_proto_rawDesc)))
+func file_src_common_protobufs_data_batch_proto_rawDescGZIP() []byte {
+	file_src_common_protobufs_data_batch_proto_rawDescOnce.Do(func() {
+		file_src_common_protobufs_data_batch_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_src_common_protobufs_data_batch_proto_rawDesc), len(file_src_common_protobufs_data_batch_proto_rawDesc)))
 	})
-	return file_data_batch_proto_rawDescData
+	return file_src_common_protobufs_data_batch_proto_rawDescData
 }
 
-var file_data_batch_proto_msgTypes = make([]protoimpl.MessageInfo, 1)
-var file_data_batch_proto_goTypes = []any{
+var file_src_common_protobufs_data_batch_proto_msgTypes = make([]protoimpl.MessageInfo, 1)
+var file_src_common_protobufs_data_batch_proto_goTypes = []any{
 	(*DataBatch)(nil), // 0: protocol.DataBatch
 }
-var file_data_batch_proto_depIdxs = []int32{
+var file_src_common_protobufs_data_batch_proto_depIdxs = []int32{
 	0, // [0:0] is the sub-list for method output_type
 	0, // [0:0] is the sub-list for method input_type
 	0, // [0:0] is the sub-list for extension type_name
@@ -124,26 +133,26 @@ var file_data_batch_proto_depIdxs = []int32{
 	0, // [0:0] is the sub-list for field type_name
 }
 
-func init() { file_data_batch_proto_init() }
-func file_data_batch_proto_init() {
-	if File_data_batch_proto != nil {
+func init() { file_src_common_protobufs_data_batch_proto_init() }
+func file_src_common_protobufs_data_batch_proto_init() {
+	if File_src_common_protobufs_data_batch_proto != nil {
 		return
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
-			RawDescriptor: unsafe.Slice(unsafe.StringData(file_data_batch_proto_rawDesc), len(file_data_batch_proto_rawDesc)),
+			RawDescriptor: unsafe.Slice(unsafe.StringData(file_src_common_protobufs_data_batch_proto_rawDesc), len(file_src_common_protobufs_data_batch_proto_rawDesc)),
 			NumEnums:      0,
 			NumMessages:   1,
 			NumExtensions: 0,
 			NumServices:   0,
 		},
-		GoTypes:           file_data_batch_proto_goTypes,
-		DependencyIndexes: file_data_batch_proto_depIdxs,
-		MessageInfos:      file_data_batch_proto_msgTypes,
+		GoTypes:           file_src_common_protobufs_data_batch_proto_goTypes,
+		DependencyIndexes: file_src_common_protobufs_data_batch_proto_depIdxs,
+		MessageInfos:      file_src_common_protobufs_data_batch_proto_msgTypes,
 	}.Build()
-	File_data_batch_proto = out.File
-	file_data_batch_proto_goTypes = nil
-	file_data_batch_proto_depIdxs = nil
+	File_src_common_protobufs_data_batch_proto = out.File
+	file_src_common_protobufs_data_batch_proto_goTypes = nil
+	file_src_common_protobufs_data_batch_proto_depIdxs = nil
 }
