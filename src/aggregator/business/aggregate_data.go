@@ -61,14 +61,6 @@ func aggregateData[T proto.Message, B proto.Message](
 	return aggregatedItems, nil
 }
 
-func (a *Aggregator) AggregateDataTask2() error {
-	err := a.aggregateBestSellingData()
-	if err != nil {
-		return err
-	}
-	return a.aggregateMostProfitsData()
-}
-
 func aggregateTask[T proto.Message, B proto.Message, M ~map[string]T](
 	datasetName, storePath string,
 	createSpecificBatch func() B,
@@ -107,6 +99,14 @@ func aggregateTask[T proto.Message, B proto.Message, M ~map[string]T](
 	}
 
 	return finalAgg, nil
+}
+
+func (a *Aggregator) AggregateDataTask2() error {
+	err := a.aggregateBestSellingData()
+	if err != nil {
+		return err
+	}
+	return a.aggregateMostProfitsData()
 }
 
 func (a *Aggregator) aggregateBestSellingData() error {
@@ -217,84 +217,78 @@ func (a *Aggregator) AggregateDataTask4() error {
 	return a.SendAggregateDataTask4(topMostPurchases)
 }
 
-func top3ByStore(data MapJoinMostPurchasesUser) MapJoinMostPurchasesUser {
-	usersByStore := make(map[string][]*joined.JoinMostPurchasesUser)
+func topNByGroup[T proto.Message, M ~map[string]T](
+	data M,
+	groupKey func(T) string,
+	topGroupKey func(T) string,
+	sortCmp func(a, b T) bool,
+	topN int,
+) M {
+	itemsByGroup := make(map[string][]T)
 	for _, item := range data {
-		usersByStore[item.StoreName] = append(usersByStore[item.StoreName], item)
+		key := groupKey(item)
+		itemsByGroup[key] = append(itemsByGroup[key], item)
 	}
 
-	result := make(map[string]*joined.JoinMostPurchasesUser)
+	result := make(M)
 
-	for _, users := range usersByStore {
-		sort.Slice(users, func(i, j int) bool {
-			if users[i].PurchasesQty == users[j].PurchasesQty {
-				return users[i].UserBirthdate < users[j].UserBirthdate
-			}
-			return users[i].PurchasesQty > users[j].PurchasesQty
+	for _, items := range itemsByGroup {
+		sort.Slice(items, func(i, j int) bool {
+			return sortCmp(items[i], items[j])
 		})
 
-		limit := 3
-		if len(users) < 3 {
-			limit = len(users)
+		limit := topN
+		if len(items) < topN {
+			limit = len(items)
 		}
 
-		for _, user := range users[:limit] {
-			k := user.StoreName + "|" + user.UserBirthdate
-			result[k] = user
+		for _, item := range items[:limit] {
+			resultKey := topGroupKey(item)
+			result[resultKey] = item
 		}
 	}
 
 	return result
+}
+
+func top3ByStore(data MapJoinMostPurchasesUser) MapJoinMostPurchasesUser {
+	return topNByGroup(data,
+		func(user *joined.JoinMostPurchasesUser) string { return user.StoreName },
+		func(user *joined.JoinMostPurchasesUser) string { return user.StoreName + "|" + user.UserBirthdate },
+		func(userA, userB *joined.JoinMostPurchasesUser) bool {
+			if userA.PurchasesQty == userB.PurchasesQty {
+				return userA.UserBirthdate < userB.UserBirthdate
+			}
+			return userA.PurchasesQty > userB.PurchasesQty
+		},
+		3,
+	)
 }
 
 func top1BestSelling(data MapJoinBestSelling) MapJoinBestSelling {
-	itemsByYearMonth := make(map[string][]*joined.JoinBestSellingProducts)
-	for _, item := range data {
-		itemsByYearMonth[item.YearMonthCreatedAt] = append(itemsByYearMonth[item.YearMonthCreatedAt], item)
-	}
-
-	result := make(map[string]*joined.JoinBestSellingProducts)
-
-	for _, items := range itemsByYearMonth {
-		sort.Slice(items, func(i, j int) bool {
-			if items[i].SellingsQty == items[j].SellingsQty {
-				return items[i].ItemName < items[j].ItemName
+	return topNByGroup(data,
+		func(u *joined.JoinBestSellingProducts) string { return u.YearMonthCreatedAt },
+		func(u *joined.JoinBestSellingProducts) string { return u.YearMonthCreatedAt },
+		func(a, b *joined.JoinBestSellingProducts) bool {
+			if a.SellingsQty == b.SellingsQty {
+				return a.ItemName < b.ItemName
 			}
-			return items[i].SellingsQty > items[j].SellingsQty
-		})
-
-		if len(items) > 0 {
-			item := items[0]
-			k := item.YearMonthCreatedAt + "|" + item.ItemName
-			result[k] = item
-		}
-	}
-
-	return result
+			return a.SellingsQty > b.SellingsQty
+		},
+		1,
+	)
 }
 
 func top1MostProfits(data MapJoinMostProfits) MapJoinMostProfits {
-	itemsByYearMonth := make(map[string][]*joined.JoinMostProfitsProducts)
-	for _, item := range data {
-		itemsByYearMonth[item.YearMonthCreatedAt] = append(itemsByYearMonth[item.YearMonthCreatedAt], item)
-	}
-
-	result := make(map[string]*joined.JoinMostProfitsProducts)
-
-	for _, items := range itemsByYearMonth {
-		sort.Slice(items, func(i, j int) bool {
-			if items[i].ProfitSum == items[j].ProfitSum {
-				return items[i].ItemName < items[j].ItemName
+	return topNByGroup(data,
+		func(u *joined.JoinMostProfitsProducts) string { return u.YearMonthCreatedAt },
+		func(u *joined.JoinMostProfitsProducts) string { return u.YearMonthCreatedAt },
+		func(a, b *joined.JoinMostProfitsProducts) bool {
+			if a.ProfitSum == b.ProfitSum {
+				return a.ItemName < b.ItemName
 			}
-			return items[i].ProfitSum > items[j].ProfitSum
-		})
-
-		if len(items) > 0 {
-			item := items[0]
-			k := item.YearMonthCreatedAt + "|" + item.ItemName
-			result[k] = item
-		}
-	}
-
-	return result
+			return a.ProfitSum > b.ProfitSum
+		},
+		1,
+	)
 }
