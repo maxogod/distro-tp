@@ -102,6 +102,8 @@ func (a *Aggregator) Stop() error {
 		a.finishExchange = nil
 	}
 
+	a.refDatasetStore.ResetStore()
+
 	return nil
 }
 
