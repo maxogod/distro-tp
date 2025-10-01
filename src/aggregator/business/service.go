@@ -164,7 +164,8 @@ func (a *Aggregator) StartDirectExchange() error {
 	return nil
 }
 
-func (a *Aggregator) SendAggregateDataTask4(items map[string]*joined.JoinMostPurchasesUser) error {
+func (a *Aggregator) SendAggregateDataTask4(items cache.MapJoinMostPurchasesUser) error {
+	// TODO: Sacar a config.yaml
 	batchSize := 100
 	var currentBatch []*joined.JoinMostPurchasesUser
 

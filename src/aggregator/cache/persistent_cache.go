@@ -7,6 +7,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"sort"
 
 	"github.com/maxogod/distro-tp/src/common/models/data_batch"
 	"github.com/maxogod/distro-tp/src/common/models/enum"
@@ -23,7 +24,8 @@ type ReferenceDatasetStore struct {
 
 type MergeFunc[T proto.Message] func(accumulated, incoming T) T
 type KeyFunc[T proto.Message] func(item T) string
-type SendAggTask4 func(items map[string]*joined.JoinMostPurchasesUser) error
+type MapJoinMostPurchasesUser map[string]*joined.JoinMostPurchasesUser
+type SendAggTask4 func(items MapJoinMostPurchasesUser) error
 
 func NewCacheStore(storePath string) *ReferenceDatasetStore {
 	return &ReferenceDatasetStore{
@@ -186,5 +188,37 @@ func (refStore *ReferenceDatasetStore) AggregateDataTask4(gatewayControllerDataQ
 		return err
 	}
 
-	return sendAggDataTask4(aggregatedData)
+	top3 := top3ByStore(aggregatedData)
+
+	return sendAggDataTask4(top3)
+}
+
+func top3ByStore(data MapJoinMostPurchasesUser) MapJoinMostPurchasesUser {
+	usersByStore := make(map[string][]*joined.JoinMostPurchasesUser)
+	for _, item := range data {
+		usersByStore[item.StoreName] = append(usersByStore[item.StoreName], item)
+	}
+
+	result := make(map[string]*joined.JoinMostPurchasesUser)
+
+	for _, users := range usersByStore {
+		sort.Slice(users, func(i, j int) bool {
+			if users[i].PurchasesQty == users[j].PurchasesQty {
+				return users[i].UserBirthdate < users[j].UserBirthdate
+			}
+			return users[i].PurchasesQty > users[j].PurchasesQty
+		})
+
+		limit := 3
+		if len(users) < 3 {
+			limit = len(users)
+		}
+
+		for _, user := range users[:limit] {
+			k := user.StoreName + "|" + user.UserBirthdate
+			result[k] = user
+		}
+	}
+
+	return result
 }
