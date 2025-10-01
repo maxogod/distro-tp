@@ -64,6 +64,8 @@ func (cs *clientSession) ProcessRequest() error {
 		return err
 	}
 
+	log.Debugln("All report data sent to client, closing session")
+
 	return nil
 }
 
@@ -76,9 +78,17 @@ func (cs *clientSession) processResponse() error {
 		for batch := range data {
 			err := cs.clientConnection.SendData(batch)
 			if err != nil {
-				log.Errorf("Error sending report data: %v", err)
-				disconnect <- true
-				return err
+				break
+			}
+
+			// If the process data is finished, break the loop
+			dataBatch := &data_batch.DataBatch{}
+			err = proto.Unmarshal(batch, dataBatch)
+			if err != nil {
+				break
+			}
+			if dataBatch.GetDone() {
+				break
 			}
 		}
 	}

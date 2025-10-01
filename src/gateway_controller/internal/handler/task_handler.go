@@ -148,6 +148,7 @@ func (th *TaskHandler) SendDone(taskType enum.TaskType, currentClientID string) 
 
 	nodeConnections.StopConsuming()
 	nodeConnections.Close()
+	th.workerManager.ClearStatus()
 
 	return nil
 }
@@ -157,13 +158,13 @@ func (th *TaskHandler) GetReportData(data chan []byte, disconnect chan bool) {
 
 	done := make(chan bool)
 	th.processedDataQueueMiddleware.StartConsuming(func(msgs middleware.ConsumeChannel, d chan error) {
-		for msg := range msgs {
-			data <- msg.Body
-			msg.Ack(false)
+		for {
 			select {
+			case msg := <-msgs:
+				data <- msg.Body
+				msg.Ack(false)
 			case <-done:
 				return
-			default:
 			}
 		}
 	})

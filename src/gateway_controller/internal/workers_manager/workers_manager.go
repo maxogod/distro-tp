@@ -158,3 +158,26 @@ func (wm *workersManager) GetWorkerConnectionRR() (middleware.MessageMiddleware,
 
 	return workerStat.connection, nil
 }
+
+func (wm *workersManager) ClearStatus() {
+	for id, workerStat := range wm.filterWorkers {
+		workerStat.finished = false
+		wm.filterWorkers[id] = workerStat
+	}
+	for id, workerStat := range wm.groupByWorkers {
+		workerStat.finished = false
+		wm.groupByWorkers[id] = workerStat
+	}
+	for id, workerStat := range wm.reducerWorkers {
+		workerStat.finished = false
+		wm.reducerWorkers[id] = workerStat
+	}
+	for id, workerStat := range wm.joinerWorkers {
+		workerStat.finished = false
+		wm.joinerWorkers[id] = workerStat
+	}
+	for id, workerStat := range wm.aggregatorWorkers {
+		workerStat.finished = false
+		wm.aggregatorWorkers[id] = workerStat
+	}
+}
