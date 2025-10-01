@@ -42,13 +42,8 @@ func sendAggregateData[T proto.Message, B proto.Message](
 }
 
 func (a *Aggregator) SendAggregateDataTask4(items cache.MapJoinMostPurchasesUser) error {
-	gatewayQueue, err := StartQueueMiddleware(a.config.GatewayAddress, a.config.GatewayControllerDataQueue)
-	if err != nil {
-		return err
-	}
-
 	return sendAggregateData(
-		gatewayQueue,
+		a.gatewayDataQueue,
 		items,
 		enum.T4,
 		func(batch []*joined.JoinMostPurchasesUser) *joined.JoinMostPurchasesUserBatch {
@@ -59,13 +54,8 @@ func (a *Aggregator) SendAggregateDataTask4(items cache.MapJoinMostPurchasesUser
 }
 
 func (a *Aggregator) SendAggregateDataTask3(items cache.MapJoinStoreTPV) error {
-	gatewayQueue, err := StartQueueMiddleware(a.config.GatewayAddress, a.config.GatewayControllerDataQueue)
-	if err != nil {
-		return err
-	}
-
 	return sendAggregateData(
-		gatewayQueue,
+		a.gatewayDataQueue,
 		items,
 		enum.T3,
 		func(batch []*joined.JoinStoreTPV) *joined.JoinStoreTPVBatch {
@@ -76,13 +66,8 @@ func (a *Aggregator) SendAggregateDataTask3(items cache.MapJoinStoreTPV) error {
 }
 
 func (a *Aggregator) SendAggregateDataBestSelling(items cache.MapJoinBestSelling) error {
-	gatewayQueue, err := StartQueueMiddleware(a.config.GatewayAddress, a.config.GatewayControllerDataQueue)
-	if err != nil {
-		return err
-	}
-
 	return sendAggregateData(
-		gatewayQueue,
+		a.gatewayDataQueue,
 		items,
 		enum.T2,
 		func(batch []*joined.JoinBestSellingProducts) *joined.JoinBestSellingProductsBatch {
@@ -93,13 +78,8 @@ func (a *Aggregator) SendAggregateDataBestSelling(items cache.MapJoinBestSelling
 }
 
 func (a *Aggregator) SendAggregateDataMostProfits(items cache.MapJoinMostProfits) error {
-	gatewayQueue, err := StartQueueMiddleware(a.config.GatewayAddress, a.config.GatewayControllerDataQueue)
-	if err != nil {
-		return err
-	}
-
 	return sendAggregateData(
-		gatewayQueue,
+		a.gatewayDataQueue,
 		items,
 		enum.T2,
 		func(batch []*joined.JoinMostProfitsProducts) *joined.JoinMostProfitsProductsBatch {

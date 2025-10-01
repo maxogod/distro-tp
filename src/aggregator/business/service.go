@@ -111,6 +111,13 @@ func (a *Aggregator) HandleDone(msgBatch []byte) error {
 		return err
 	}
 
+	gatewayQueue, err := StartQueueMiddleware(a.config.GatewayAddress, a.config.GatewayControllerDataQueue)
+	if err != nil {
+		return err
+	}
+
+	a.gatewayDataQueue = gatewayQueue
+
 	switch enum.TaskType(batch.TaskType) {
 	case enum.T2:
 		return a.refDatasetStore.AggregateDataTask2(a.SendAggregateDataBestSelling, a.SendAggregateDataMostProfits)

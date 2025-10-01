@@ -17,6 +17,7 @@ func AggregatorConfig(storeDir string) config.Config {
 	return config.Config{
 		GatewayAddress:                     RabbitURL,
 		StorePath:                          storeDir,
+		BatchSize:                          100,
 		JoinedMostProfitsTransactionsQueue: "joined_most_profits_transactions",
 		JoinedBestSellingTransactionsQueue: "joined_best_selling_transactions",
 		JoinedStoresTPVQueue:               "joined_stores_tpv",
