@@ -16,9 +16,10 @@ type MessageMiddlewares map[string]middleware.MessageMiddleware
 
 func defaultDataQueueTaskType(config config.Config) DataQueueTaskType {
 	return DataQueueTaskType{
-		config.JoinedTransactionsQueue:     enum.T2,
-		config.JoinedStoresTPVQueue:        enum.T3,
-		config.JoinedUserTransactionsQueue: enum.T4,
+		config.JoinedBestSellingTransactionsQueue: enum.T2,
+		config.JoinedMostProfitsTransactionsQueue: enum.T2,
+		config.JoinedStoresTPVQueue:               enum.T3,
+		config.JoinedUserTransactionsQueue:        enum.T4,
 	}
 }
 
@@ -47,7 +48,8 @@ func NewAggregator(config *config.Config) *Aggregator {
 
 	aggregator.taskHandler = handler.NewTaskHandler(aggregator.refDatasetStore)
 	aggregator.dataQueueNames = []string{
-		config.JoinedTransactionsQueue,
+		config.JoinedBestSellingTransactionsQueue,
+		config.JoinedMostProfitsTransactionsQueue,
 		config.JoinedStoresTPVQueue,
 		config.JoinedUserTransactionsQueue,
 	}
@@ -55,85 +57,94 @@ func NewAggregator(config *config.Config) *Aggregator {
 	return aggregator
 }
 
-func (j *Aggregator) StartDataConsumer(dataQueueName string) error {
-	taskType := j.dataQueueTaskType[dataQueueName]
-	handlerTask := j.taskHandler.HandleTask(taskType)
+func (a *Aggregator) StartDataConsumer(dataQueueName string) error {
+	taskType := a.dataQueueTaskType[dataQueueName]
+	handlerTask := a.taskHandler.HandleTask(taskType, a.isBestSellingTask(dataQueueName))
 	dataHandler := handler.NewDataHandler(handlerTask)
 
-	m, err := StartConsumer(j.config.GatewayAddress, dataQueueName, dataHandler.HandleDataMessage)
+	m, err := StartConsumer(a.config.GatewayAddress, dataQueueName, dataHandler.HandleDataMessage)
 	if err != nil {
 		return err
 	}
-	j.dataMiddlewares[dataQueueName] = m
+	a.dataMiddlewares[dataQueueName] = m
 	return nil
 }
 
-func (j *Aggregator) Stop() error {
-	j.mutex.Lock()
-	defer j.mutex.Unlock()
+func (a *Aggregator) isBestSellingTask(dataQueueName string) bool {
+	return dataQueueName == a.config.JoinedBestSellingTransactionsQueue
+}
+
+func (a *Aggregator) Stop() error {
+	a.mutex.Lock()
+	defer a.mutex.Unlock()
 
 	var err error
-	j.dataMiddlewares, err = StopConsumers(j.dataMiddlewares)
+	a.dataMiddlewares, err = StopConsumers(a.dataMiddlewares)
 	if err != nil {
 		return err
 	}
 
-	if j.gatewayConnectionQueue, err = StopSender(j.gatewayConnectionQueue); err != nil {
+	if a.gatewayConnectionQueue, err = StopSender(a.gatewayConnectionQueue); err != nil {
 		return err
 	}
 
-	if j.gatewayDataQueue, err = StopSender(j.gatewayDataQueue); err != nil {
+	if a.gatewayDataQueue, err = StopSender(a.gatewayDataQueue); err != nil {
 		return err
 	}
 
-	if j.finishExchange != nil {
-		if err = StopConsumer(j.finishExchange); err != nil {
+	if a.finishExchange != nil {
+		if err = StopConsumer(a.finishExchange); err != nil {
 			return err
 		}
-		j.finishExchange = nil
+		a.finishExchange = nil
 	}
 
 	return nil
 }
 
-func (j *Aggregator) HandleDone([]byte) error {
+func (a *Aggregator) HandleDone([]byte) error {
 	// TODO: Start to send batched data to the gateway controller
-	//  use SendDataBatch(dataBatch *handler.DataBatch, j.gatewayDataQueue)
-	//  use StartSender() to initialize j.gatewayDataQueue
+	//  use SendDataBatch(dataBatch *handler.DataBatch, a.gatewayDataQueue)
+	//  use StartSender() to initialize a.gatewayDataQueue
 	return nil
 }
 
-func (j *Aggregator) InitService() error {
-	for _, dataQueueName := range j.dataQueueNames {
-		err := j.StartDataConsumer(dataQueueName)
+func (a *Aggregator) InitService() error {
+	for _, dataQueueName := range a.dataQueueNames {
+		err := a.StartDataConsumer(dataQueueName)
 		if err != nil {
 			return err
 		}
 	}
 
-	m, err := StartQueueMiddleware(j.config.GatewayAddress, j.config.GatewayControllerConnectionQueue)
+	m, err := StartQueueMiddleware(a.config.GatewayAddress, a.config.GatewayControllerConnectionQueue)
 	if err != nil {
 		return err
 	}
 
-	j.gatewayConnectionQueue = m
+	a.gatewayConnectionQueue = m
 
-	err = SendControllerConnectionMsg(j.gatewayConnectionQueue, j.workerName, false)
+	err = SendControllerConnectionMsg(a.gatewayConnectionQueue, a.workerName, false)
 	if err != nil {
 		return err
 	}
 
+	err = a.StartDirectExchange()
+
+	return nil
+}
+
+func (a *Aggregator) StartDirectExchange() error {
 	exchange, err := StartDirectExchange(
-		j.config.GatewayAddress,
-		j.config.GatewayControllerExchange,
-		j.config.FinishRoutingKey,
-		j.HandleDone,
+		a.config.GatewayAddress,
+		a.config.GatewayControllerExchange,
+		a.config.FinishRoutingKey,
+		a.HandleDone,
 	)
 	if err != nil {
 		return err
 	}
 
-	j.finishExchange = exchange
-
+	a.finishExchange = exchange
 	return nil
 }

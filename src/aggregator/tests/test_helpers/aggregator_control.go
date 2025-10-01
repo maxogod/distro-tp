@@ -40,6 +40,9 @@ func StartAggregator(t *testing.T, storeDir string, dataQueueNames []string) *ag
 		assert.NoError(t, err)
 	}
 
+	err := agg.StartDirectExchange()
+	assert.NoError(t, err)
+
 	return agg
 }
 
