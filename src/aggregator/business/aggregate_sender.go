@@ -1,7 +1,6 @@
 package service
 
 import (
-	"github.com/maxogod/distro-tp/src/aggregator/cache"
 	"github.com/maxogod/distro-tp/src/common/middleware"
 	"github.com/maxogod/distro-tp/src/common/models/enum"
 	"github.com/maxogod/distro-tp/src/common/models/joined"
@@ -41,7 +40,7 @@ func sendAggregateData[T proto.Message, B proto.Message](
 	return nil
 }
 
-func (a *Aggregator) SendAggregateDataTask4(items cache.MapJoinMostPurchasesUser) error {
+func (a *Aggregator) SendAggregateDataTask4(items MapJoinMostPurchasesUser) error {
 	return sendAggregateData(
 		a.gatewayDataQueue,
 		items,
@@ -53,7 +52,7 @@ func (a *Aggregator) SendAggregateDataTask4(items cache.MapJoinMostPurchasesUser
 	)
 }
 
-func (a *Aggregator) SendAggregateDataTask3(items cache.MapJoinStoreTPV) error {
+func (a *Aggregator) SendAggregateDataTask3(items MapJoinStoreTPV) error {
 	return sendAggregateData(
 		a.gatewayDataQueue,
 		items,
@@ -65,7 +64,7 @@ func (a *Aggregator) SendAggregateDataTask3(items cache.MapJoinStoreTPV) error {
 	)
 }
 
-func (a *Aggregator) SendAggregateDataBestSelling(items cache.MapJoinBestSelling) error {
+func (a *Aggregator) SendAggregateDataBestSelling(items MapJoinBestSelling) error {
 	return sendAggregateData(
 		a.gatewayDataQueue,
 		items,
@@ -77,7 +76,7 @@ func (a *Aggregator) SendAggregateDataBestSelling(items cache.MapJoinBestSelling
 	)
 }
 
-func (a *Aggregator) SendAggregateDataMostProfits(items cache.MapJoinMostProfits) error {
+func (a *Aggregator) SendAggregateDataMostProfits(items MapJoinMostProfits) error {
 	return sendAggregateData(
 		a.gatewayDataQueue,
 		items,

@@ -120,11 +120,11 @@ func (a *Aggregator) HandleDone(msgBatch []byte) error {
 
 	switch enum.TaskType(batch.TaskType) {
 	case enum.T2:
-		return a.refDatasetStore.AggregateDataTask2(a.SendAggregateDataBestSelling, a.SendAggregateDataMostProfits)
+		return a.AggregateDataTask2()
 	case enum.T3:
-		return a.refDatasetStore.AggregateDataTask3(a.SendAggregateDataTask3)
+		return a.AggregateDataTask3()
 	case enum.T4:
-		return a.refDatasetStore.AggregateDataTask4(a.SendAggregateDataTask4)
+		return a.AggregateDataTask4()
 	default:
 		return fmt.Errorf("unknown task type: %v", batch.TaskType)
 	}
