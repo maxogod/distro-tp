@@ -51,7 +51,7 @@ func assertBatchPersistence[T any](
 					var length uint32
 					readErr := binary.Read(bytes.NewReader(fileData[offset:]), binary.LittleEndian, &length)
 					assert.NoError(t, readErr)
-					offset += 4 // tamaño del uint32 leído
+					offset += 4 // size of the read uint32
 
 					if offset+int(length) > len(fileData) {
 						t.Fatalf("invalid data length in file %s", expectedFile)
