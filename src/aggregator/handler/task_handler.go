@@ -16,10 +16,10 @@ type TaskHandlers map[enum.TaskType][]HandleTask
 
 type TaskHandler struct {
 	taskHandlers    TaskHandlers
-	refDatasetStore *cache.ReferenceDatasetStore
+	refDatasetStore *cache.DataBatchStore
 }
 
-func NewTaskHandler(referenceDatasetStore *cache.ReferenceDatasetStore) *TaskHandler {
+func NewTaskHandler(referenceDatasetStore *cache.DataBatchStore) *TaskHandler {
 	th := &TaskHandler{
 		refDatasetStore: referenceDatasetStore,
 	}

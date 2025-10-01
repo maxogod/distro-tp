@@ -35,7 +35,7 @@ type Aggregator struct {
 	mutex                  sync.Mutex
 	gatewayDataQueue       middleware.MessageMiddleware
 	gatewayConnectionQueue middleware.MessageMiddleware
-	refDatasetStore        *cache.ReferenceDatasetStore
+	refDatasetStore        *cache.DataBatchStore
 	workerName             string
 	finishExchange         middleware.MessageMiddleware
 }

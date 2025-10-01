@@ -13,20 +13,20 @@ import (
 
 type StoreDataPaths map[enum.TaskType][]string
 
-type ReferenceDatasetStore struct {
+type DataBatchStore struct {
 	storePath      string
 	storeDataPaths StoreDataPaths
 }
 
-func NewCacheStore(storePath string) *ReferenceDatasetStore {
-	return &ReferenceDatasetStore{
+func NewCacheStore(storePath string) *DataBatchStore {
+	return &DataBatchStore{
 		storePath:      storePath,
 		storeDataPaths: make(StoreDataPaths),
 	}
 }
 
-func (refStore *ReferenceDatasetStore) storeData(batch *data_batch.DataBatch, taskType enum.TaskType, filename string) error {
-	datasetFilename := filepath.Join(refStore.storePath, fmt.Sprintf("%s.pb", filename))
+func (cacheStore *DataBatchStore) storeData(batch *data_batch.DataBatch, taskType enum.TaskType, filename string) error {
+	datasetFilename := filepath.Join(cacheStore.storePath, fmt.Sprintf("%s.pb", filename))
 
 	data, protoErr := proto.Marshal(batch)
 	if protoErr != nil {
@@ -48,46 +48,46 @@ func (refStore *ReferenceDatasetStore) storeData(batch *data_batch.DataBatch, ta
 		return writeDataErr
 	}
 
-	refStore.updateStorePaths(taskType, datasetFilename)
+	cacheStore.updateStorePaths(taskType, datasetFilename)
 
 	return f.Sync()
 }
 
-func (refStore *ReferenceDatasetStore) StoreDataBestSelling(batch *data_batch.DataBatch) error {
-	return refStore.storeData(batch, enum.T2, "task2_1")
+func (cacheStore *DataBatchStore) StoreDataBestSelling(batch *data_batch.DataBatch) error {
+	return cacheStore.storeData(batch, enum.T2, "task2_1")
 }
 
-func (refStore *ReferenceDatasetStore) StoreDataMostProfits(batch *data_batch.DataBatch) error {
-	return refStore.storeData(batch, enum.T2, "task2_2")
+func (cacheStore *DataBatchStore) StoreDataMostProfits(batch *data_batch.DataBatch) error {
+	return cacheStore.storeData(batch, enum.T2, "task2_2")
 }
 
-func (refStore *ReferenceDatasetStore) StoreDataTask3(batch *data_batch.DataBatch) error {
-	return refStore.storeData(batch, enum.T3, "task3")
+func (cacheStore *DataBatchStore) StoreDataTask3(batch *data_batch.DataBatch) error {
+	return cacheStore.storeData(batch, enum.T3, "task3")
 }
 
-func (refStore *ReferenceDatasetStore) StoreDataTask4(batch *data_batch.DataBatch) error {
-	return refStore.storeData(batch, enum.T4, "task4")
+func (cacheStore *DataBatchStore) StoreDataTask4(batch *data_batch.DataBatch) error {
+	return cacheStore.storeData(batch, enum.T4, "task4")
 }
 
-func (refStore *ReferenceDatasetStore) updateStorePaths(taskType enum.TaskType, datasetFilename string) {
-	if paths, exists := refStore.storeDataPaths[taskType]; exists {
+func (cacheStore *DataBatchStore) updateStorePaths(taskType enum.TaskType, datasetFilename string) {
+	if paths, exists := cacheStore.storeDataPaths[taskType]; exists {
 		for _, p := range paths {
 			if p == datasetFilename {
 				return
 			}
 		}
-		refStore.storeDataPaths[taskType] = append(paths, datasetFilename)
+		cacheStore.storeDataPaths[taskType] = append(paths, datasetFilename)
 	} else {
-		refStore.storeDataPaths[taskType] = []string{datasetFilename}
+		cacheStore.storeDataPaths[taskType] = []string{datasetFilename}
 	}
 }
 
-func (refStore *ReferenceDatasetStore) ResetStore() {
-	for _, paths := range refStore.storeDataPaths {
+func (cacheStore *DataBatchStore) ResetStore() {
+	for _, paths := range cacheStore.storeDataPaths {
 		for _, p := range paths {
 			_ = os.Remove(p)
 		}
 	}
 
-	refStore.storeDataPaths = make(StoreDataPaths)
+	cacheStore.storeDataPaths = make(StoreDataPaths)
 }
