@@ -17,10 +17,12 @@ const (
 	UsersRefQueue     = "users"
 	StoresRefQueue    = "stores"
 	MenuItemsRefQueue = "menu_items"
+	MainQueue         = 0
+	BestSellingQueue  = 1
 )
 
 type TaskQueues map[enum.TaskType][]string
-type AggregatorQueues map[enum.TaskType]string
+type AggregatorQueues map[enum.TaskType][]string
 type MessageMiddlewares map[string]middleware.MessageMiddleware
 type ReferenceDoneReceived map[enum.TaskType]map[string]bool
 
@@ -32,7 +34,7 @@ type Joiner struct {
 	taskQueues           TaskQueues
 	mutex                sync.Mutex
 	aggregatorQueues     AggregatorQueues
-	aggregatorMidd       middleware.MessageMiddleware
+	aggregatorMidd       MessageMiddlewares
 	refDatasetStore      *cache.ReferenceDatasetStore
 	refQueueNames        []string
 	refDoneReceived      ReferenceDoneReceived
@@ -51,9 +53,9 @@ func defaultTaskQueues(config *config.Config) TaskQueues {
 
 func defaultAggregatorQueues(config *config.Config) AggregatorQueues {
 	return AggregatorQueues{
-		enum.T2: config.JoinedTransactionsQueue,
-		enum.T3: config.JoinedStoresTPVQueue,
-		enum.T4: config.JoinedUserTransactionsQueue,
+		enum.T2: {config.JoinedMostProfitsTransactionsQueue, config.JoinedBestSellingTransactionsQueue},
+		enum.T3: {config.JoinedStoresTPVQueue},
+		enum.T4: {config.JoinedUserTransactionsQueue},
 	}
 }
 
@@ -72,6 +74,7 @@ func NewJoiner(config *config.Config) *Joiner {
 		dataMiddlewares:      make(MessageMiddlewares),
 		taskQueues:           defaultTaskQueues(config),
 		aggregatorQueues:     defaultAggregatorQueues(config),
+		aggregatorMidd:       make(MessageMiddlewares),
 		refDatasetStore:      cache.NewCacheStore(config.StorePath),
 		refQueueNames:        []string{UsersRefQueue, StoresRefQueue, MenuItemsRefQueue},
 		refDoneReceived:      defaultRequiredRefQueues(),
@@ -121,11 +124,9 @@ func (j *Joiner) Stop() error {
 		return err
 	}
 
-	if j.aggregatorMidd != nil {
-		if err = StopSender(j.aggregatorMidd); err != nil {
-			return err
-		}
-		j.aggregatorMidd = nil
+	j.aggregatorMidd, err = StopSenders(j.aggregatorMidd)
+	if err != nil {
+		return err
 	}
 
 	if j.controllerConnection != nil {
@@ -157,17 +158,17 @@ func (j *Joiner) HandleDone(refQueueName string, taskType enum.TaskType) error {
 	j.mutex.Unlock()
 
 	if j.allRefDatasetsLoaded(taskType) {
-		aggQueueName := j.aggregatorQueues[taskType]
-
-		aggregatorQueue, senderErr := StartSender(j.config.GatewayAddress, aggQueueName)
-		if senderErr != nil {
-			return senderErr
-		}
-
-		j.aggregatorMidd = aggregatorQueue
-
 		for _, dataQueueName := range j.taskQueues[taskType] {
-			handlerTask := j.taskHandler.HandleTask(taskType, j.isBestSellingTask(dataQueueName))
+			aggQueueName := j.getAggQueueName(taskType, dataQueueName)
+
+			aggregatorQueue, senderErr := StartSender(j.config.GatewayAddress, aggQueueName)
+			if senderErr != nil {
+				return senderErr
+			}
+
+			j.aggregatorMidd[aggQueueName] = aggregatorQueue
+
+			handlerTask := j.taskHandler.HandleTask(taskType, j.isBestSellingTask(dataQueueName), aggregatorQueue)
 			if err := j.startDataConsumer(handlerTask, dataQueueName); err != nil {
 				return err
 			}
@@ -177,13 +178,13 @@ func (j *Joiner) HandleDone(refQueueName string, taskType enum.TaskType) error {
 	return nil
 }
 
-func (j *Joiner) SendBatchToAggregator(dataBatch *handler.DataBatch) error {
+func (j *Joiner) SendBatchToAggregator(dataBatch *handler.DataBatch, aggregatorMidd middleware.MessageMiddleware) error {
 	dataBytes, err := proto.Marshal(dataBatch)
 	if err != nil {
 		return err
 	}
 
-	returnCode := j.aggregatorMidd.Send(dataBytes)
+	returnCode := aggregatorMidd.Send(dataBytes)
 	if returnCode != middleware.MessageMiddlewareSuccess {
 		return fmt.Errorf("failed to send result: %d", returnCode)
 	}
@@ -253,4 +254,11 @@ func (j *Joiner) HandleDoneDataset() error {
 	j.refDatasetStore.ResetStore()
 
 	return SendMessageToControllerConnection(j.controllerConnection, j.workerName, true)
+}
+
+func (j *Joiner) getAggQueueName(taskType enum.TaskType, dataQueueName string) string {
+	if j.isBestSellingTask(dataQueueName) {
+		return j.aggregatorQueues[taskType][BestSellingQueue]
+	}
+	return j.aggregatorQueues[taskType][MainQueue]
 }

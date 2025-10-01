@@ -22,18 +22,19 @@ const (
 
 func JoinerConfig(storeDir string) config.Config {
 	return config.Config{
-		GatewayAddress:              RabbitURL,
-		StorePath:                   storeDir,
-		StoreTPVQueue:               "store_tpv",
-		TransactionCountedQueue:     "transaction_counted",
-		TransactionSumQueue:         "transaction_sum",
-		UserTransactionsQueue:       "user_transactions",
-		JoinedTransactionsQueue:     "joined_transactions_queue",
-		JoinedStoresTPVQueue:        "joined_stores_tpv_queue",
-		JoinedUserTransactionsQueue: "joined_user_transactions_queue",
-		GatewayControllerQueue:      "node_connections",
-		GatewayControllerExchange:   "finish_exchange",
-		FinishRoutingKey:            "joiner",
+		GatewayAddress:                     RabbitURL,
+		StorePath:                          storeDir,
+		StoreTPVQueue:                      "store_tpv",
+		TransactionCountedQueue:            "transaction_counted",
+		TransactionSumQueue:                "transaction_sum",
+		UserTransactionsQueue:              "user_transactions",
+		JoinedBestSellingTransactionsQueue: "joined_most_profits_transactions",
+		JoinedMostProfitsTransactionsQueue: "joined_best_selling_transactions",
+		JoinedStoresTPVQueue:               "joined_stores_tpv_queue",
+		JoinedUserTransactionsQueue:        "joined_user_transactions_queue",
+		GatewayControllerQueue:             "node_connections",
+		GatewayControllerExchange:          "finish_exchange",
+		FinishRoutingKey:                   "joiner",
 	}
 }
 
