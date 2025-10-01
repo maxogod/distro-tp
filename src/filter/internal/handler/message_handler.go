@@ -62,7 +62,7 @@ func NewMessageHandler(
 
 	workerName := fmt.Sprintf("%s_%s", FilterQueue, uuid.New().String())
 
-	dataQueue, err := middleware.NewExchangeMiddleware(Address, FinishExchange, "direct", []string{FilterQueue, workerName})
+	dataQueue, err := middleware.NewExchangeMiddleware(Address, "data_exchange", "direct", []string{FilterQueue, workerName})
 	if err != nil {
 		log.Errorf("Failed to create finish exchange middleware: %v", err)
 		return nil

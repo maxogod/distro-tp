@@ -3,9 +3,12 @@ package workers_manager
 import (
 	"strings"
 
+	"github.com/maxogod/distro-tp/src/common/logger"
 	"github.com/maxogod/distro-tp/src/common/middleware"
 	"github.com/maxogod/distro-tp/src/common/models/enum"
 )
+
+var log = logger.GetLogger()
 
 type workerStatus struct {
 	finished   bool
@@ -152,5 +155,6 @@ func (wm *workersManager) GetWorkerConnectionRR() (middleware.MessageMiddleware,
 	if !exists {
 		return nil, &WorkerNotExistsError{}
 	}
+
 	return workerStat.connection, nil
 }

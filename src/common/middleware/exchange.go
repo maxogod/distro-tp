@@ -147,7 +147,6 @@ func (me *MessageMiddlewareExchange) Send(message []byte) MessageMiddlewareError
 		}
 	}
 
-	logger.GetLogger().Debugln("Sent message:", string(message))
 
 	return MessageMiddlewareSuccess
 }

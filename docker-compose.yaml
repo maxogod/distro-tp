@@ -40,6 +40,18 @@ services:
     depends_on:
       - gateway_controller
 
+  filter:
+    container_name: filter
+    build:
+      dockerfile: ./src/filter/Dockerfile
+    image: filter:latest
+    networks:
+      - tp_net
+    volumes:
+      - ./src/filter/config.yaml:/config.yaml
+    depends_on:
+      - rabbitmq
+
 networks:
   tp_net:
     ipam:
