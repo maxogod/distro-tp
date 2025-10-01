@@ -315,7 +315,7 @@ func TestHandleTaskType4_ProducesJoinedBatch(t *testing.T) {
 		{StoreId: 6, UserId: 2, PurchasesQty: 91218},
 	}
 	mostPurchasesUsersBatch := helpers.PrepareMostPurchasesUserBatch(t, mostPurchasesUsers, enum.T4)
-	helpers.SendDataBatch(t, middleware.GetdUserTransactionsQueue, mostPurchasesUsersBatch)
+	helpers.SendDataBatch(t, middleware.GetUserTransactionsQueue, mostPurchasesUsersBatch)
 
 	expectedMostPurchasesUsers := []*joined.JoinMostPurchasesUser{
 		{StoreName: "G Coffee @ Seksyen 21", UserBirthdate: "1970-04-22", PurchasesQty: 260611},
@@ -376,7 +376,7 @@ func TestHandleTaskType4Server(t *testing.T) {
 		{StoreId: 6, UserId: 2, PurchasesQty: 91218},
 	}
 	mostPurchasesUsersBatch := helpers.PrepareMostPurchasesUserBatch(t, mostPurchasesUsers, enum.T4)
-	helpers.SendDataBatch(t, middleware.GetdUserTransactionsQueue, mostPurchasesUsersBatch)
+	helpers.SendDataBatch(t, middleware.GetUserTransactionsQueue, mostPurchasesUsersBatch)
 
 	expectedMostPurchasesUsers := []*joined.JoinMostPurchasesUser{
 		{StoreName: "G Coffee @ Seksyen 21", UserBirthdate: "1970-04-22", PurchasesQty: 260611},

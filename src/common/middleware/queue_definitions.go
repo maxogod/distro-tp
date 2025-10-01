@@ -99,8 +99,8 @@ func GetStoresTPVQueue(url string) MessageMiddleware {
 	})
 }
 
-// GetdUserTransactionsQueue retrieves the middleware used by controller to user transactions.
-func GetdUserTransactionsQueue(url string) MessageMiddleware {
+// GetUserTransactionsQueue retrieves the middleware used by controller to send user transactions.
+func GetUserTransactionsQueue(url string) MessageMiddleware {
 	return retryMiddlewareCreation(MIDDLEWARE_CONNECTION_RETRIES, WAIT_INTERVAL, func() (MessageMiddleware, error) {
 		return NewQueueMiddleware(url, "user_transactions")
 	})

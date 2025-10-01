@@ -81,7 +81,7 @@ func defaultDataQueueCreators(config *config.Config) MessageMiddlewareCreators {
 		config.TransactionSumQueue:     middleware.GetMostProfitsTransactionsQueue,
 		config.TransactionCountedQueue: middleware.GetBestSellingTransactionsQueue,
 		config.StoreTPVQueue:           middleware.GetStoresTPVQueue,
-		config.UserTransactionsQueue:   middleware.GetdUserTransactionsQueue,
+		config.UserTransactionsQueue:   middleware.GetUserTransactionsQueue,
 	}
 }
 
