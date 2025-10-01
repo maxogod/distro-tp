@@ -1,72 +1,28 @@
 package service
 
 import (
-	"encoding/binary"
 	"errors"
 	"fmt"
 	"io"
 	"os"
 	"sort"
 
-	"github.com/maxogod/distro-tp/src/common/models/data_batch"
+	"github.com/maxogod/distro-tp/src/aggregator/cache"
 	"github.com/maxogod/distro-tp/src/common/models/joined"
 	"google.golang.org/protobuf/proto"
 )
 
-type MergeFunc[T proto.Message] func(accumulated, incoming T) T
-type KeyFunc[T proto.Message] func(item T) string
 type MapJoinMostPurchasesUser map[string]*joined.JoinMostPurchasesUser
 type MapJoinStoreTPV map[string]*joined.JoinStoreTPV
 type MapJoinBestSelling map[string]*joined.JoinBestSellingProducts
 type MapJoinMostProfits map[string]*joined.JoinMostProfitsProducts
 
-func aggregateData[T proto.Message, B proto.Message](
-	f *os.File,
-	createSpecificBatch func() B,
-	getItems func(B) []T,
-	merge MergeFunc[T],
-	key KeyFunc[T],
-) (map[string]T, error) {
-	var length uint32
-	if err := binary.Read(f, binary.LittleEndian, &length); err != nil {
-		return nil, err
-	}
-
-	dataBatchBytes := make([]byte, length)
-	if _, err := io.ReadFull(f, dataBatchBytes); err != nil {
-		return nil, err
-	}
-
-	dataBatch := &data_batch.DataBatch{}
-	err := proto.Unmarshal(dataBatchBytes, dataBatch)
-	if err != nil {
-		return nil, err
-	}
-
-	specificBatch := createSpecificBatch()
-	if err = proto.Unmarshal(dataBatch.Payload, specificBatch); err != nil {
-		return nil, err
-	}
-
-	aggregatedItems := make(map[string]T)
-	for _, item := range getItems(specificBatch) {
-		k := key(item)
-		if existing, ok := aggregatedItems[k]; ok {
-			aggregatedItems[k] = merge(existing, item)
-		} else {
-			aggregatedItems[k] = proto.Clone(item).(T)
-		}
-	}
-
-	return aggregatedItems, nil
-}
-
 func aggregateTask[T proto.Message, B proto.Message, M ~map[string]T](
 	datasetName, storePath string,
 	createSpecificBatch func() B,
 	getItems func(B) []T,
-	merge MergeFunc[T],
-	key KeyFunc[T],
+	merge cache.MergeFunc[T],
+	key cache.KeyFunc[T],
 	combineTop func(M) M,
 ) (M, error) {
 	filename := fmt.Sprintf("%s/%s.pb", storePath, datasetName)
@@ -79,12 +35,12 @@ func aggregateTask[T proto.Message, B proto.Message, M ~map[string]T](
 	finalAgg := make(M)
 
 	for {
-		currAgg, err := aggregateData(f, createSpecificBatch, getItems, merge, key)
-		if err != nil {
-			if errors.Is(err, io.EOF) {
+		currAgg, aggErr := cache.AggregateData(f, createSpecificBatch, getItems, merge, key)
+		if aggErr != nil {
+			if errors.Is(aggErr, io.EOF) {
 				break
 			}
-			return nil, err
+			return nil, aggErr
 		}
 
 		for k, v := range currAgg {
