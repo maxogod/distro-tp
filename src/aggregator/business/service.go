@@ -19,6 +19,7 @@ type MessageMiddlewares map[string]middleware.MessageMiddleware
 
 func defaultDataQueueTaskType(config config.Config) DataQueueTaskType {
 	return DataQueueTaskType{
+		config.FilteredTransactionsQueue:          enum.T1,
 		config.JoinedBestSellingTransactionsQueue: enum.T2,
 		config.JoinedMostProfitsTransactionsQueue: enum.T2,
 		config.JoinedStoresTPVQueue:               enum.T3,
@@ -121,6 +122,8 @@ func (a *Aggregator) HandleDone(msgBatch []byte) error {
 	a.gatewayDataQueue = gatewayQueue
 
 	switch enum.TaskType(batch.TaskType) {
+	case enum.T1:
+		return a.AggregateDataTask1()
 	case enum.T2:
 		return a.AggregateDataTask2()
 	case enum.T3:

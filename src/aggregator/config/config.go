@@ -13,6 +13,7 @@ type Config struct {
 	StorePath                          string
 	BatchSize                          int
 	LogLevel                           string
+	FilteredTransactionsQueue          string
 	JoinedMostProfitsTransactionsQueue string
 	JoinedBestSellingTransactionsQueue string
 	JoinedStoresTPVQueue               string
@@ -25,7 +26,7 @@ type Config struct {
 
 func (c Config) String() string {
 	return fmt.Sprintf(
-		"GatewayAddress: %s | LogLevel: %s | StorePath: %s | BatchSize: %d "+
+		"GatewayAddress: %s | LogLevel: %s | StorePath: %s | BatchSize: %d | FilteredTransactionsQueue: %s "+
 			"| JoinedMostProfitsTransactionsQueue: %s | JoinedBestSellingTransactionsQueue: %s "+
 			"| JoinedStoresTPVQueue: %s | JoinedUserTransactionsQueue: %s "+
 			"| GatewayControllerDataQueue: %s | GatewayControllerConnectionQueue: %s "+
@@ -34,6 +35,7 @@ func (c Config) String() string {
 		c.LogLevel,
 		c.StorePath,
 		c.BatchSize,
+		c.FilteredTransactionsQueue,
 		c.JoinedMostProfitsTransactionsQueue,
 		c.JoinedBestSellingTransactionsQueue,
 		c.JoinedStoresTPVQueue,
@@ -63,6 +65,7 @@ func InitConfig() (*Config, error) {
 		StorePath:                          v.GetString("datasets.path"),
 		BatchSize:                          v.GetInt("datasets.batch.size"),
 		LogLevel:                           v.GetString("log.level"),
+		FilteredTransactionsQueue:          v.GetString("queues.filtered_transactions_queue"),
 		JoinedMostProfitsTransactionsQueue: v.GetString("queues.joined_most_profits_transactions_queue"),
 		JoinedBestSellingTransactionsQueue: v.GetString("queues.joined_best_selling_transactions_queue"),
 		JoinedStoresTPVQueue:               v.GetString("queues.joined_stores_tpv_queue"),

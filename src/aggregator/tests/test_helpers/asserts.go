@@ -172,6 +172,42 @@ func AssertPersistentBestSellingProducts(
 	assertBatchPersistence(t, expectedFile, bestSellingBatch.Items, unmarshal, compare)
 }
 
+func AssertPersistentFilteredTransactions(
+	t *testing.T,
+	expectedFile string,
+	dataBatch *data_batch.DataBatch,
+) {
+	transactionsBatch := &raw.TransactionBatch{}
+	err := proto.Unmarshal(dataBatch.Payload, transactionsBatch)
+	assert.NoError(t, err)
+
+	unmarshal := func(payload []byte) ([]*raw.Transaction, error) {
+		batch := &data_batch.DataBatch{}
+		if batchErr := proto.Unmarshal(payload, batch); batchErr != nil {
+			return nil, batchErr
+		}
+
+		joinedBatch := &raw.TransactionBatch{}
+		if batchErr := proto.Unmarshal(batch.Payload, joinedBatch); batchErr != nil {
+			return nil, batchErr
+		}
+
+		return joinedBatch.Transactions, nil
+	}
+
+	compare := func(exp, got *raw.Transaction, idx int, t *testing.T) {
+		t.Helper()
+
+		assert.Equal(t, exp.StoreId, got.StoreId, "StoreId mismatch at index %d", idx)
+		assert.Equal(t, exp.UserId, got.UserId, "UserId mismatch at index %d", idx)
+		assert.Equal(t, exp.PaymentMethod, got.PaymentMethod, "PaymentMethod mismatch at index %d", idx)
+		assert.Equal(t, exp.FinalAmount, got.FinalAmount, "FinalAmount mismatch at index %d", idx)
+		assert.Equal(t, exp.CreatedAt, got.CreatedAt, "CreatedAt mismatch at index %d", idx)
+	}
+
+	assertBatchPersistence(t, expectedFile, transactionsBatch.Transactions, unmarshal, compare)
+}
+
 func AssertPersistentJoinedStoresTPV(
 	t *testing.T,
 	expectedFile string,

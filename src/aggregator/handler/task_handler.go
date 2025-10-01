@@ -25,6 +25,7 @@ func NewTaskHandler(referenceDatasetStore *cache.DataBatchStore) *TaskHandler {
 	}
 
 	th.taskHandlers = TaskHandlers{
+		enum.T1: []HandleTask{th.handleTaskType1},
 		enum.T2: []HandleTask{th.handleBestSelling, th.handleMostProfits},
 		enum.T3: []HandleTask{th.handleTaskType3},
 		enum.T4: []HandleTask{th.handleTaskType4},
@@ -45,6 +46,14 @@ func (th *TaskHandler) HandleTask(taskType enum.TaskType, isBestSellingTask bool
 	}
 
 	return taskHandler[taskHandlerT2]
+}
+
+func (th *TaskHandler) handleTaskType1(dataBatch *data_batch.DataBatch) error {
+	err := th.refDatasetStore.StoreDataTask1(dataBatch)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func (th *TaskHandler) handleBestSelling(dataBatch *data_batch.DataBatch) error {

@@ -53,6 +53,10 @@ func (cacheStore *DataBatchStore) storeData(batch *data_batch.DataBatch, taskTyp
 	return f.Sync()
 }
 
+func (cacheStore *DataBatchStore) StoreDataTask1(batch *data_batch.DataBatch) error {
+	return cacheStore.storeData(batch, enum.T1, "task1")
+}
+
 func (cacheStore *DataBatchStore) StoreDataBestSelling(batch *data_batch.DataBatch) error {
 	return cacheStore.storeData(batch, enum.T2, "task2_1")
 }

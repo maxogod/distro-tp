@@ -100,6 +100,8 @@ func RunTest(t *testing.T, c TestCase) {
 	SendDataBatch(t, pub, c.DataBatch)
 
 	switch c.TaskDone {
+	case enum.T1:
+		AssertPersistentFilteredTransactions(t, c.ExpectedFile, c.DataBatch)
 	case enum.T2:
 		if c.IsBestSelling {
 			AssertPersistentBestSellingProducts(t, c.ExpectedFile, c.DataBatch)

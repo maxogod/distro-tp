@@ -4,6 +4,7 @@ import (
 	"github.com/maxogod/distro-tp/src/common/middleware"
 	"github.com/maxogod/distro-tp/src/common/models/enum"
 	"github.com/maxogod/distro-tp/src/common/models/joined"
+	"github.com/maxogod/distro-tp/src/common/models/raw"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -38,6 +39,18 @@ func sendAggregateData[T proto.Message, B proto.Message](
 	}
 
 	return nil
+}
+
+func (a *Aggregator) SendAggregateDataTask1(items MapTransactions) error {
+	return sendAggregateData(
+		a.gatewayDataQueue,
+		items,
+		enum.T3,
+		func(batch []*raw.Transaction) *raw.TransactionBatch {
+			return &raw.TransactionBatch{Transactions: batch}
+		},
+		a.config.BatchSize,
+	)
 }
 
 func (a *Aggregator) SendAggregateDataTask4(items MapJoinMostPurchasesUser) error {

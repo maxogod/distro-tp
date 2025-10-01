@@ -9,10 +9,12 @@ import (
 
 	"github.com/maxogod/distro-tp/src/aggregator/cache"
 	"github.com/maxogod/distro-tp/src/common/models/joined"
+	"github.com/maxogod/distro-tp/src/common/models/raw"
 	"google.golang.org/protobuf/proto"
 )
 
 type MapJoinMostPurchasesUser map[string]*joined.JoinMostPurchasesUser
+type MapTransactions map[string]*raw.Transaction
 type MapJoinStoreTPV map[string]*joined.JoinStoreTPV
 type MapJoinBestSelling map[string]*joined.JoinBestSellingProducts
 type MapJoinMostProfits map[string]*joined.JoinMostProfitsProducts
@@ -55,6 +57,30 @@ func aggregateTask[T proto.Message, B proto.Message, M ~map[string]T](
 	}
 
 	return finalAgg, nil
+}
+
+func (a *Aggregator) AggregateDataTask1() error {
+	aggregatedData, err := aggregateTask(
+		"task1",
+		a.config.StorePath,
+		func() *raw.TransactionBatch { return &raw.TransactionBatch{} },
+		func(batch *raw.TransactionBatch) []*raw.Transaction {
+			return batch.Transactions
+		},
+		func(accumulated, incoming *raw.Transaction) *raw.Transaction {
+			panic("This should not happen")
+		},
+		func(item *raw.Transaction) string {
+			return item.TransactionId
+		},
+		func(m MapTransactions) MapTransactions { return m },
+	)
+
+	if err != nil {
+		return err
+	}
+
+	return a.SendAggregateDataTask1(aggregatedData)
 }
 
 func (a *Aggregator) AggregateDataTask2() error {

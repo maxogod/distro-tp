@@ -6,6 +6,7 @@ datasets:
   path: "/aggregated_data"
   batch_size: 100
 queues:
+  filtered_transactions_queue: "filtered_transactions"
   joined_most_profits_transactions_queue: "joined_most_profits_transactions"
   joined_best_selling_transactions_queue: "joined_best_selling_transactions"
   joined_stores_tpv_queue: "joined_stores_tpv"
