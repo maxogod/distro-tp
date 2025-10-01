@@ -16,6 +16,7 @@ import (
 
 type DataQueueTaskType map[string]enum.TaskType
 type MessageMiddlewares map[string]middleware.MessageMiddleware
+type MessageMiddlewareCreators map[string]func(string) middleware.MessageMiddleware
 
 func defaultDataQueueTaskType(config config.Config) DataQueueTaskType {
 	return DataQueueTaskType{
@@ -24,6 +25,16 @@ func defaultDataQueueTaskType(config config.Config) DataQueueTaskType {
 		config.JoinedMostProfitsTransactionsQueue: enum.T2,
 		config.JoinedStoresTPVQueue:               enum.T3,
 		config.JoinedUserTransactionsQueue:        enum.T4,
+	}
+}
+
+func defaultDataQueueCreators(config *config.Config) MessageMiddlewareCreators {
+	return MessageMiddlewareCreators{
+		config.FilteredTransactionsQueue:          middleware.GetFilteredTransactionsQueue,
+		config.JoinedMostProfitsTransactionsQueue: middleware.GetJoinedMostProfitsTransactionsQueue,
+		config.JoinedBestSellingTransactionsQueue: middleware.GetJoinedBestSellingTransactionsQueue,
+		config.JoinedStoresTPVQueue:               middleware.GetJoinedStoresTPVQueue,
+		config.JoinedUserTransactionsQueue:        middleware.GetJoinedUserTransactionsQueue,
 	}
 }
 
@@ -39,6 +50,7 @@ type Aggregator struct {
 	refDatasetStore        *cache.DataBatchStore
 	workerName             string
 	finishExchange         middleware.MessageMiddleware
+	dataQueueCreators      MessageMiddlewareCreators
 }
 
 func NewAggregator(config *config.Config) *Aggregator {
@@ -47,6 +59,7 @@ func NewAggregator(config *config.Config) *Aggregator {
 		dataQueueTaskType: defaultDataQueueTaskType(*config),
 		dataMiddlewares:   make(MessageMiddlewares),
 		refDatasetStore:   cache.NewCacheStore(config.StorePath),
+		dataQueueCreators: defaultDataQueueCreators(config),
 		workerName:        "aggregator-" + uuid.New().String(),
 	}
 
@@ -65,13 +78,8 @@ func (a *Aggregator) StartDataConsumer(dataQueueName string) error {
 	taskType := a.dataQueueTaskType[dataQueueName]
 	handlerTask := a.taskHandler.HandleTask(taskType, a.isBestSellingTask(dataQueueName))
 	dataHandler := handler.NewDataHandler(handlerTask)
-
-	m, err := StartConsumer(a.config.GatewayAddress, dataQueueName, dataHandler.HandleDataMessage)
-	if err != nil {
-		return err
-	}
-	a.dataMiddlewares[dataQueueName] = m
-	return nil
+	a.dataMiddlewares[dataQueueName] = a.dataQueueCreators[dataQueueName](a.config.GatewayAddress)
+	return StartConsumer(a.dataMiddlewares[dataQueueName], dataHandler.HandleDataMessage)
 }
 
 func (a *Aggregator) isBestSellingTask(dataQueueName string) bool {
@@ -114,12 +122,7 @@ func (a *Aggregator) HandleDone(msgBatch []byte) error {
 		return err
 	}
 
-	gatewayQueue, err := StartQueueMiddleware(a.config.GatewayAddress, a.config.GatewayControllerDataQueue)
-	if err != nil {
-		return err
-	}
-
-	a.gatewayDataQueue = gatewayQueue
+	a.gatewayDataQueue = middleware.GetProcessedDataQueue(a.config.GatewayAddress)
 
 	switch enum.TaskType(batch.TaskType) {
 	case enum.T1:
@@ -143,14 +146,9 @@ func (a *Aggregator) InitService() error {
 		}
 	}
 
-	m, err := StartQueueMiddleware(a.config.GatewayAddress, a.config.GatewayControllerConnectionQueue)
-	if err != nil {
-		return err
-	}
+	a.gatewayConnectionQueue = middleware.GetNodeConnectionsQueue(a.config.GatewayAddress)
 
-	a.gatewayConnectionQueue = m
-
-	err = SendControllerConnectionMsg(a.gatewayConnectionQueue, a.workerName, false)
+	err := SendControllerConnectionMsg(a.gatewayConnectionQueue, a.workerName, false)
 	if err != nil {
 		return err
 	}
@@ -161,16 +159,15 @@ func (a *Aggregator) InitService() error {
 }
 
 func (a *Aggregator) StartDirectExchange() error {
-	exchange, err := StartDirectExchange(
-		a.config.GatewayAddress,
-		a.config.GatewayControllerExchange,
-		a.config.FinishRoutingKey,
+	a.finishExchange = middleware.GetFinishExchange(a.config.GatewayAddress, enum.Aggregator)
+
+	err := StartDirectExchange(
+		a.finishExchange,
 		a.HandleDone,
 	)
 	if err != nil {
 		return err
 	}
 
-	a.finishExchange = exchange
 	return nil
 }

@@ -25,10 +25,6 @@ func AggregatorConfig(storeDir string) config.Config {
 		JoinedBestSellingTransactionsQueue: "joined_best_selling_transactions",
 		JoinedStoresTPVQueue:               "joined_stores_tpv",
 		JoinedUserTransactionsQueue:        "joined_user_transactions",
-		GatewayControllerDataQueue:         "processed_data",
-		GatewayControllerConnectionQueue:   "node_connections",
-		GatewayControllerExchange:          "finish_exchange",
-		FinishRoutingKey:                   "aggregator",
 	}
 }
 
@@ -59,16 +55,8 @@ func SendDataBatch(t *testing.T, dataQueue middleware.MessageMiddleware, dataBat
 	assert.Equal(t, 0, int(e))
 }
 
-func SendDoneMessage(t *testing.T, aggregatorConfig config.Config, taskType enum.TaskType) {
+func SendDoneMessage(t *testing.T, finishExchange middleware.MessageMiddleware, taskType enum.TaskType) {
 	t.Helper()
-
-	finishExchange, err := middleware.NewExchangeMiddleware(
-		RabbitURL,
-		aggregatorConfig.GatewayControllerExchange,
-		"direct",
-		[]string{aggregatorConfig.FinishRoutingKey},
-	)
-	assert.NoError(t, err)
 
 	finishMsg := &data_batch.DataBatch{
 		TaskType: int32(taskType),
@@ -83,13 +71,11 @@ func SendDoneMessage(t *testing.T, aggregatorConfig config.Config, taskType enum
 
 func GetAllOutputMessages[T proto.Message](
 	t *testing.T,
-	outputQueue string,
+	consumer middleware.MessageMiddleware,
 	unmarshal func([]byte) (T, error),
 ) []T {
 	t.Helper()
 
-	consumer, err := middleware.NewQueueMiddleware(RabbitURL, outputQueue)
-	assert.NoError(t, err)
 	defer func() {
 		_ = consumer.StopConsuming()
 		_ = consumer.Close()
@@ -105,7 +91,7 @@ func GetAllOutputMessages[T proto.Message](
 
 			received = append(received, msgProto)
 
-			err = msg.Ack(false)
+			err := msg.Ack(false)
 			assert.NoError(t, err)
 		}
 		close(done)

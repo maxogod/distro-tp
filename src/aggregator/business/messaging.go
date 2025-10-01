@@ -13,43 +13,22 @@ import (
 
 type MessageHandler func(msgBody []byte) error
 
-func StartConsumer(gatewayAddress, queueName string, handler MessageHandler) (middleware.MessageMiddleware, error) {
-	m, err := StartQueueMiddleware(gatewayAddress, queueName)
-	if err != nil {
-		return nil, err
-	}
-
-	err = startConsuming(m, handler)
+func StartConsumer(m middleware.MessageMiddleware, handler MessageHandler) error {
+	err := startConsuming(m, handler)
 	if err != nil {
 		_ = StopConsumer(m)
-		return nil, err
+		return err
 	}
-
-	return m, nil
+	return nil
 }
 
-func StartQueueMiddleware(gatewayAddress, gatewayControllerQueue string) (middleware.MessageMiddleware, error) {
-	m, err := middleware.NewQueueMiddleware(gatewayAddress, gatewayControllerQueue)
-	if err != nil {
-		return nil, fmt.Errorf("failed to start queue middleware: %w", err)
-	}
-	return m, nil
-}
-
-func StartDirectExchange(gatewayAddress, exchangeName, routingKey string, handler MessageHandler) (middleware.MessageMiddleware, error) {
-	finishExchange, err := middleware.NewExchangeMiddleware(gatewayAddress, exchangeName, "direct", []string{routingKey})
-
-	if err != nil {
-		return nil, fmt.Errorf("failed to start queue middleware: %w", err)
-	}
-
-	err = startConsuming(finishExchange, handler)
+func StartDirectExchange(finishExchange middleware.MessageMiddleware, handler MessageHandler) error {
+	err := startConsuming(finishExchange, handler)
 	if err != nil {
 		_ = StopConsumer(finishExchange)
-		return nil, err
+		return err
 	}
-
-	return finishExchange, nil
+	return nil
 }
 
 func StopConsumers(middlewares MessageMiddlewares) (MessageMiddlewares, error) {

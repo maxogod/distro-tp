@@ -11,8 +11,3 @@ queues:
   joined_best_selling_transactions_queue: "joined_best_selling_transactions"
   joined_stores_tpv_queue: "joined_stores_tpv"
   joined_user_transactions_queue: "joined_user_transactions"
-  gateway_controller_connection_queue: "node_connections"
-  gateway_controller_data_queue: "processed_data"
-exchanges:
-  gateway_controller_exchange: "finish_exchange"
-  finish_routing_key: "aggregator"

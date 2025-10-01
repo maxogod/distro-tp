@@ -6,6 +6,7 @@ import (
 
 	aggregator "github.com/maxogod/distro-tp/src/aggregator/business"
 	helpers "github.com/maxogod/distro-tp/src/aggregator/tests/test_helpers"
+	"github.com/maxogod/distro-tp/src/common/middleware"
 	"github.com/maxogod/distro-tp/src/common/models/data_batch"
 	"github.com/maxogod/distro-tp/src/common/models/enum"
 	"github.com/maxogod/distro-tp/src/common/models/joined"
@@ -33,7 +34,7 @@ func TestHandleTaskType4(t *testing.T) {
 
 	helpers.RunTest(t, testCase)
 
-	received := helpers.GetAllOutputMessages(t, testCase.AggregatorConfig.GatewayControllerDataQueue, func(body []byte) (*data_batch.DataBatch, error) {
+	received := helpers.GetAllOutputMessages(t, middleware.GetProcessedDataQueue(helpers.RabbitURL), func(body []byte) (*data_batch.DataBatch, error) {
 		batch := &data_batch.DataBatch{}
 		if err := proto.Unmarshal(body, batch); err != nil {
 			return nil, err
@@ -58,7 +59,7 @@ func TestHandleConnection(t *testing.T) {
 	err := agg.InitService()
 	assert.NoError(t, err)
 
-	helpers.AssertConnectionMsg(t, aggregatorConfig.GatewayControllerConnectionQueue, false)
+	helpers.AssertConnectionMsg(t, middleware.GetNodeConnectionsQueue(helpers.RabbitURL), false)
 
 	err = agg.Stop()
 	assert.NoError(t, err)
@@ -108,7 +109,7 @@ func TestHandleTaskType4Top3(t *testing.T) {
 
 	helpers.RunTest(t, testCase)
 
-	received := helpers.GetAllOutputMessages(t, testCase.AggregatorConfig.GatewayControllerDataQueue, func(body []byte) (*data_batch.DataBatch, error) {
+	received := helpers.GetAllOutputMessages(t, middleware.GetProcessedDataQueue(helpers.RabbitURL), func(body []byte) (*data_batch.DataBatch, error) {
 		batch := &data_batch.DataBatch{}
 		if err := proto.Unmarshal(body, batch); err != nil {
 			return nil, err
@@ -155,7 +156,7 @@ func TestHandleTaskType3(t *testing.T) {
 
 	helpers.RunTest(t, testCase)
 
-	received := helpers.GetAllOutputMessages(t, testCase.AggregatorConfig.GatewayControllerDataQueue, func(body []byte) (*data_batch.DataBatch, error) {
+	received := helpers.GetAllOutputMessages(t, middleware.GetProcessedDataQueue(helpers.RabbitURL), func(body []byte) (*data_batch.DataBatch, error) {
 		batch := &data_batch.DataBatch{}
 		if err := proto.Unmarshal(body, batch); err != nil {
 			return nil, err
@@ -222,7 +223,7 @@ func TestHandleTaskType2(t *testing.T) {
 	helpers.RunTest(t, testCaseBestSelling)
 	helpers.RunTest(t, testCaseMostProfits)
 
-	received := helpers.GetAllOutputMessages(t, testCaseBestSelling.AggregatorConfig.GatewayControllerDataQueue, func(body []byte) (*data_batch.DataBatch, error) {
+	received := helpers.GetAllOutputMessages(t, middleware.GetProcessedDataQueue(helpers.RabbitURL), func(body []byte) (*data_batch.DataBatch, error) {
 		batch := &data_batch.DataBatch{}
 		if err := proto.Unmarshal(body, batch); err != nil {
 			return nil, err
@@ -298,7 +299,7 @@ func TestHandleTaskServer(t *testing.T) {
 
 	helpers.RunTest(t, testCase)
 
-	received := helpers.GetAllOutputMessages(t, testCase.AggregatorConfig.GatewayControllerDataQueue, func(body []byte) (*data_batch.DataBatch, error) {
+	received := helpers.GetAllOutputMessages(t, middleware.GetProcessedDataQueue(helpers.RabbitURL), func(body []byte) (*data_batch.DataBatch, error) {
 		batch := &data_batch.DataBatch{}
 		if err := proto.Unmarshal(body, batch); err != nil {
 			return nil, err
@@ -362,7 +363,7 @@ func TestHandleTaskType1(t *testing.T) {
 
 	helpers.RunTest(t, testCase)
 
-	received := helpers.GetAllOutputMessages(t, testCase.AggregatorConfig.GatewayControllerDataQueue, func(body []byte) (*data_batch.DataBatch, error) {
+	received := helpers.GetAllOutputMessages(t, middleware.GetProcessedDataQueue(helpers.RabbitURL), func(body []byte) (*data_batch.DataBatch, error) {
 		batch := &data_batch.DataBatch{}
 		if err := proto.Unmarshal(body, batch); err != nil {
 			return nil, err

@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/maxogod/distro-tp/src/common/middleware"
 	"github.com/maxogod/distro-tp/src/common/models/controller_connection"
 	"github.com/maxogod/distro-tp/src/common/models/data_batch"
 	"github.com/maxogod/distro-tp/src/common/models/joined"
@@ -372,7 +373,7 @@ func AssertAggregatedMostProfits(
 	assertJoinedBatchIsTheExpected(t, received, expected, unmarshal, equal)
 }
 
-func AssertConnectionMsg(t *testing.T, gatewayControllerQueue string, finished bool) {
+func AssertConnectionMsg(t *testing.T, gatewayControllerQueue middleware.MessageMiddleware, finished bool) {
 	initConnectionMsg := GetAllOutputMessages(t, gatewayControllerQueue, func(body []byte) (*controller_connection.ControllerConnection, error) {
 		ctrl := &controller_connection.ControllerConnection{}
 		if err := proto.Unmarshal(body, ctrl); err != nil {

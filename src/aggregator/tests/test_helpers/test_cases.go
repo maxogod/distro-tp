@@ -117,6 +117,6 @@ func RunTest(t *testing.T, c TestCase) {
 	}
 
 	if c.SendDone {
-		SendDoneMessage(t, c.AggregatorConfig, c.TaskDone)
+		SendDoneMessage(t, middleware.GetFinishExchange(RabbitURL, enum.Aggregator), c.TaskDone)
 	}
 }
