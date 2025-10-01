@@ -181,7 +181,7 @@ func (a *Aggregator) SendAggregateDataTask4(items cache.MapJoinMostPurchasesUser
 				Users: currentBatch,
 			}
 
-			sendErr := SendBatchToGateway(specificBatch, gatewayQueue)
+			sendErr := SendBatchToGateway(specificBatch, gatewayQueue, enum.T4)
 			if sendErr != nil {
 				return sendErr
 			}
@@ -195,7 +195,7 @@ func (a *Aggregator) SendAggregateDataTask4(items cache.MapJoinMostPurchasesUser
 			Users: currentBatch,
 		}
 
-		sendErr := SendBatchToGateway(specificBatch, gatewayQueue)
+		sendErr := SendBatchToGateway(specificBatch, gatewayQueue, enum.T4)
 		if sendErr != nil {
 			return sendErr
 		}
@@ -226,7 +226,7 @@ func (a *Aggregator) SendAggregateDataTask3(items cache.MapJoinStoreTPV) error {
 				Items: currentBatch,
 			}
 
-			sendErr := SendBatchToGateway(specificBatch, gatewayQueue)
+			sendErr := SendBatchToGateway(specificBatch, gatewayQueue, enum.T3)
 			if sendErr != nil {
 				return sendErr
 			}
@@ -240,7 +240,7 @@ func (a *Aggregator) SendAggregateDataTask3(items cache.MapJoinStoreTPV) error {
 			Items: currentBatch,
 		}
 
-		sendErr := SendBatchToGateway(specificBatch, gatewayQueue)
+		sendErr := SendBatchToGateway(specificBatch, gatewayQueue, enum.T3)
 		if sendErr != nil {
 			return sendErr
 		}
@@ -271,7 +271,7 @@ func (a *Aggregator) SendAggregateDataBestSelling(items cache.MapJoinBestSelling
 				Items: currentBatch,
 			}
 
-			sendErr := SendBatchToGateway(specificBatch, gatewayQueue)
+			sendErr := SendBatchToGateway(specificBatch, gatewayQueue, enum.T2)
 			if sendErr != nil {
 				return sendErr
 			}
@@ -285,7 +285,7 @@ func (a *Aggregator) SendAggregateDataBestSelling(items cache.MapJoinBestSelling
 			Items: currentBatch,
 		}
 
-		sendErr := SendBatchToGateway(specificBatch, gatewayQueue)
+		sendErr := SendBatchToGateway(specificBatch, gatewayQueue, enum.T2)
 		if sendErr != nil {
 			return sendErr
 		}
@@ -316,7 +316,7 @@ func (a *Aggregator) SendAggregateDataMostProfits(items cache.MapJoinMostProfits
 				Items: currentBatch,
 			}
 
-			sendErr := SendBatchToGateway(specificBatch, gatewayQueue)
+			sendErr := SendBatchToGateway(specificBatch, gatewayQueue, enum.T2)
 			if sendErr != nil {
 				return sendErr
 			}
@@ -330,7 +330,7 @@ func (a *Aggregator) SendAggregateDataMostProfits(items cache.MapJoinMostProfits
 			Items: currentBatch,
 		}
 
-		sendErr := SendBatchToGateway(specificBatch, gatewayQueue)
+		sendErr := SendBatchToGateway(specificBatch, gatewayQueue, enum.T2)
 		if sendErr != nil {
 			return sendErr
 		}
@@ -344,14 +344,14 @@ func (a *Aggregator) SendAggregateDataMostProfits(items cache.MapJoinMostProfits
 	return nil
 }
 
-func SendBatchToGateway(batch proto.Message, gatewayQueue middleware.MessageMiddleware) error {
+func SendBatchToGateway(batch proto.Message, gatewayQueue middleware.MessageMiddleware, taskType enum.TaskType) error {
 	payload, marshalErr := proto.Marshal(batch)
 	if marshalErr != nil {
 		return marshalErr
 	}
 
 	dataBatch := &data_batch.DataBatch{
-		TaskType: int32(enum.T4),
+		TaskType: int32(taskType),
 		Done:     false,
 		Payload:  payload,
 	}
