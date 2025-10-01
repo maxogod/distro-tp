@@ -15,15 +15,16 @@ import (
 
 func AggregatorConfig(storeDir string) config.Config {
 	return config.Config{
-		GatewayAddress:                   RabbitURL,
-		StorePath:                        storeDir,
-		JoinedTransactionsQueue:          "joined_transactions",
-		JoinedStoresTPVQueue:             "joined_stores_tpv",
-		JoinedUserTransactionsQueue:      "joined_user_transactions",
-		GatewayControllerDataQueue:       "processed_data",
-		GatewayControllerConnectionQueue: "node_connections",
-		GatewayControllerExchange:        "finish_exchange",
-		FinishRoutingKey:                 "aggregator",
+		GatewayAddress:                     RabbitURL,
+		StorePath:                          storeDir,
+		JoinedMostProfitsTransactionsQueue: "joined_most_profits_transactions",
+		JoinedBestSellingTransactionsQueue: "joined_best_selling_transactions",
+		JoinedStoresTPVQueue:               "joined_stores_tpv",
+		JoinedUserTransactionsQueue:        "joined_user_transactions",
+		GatewayControllerDataQueue:         "processed_data",
+		GatewayControllerConnectionQueue:   "node_connections",
+		GatewayControllerExchange:          "finish_exchange",
+		FinishRoutingKey:                   "aggregator",
 	}
 }
 

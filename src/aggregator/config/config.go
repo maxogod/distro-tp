@@ -9,28 +9,31 @@ import (
 )
 
 type Config struct {
-	GatewayAddress                   string
-	StorePath                        string
-	LogLevel                         string
-	JoinedTransactionsQueue          string
-	JoinedStoresTPVQueue             string
-	JoinedUserTransactionsQueue      string
-	GatewayControllerDataQueue       string
-	GatewayControllerConnectionQueue string
-	GatewayControllerExchange        string
-	FinishRoutingKey                 string
+	GatewayAddress                     string
+	StorePath                          string
+	LogLevel                           string
+	JoinedMostProfitsTransactionsQueue string
+	JoinedBestSellingTransactionsQueue string
+	JoinedStoresTPVQueue               string
+	JoinedUserTransactionsQueue        string
+	GatewayControllerDataQueue         string
+	GatewayControllerConnectionQueue   string
+	GatewayControllerExchange          string
+	FinishRoutingKey                   string
 }
 
 func (c Config) String() string {
 	return fmt.Sprintf(
 		"GatewayAddress: %s | LogLevel: %s | StorePath: %s "+
-			"| JoinedTransactionsQueue: %s | JoinedStoresTPVQueue: %s | JoinedUserTransactionsQueue: %s "+
+			"| JoinedMostProfitsTransactionsQueue: %s | JoinedBestSellingTransactionsQueue: %s "+
+			"| JoinedStoresTPVQueue: %s | JoinedUserTransactionsQueue: %s "+
 			"| GatewayControllerDataQueue: %s | GatewayControllerConnectionQueue: %s "+
 			"| GatewayControllerExchange: %s | FinishRoutingKey: %s",
 		c.GatewayAddress,
 		c.LogLevel,
 		c.StorePath,
-		c.JoinedTransactionsQueue,
+		c.JoinedMostProfitsTransactionsQueue,
+		c.JoinedBestSellingTransactionsQueue,
 		c.JoinedStoresTPVQueue,
 		c.JoinedUserTransactionsQueue,
 		c.GatewayControllerDataQueue,
@@ -54,16 +57,17 @@ func InitConfig() (*Config, error) {
 	}
 
 	config := &Config{
-		GatewayAddress:                   v.GetString("gateway.address"),
-		StorePath:                        v.GetString("datasets.path"),
-		LogLevel:                         v.GetString("log.level"),
-		JoinedTransactionsQueue:          v.GetString("queues.joined_transactions_queue"),
-		JoinedStoresTPVQueue:             v.GetString("queues.joined_stores_tpv_queue"),
-		JoinedUserTransactionsQueue:      v.GetString("queues.joined_user_transactions_queue"),
-		GatewayControllerDataQueue:       v.GetString("queues.gateway_controller_data_queue"),
-		GatewayControllerConnectionQueue: v.GetString("queues.gateway_controller_connection_queue"),
-		GatewayControllerExchange:        v.GetString("exchanges.gateway_controller_exchange"),
-		FinishRoutingKey:                 v.GetString("exchanges.finish_routing_key"),
+		GatewayAddress:                     v.GetString("gateway.address"),
+		StorePath:                          v.GetString("datasets.path"),
+		LogLevel:                           v.GetString("log.level"),
+		JoinedMostProfitsTransactionsQueue: v.GetString("queues.joined_most_profits_transactions_queue"),
+		JoinedBestSellingTransactionsQueue: v.GetString("queues.joined_best_selling_transactions_queue"),
+		JoinedStoresTPVQueue:               v.GetString("queues.joined_stores_tpv_queue"),
+		JoinedUserTransactionsQueue:        v.GetString("queues.joined_user_transactions_queue"),
+		GatewayControllerDataQueue:         v.GetString("queues.gateway_controller_data_queue"),
+		GatewayControllerConnectionQueue:   v.GetString("queues.gateway_controller_connection_queue"),
+		GatewayControllerExchange:          v.GetString("exchanges.gateway_controller_exchange"),
+		FinishRoutingKey:                   v.GetString("exchanges.finish_routing_key"),
 	}
 
 	return config, nil
