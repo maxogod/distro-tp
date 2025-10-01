@@ -20,7 +20,8 @@ import (
 func TestJoinerPersistReferenceBatchesMenuItems(t *testing.T) {
 	storeDir := t.TempDir()
 	testCase := test_helpers.TestCase{
-		Queue:       "menu_items",
+		QueueName:   "menu_items",
+		Queue:       middleware.GetMenuItemsQueue,
 		DatasetType: enum.MenuItems,
 		CsvPayloads: [][]byte{
 			[]byte("1,Espresso,coffee,6.0,False,,\n"),
@@ -31,7 +32,7 @@ func TestJoinerPersistReferenceBatchesMenuItems(t *testing.T) {
 		SendDone:      false,
 	}
 
-	j := helpers.StartJoiner(t, storeDir, []string{testCase.Queue})
+	j := helpers.StartJoiner(t, storeDir, []string{testCase.QueueName})
 	defer func(j *joiner.Joiner) {
 		err := j.Stop()
 		assert.NoError(t, err)
@@ -43,7 +44,8 @@ func TestJoinerPersistReferenceBatchesMenuItems(t *testing.T) {
 func TestJoinerPersistReferenceBatchesUsers(t *testing.T) {
 	storeDir := t.TempDir()
 	testCase := test_helpers.TestCase{
-		Queue:       "users",
+		QueueName:   "users",
+		Queue:       middleware.GetUsersQueue,
 		DatasetType: enum.Users,
 		CsvPayloads: [][]byte{
 			[]byte("1,female,1970-04-22,2023-07-01 08:13:07\n"),
@@ -56,7 +58,7 @@ func TestJoinerPersistReferenceBatchesUsers(t *testing.T) {
 		SendDone: false,
 	}
 
-	j := helpers.StartJoiner(t, storeDir, []string{testCase.Queue})
+	j := helpers.StartJoiner(t, storeDir, []string{testCase.QueueName})
 	defer func(j *joiner.Joiner) {
 		err := j.Stop()
 		assert.NoError(t, err)
@@ -68,7 +70,8 @@ func TestJoinerPersistReferenceBatchesUsers(t *testing.T) {
 func TestJoinerHandlesDoneAndConsumesNextQueueTask3(t *testing.T) {
 	storeDir := t.TempDir()
 	testCase := test_helpers.TestCase{
-		Queue:       "stores",
+		QueueName:   "stores",
+		Queue:       middleware.GetStoresQueue,
 		DatasetType: enum.Stores,
 		CsvPayloads: [][]byte{
 			[]byte("1,G Coffee @ USJ 89q,Jalan Dewan Bahasa 5/9,50998,USJ 89q,Kuala Lumpur,3.117134,101.615027\n"),
@@ -79,7 +82,7 @@ func TestJoinerHandlesDoneAndConsumesNextQueueTask3(t *testing.T) {
 		SendDone:      true,
 	}
 
-	j := helpers.StartJoiner(t, storeDir, []string{testCase.Queue})
+	j := helpers.StartJoiner(t, storeDir, []string{testCase.QueueName})
 	defer func(j *joiner.Joiner) {
 		err := j.Stop()
 		assert.NoError(t, err)
@@ -105,7 +108,8 @@ func TestJoinerHandlesDoneAndConsumesNextQueueTask3(t *testing.T) {
 func TestJoinerPersistReferenceBatchesUsersAndStores(t *testing.T) {
 	storeDir := t.TempDir()
 	testCaseStores := test_helpers.TestCase{
-		Queue:       "stores",
+		QueueName:   "stores",
+		Queue:       middleware.GetStoresQueue,
 		DatasetType: enum.Stores,
 		CsvPayloads: [][]byte{
 			[]byte("1,G Coffee @ USJ 89q,Jalan Dewan Bahasa 5/9,50998,USJ 89q,Kuala Lumpur,3.117134,101.615027\n"),
@@ -119,7 +123,8 @@ func TestJoinerPersistReferenceBatchesUsersAndStores(t *testing.T) {
 	}
 
 	testCaseUsers := test_helpers.TestCase{
-		Queue:       "users",
+		QueueName:   "users",
+		Queue:       middleware.GetUsersQueue,
 		DatasetType: enum.Users,
 		CsvPayloads: [][]byte{
 			[]byte("1,female,1970-04-22,2023-07-01 08:13:07\n"),
@@ -130,7 +135,7 @@ func TestJoinerPersistReferenceBatchesUsersAndStores(t *testing.T) {
 		SendDone:      true,
 	}
 
-	j := helpers.StartJoiner(t, storeDir, []string{testCaseStores.Queue, testCaseUsers.Queue})
+	j := helpers.StartJoiner(t, storeDir, []string{testCaseStores.QueueName, testCaseUsers.QueueName})
 	defer func(j *joiner.Joiner) {
 		err := j.Stop()
 		assert.NoError(t, err)
@@ -143,7 +148,8 @@ func TestJoinerPersistReferenceBatchesUsersAndStores(t *testing.T) {
 func TestHandleTaskType3_ProducesJoinedBatch(t *testing.T) {
 	storeDir := t.TempDir()
 	testCase := test_helpers.TestCase{
-		Queue:       "stores",
+		QueueName:   "stores",
+		Queue:       middleware.GetStoresQueue,
 		DatasetType: enum.Stores,
 		CsvPayloads: [][]byte{
 			[]byte("5,G Coffee @ Seksyen 21,Jalan 1,12345,CityA,StateA,1.0,2.0\n"),
@@ -155,7 +161,7 @@ func TestHandleTaskType3_ProducesJoinedBatch(t *testing.T) {
 		SendDone:      true,
 	}
 
-	j := helpers.StartJoiner(t, storeDir, []string{testCase.Queue})
+	j := helpers.StartJoiner(t, storeDir, []string{testCase.QueueName})
 	defer func(j *joiner.Joiner) {
 		err := j.Stop()
 		assert.NoError(t, err)
@@ -170,9 +176,9 @@ func TestHandleTaskType3_ProducesJoinedBatch(t *testing.T) {
 	}
 	dataBatch := helpers.PrepareStoreTPVBatch(t, tpvs, enum.T3)
 
-	helpers.SendDataBatch(t, "store_tpv", dataBatch)
+	helpers.SendDataBatch(t, middleware.GetStoresTPVQueue, dataBatch)
 
-	received := helpers.GetAllOutputMessages(t, "joined_stores_tpv_queue", func(body []byte) (*data_batch.DataBatch, error) {
+	received := helpers.GetAllOutputMessages(t, middleware.GetJoinedStoresTPVQueue, func(body []byte) (*data_batch.DataBatch, error) {
 		batch := &data_batch.DataBatch{}
 		if err := proto.Unmarshal(body, batch); err != nil {
 			return nil, err
@@ -192,7 +198,8 @@ func TestHandleTaskType3_ProducesJoinedBatch(t *testing.T) {
 func TestHandleTaskType2_ProducesJoinedBatch(t *testing.T) {
 	storeDir := t.TempDir()
 	testCase := test_helpers.TestCase{
-		Queue:       "menu_items",
+		QueueName:   "menu_items",
+		Queue:       middleware.GetMenuItemsQueue,
 		DatasetType: enum.MenuItems,
 		CsvPayloads: [][]byte{
 			[]byte("1,Espresso,coffee,6.0,False,,\n"),
@@ -203,7 +210,7 @@ func TestHandleTaskType2_ProducesJoinedBatch(t *testing.T) {
 		SendDone:      true,
 	}
 
-	j := helpers.StartJoiner(t, storeDir, []string{testCase.Queue})
+	j := helpers.StartJoiner(t, storeDir, []string{testCase.QueueName})
 	defer func(j *joiner.Joiner) {
 		err := j.Stop()
 		assert.NoError(t, err)
@@ -216,14 +223,14 @@ func TestHandleTaskType2_ProducesJoinedBatch(t *testing.T) {
 		{YearMonthCreatedAt: "2024-02", ItemId: 2, SellingsQty: 91218},
 	}
 	bestSellingBatch := helpers.PrepareBestSellingBatch(t, bestSelling, enum.T2)
-	helpers.SendDataBatch(t, "transaction_counted", bestSellingBatch)
+	helpers.SendDataBatch(t, middleware.GetBestSellingTransactionsQueue, bestSellingBatch)
 
 	mostProfits := []*reduced.MostProfitsProducts{
 		{YearMonthCreatedAt: "2024-01", ItemId: 1, ProfitSum: 260611.0},
 		{YearMonthCreatedAt: "2024-02", ItemId: 2, ProfitSum: 91218.0},
 	}
 	mostProfitsBatch := helpers.PrepareMostProfitsBatch(t, mostProfits, enum.T2)
-	helpers.SendDataBatch(t, "transaction_sum", mostProfitsBatch)
+	helpers.SendDataBatch(t, middleware.GetMostProfitsTransactionsQueue, mostProfitsBatch)
 
 	expectedBestSelling := []*joined.JoinBestSellingProducts{
 		{YearMonthCreatedAt: "2024-01", ItemName: "Espresso", SellingsQty: 260611},
@@ -235,7 +242,7 @@ func TestHandleTaskType2_ProducesJoinedBatch(t *testing.T) {
 		{YearMonthCreatedAt: "2024-02", ItemName: "Americano", ProfitSum: 91218.0},
 	}
 
-	mostProfitsBatches := helpers.GetAllOutputMessages(t, "joined_most_profits_transactions", func(body []byte) (*data_batch.DataBatch, error) {
+	mostProfitsBatches := helpers.GetAllOutputMessages(t, middleware.GetJoinedMostProfitsTransactionsQueue, func(body []byte) (*data_batch.DataBatch, error) {
 		batch := &data_batch.DataBatch{}
 		if err := proto.Unmarshal(body, batch); err != nil {
 			return nil, err
@@ -243,7 +250,7 @@ func TestHandleTaskType2_ProducesJoinedBatch(t *testing.T) {
 		return batch, nil
 	})
 
-	bestSellingBatches := helpers.GetAllOutputMessages(t, "joined_best_selling_transactions", func(body []byte) (*data_batch.DataBatch, error) {
+	bestSellingBatches := helpers.GetAllOutputMessages(t, middleware.GetJoinedBestSellingTransactionsQueue, func(body []byte) (*data_batch.DataBatch, error) {
 		batch := &data_batch.DataBatch{}
 		if err := proto.Unmarshal(body, batch); err != nil {
 			return nil, err
@@ -269,7 +276,8 @@ func TestHandleTaskType2_ProducesJoinedBatch(t *testing.T) {
 func TestHandleTaskType4_ProducesJoinedBatch(t *testing.T) {
 	storeDir := t.TempDir()
 	testCase := test_helpers.TestCase{
-		Queue:       "stores",
+		QueueName:   "stores",
+		Queue:       middleware.GetStoresQueue,
 		DatasetType: enum.Stores,
 		CsvPayloads: [][]byte{
 			[]byte("5,G Coffee @ Seksyen 21,Jalan 1,12345,CityA,StateA,1.0,2.0\n"),
@@ -281,7 +289,8 @@ func TestHandleTaskType4_ProducesJoinedBatch(t *testing.T) {
 	}
 
 	testCaseUsers := test_helpers.TestCase{
-		Queue:       "users",
+		QueueName:   "users",
+		Queue:       middleware.GetUsersQueue,
 		DatasetType: enum.Users,
 		CsvPayloads: [][]byte{
 			[]byte("1,female,1970-04-22,2023-07-01 08:13:07\n"),
@@ -292,7 +301,7 @@ func TestHandleTaskType4_ProducesJoinedBatch(t *testing.T) {
 		SendDone:      true,
 	}
 
-	j := helpers.StartJoiner(t, storeDir, []string{testCase.Queue, testCaseUsers.Queue})
+	j := helpers.StartJoiner(t, storeDir, []string{testCase.QueueName, testCaseUsers.QueueName})
 	defer func(j *joiner.Joiner) {
 		err := j.Stop()
 		assert.NoError(t, err)
@@ -306,14 +315,14 @@ func TestHandleTaskType4_ProducesJoinedBatch(t *testing.T) {
 		{StoreId: 6, UserId: 2, PurchasesQty: 91218},
 	}
 	mostPurchasesUsersBatch := helpers.PrepareMostPurchasesUserBatch(t, mostPurchasesUsers, enum.T4)
-	helpers.SendDataBatch(t, "user_transactions", mostPurchasesUsersBatch)
+	helpers.SendDataBatch(t, middleware.GetUserTransactionsQueue, mostPurchasesUsersBatch)
 
 	expectedMostPurchasesUsers := []*joined.JoinMostPurchasesUser{
 		{StoreName: "G Coffee @ Seksyen 21", UserBirthdate: "1970-04-22", PurchasesQty: 260611},
 		{StoreName: "G Coffee @ Alam Tun Hussein Onn", UserBirthdate: "1974-06-21", PurchasesQty: 91218},
 	}
 
-	received := helpers.GetAllOutputMessages(t, "joined_user_transactions_queue", func(body []byte) (*data_batch.DataBatch, error) {
+	received := helpers.GetAllOutputMessages(t, middleware.GetJoinedUserTransactionsQueue, func(body []byte) (*data_batch.DataBatch, error) {
 		batch := &data_batch.DataBatch{}
 		if err := proto.Unmarshal(body, batch); err != nil {
 			return nil, err
@@ -327,7 +336,8 @@ func TestHandleTaskType4_ProducesJoinedBatch(t *testing.T) {
 func TestHandleTaskType4Server(t *testing.T) {
 	storeDir := t.TempDir()
 	testCase := test_helpers.TestCase{
-		Queue:       "stores",
+		QueueName:   "stores",
+		Queue:       middleware.GetStoresQueue,
 		DatasetType: enum.Stores,
 		CsvPayloads: [][]byte{
 			[]byte("5,G Coffee @ Seksyen 21,Jalan 1,12345,CityA,StateA,1.0,2.0\n"),
@@ -339,7 +349,8 @@ func TestHandleTaskType4Server(t *testing.T) {
 	}
 
 	testCaseUsers := test_helpers.TestCase{
-		Queue:       "users",
+		QueueName:   "users",
+		Queue:       middleware.GetUsersQueue,
 		DatasetType: enum.Users,
 		CsvPayloads: [][]byte{
 			[]byte("1,female,1970-04-22,2023-07-01 08:13:07\n"),
@@ -365,14 +376,14 @@ func TestHandleTaskType4Server(t *testing.T) {
 		{StoreId: 6, UserId: 2, PurchasesQty: 91218},
 	}
 	mostPurchasesUsersBatch := helpers.PrepareMostPurchasesUserBatch(t, mostPurchasesUsers, enum.T4)
-	helpers.SendDataBatch(t, "user_transactions", mostPurchasesUsersBatch)
+	helpers.SendDataBatch(t, middleware.GetUserTransactionsQueue, mostPurchasesUsersBatch)
 
 	expectedMostPurchasesUsers := []*joined.JoinMostPurchasesUser{
 		{StoreName: "G Coffee @ Seksyen 21", UserBirthdate: "1970-04-22", PurchasesQty: 260611},
 		{StoreName: "G Coffee @ Alam Tun Hussein Onn", UserBirthdate: "1974-06-21", PurchasesQty: 91218},
 	}
 
-	received := helpers.GetAllOutputMessages(t, "joined_user_transactions_queue", func(body []byte) (*data_batch.DataBatch, error) {
+	received := helpers.GetAllOutputMessages(t, middleware.GetJoinedUserTransactionsQueue, func(body []byte) (*data_batch.DataBatch, error) {
 		batch := &data_batch.DataBatch{}
 		if err := proto.Unmarshal(body, batch); err != nil {
 			return nil, err
@@ -386,8 +397,6 @@ func TestHandleTaskType4Server(t *testing.T) {
 func TestHandleConnectionGatewayController(t *testing.T) {
 	storeDir := t.TempDir()
 
-	joinerConfig := helpers.JoinerConfig(storeDir)
-
 	var wg sync.WaitGroup
 	joinServer := helpers.InitServer(t, storeDir, &wg)
 	defer func() {
@@ -395,15 +404,9 @@ func TestHandleConnectionGatewayController(t *testing.T) {
 		wg.Wait()
 	}()
 
-	helpers.AssertConnectionMsg(t, joinerConfig.GatewayControllerQueue, true)
+	helpers.AssertConnectionMsg(t, middleware.GetNodeConnectionsQueue, true)
 
-	finishExchange, err := middleware.NewExchangeMiddleware(
-		helpers.RabbitURL,
-		joinerConfig.GatewayControllerExchange,
-		"direct",
-		[]string{joinerConfig.FinishRoutingKey},
-	)
-	assert.NoError(t, err)
+	finishExchange := middleware.GetFinishExchange(helpers.RabbitURL, enum.Joiner)
 
 	finishMsg := &data_batch.DataBatch{
 		TaskType: int32(enum.T4),
@@ -415,5 +418,5 @@ func TestHandleConnectionGatewayController(t *testing.T) {
 	e := finishExchange.Send(dataMessage)
 	assert.Equal(t, 0, int(e))
 
-	helpers.AssertConnectionMsg(t, joinerConfig.GatewayControllerQueue, false)
+	helpers.AssertConnectionMsg(t, middleware.GetNodeConnectionsQueue, false)
 }
