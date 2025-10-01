@@ -263,6 +263,30 @@ func AssertAggregatedMostPurchasesUsers(
 	assertJoinedBatchIsTheExpected(t, received, expected, unmarshal, equal)
 }
 
+func AssertAggregatedStoresTPV(
+	t *testing.T,
+	received *data_batch.DataBatch,
+	expected []*joined.JoinStoreTPV,
+) {
+	t.Helper()
+
+	unmarshal := func(payload []byte) ([]*joined.JoinStoreTPV, error) {
+		var batch joined.JoinStoreTPVBatch
+		if err := proto.Unmarshal(payload, &batch); err != nil {
+			return nil, err
+		}
+		return batch.Items, nil
+	}
+
+	equal := func(exp, got *joined.JoinStoreTPV) bool {
+		return exp.StoreName == got.StoreName &&
+			exp.YearHalfCreatedAt == got.YearHalfCreatedAt &&
+			exp.Tpv == got.Tpv
+	}
+
+	assertJoinedBatchIsTheExpected(t, received, expected, unmarshal, equal)
+}
+
 func AssertConnectionMsg(t *testing.T, gatewayControllerQueue string, finished bool) {
 	initConnectionMsg := GetAllOutputMessages(t, gatewayControllerQueue, func(body []byte) (*controller_connection.ControllerConnection, error) {
 		ctrl := &controller_connection.ControllerConnection{}

@@ -126,3 +126,47 @@ func TestHandleTaskType4Top3(t *testing.T) {
 	assert.Equal(t, int32(enum.T4), doneDataMsg.TaskType)
 	assert.Equal(t, true, doneDataMsg.Done)
 }
+
+func TestHandleTaskType3(t *testing.T) {
+	storeDir := t.TempDir()
+
+	storeTPVs := []*joined.JoinStoreTPV{
+		{YearHalfCreatedAt: "2024-H1", StoreName: "G Coffee @ Seksyen 21", Tpv: 1},
+		{YearHalfCreatedAt: "2024-H1", StoreName: "G Coffee @ Seksyen 21", Tpv: 1},
+		{YearHalfCreatedAt: "2024-H1", StoreName: "G Coffee @ Seksyen 21", Tpv: 1},
+		{YearHalfCreatedAt: "2024-H1", StoreName: "G Coffee @ Alam Tun Hussein Onn", Tpv: 1},
+		{YearHalfCreatedAt: "2024-H1", StoreName: "G Coffee @ Alam Tun Hussein Onn", Tpv: 1},
+		{YearHalfCreatedAt: "2025-H1", StoreName: "G Coffee @ Kampung Changkat", Tpv: 1},
+	}
+	storeTPVBatch := helpers.PrepareJoinStoreTPVBatch(t, storeTPVs, enum.T3)
+
+	testCase := helpers.CreateTestCaseTask3(storeDir, storeTPVBatch, true)
+
+	agg := helpers.StartAggregator(t, storeDir, []string{testCase.Queue})
+	defer func(agg *aggregator.Aggregator) {
+		err := agg.Stop()
+		assert.NoError(t, err)
+	}(agg)
+
+	helpers.RunTest(t, testCase)
+
+	received := helpers.GetAllOutputMessages(t, testCase.AggregatorConfig.GatewayControllerDataQueue, func(body []byte) (*data_batch.DataBatch, error) {
+		batch := &data_batch.DataBatch{}
+		if err := proto.Unmarshal(body, batch); err != nil {
+			return nil, err
+		}
+		return batch, nil
+	})
+
+	expectedStoresTPVs := []*joined.JoinStoreTPV{
+		{YearHalfCreatedAt: "2024-H1", StoreName: "G Coffee @ Seksyen 21", Tpv: 3},
+		{YearHalfCreatedAt: "2024-H1", StoreName: "G Coffee @ Alam Tun Hussein Onn", Tpv: 2},
+		{YearHalfCreatedAt: "2025-H1", StoreName: "G Coffee @ Kampung Changkat", Tpv: 1},
+	}
+
+	helpers.AssertAggregatedStoresTPV(t, received[0], expectedStoresTPVs)
+
+	doneDataMsg := received[1]
+	assert.Equal(t, int32(enum.T4), doneDataMsg.TaskType)
+	assert.Equal(t, true, doneDataMsg.Done)
+}
