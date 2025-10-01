@@ -2,12 +2,15 @@ package cache
 
 import (
 	"encoding/binary"
+	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 
 	"github.com/maxogod/distro-tp/src/common/models/data_batch"
 	"github.com/maxogod/distro-tp/src/common/models/enum"
+	"github.com/maxogod/distro-tp/src/common/models/joined"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -17,6 +20,10 @@ type ReferenceDatasetStore struct {
 	storePath      string
 	storeDataPaths StoreDataPaths
 }
+
+type MergeFunc[T proto.Message] func(accumulated, incoming T) T
+type KeyFunc[T proto.Message] func(item T) string
+type SendAggTask4 func(items map[string]*joined.JoinMostPurchasesUser) error
 
 func NewCacheStore(storePath string) *ReferenceDatasetStore {
 	return &ReferenceDatasetStore{
@@ -90,4 +97,94 @@ func (refStore *ReferenceDatasetStore) ResetStore() {
 	}
 
 	refStore.storeDataPaths = make(StoreDataPaths)
+}
+
+func aggregateData[T proto.Message, B proto.Message](
+	datasetName, storePath string,
+	createSpecificBatch func() B,
+	getItems func(B) []T,
+	merge MergeFunc[T],
+	key KeyFunc[T],
+) (map[string]T, error) {
+	filename := fmt.Sprintf("%s/%s.pb", storePath, datasetName)
+	f, err := os.Open(filename)
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+
+	aggregatedItems := make(map[string]T)
+
+	for {
+		var length uint32
+		if err = binary.Read(f, binary.LittleEndian, &length); err != nil {
+			if errors.Is(err, io.EOF) {
+				break
+			}
+			return nil, err
+		}
+
+		dataBatchBytes := make([]byte, length)
+		if _, err = io.ReadFull(f, dataBatchBytes); err != nil {
+			return nil, err
+		}
+
+		dataBatch := &data_batch.DataBatch{}
+		err = proto.Unmarshal(dataBatchBytes, dataBatch)
+		if err != nil {
+			return nil, err
+		}
+
+		specificBatch := createSpecificBatch()
+		if err = proto.Unmarshal(dataBatch.Payload, specificBatch); err != nil {
+			return nil, err
+		}
+
+		for _, item := range getItems(specificBatch) {
+			k := key(item)
+			if existing, ok := aggregatedItems[k]; ok {
+				aggregatedItems[k] = merge(existing, item)
+			} else {
+				aggregatedItems[k] = proto.Clone(item).(T)
+			}
+		}
+	}
+
+	_ = os.Remove(filename)
+
+	return aggregatedItems, nil
+}
+
+func (refStore *ReferenceDatasetStore) AggregateDataTask2(gatewayControllerDataQueue string) error {
+	return nil
+}
+
+func (refStore *ReferenceDatasetStore) AggregateDataTask3(gatewayControllerDataQueue string) error {
+	return nil
+}
+
+func (refStore *ReferenceDatasetStore) AggregateDataTask4(gatewayControllerDataQueue string, sendAggDataTask4 SendAggTask4) error {
+	aggregatedData, err := aggregateData(
+		"task4",
+		refStore.storePath,
+		func() *joined.JoinMostPurchasesUserBatch {
+			return &joined.JoinMostPurchasesUserBatch{}
+		},
+		func(batch *joined.JoinMostPurchasesUserBatch) []*joined.JoinMostPurchasesUser {
+			return batch.Users
+		},
+		func(accumulated, incoming *joined.JoinMostPurchasesUser) *joined.JoinMostPurchasesUser {
+			accumulated.PurchasesQty += incoming.PurchasesQty
+			return accumulated
+		},
+		func(item *joined.JoinMostPurchasesUser) string {
+			return item.StoreName + "|" + item.UserBirthdate
+		},
+	)
+
+	if err != nil {
+		return err
+	}
+
+	return sendAggDataTask4(aggregatedData)
 }

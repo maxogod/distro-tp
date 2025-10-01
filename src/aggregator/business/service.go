@@ -1,6 +1,7 @@
 package service
 
 import (
+	"fmt"
 	"sync"
 
 	"github.com/google/uuid"
@@ -8,7 +9,10 @@ import (
 	"github.com/maxogod/distro-tp/src/aggregator/config"
 	"github.com/maxogod/distro-tp/src/aggregator/handler"
 	"github.com/maxogod/distro-tp/src/common/middleware"
+	"github.com/maxogod/distro-tp/src/common/models/data_batch"
 	"github.com/maxogod/distro-tp/src/common/models/enum"
+	"github.com/maxogod/distro-tp/src/common/models/joined"
+	"google.golang.org/protobuf/proto"
 )
 
 type DataQueueTaskType map[string]enum.TaskType
@@ -43,7 +47,7 @@ func NewAggregator(config *config.Config) *Aggregator {
 		dataQueueTaskType: defaultDataQueueTaskType(*config),
 		dataMiddlewares:   make(MessageMiddlewares),
 		refDatasetStore:   cache.NewCacheStore(config.StorePath),
-		workerName:        "aggregator" + uuid.New().String(),
+		workerName:        "aggregator-" + uuid.New().String(),
 	}
 
 	aggregator.taskHandler = handler.NewTaskHandler(aggregator.refDatasetStore)
@@ -102,11 +106,22 @@ func (a *Aggregator) Stop() error {
 	return nil
 }
 
-func (a *Aggregator) HandleDone([]byte) error {
-	// TODO: Start to send batched data to the gateway controller
-	//  use SendDataBatch(dataBatch *handler.DataBatch, a.gatewayDataQueue)
-	//  use StartSender() to initialize a.gatewayDataQueue
-	return nil
+func (a *Aggregator) HandleDone(msgBatch []byte) error {
+	batch := &data_batch.DataBatch{}
+	if err := proto.Unmarshal(msgBatch, batch); err != nil {
+		return err
+	}
+
+	switch enum.TaskType(batch.TaskType) {
+	case enum.T2:
+		return a.refDatasetStore.AggregateDataTask2(a.config.GatewayControllerDataQueue)
+	case enum.T3:
+		return a.refDatasetStore.AggregateDataTask3(a.config.GatewayControllerDataQueue)
+	case enum.T4:
+		return a.refDatasetStore.AggregateDataTask4(a.config.GatewayControllerDataQueue, a.SendAggregateDataTask4)
+	default:
+		return fmt.Errorf("unknown task type: %v", batch.TaskType)
+	}
 }
 
 func (a *Aggregator) InitService() error {
@@ -146,5 +161,83 @@ func (a *Aggregator) StartDirectExchange() error {
 	}
 
 	a.finishExchange = exchange
+	return nil
+}
+
+func (a *Aggregator) SendAggregateDataTask4(items map[string]*joined.JoinMostPurchasesUser) error {
+	batchSize := 100
+	var currentBatch []*joined.JoinMostPurchasesUser
+
+	gatewayQueue, err := StartQueueMiddleware(a.config.GatewayAddress, a.config.GatewayControllerDataQueue)
+	if err != nil {
+		return err
+	}
+
+	for _, item := range items {
+		currentBatch = append(currentBatch, item)
+		if len(currentBatch) >= batchSize {
+			specificBatch := &joined.JoinMostPurchasesUserBatch{
+				Users: currentBatch,
+			}
+
+			sendErr := SendBatchToGateway(specificBatch, gatewayQueue)
+			if sendErr != nil {
+				return sendErr
+			}
+
+			currentBatch = []*joined.JoinMostPurchasesUser{}
+		}
+	}
+
+	if len(currentBatch) > 0 {
+		specificBatch := &joined.JoinMostPurchasesUserBatch{
+			Users: currentBatch,
+		}
+
+		sendErr := SendBatchToGateway(specificBatch, gatewayQueue)
+		if sendErr != nil {
+			return sendErr
+		}
+	}
+
+	err = SendDoneBatchToGateway(gatewayQueue)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func SendBatchToGateway(batch proto.Message, gatewayQueue middleware.MessageMiddleware) error {
+	payload, marshalErr := proto.Marshal(batch)
+	if marshalErr != nil {
+		return marshalErr
+	}
+
+	dataBatch := &data_batch.DataBatch{
+		TaskType: int32(enum.T4),
+		Done:     false,
+		Payload:  payload,
+	}
+
+	sendErr := SendDataBatch(dataBatch, gatewayQueue)
+	if sendErr != nil {
+		return sendErr
+	}
+
+	return nil
+}
+
+func SendDoneBatchToGateway(gatewayQueue middleware.MessageMiddleware) error {
+	dataBatch := &data_batch.DataBatch{
+		TaskType: int32(enum.T4),
+		Done:     true,
+	}
+
+	sendErr := SendDataBatch(dataBatch, gatewayQueue)
+	if sendErr != nil {
+		return sendErr
+	}
+
 	return nil
 }
