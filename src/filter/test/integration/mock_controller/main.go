@@ -2,6 +2,7 @@ package main
 
 import (
 	"log"
+	"time"
 
 	"github.com/maxogod/distro-tp/src/common/middleware"
 	"github.com/maxogod/distro-tp/src/common/models/controller_connection"
@@ -16,7 +17,6 @@ const amountOfMessages = 10
 
 func main() {
 
-	filterQueue, err := middleware.NewQueueMiddleware("amqp://guest:guest@localhost:5672/", "filter")
 	finishQueue, err := middleware.NewExchangeMiddleware("amqp://guest:guest@localhost:5672/", "finish_exchange", "direct", []string{"filter"})
 
 	NodeConnectionsQueue, err := middleware.NewQueueMiddleware("amqp://guest:guest@localhost:5672/", "node_connections")
@@ -25,13 +25,14 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	defer filterQueue.Close()
 	defer finishQueue.Close()
 	defer NodeConnectionsQueue.Close()
 	defer ProcessedDataQueue.Close()
 
 	// await for announcement
 	done := make(chan bool, 1)
+
+	var workerName string
 
 	log.Println("Awaiting controller announcement")
 	e := NodeConnectionsQueue.StartConsuming(func(consumeChannel middleware.ConsumeChannel, d chan error) {
@@ -40,6 +41,9 @@ func main() {
 			announceMsg := &controller_connection.ControllerConnection{}
 
 			err := proto.Unmarshal(msg.Body, announceMsg)
+
+			workerName = announceMsg.WorkerName
+
 			if err != nil {
 				log.Fatalf("Failed to unmarshal controller connection message: %v", err)
 			}
@@ -58,6 +62,9 @@ func main() {
 
 	// send data bataches
 	log.Println("Sending data batches to filter")
+
+	dataQueue, err := middleware.NewExchangeMiddleware("amqp://guest:guest@localhost:5672/", "finish_exchange", "direct", []string{workerName})
+	defer dataQueue.Close()
 
 	for i := 0; i < amountOfMessages; i++ {
 
@@ -80,7 +87,7 @@ func main() {
 			log.Fatalf("Failed to marshal data batch: %v", err)
 		}
 
-		e := filterQueue.Send(dataPayload)
+		e := dataQueue.Send(dataPayload)
 		if e != middleware.MessageMiddlewareSuccess {
 			log.Fatalf("Failed to send message to filter queue: %v", e)
 		}
@@ -88,6 +95,7 @@ func main() {
 		log.Println("Message sent to filter queue")
 	}
 
+	time.Sleep(1 * time.Second)
 	// now we send a DONE to the filter via finish_exchange
 	log.Println("Sending done message to finish exchange")
 	finish := &data_batch.DataBatch{
@@ -99,7 +107,7 @@ func main() {
 		log.Fatalf("Failed to marshal data batch: %v", err)
 	}
 
-	e = filterQueue.Send(finishPayload)
+	e = finishQueue.Send(finishPayload)
 	if e != middleware.MessageMiddlewareSuccess {
 		log.Fatalf("Failed to send message to finish queue: %v", e)
 	}

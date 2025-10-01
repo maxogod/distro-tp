@@ -12,41 +12,72 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-const workerNamePrefix = "filter"
+const (
+	FinishExchange       = "finish_exchange"
+	FilterQueue          = "filter"
+	CountQueue           = "count"
+	SumQueue             = "sum"
+	ProcessDataQueue     = "processed_data"
+	NodeConnectionsQueue = "node_connections"
+)
 
 type MessageHandler struct {
-	filterQueue         middleware.MessageMiddleware
 	reduceSumQueue      middleware.MessageMiddleware
 	reduceCountQueue    middleware.MessageMiddleware
 	processDataQueue    middleware.MessageMiddleware
 	nodeConnectionQueue middleware.MessageMiddleware
-	finishQueue         middleware.MessageMiddleware
+	dataQueue           middleware.MessageMiddleware
 	messageHandlers     map[enum.TaskType]func([]byte) error
 	workerName          string
 	stopConsuming       chan bool
 }
 
 func NewMessageHandler(
-	filterQueueMiddleware middleware.MessageMiddleware,
-	reduceSumQueueMiddleware middleware.MessageMiddleware,
-	reduceCountQueueMiddleware middleware.MessageMiddleware,
-	processDataQueueMiddleware middleware.MessageMiddleware,
-	controllerConnection middleware.MessageMiddleware,
-	finishExchangeMiddleware middleware.MessageMiddleware,
+	Address string,
 ) *MessageHandler {
 
-	mh := &MessageHandler{
-		filterQueue:         filterQueueMiddleware,
-		reduceSumQueue:      reduceSumQueueMiddleware,
-		reduceCountQueue:    reduceCountQueueMiddleware,
-		processDataQueue:    processDataQueueMiddleware,
-		nodeConnectionQueue: controllerConnection,
-		finishQueue:         finishExchangeMiddleware,
+	reduceCountQueue, err := middleware.NewQueueMiddleware(Address, CountQueue)
+	if err != nil {
+		log.Errorf("Failed to create count queue middleware: %v", err)
+		return nil
 	}
 
-	mh.workerName = fmt.Sprintf("%s-%s", workerNamePrefix, uuid.New().String())
+	reduceSumQueue, err := middleware.NewQueueMiddleware(Address, SumQueue)
+	if err != nil {
+		log.Errorf("Failed to create sum queue middleware: %v", err)
+		return nil
+	}
 
-	mh.stopConsuming = make(chan bool)
+	processDataQueue, err := middleware.NewQueueMiddleware(Address, ProcessDataQueue)
+	if err != nil {
+		log.Errorf("Failed to create processed data queue middleware: %v", err)
+		return nil
+	}
+
+	nodeConnectionQueue, err := middleware.NewQueueMiddleware(Address, NodeConnectionsQueue)
+	if err != nil {
+		log.Errorf("Failed to create controller connection middleware: %v", err)
+		return nil
+	}
+
+	workerName := fmt.Sprintf("%s_%s", FilterQueue, uuid.New().String())
+
+	dataQueue, err := middleware.NewExchangeMiddleware(Address, FinishExchange, "direct", []string{FilterQueue, workerName})
+	if err != nil {
+		log.Errorf("Failed to create finish exchange middleware: %v", err)
+		return nil
+	}
+
+	mh := &MessageHandler{
+		reduceSumQueue:      reduceSumQueue,
+		reduceCountQueue:    reduceCountQueue,
+		processDataQueue:    processDataQueue,
+		nodeConnectionQueue: nodeConnectionQueue,
+		dataQueue:           dataQueue,
+		workerName:          workerName,
+	}
+
+	mh.stopConsuming = make(chan bool, 1)
 
 	mh.messageHandlers = map[enum.TaskType]func([]byte) error{
 		enum.T1: mh.sendT1Data,
@@ -59,12 +90,10 @@ func NewMessageHandler(
 }
 
 func (mh *MessageHandler) Close() error {
-	e := mh.filterQueue.Close()
-	if e != middleware.MessageMiddlewareSuccess {
-		return fmt.Errorf("Error closing filter queue middleware: %v", e)
-	}
 
-	e = mh.reduceSumQueue.Close()
+	mh.stopConsuming <- true
+
+	e := mh.reduceSumQueue.Close()
 	if e != middleware.MessageMiddlewareSuccess {
 		return fmt.Errorf("Error closing reduce sum queue middleware: %v", e)
 	}
@@ -84,12 +113,10 @@ func (mh *MessageHandler) Close() error {
 		return fmt.Errorf("Error closing controller connection middleware: %v", e)
 	}
 
-	e = mh.finishQueue.Close()
+	e = mh.dataQueue.Close()
 	if e != middleware.MessageMiddlewareSuccess {
 		return fmt.Errorf("Error closing finish exchange middleware: %v", e)
 	}
-
-	mh.stopConsuming <- true
 
 	return nil
 }
@@ -107,50 +134,13 @@ func (mh *MessageHandler) AnnounceToController() error {
 	return nil
 }
 
-func (mh *MessageHandler) listenForDone(finishConsuming chan bool) error {
-
-	finishFilter := make(chan bool, 1)
-
-	e := mh.finishQueue.StartConsuming(func(consumeChannel middleware.ConsumeChannel, d chan error) {
-		for msg := range consumeChannel {
-			msg.Ack(false)
-			dataBatch, err := utils.GetDataBatch(msg.Body)
-			if err != nil {
-				log.Errorf("Failed to get data batch: %v", err)
-				continue
-			}
-			done := dataBatch.GetDone()
-
-			if done {
-				log.Debug("Received done message. Finishing processing.")
-				finishFilter <- true
-				return
-			}
-			return
-		}
-	})
-	<-finishFilter
-
-	finishConsuming <- true
-
-	if e != middleware.MessageMiddlewareSuccess {
-		return fmt.Errorf("Failed to start consuming finish exchange: %d", e)
-	}
-
-	return nil
-}
-
-func (mh *MessageHandler) StartReceiving(
+func (mh *MessageHandler) Start(
 	callback func(payload []byte, taskType int32) error,
 ) error {
 
-	// finishConsuming := make(chan bool, 1)
+	defer mh.dataQueue.StopConsuming()
 
-	// go func() {
-	// 	_ = mh.listenForDone(finishConsuming)
-	// }()
-
-	mh.filterQueue.StartConsuming(func(consumeChannel middleware.ConsumeChannel, d chan error) {
+	mh.dataQueue.StartConsuming(func(consumeChannel middleware.ConsumeChannel, d chan error) {
 
 		for msg := range consumeChannel {
 			msg.Ack(false)
@@ -166,7 +156,7 @@ func (mh *MessageHandler) StartReceiving(
 			if done {
 				log.Info("Received done message. Finishing processing.")
 				mh.stopConsuming <- true
-				break
+				return
 			}
 
 			err = callback(payload, taskType)

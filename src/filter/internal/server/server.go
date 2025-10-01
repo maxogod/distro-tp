@@ -7,7 +7,6 @@ import (
 	"syscall"
 
 	"github.com/maxogod/distro-tp/src/common/logger"
-	"github.com/maxogod/distro-tp/src/common/middleware"
 	"github.com/maxogod/distro-tp/src/common/models/enum"
 	"github.com/maxogod/distro-tp/src/filter/business"
 	"github.com/maxogod/distro-tp/src/filter/config"
@@ -15,15 +14,6 @@ import (
 )
 
 var log = logger.GetLogger()
-
-const (
-	FinishExchange       = "finish_exchange"
-	FilterQueue          = "filter"
-	CountQueue           = "count"
-	SumQueue             = "sum"
-	ProcessDataQueue     = "processed_data"
-	NodeConnectionsQueue = "node_connections"
-)
 
 type Server struct {
 	config         *config.Config
@@ -36,49 +26,8 @@ func InitServer(conf *config.Config) *Server {
 
 	workerService := business.NewFilterService()
 
-	filterQueue, err := middleware.NewQueueMiddleware(conf.Address, FilterQueue)
-	if err != nil {
-		log.Errorf("Failed to create filter queue middleware: %v", err)
-		return nil
-	}
-
-	reduceCountQueue, err := middleware.NewQueueMiddleware(conf.Address, CountQueue)
-	if err != nil {
-		log.Errorf("Failed to create count queue middleware: %v", err)
-		return nil
-	}
-
-	reduceSumQueue, err := middleware.NewQueueMiddleware(conf.Address, SumQueue)
-	if err != nil {
-		log.Errorf("Failed to create sum queue middleware: %v", err)
-		return nil
-	}
-
-	processDataQueue, err := middleware.NewQueueMiddleware(conf.Address, ProcessDataQueue)
-	if err != nil {
-		log.Errorf("Failed to create processed data queue middleware: %v", err)
-		return nil
-	}
-
-	nodeConnectionQueue, err := middleware.NewQueueMiddleware(conf.Address, NodeConnectionsQueue)
-	if err != nil {
-		log.Errorf("Failed to create controller connection middleware: %v", err)
-		return nil
-	}
-
-	finishQueue, err := middleware.NewExchangeMiddleware(conf.Address, FinishExchange, "direct", []string{FilterQueue})
-	if err != nil {
-		log.Errorf("Failed to create finish exchange middleware: %v", err)
-		return nil
-	}
-
 	messageHandler := handler.NewMessageHandler(
-		filterQueue,
-		reduceSumQueue,
-		reduceCountQueue,
-		processDataQueue,
-		nodeConnectionQueue,
-		finishQueue,
+		conf.Address,
 	)
 
 	return &Server{
@@ -105,7 +54,7 @@ func (s *Server) Run() error {
 
 	for s.isRunning {
 
-		e := s.messageHandler.StartReceiving(func(payload []byte, taskType int32) error {
+		e := s.messageHandler.Start(func(payload []byte, taskType int32) error {
 			return s.taskHandler.HandleTask(enum.TaskType(taskType), payload)
 		})
 
