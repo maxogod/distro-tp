@@ -58,3 +58,71 @@ func TestHandleConnection(t *testing.T) {
 
 	helpers.AssertConnectionMsg(t, aggregatorConfig.GatewayControllerConnectionQueue, false)
 }
+
+func TestHandleTaskType4Top3(t *testing.T) {
+	storeDir := t.TempDir()
+
+	mostPurchasesUsers := []*joined.JoinMostPurchasesUser{
+		{StoreName: "G Coffee @ Seksyen 21", UserBirthdate: "1970-04-22", PurchasesQty: 1},
+		{StoreName: "G Coffee @ Seksyen 21", UserBirthdate: "1970-04-22", PurchasesQty: 1},
+		{StoreName: "G Coffee @ Seksyen 21", UserBirthdate: "1970-04-22", PurchasesQty: 1},
+		{StoreName: "G Coffee @ Seksyen 21", UserBirthdate: "1970-04-22", PurchasesQty: 1},
+
+		{StoreName: "G Coffee @ Seksyen 21", UserBirthdate: "1974-06-21", PurchasesQty: 1},
+		{StoreName: "G Coffee @ Seksyen 21", UserBirthdate: "1974-06-21", PurchasesQty: 1},
+		{StoreName: "G Coffee @ Seksyen 21", UserBirthdate: "1974-06-21", PurchasesQty: 1},
+
+		{StoreName: "G Coffee @ Seksyen 21", UserBirthdate: "1974-05-21", PurchasesQty: 1},
+		{StoreName: "G Coffee @ Seksyen 21", UserBirthdate: "1974-05-21", PurchasesQty: 1},
+
+		{StoreName: "G Coffee @ Seksyen 21", UserBirthdate: "1971-05-21", PurchasesQty: 1},
+
+		{StoreName: "G Coffee @ Alam Tun Hussein Onn", UserBirthdate: "1970-04-22", PurchasesQty: 1},
+		{StoreName: "G Coffee @ Alam Tun Hussein Onn", UserBirthdate: "1970-04-22", PurchasesQty: 1},
+		{StoreName: "G Coffee @ Alam Tun Hussein Onn", UserBirthdate: "1970-04-22", PurchasesQty: 1},
+		{StoreName: "G Coffee @ Alam Tun Hussein Onn", UserBirthdate: "1970-04-22", PurchasesQty: 1},
+
+		{StoreName: "G Coffee @ Alam Tun Hussein Onn", UserBirthdate: "1974-06-21", PurchasesQty: 1},
+		{StoreName: "G Coffee @ Alam Tun Hussein Onn", UserBirthdate: "1974-06-21", PurchasesQty: 1},
+		{StoreName: "G Coffee @ Alam Tun Hussein Onn", UserBirthdate: "1974-06-21", PurchasesQty: 1},
+
+		{StoreName: "G Coffee @ Alam Tun Hussein Onn", UserBirthdate: "1974-05-21", PurchasesQty: 1},
+		{StoreName: "G Coffee @ Alam Tun Hussein Onn", UserBirthdate: "1974-05-21", PurchasesQty: 1},
+
+		{StoreName: "G Coffee @ Alam Tun Hussein Onn", UserBirthdate: "1971-05-21", PurchasesQty: 1},
+	}
+	mostPurchasesUsersBatch := helpers.PrepareJoinMostPurchasesUserBatch(t, mostPurchasesUsers, enum.T4)
+
+	testCase := helpers.CreateTestCaseTask4(storeDir, mostPurchasesUsersBatch, true)
+
+	agg := helpers.StartAggregator(t, storeDir, []string{testCase.Queue})
+	defer func(agg *aggregator.Aggregator) {
+		err := agg.Stop()
+		assert.NoError(t, err)
+	}(agg)
+
+	helpers.RunTest(t, testCase)
+
+	received := helpers.GetAllOutputMessages(t, testCase.AggregatorConfig.GatewayControllerDataQueue, func(body []byte) (*data_batch.DataBatch, error) {
+		batch := &data_batch.DataBatch{}
+		if err := proto.Unmarshal(body, batch); err != nil {
+			return nil, err
+		}
+		return batch, nil
+	})
+
+	expectedMostPurchases := []*joined.JoinMostPurchasesUser{
+		{StoreName: "G Coffee @ Seksyen 21", UserBirthdate: "1970-04-22", PurchasesQty: 4},
+		{StoreName: "G Coffee @ Seksyen 21", UserBirthdate: "1974-06-21", PurchasesQty: 3},
+		{StoreName: "G Coffee @ Seksyen 21", UserBirthdate: "1974-05-21", PurchasesQty: 2},
+		{StoreName: "G Coffee @ Alam Tun Hussein Onn", UserBirthdate: "1970-04-22", PurchasesQty: 4},
+		{StoreName: "G Coffee @ Alam Tun Hussein Onn", UserBirthdate: "1974-06-21", PurchasesQty: 3},
+		{StoreName: "G Coffee @ Alam Tun Hussein Onn", UserBirthdate: "1974-05-21", PurchasesQty: 2},
+	}
+
+	helpers.AssertAggregatedMostPurchasesUsers(t, received[0], expectedMostPurchases)
+
+	doneDataMsg := received[1]
+	assert.Equal(t, int32(enum.T4), doneDataMsg.TaskType)
+	assert.Equal(t, true, doneDataMsg.Done)
+}

@@ -29,20 +29,26 @@ func prepareDataBatch[T any](
 	}
 }
 
-func PrepareJoinBestSellingBatch(t *testing.T, records []*joined.JoinBestSellingProducts, taskType enum.TaskType) *data_batch.DataBatch {
-	return prepareDataBatch(t, taskType, records, func(items []*joined.JoinBestSellingProducts) proto.Message {
+func PrepareJoinBestSellingBatch(t *testing.T, items []*joined.JoinBestSellingProducts, taskType enum.TaskType) *data_batch.DataBatch {
+	return prepareDataBatch(t, taskType, items, func(items []*joined.JoinBestSellingProducts) proto.Message {
 		return &joined.JoinBestSellingProductsBatch{Items: items}
 	})
 }
 
-func PrepareJoinMostProfitsBatch(t *testing.T, records []*joined.JoinMostProfitsProducts, taskType enum.TaskType) *data_batch.DataBatch {
-	return prepareDataBatch(t, taskType, records, func(items []*joined.JoinMostProfitsProducts) proto.Message {
+func PrepareJoinMostProfitsBatch(t *testing.T, items []*joined.JoinMostProfitsProducts, taskType enum.TaskType) *data_batch.DataBatch {
+	return prepareDataBatch(t, taskType, items, func(items []*joined.JoinMostProfitsProducts) proto.Message {
 		return &joined.JoinMostProfitsProductsBatch{Items: items}
 	})
 }
 
-func PrepareJoinMostPurchasesUserBatch(t *testing.T, tpvs []*joined.JoinMostPurchasesUser, taskType enum.TaskType) *data_batch.DataBatch {
-	return prepareDataBatch(t, taskType, tpvs, func(users []*joined.JoinMostPurchasesUser) proto.Message {
+func PrepareJoinMostPurchasesUserBatch(t *testing.T, items []*joined.JoinMostPurchasesUser, taskType enum.TaskType) *data_batch.DataBatch {
+	return prepareDataBatch(t, taskType, items, func(users []*joined.JoinMostPurchasesUser) proto.Message {
 		return &joined.JoinMostPurchasesUserBatch{Users: users}
+	})
+}
+
+func PrepareJoinStoreTPVBatch(t *testing.T, items []*joined.JoinStoreTPV, taskType enum.TaskType) *data_batch.DataBatch {
+	return prepareDataBatch(t, taskType, items, func(items []*joined.JoinStoreTPV) proto.Message {
+		return &joined.JoinStoreTPVBatch{Items: items}
 	})
 }
