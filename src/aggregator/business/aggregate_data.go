@@ -21,58 +21,42 @@ type MapJoinBestSelling map[string]*joined.JoinBestSellingProducts
 type MapJoinMostProfits map[string]*joined.JoinMostProfitsProducts
 
 func aggregateData[T proto.Message, B proto.Message](
-	datasetName, storePath string,
+	f *os.File,
 	createSpecificBatch func() B,
 	getItems func(B) []T,
 	merge MergeFunc[T],
 	key KeyFunc[T],
 ) (map[string]T, error) {
-	filename := fmt.Sprintf("%s/%s.pb", storePath, datasetName)
-	f, err := os.Open(filename)
+	var length uint32
+	if err := binary.Read(f, binary.LittleEndian, &length); err != nil {
+		return nil, err
+	}
+
+	dataBatchBytes := make([]byte, length)
+	if _, err := io.ReadFull(f, dataBatchBytes); err != nil {
+		return nil, err
+	}
+
+	dataBatch := &data_batch.DataBatch{}
+	err := proto.Unmarshal(dataBatchBytes, dataBatch)
 	if err != nil {
 		return nil, err
 	}
-	defer f.Close()
 
-	aggregatedItems := make(map[string]T)
-
-	for {
-		var length uint32
-		if err = binary.Read(f, binary.LittleEndian, &length); err != nil {
-			if errors.Is(err, io.EOF) {
-				break
-			}
-			return nil, err
-		}
-
-		dataBatchBytes := make([]byte, length)
-		if _, err = io.ReadFull(f, dataBatchBytes); err != nil {
-			return nil, err
-		}
-
-		dataBatch := &data_batch.DataBatch{}
-		err = proto.Unmarshal(dataBatchBytes, dataBatch)
-		if err != nil {
-			return nil, err
-		}
-
-		specificBatch := createSpecificBatch()
-		if err = proto.Unmarshal(dataBatch.Payload, specificBatch); err != nil {
-			return nil, err
-		}
-
-		for _, item := range getItems(specificBatch) {
-			k := key(item)
-			if existing, ok := aggregatedItems[k]; ok {
-				aggregatedItems[k] = merge(existing, item)
-			} else {
-				aggregatedItems[k] = proto.Clone(item).(T)
-			}
-		}
+	specificBatch := createSpecificBatch()
+	if err = proto.Unmarshal(dataBatch.Payload, specificBatch); err != nil {
+		return nil, err
 	}
 
-	// TODO: Hacer el borrado de los archivos de datos luego de asegurar que se enviaron correctamente
-	_ = os.Remove(filename)
+	aggregatedItems := make(map[string]T)
+	for _, item := range getItems(specificBatch) {
+		k := key(item)
+		if existing, ok := aggregatedItems[k]; ok {
+			aggregatedItems[k] = merge(existing, item)
+		} else {
+			aggregatedItems[k] = proto.Clone(item).(T)
+		}
+	}
 
 	return aggregatedItems, nil
 }
@@ -85,8 +69,48 @@ func (a *Aggregator) AggregateDataTask2() error {
 	return a.aggregateMostProfitsData()
 }
 
+func aggregateTask[T proto.Message, B proto.Message, M ~map[string]T](
+	datasetName, storePath string,
+	createSpecificBatch func() B,
+	getItems func(B) []T,
+	merge MergeFunc[T],
+	key KeyFunc[T],
+	combineTop func(M) M,
+) (M, error) {
+	filename := fmt.Sprintf("%s/%s.pb", storePath, datasetName)
+	f, err := os.Open(filename)
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+
+	finalAgg := make(M)
+
+	for {
+		currAgg, err := aggregateData(f, createSpecificBatch, getItems, merge, key)
+		if err != nil {
+			if errors.Is(err, io.EOF) {
+				break
+			}
+			return nil, err
+		}
+
+		for k, v := range currAgg {
+			if existing, ok := finalAgg[k]; ok {
+				finalAgg[k] = merge(existing, v)
+			} else {
+				finalAgg[k] = v
+			}
+		}
+
+		finalAgg = combineTop(finalAgg)
+	}
+
+	return finalAgg, nil
+}
+
 func (a *Aggregator) aggregateBestSellingData() error {
-	aggregatedBestSellingData, err := aggregateData(
+	topBestSelling, err := aggregateTask(
 		"task2_1",
 		a.config.StorePath,
 		func() *joined.JoinBestSellingProductsBatch {
@@ -102,23 +126,18 @@ func (a *Aggregator) aggregateBestSellingData() error {
 		func(item *joined.JoinBestSellingProducts) string {
 			return item.YearMonthCreatedAt + "|" + item.ItemName
 		},
+		func(m MapJoinBestSelling) MapJoinBestSelling { return top1BestSelling(m) },
 	)
 
 	if err != nil {
 		return err
 	}
 
-	topBestSelling := top1BestSelling(aggregatedBestSellingData)
-	err = a.SendAggregateDataBestSelling(topBestSelling)
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return a.SendAggregateDataBestSelling(topBestSelling)
 }
 
 func (a *Aggregator) aggregateMostProfitsData() error {
-	aggregatedMostProfitsData, err := aggregateData(
+	topMostProfits, err := aggregateTask(
 		"task2_2",
 		a.config.StorePath,
 		func() *joined.JoinMostProfitsProductsBatch {
@@ -134,23 +153,18 @@ func (a *Aggregator) aggregateMostProfitsData() error {
 		func(item *joined.JoinMostProfitsProducts) string {
 			return item.YearMonthCreatedAt + "|" + item.ItemName
 		},
+		func(m MapJoinMostProfits) MapJoinMostProfits { return top1MostProfits(m) },
 	)
 
 	if err != nil {
 		return err
 	}
 
-	topMostProfits := top1MostProfits(aggregatedMostProfitsData)
-	err = a.SendAggregateDataMostProfits(topMostProfits)
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return a.SendAggregateDataMostProfits(topMostProfits)
 }
 
 func (a *Aggregator) AggregateDataTask3() error {
-	aggregatedData, err := aggregateData(
+	aggregatedData, err := aggregateTask(
 		"task3",
 		a.config.StorePath,
 		func() *joined.JoinStoreTPVBatch {
@@ -166,6 +180,7 @@ func (a *Aggregator) AggregateDataTask3() error {
 		func(item *joined.JoinStoreTPV) string {
 			return item.YearHalfCreatedAt + "|" + item.StoreName
 		},
+		func(m MapJoinStoreTPV) MapJoinStoreTPV { return m },
 	)
 
 	if err != nil {
@@ -176,7 +191,7 @@ func (a *Aggregator) AggregateDataTask3() error {
 }
 
 func (a *Aggregator) AggregateDataTask4() error {
-	aggregatedData, err := aggregateData(
+	topMostPurchases, err := aggregateTask(
 		"task4",
 		a.config.StorePath,
 		func() *joined.JoinMostPurchasesUserBatch {
@@ -192,15 +207,14 @@ func (a *Aggregator) AggregateDataTask4() error {
 		func(item *joined.JoinMostPurchasesUser) string {
 			return item.StoreName + "|" + item.UserBirthdate
 		},
+		func(m MapJoinMostPurchasesUser) MapJoinMostPurchasesUser { return top3ByStore(m) },
 	)
 
 	if err != nil {
 		return err
 	}
 
-	top3 := top3ByStore(aggregatedData)
-
-	return a.SendAggregateDataTask4(top3)
+	return a.SendAggregateDataTask4(topMostPurchases)
 }
 
 func top3ByStore(data MapJoinMostPurchasesUser) MapJoinMostPurchasesUser {
