@@ -57,6 +57,9 @@ func TestHandleConnection(t *testing.T) {
 	assert.NoError(t, err)
 
 	helpers.AssertConnectionMsg(t, aggregatorConfig.GatewayControllerConnectionQueue, false)
+
+	err = agg.Stop()
+	assert.NoError(t, err)
 }
 
 func TestHandleTaskType4Top3(t *testing.T) {
