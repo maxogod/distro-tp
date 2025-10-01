@@ -88,6 +88,7 @@ func (cs *clientSession) processResponse() error {
 				break
 			}
 			if dataBatch.GetDone() {
+				log.Debugln("Received done signal from task handler")
 				break
 			}
 		}

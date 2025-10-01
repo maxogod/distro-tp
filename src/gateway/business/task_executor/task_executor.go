@@ -70,6 +70,8 @@ func (t *taskExecutor) Task1() error {
 		},
 	)
 
+	log.Debug("Results saved successfully")
+
 	return nil
 }
 
