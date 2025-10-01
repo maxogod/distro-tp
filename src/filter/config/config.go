@@ -17,13 +17,14 @@ type Config struct {
 
 func (c Config) String() string {
 	return fmt.Sprintf(
-		"Address: %s | LogLevel: %s",
+		"Address: %s | LogLevel: %s | TaskConfig: [%s]",
 		c.Address,
 		c.LogLevel,
+		c.TaskConfig.String(),
 	)
 }
 
-const CONFIG_FILE_PATH = "/config.yaml"
+const CONFIG_FILE_PATH = "./config.yaml"
 
 func InitConfig() (*Config, error) {
 

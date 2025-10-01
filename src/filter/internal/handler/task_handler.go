@@ -50,6 +50,8 @@ func (th *TaskHandler) HandleTask(taskType enum.TaskType, payload []byte) error 
 
 func (th *TaskHandler) handleTaskType1(payload []byte) error {
 
+	log.Debug("Handling Task Type 1")
+
 	transactions, err := utils.GetTransactions(payload)
 	if err != nil {
 		return err
@@ -130,7 +132,6 @@ func (th *TaskHandler) handleTaskType3(payload []byte) error {
 }
 
 func (th *TaskHandler) handleTaskType4(payload []byte) error {
-	log.Debug("Handling Task Type 4")
 
 	transactions, err := utils.GetTransactions(payload)
 	if err != nil {

@@ -15,15 +15,15 @@ import (
 const workerNamePrefix = "filter"
 
 type MessageHandler struct {
-	filterQueueMiddleware      middleware.MessageMiddleware
-	reduceSumQueueMiddleware   middleware.MessageMiddleware
-	reduceCountQueueMiddleware middleware.MessageMiddleware
-	processDataQueueMiddleware middleware.MessageMiddleware
-	controllerConnection       middleware.MessageMiddleware
-	finishExchangeMiddleware   middleware.MessageMiddleware
-	messageHandlers            map[enum.TaskType]func([]byte) error
-	workerName                 string
-	finishFilter               chan bool
+	filterQueue         middleware.MessageMiddleware
+	reduceSumQueue      middleware.MessageMiddleware
+	reduceCountQueue    middleware.MessageMiddleware
+	processDataQueue    middleware.MessageMiddleware
+	nodeConnectionQueue middleware.MessageMiddleware
+	finishQueue         middleware.MessageMiddleware
+	messageHandlers     map[enum.TaskType]func([]byte) error
+	workerName          string
+	stopConsuming       chan bool
 }
 
 func NewMessageHandler(
@@ -36,16 +36,17 @@ func NewMessageHandler(
 ) *MessageHandler {
 
 	mh := &MessageHandler{
-		filterQueueMiddleware:      filterQueueMiddleware,
-		reduceSumQueueMiddleware:   reduceSumQueueMiddleware,
-		reduceCountQueueMiddleware: reduceCountQueueMiddleware,
-		processDataQueueMiddleware: processDataQueueMiddleware,
-		controllerConnection:       controllerConnection,
-		finishExchangeMiddleware:   finishExchangeMiddleware,
+		filterQueue:         filterQueueMiddleware,
+		reduceSumQueue:      reduceSumQueueMiddleware,
+		reduceCountQueue:    reduceCountQueueMiddleware,
+		processDataQueue:    processDataQueueMiddleware,
+		nodeConnectionQueue: controllerConnection,
+		finishQueue:         finishExchangeMiddleware,
 	}
 
 	mh.workerName = fmt.Sprintf("%s-%s", workerNamePrefix, uuid.New().String())
-	mh.finishFilter = make(chan bool, 1)
+
+	mh.stopConsuming = make(chan bool)
 
 	mh.messageHandlers = map[enum.TaskType]func([]byte) error{
 		enum.T1: mh.sendT1Data,
@@ -57,32 +58,46 @@ func NewMessageHandler(
 	return mh
 }
 
-func (qh *MessageHandler) Close() error {
-	e := qh.filterQueueMiddleware.Close()
+func (mh *MessageHandler) Close() error {
+	e := mh.filterQueue.Close()
 	if e != middleware.MessageMiddlewareSuccess {
 		return fmt.Errorf("Error closing filter queue middleware: %v", e)
 	}
 
-	e = qh.reduceSumQueueMiddleware.Close()
+	e = mh.reduceSumQueue.Close()
 	if e != middleware.MessageMiddlewareSuccess {
 		return fmt.Errorf("Error closing reduce sum queue middleware: %v", e)
 	}
 
-	e = qh.reduceCountQueueMiddleware.Close()
+	e = mh.reduceCountQueue.Close()
 	if e != middleware.MessageMiddlewareSuccess {
 		return fmt.Errorf("Error closing reduce count queue middleware: %v", e)
 	}
 
-	e = qh.processDataQueueMiddleware.Close()
+	e = mh.processDataQueue.Close()
 	if e != middleware.MessageMiddlewareSuccess {
 		return fmt.Errorf("Error closing process data queue middleware: %v", e)
 	}
+
+	e = mh.nodeConnectionQueue.Close()
+	if e != middleware.MessageMiddlewareSuccess {
+		return fmt.Errorf("Error closing controller connection middleware: %v", e)
+	}
+
+	e = mh.finishQueue.Close()
+	if e != middleware.MessageMiddlewareSuccess {
+		return fmt.Errorf("Error closing finish exchange middleware: %v", e)
+	}
+
+	mh.stopConsuming <- true
+
 	return nil
 }
 
 func (mh *MessageHandler) AnnounceToController() error {
 
-	e := mh.sendMessageToControllerConnection(
+	log.Debug("Announcing to controller")
+	e := mh.sendMessageToNodeConnection(
 		mh.workerName,
 		false,
 	)
@@ -92,9 +107,11 @@ func (mh *MessageHandler) AnnounceToController() error {
 	return nil
 }
 
-func (mh *MessageHandler) listenForDone() error {
+func (mh *MessageHandler) listenForDone(finishConsuming chan bool) error {
 
-	e := mh.finishExchangeMiddleware.StartConsuming(func(consumeChannel middleware.ConsumeChannel, d chan error) {
+	finishFilter := make(chan bool, 1)
+
+	e := mh.finishQueue.StartConsuming(func(consumeChannel middleware.ConsumeChannel, d chan error) {
 		for msg := range consumeChannel {
 			msg.Ack(false)
 			dataBatch, err := utils.GetDataBatch(msg.Body)
@@ -106,13 +123,15 @@ func (mh *MessageHandler) listenForDone() error {
 
 			if done {
 				log.Debug("Received done message. Finishing processing.")
-				mh.finishFilter <- true
+				finishFilter <- true
 				return
 			}
-			d <- nil
 			return
 		}
 	})
+	<-finishFilter
+
+	finishConsuming <- true
 
 	if e != middleware.MessageMiddlewareSuccess {
 		return fmt.Errorf("Failed to start consuming finish exchange: %d", e)
@@ -123,19 +142,18 @@ func (mh *MessageHandler) listenForDone() error {
 
 func (mh *MessageHandler) StartReceiving(
 	callback func(payload []byte, taskType int32) error,
-) middleware.MessageMiddlewareError {
+) error {
+
+	finishConsuming := make(chan bool, 1)
 
 	go func() {
-		_ = mh.listenForDone()
+		_ = mh.listenForDone(finishConsuming)
 	}()
 
-	doneChan := mh.finishFilter
-	return mh.filterQueueMiddleware.StartConsuming(func(consumeChannel middleware.ConsumeChannel, d chan error) {
+	mh.filterQueue.StartConsuming(func(consumeChannel middleware.ConsumeChannel, d chan error) {
+
 		for {
 			select {
-			case <-doneChan:
-				log.Info("Received done signal, stopping message consumption.")
-				return
 			case msg, ok := <-consumeChannel:
 				if !ok {
 					return
@@ -154,14 +172,23 @@ func (mh *MessageHandler) StartReceiving(
 					log.Errorf("Failed to process message: %v", err)
 					continue
 				}
+			case <-finishConsuming:
+				log.Info("Received done signal, stopping message consumption.")
+				mh.stopConsuming <- true
+				return
 			}
 		}
 	})
+	<-mh.stopConsuming
+
+	return nil
 }
 
 func (mh *MessageHandler) SendDone() error {
 
-	e := mh.sendMessageToControllerConnection(
+	log.Debug("Sending done message to controller")
+
+	e := mh.sendMessageToNodeConnection(
 		mh.workerName,
 		true,
 	)
@@ -187,19 +214,19 @@ func (mh *MessageHandler) SendData(taskType enum.TaskType, serializedFilteredTra
 }
 
 func (mh *MessageHandler) sendT1Data(payload []byte) error {
-	return mh.sendToQueues(enum.T1, payload, mh.processDataQueueMiddleware)
+	return mh.sendToQueues(enum.T1, payload, mh.processDataQueue)
 }
 
 func (mh *MessageHandler) sendT2Data(payload []byte) error {
-	return mh.sendToQueues(enum.T2, payload, mh.reduceCountQueueMiddleware, mh.reduceSumQueueMiddleware)
+	return mh.sendToQueues(enum.T2, payload, mh.reduceCountQueue, mh.reduceSumQueue)
 }
 
 func (mh *MessageHandler) sendT3Data(payload []byte) error {
-	return mh.sendToQueues(enum.T3, payload, mh.reduceSumQueueMiddleware)
+	return mh.sendToQueues(enum.T3, payload, mh.reduceSumQueue)
 }
 
 func (mh *MessageHandler) sendT4Data(payload []byte) error {
-	return mh.sendToQueues(enum.T4, payload, mh.reduceCountQueueMiddleware)
+	return mh.sendToQueues(enum.T4, payload, mh.reduceCountQueue)
 }
 
 func (mh *MessageHandler) sendToQueues(
@@ -225,7 +252,7 @@ func (mh *MessageHandler) sendToQueues(
 	return nil
 }
 
-func (mh *MessageHandler) sendMessageToControllerConnection(
+func (mh *MessageHandler) sendMessageToNodeConnection(
 	workerName string,
 	isFinished bool,
 ) error {
@@ -238,7 +265,7 @@ func (mh *MessageHandler) sendMessageToControllerConnection(
 		return err
 	}
 
-	e := mh.controllerConnection.Send(msgBytes)
+	e := mh.nodeConnectionQueue.Send(msgBytes)
 	if e != middleware.MessageMiddlewareSuccess {
 		return fmt.Errorf("A error occurred while sending message to controller connection: %d", int(e))
 	}

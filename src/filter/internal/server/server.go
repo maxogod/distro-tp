@@ -36,50 +36,49 @@ func InitServer(conf *config.Config) *Server {
 
 	workerService := business.NewFilterService()
 
-	// TODO CHANGE THIS TO BE EXCHANGE!!! with finish_exchange and filterqueue
-	filterQueueMiddleware, err := middleware.NewQueueMiddleware(conf.Address, FilterQueue)
+	filterQueue, err := middleware.NewQueueMiddleware(conf.Address, FilterQueue)
 	if err != nil {
 		log.Errorf("Failed to create filter queue middleware: %v", err)
 		return nil
 	}
 
-	reduceCountQueueMiddleware, err := middleware.NewQueueMiddleware(conf.Address, CountQueue)
+	reduceCountQueue, err := middleware.NewQueueMiddleware(conf.Address, CountQueue)
 	if err != nil {
 		log.Errorf("Failed to create count queue middleware: %v", err)
 		return nil
 	}
 
-	reduceSumQueueMiddleware, err := middleware.NewQueueMiddleware(conf.Address, SumQueue)
+	reduceSumQueue, err := middleware.NewQueueMiddleware(conf.Address, SumQueue)
 	if err != nil {
 		log.Errorf("Failed to create sum queue middleware: %v", err)
 		return nil
 	}
 
-	processDataQueueMiddleware, err := middleware.NewQueueMiddleware(conf.Address, ProcessDataQueue)
+	processDataQueue, err := middleware.NewQueueMiddleware(conf.Address, ProcessDataQueue)
 	if err != nil {
 		log.Errorf("Failed to create processed data queue middleware: %v", err)
 		return nil
 	}
 
-	connectionControllerMiddleware, err := middleware.NewQueueMiddleware(conf.Address, NodeConnectionsQueue)
+	nodeConnectionQueue, err := middleware.NewQueueMiddleware(conf.Address, NodeConnectionsQueue)
 	if err != nil {
 		log.Errorf("Failed to create controller connection middleware: %v", err)
 		return nil
 	}
 
-	finishExchangeMiddleware, err := middleware.NewQueueMiddleware(conf.Address, FinishExchange)
+	finishQueue, err := middleware.NewExchangeMiddleware(conf.Address, FinishExchange, "direct", []string{FilterQueue})
 	if err != nil {
 		log.Errorf("Failed to create finish exchange middleware: %v", err)
 		return nil
 	}
 
 	messageHandler := handler.NewMessageHandler(
-		filterQueueMiddleware,
-		reduceSumQueueMiddleware,
-		reduceCountQueueMiddleware,
-		processDataQueueMiddleware,
-		connectionControllerMiddleware,
-		finishExchangeMiddleware,
+		filterQueue,
+		reduceSumQueue,
+		reduceCountQueue,
+		processDataQueue,
+		nodeConnectionQueue,
+		finishQueue,
 	)
 
 	return &Server{
@@ -97,7 +96,6 @@ func (s *Server) Run() error {
 	log.Info("Starting Filter server...")
 
 	s.setupGracefulShutdown()
-	defer s.Shutdown()
 
 	e := s.messageHandler.AnnounceToController()
 	if e != nil {
@@ -111,15 +109,25 @@ func (s *Server) Run() error {
 			return s.taskHandler.HandleTask(enum.TaskType(taskType), payload)
 		})
 
-		if e != middleware.MessageMiddlewareSuccess {
+		if e != nil {
 			log.Errorf("Failed to start consuming: %d", e)
+			s.Shutdown()
 			return fmt.Errorf("failed to start consuming: %d", e)
+		}
+
+		if !s.isRunning {
+			// Hot-fix to avoid
+			// sending done message twice in case of shutdown signal
+			break
 		}
 
 		err := s.messageHandler.SendDone()
 
+		log.Debug("Sent done message to controller")
+
 		if err != nil {
 			log.Errorf("Failed to send done message: %v", err)
+			s.Shutdown()
 			return fmt.Errorf("failed to send done message: %v", err)
 		}
 
@@ -135,7 +143,7 @@ func (s *Server) setupGracefulShutdown() {
 
 	go func() {
 		<-sigChannel
-		log.Infof("action: shutdown_signal | result: received")
+		log.Infof("Shutdown Signal received, shutting down...")
 		s.Shutdown()
 	}()
 }
@@ -147,4 +155,5 @@ func (s *Server) Shutdown() {
 	if err != nil {
 		log.Errorf("Error closing message handler: %v", err)
 	}
+	log.Debug("Filter Worker server shut down successfully.")
 }
