@@ -10,28 +10,34 @@ import (
 	"github.com/maxogod/distro-tp/src/common/models/enum"
 	"github.com/maxogod/distro-tp/src/common/models/raw"
 	"github.com/maxogod/distro-tp/src/gateway_controller/business"
+	"github.com/maxogod/distro-tp/src/gateway_controller/internal/workers_manager"
 	"google.golang.org/protobuf/proto"
 )
 
 var log = logger.GetLogger()
 
 type TaskHandler struct {
-	ControllerService              *business.GatewayControllerService
-	taskHandlers                   map[enum.TaskType]func(*data_batch.DataBatch) error
+	ControllerService *business.GatewayControllerService
+	taskHandlers      map[enum.TaskType]func(*data_batch.DataBatch) error
+
+	middlewareUrl string
+
 	filterQueueMiddleware          middleware.MessageMiddleware
 	joinerMenuItemsQueueMiddleware middleware.MessageMiddleware
 	joinerStoreQueueMiddleware     middleware.MessageMiddleware
 	joinerUsersQueueMiddleware     middleware.MessageMiddleware
 	processedDataQueueMiddleware   middleware.MessageMiddleware
 
-	nodeConnections    middleware.MessageMiddleware
-	nodeConnectionsMap map[string]bool
+	nodeConnections middleware.MessageMiddleware
+	workerManager   workers_manager.WorkersManager
 }
 
 func NewTaskHandler(controllerService *business.GatewayControllerService, url string) Handler {
 	th := &TaskHandler{
 		ControllerService: controllerService,
 	}
+
+	th.middlewareUrl = url
 
 	// TODO pass address here somehow or instanciate somewhere else
 	th.filterQueueMiddleware = middleware.GetFilterQueue(url)
@@ -41,6 +47,7 @@ func NewTaskHandler(controllerService *business.GatewayControllerService, url st
 	th.processedDataQueueMiddleware = middleware.GetProcessedDataQueue(url)
 
 	th.nodeConnections = middleware.GetNodeConnectionsQueue(url)
+	th.workerManager = workers_manager.NewWorkersManager()
 
 	th.taskHandlers = map[enum.TaskType]func(*data_batch.DataBatch) error{
 		enum.T1: th.handleTaskType1,
@@ -48,6 +55,8 @@ func NewTaskHandler(controllerService *business.GatewayControllerService, url st
 		enum.T3: th.handleTaskType3,
 		enum.T4: th.handleTaskType4,
 	}
+
+	go th.getWorkerStatus()
 
 	return th
 }
@@ -81,7 +90,51 @@ func (th *TaskHandler) HandleReferenceData(dataBatch *data_batch.DataBatch) erro
 	return nil
 }
 
-func (th *TaskHandler) SendDone() error {
+func (th *TaskHandler) SendDone(taskType enum.TaskType) error {
+	nodeConnections := middleware.GetNodeConnectionsQueue(th.middlewareUrl)
+	finishExchangeTopic := middleware.GetFinishExchange(th.middlewareUrl, []string{string(enum.Filter)})
+	defer nodeConnections.StopConsuming()
+	defer nodeConnections.Close()
+
+	doneBatch := &data_batch.DataBatch{
+		TaskType: int32(taskType),
+		Done:     true,
+	}
+	serializedDoneBatch, err := proto.Marshal(doneBatch)
+	if err != nil {
+		return err
+	}
+	finishExchangeTopic.Send(serializedDoneBatch)
+
+	done := make(chan bool)
+	nodeConnections.StartConsuming(func(ch middleware.ConsumeChannel, d chan error) {
+		areAllWorkersFinished := false
+		for msg := range ch {
+			if areAllWorkersFinished {
+				break
+			}
+
+			workerConn := &controller_connection.ControllerConnection{}
+			err := proto.Unmarshal(msg.Body, workerConn)
+			if err != nil {
+				continue
+			}
+
+			err = th.workerManager.FinishWorker(workerConn.WorkerName)
+			if err != nil {
+				continue
+			}
+
+			// Refresh exchange topic in case all workers of a stage are finished
+			finishTopic, allFinished := th.workerManager.GetFinishExchangeTopic()
+			areAllWorkersFinished = allFinished
+			finishExchangeTopic.Close()
+			finishExchangeTopic = middleware.GetFinishExchange(th.middlewareUrl, []string{finishTopic})
+			finishExchangeTopic.Send(serializedDoneBatch)
+		}
+		done <- true
+	})
+	<-done
 
 	return nil
 }
@@ -202,7 +255,10 @@ func (th *TaskHandler) getWorkerStatus() {
 			}
 			if !nodeConn.Finished {
 				// Save and ack if is a worker announcement
-				th.nodeConnectionsMap[nodeConn.WorkerName] = false
+				err := th.workerManager.AddWorker(nodeConn.WorkerName)
+				if err != nil {
+					continue
+				}
 				msg.Ack(false)
 			}
 		}
