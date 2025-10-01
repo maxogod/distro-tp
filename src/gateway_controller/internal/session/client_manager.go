@@ -1,29 +1,29 @@
 package session
 
 import (
+	"github.com/google/uuid"
 	"github.com/maxogod/distro-tp/src/common/network"
 	"github.com/maxogod/distro-tp/src/gateway_controller/internal/handler"
 )
 
 type ClientManager struct {
-	clients map[int]*clientSession
-	nextID  int
+	clients map[string]*clientSession
 }
 
 func NewClientManager() *ClientManager {
 	return &ClientManager{
-		clients: make(map[int]*clientSession),
+		clients: make(map[string]*clientSession),
 	}
 }
 
 func (cm *ClientManager) AddClient(connection *network.ConnectionInterface, taskHandler handler.Handler) *clientSession {
-	cm.nextID++
-	session := NewClientSession(cm.nextID, connection, taskHandler)
-	cm.clients[cm.nextID] = session
+	id := uuid.New().String()
+	session := NewClientSession(id, connection, taskHandler)
+	cm.clients[id] = session
 	return session
 }
 
-func (cm *ClientManager) RemoveClient(id int) {
+func (cm *ClientManager) RemoveClient(id string) {
 	delete(cm.clients, id)
 }
 

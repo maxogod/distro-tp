@@ -22,6 +22,7 @@ const (
 )
 
 type MessageHandler struct {
+	currentClientID     string
 	reduceSumQueue      middleware.MessageMiddleware
 	reduceCountQueue    middleware.MessageMiddleware
 	processDataQueue    middleware.MessageMiddleware
@@ -62,11 +63,7 @@ func NewMessageHandler(
 
 	workerName := fmt.Sprintf("%s_%s", FilterQueue, uuid.New().String())
 
-	dataQueue, err := middleware.NewExchangeMiddleware(Address, "data_exchange", "direct", []string{FilterQueue, workerName})
-	if err != nil {
-		log.Errorf("Failed to create finish exchange middleware: %v", err)
-		return nil
-	}
+	dataQueue := middleware.GetDataExchange(Address, []string{FilterQueue, workerName})
 
 	mh := &MessageHandler{
 		reduceSumQueue:      reduceSumQueue,
@@ -137,17 +134,20 @@ func (mh *MessageHandler) AnnounceToController() error {
 func (mh *MessageHandler) Start(
 	callback func(payload []byte, taskType int32) error,
 ) error {
-
 	defer mh.dataQueue.StopConsuming()
 
+	isFirstMessage := true
 	mh.dataQueue.StartConsuming(func(consumeChannel middleware.ConsumeChannel, d chan error) {
-
 		for msg := range consumeChannel {
 			msg.Ack(false)
 			dataBatch, err := utils.GetDataBatch(msg.Body)
 			if err != nil {
 				log.Errorf("Failed to get data batch: %v", err)
 				continue
+			}
+			if isFirstMessage {
+				mh.currentClientID = dataBatch.GetClientId()
+				isFirstMessage = false
 			}
 			payload := dataBatch.GetPayload()
 			taskType := dataBatch.GetTaskType()
@@ -224,6 +224,7 @@ func (mh *MessageHandler) sendToQueues(
 ) error {
 	dataBatch := &data_batch.DataBatch{
 		TaskType: int32(taskType),
+		ClientId: mh.currentClientID,
 		Payload:  payload,
 		Done:     false,
 	}
@@ -246,6 +247,7 @@ func (mh *MessageHandler) sendMessageToNodeConnection(
 ) error {
 	announceMsg := &controller_connection.ControllerConnection{
 		WorkerName: workerName,
+		ClientId:   mh.currentClientID,
 		Finished:   isFinished,
 	}
 	msgBytes, err := proto.Marshal(announceMsg)

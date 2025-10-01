@@ -49,6 +49,8 @@ func (t *taskExecutor) Task1() error {
 		return err
 	}
 
+	log.Debug("All transactions data sent, waiting for results...")
+
 	receiveAndSaveResults(
 		t.conn,
 		filepath.Join(t.outputPath, "t1.csv"),
@@ -348,6 +350,9 @@ func receiveAndSaveResults(
 
 		generateStringObject(dataBatch, batchesCh)
 	}
+
+	// TODO: all data and done should only be sent by aggregator
+	log.Debug("Finished saving data")
 
 	return nil
 }

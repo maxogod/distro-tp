@@ -12,13 +12,13 @@ import (
 var log = logger.GetLogger()
 
 type clientSession struct {
-	Id               int
+	Id               string
 	clientConnection *network.ConnectionInterface
 	taskHandler      handler.Handler
 	processData      bool
 }
 
-func NewClientSession(id int, conn *network.ConnectionInterface, taskHandler handler.Handler) *clientSession {
+func NewClientSession(id string, conn *network.ConnectionInterface, taskHandler handler.Handler) *clientSession {
 	return &clientSession{
 		Id:               id,
 		clientConnection: conn,
@@ -36,6 +36,7 @@ func (cs *clientSession) ProcessRequest() error {
 		if err != nil {
 			return err
 		}
+		request.ClientId = cs.Id
 
 		taskType = enum.TaskType(request.GetTaskType())
 		isRefData := request.GetIsReferenceData()
@@ -51,7 +52,7 @@ func (cs *clientSession) ProcessRequest() error {
 
 	log.Debugln("All data received from client, sending done signal to task handler")
 
-	err := cs.taskHandler.SendDone(taskType)
+	err := cs.taskHandler.SendDone(taskType, cs.Id)
 	if err != nil {
 		return err
 	}
@@ -64,7 +65,6 @@ func (cs *clientSession) ProcessRequest() error {
 	}
 
 	return nil
-
 }
 
 func (cs *clientSession) processResponse() error {
