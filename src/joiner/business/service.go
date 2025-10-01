@@ -14,16 +14,14 @@ import (
 )
 
 const (
-	UsersRefQueue     = "users"
-	StoresRefQueue    = "stores"
-	MenuItemsRefQueue = "menu_items"
-	MainQueue         = 0
-	BestSellingQueue  = 1
+	MainQueue        = 0
+	BestSellingQueue = 1
 )
 
 type TaskQueues map[enum.TaskType][]string
 type AggregatorQueues map[enum.TaskType][]string
 type MessageMiddlewares map[string]middleware.MessageMiddleware
+type MessageMiddlewareCreators map[string]func(string) middleware.MessageMiddleware
 type ReferenceDoneReceived map[enum.TaskType]map[string]bool
 
 type Joiner struct {
@@ -36,7 +34,9 @@ type Joiner struct {
 	aggregatorQueues     AggregatorQueues
 	aggregatorMidd       MessageMiddlewares
 	refDatasetStore      *cache.ReferenceDatasetStore
-	refQueueNames        []string
+	refQueueCreators     MessageMiddlewareCreators
+	dataQueueCreators    MessageMiddlewareCreators
+	aggQueueCreators     MessageMiddlewareCreators
 	refDoneReceived      ReferenceDoneReceived
 	workerName           string
 	controllerConnection middleware.MessageMiddleware
@@ -59,11 +59,37 @@ func defaultAggregatorQueues(config *config.Config) AggregatorQueues {
 	}
 }
 
-func defaultRequiredRefQueues() ReferenceDoneReceived {
+func defaultRequiredRefQueues(config *config.Config) ReferenceDoneReceived {
 	return ReferenceDoneReceived{
-		enum.T2: {MenuItemsRefQueue: false},
-		enum.T3: {StoresRefQueue: false},
-		enum.T4: {UsersRefQueue: false, StoresRefQueue: false},
+		enum.T2: {config.MenuItems: false},
+		enum.T3: {config.Stores: false},
+		enum.T4: {config.Users: false, config.Stores: false},
+	}
+}
+
+func defaultAggQueueCreators(config *config.Config) MessageMiddlewareCreators {
+	return MessageMiddlewareCreators{
+		config.JoinedMostProfitsTransactionsQueue: middleware.GetJoinedMostProfitsTransactionsQueue,
+		config.JoinedBestSellingTransactionsQueue: middleware.GetJoinedBestSellingTransactionsQueue,
+		config.JoinedStoresTPVQueue:               middleware.GetJoinedStoresTPVQueue,
+		config.JoinedUserTransactionsQueue:        middleware.GetJoinedUserTransactionsQueue,
+	}
+}
+
+func defaultDataQueueCreators(config *config.Config) MessageMiddlewareCreators {
+	return MessageMiddlewareCreators{
+		config.TransactionSumQueue:     middleware.GetMostProfitsTransactionsQueue,
+		config.TransactionCountedQueue: middleware.GetBestSellingTransactionsQueue,
+		config.StoreTPVQueue:           middleware.GetStoresTPVQueue,
+		config.UserTransactionsQueue:   middleware.GetdUserTransactionsQueue,
+	}
+}
+
+func defaultRefQueueCreators(config *config.Config) MessageMiddlewareCreators {
+	return MessageMiddlewareCreators{
+		config.MenuItems: middleware.GetMenuItemsQueue,
+		config.Stores:    middleware.GetStoresQueue,
+		config.Users:     middleware.GetUsersQueue,
 	}
 }
 
@@ -76,8 +102,10 @@ func NewJoiner(config *config.Config) *Joiner {
 		aggregatorQueues:     defaultAggregatorQueues(config),
 		aggregatorMidd:       make(MessageMiddlewares),
 		refDatasetStore:      cache.NewCacheStore(config.StorePath),
-		refQueueNames:        []string{UsersRefQueue, StoresRefQueue, MenuItemsRefQueue},
-		refDoneReceived:      defaultRequiredRefQueues(),
+		refQueueCreators:     defaultRefQueueCreators(config),
+		dataQueueCreators:    defaultDataQueueCreators(config),
+		aggQueueCreators:     defaultAggQueueCreators(config),
+		refDoneReceived:      defaultRequiredRefQueues(config),
 		workerName:           "joiner-" + uuid.New().String(),
 	}
 
@@ -88,25 +116,14 @@ func NewJoiner(config *config.Config) *Joiner {
 
 func (j *Joiner) StartRefConsumer(referenceDatasetQueue string) error {
 	referenceHandler := handler.NewReferenceHandler(j.HandleDone, referenceDatasetQueue, j.refDatasetStore)
-
-	m, err := StartConsumer(j.config.GatewayAddress, referenceDatasetQueue, referenceHandler.HandleReferenceQueueMessage)
-	if err != nil {
-		return err
-	}
-
-	j.referenceMiddlewares[referenceDatasetQueue] = m
-	return nil
+	j.referenceMiddlewares[referenceDatasetQueue] = j.refQueueCreators[referenceDatasetQueue](j.config.GatewayAddress)
+	return StartConsumer(j.referenceMiddlewares[referenceDatasetQueue], referenceHandler.HandleReferenceQueueMessage)
 }
 
 func (j *Joiner) startDataConsumer(handlerTask handler.HandleTask, dataQueueName string) error {
 	dataHandler := handler.NewDataHandler(handlerTask)
-
-	m, err := StartConsumer(j.config.GatewayAddress, dataQueueName, dataHandler.HandleDataMessage)
-	if err != nil {
-		return err
-	}
-	j.dataMiddlewares[dataQueueName] = m
-	return nil
+	j.dataMiddlewares[dataQueueName] = j.dataQueueCreators[dataQueueName](j.config.GatewayAddress)
+	return StartConsumer(j.dataMiddlewares[dataQueueName], dataHandler.HandleDataMessage)
 }
 
 func (j *Joiner) Stop() error {
@@ -160,11 +177,8 @@ func (j *Joiner) HandleDone(refQueueName string, taskType enum.TaskType) error {
 	if j.allRefDatasetsLoaded(taskType) {
 		for _, dataQueueName := range j.taskQueues[taskType] {
 			aggQueueName := j.getAggQueueName(taskType, dataQueueName)
-
-			aggregatorQueue, senderErr := StartSender(j.config.GatewayAddress, aggQueueName)
-			if senderErr != nil {
-				return senderErr
-			}
+			aggQueueCreator := j.aggQueueCreators[aggQueueName]
+			aggregatorQueue := aggQueueCreator(j.config.GatewayAddress)
 
 			j.aggregatorMidd[aggQueueName] = aggregatorQueue
 
@@ -197,7 +211,7 @@ func (j *Joiner) isBestSellingTask(dataQueueName string) bool {
 }
 
 func (j *Joiner) InitService() error {
-	for _, refQueueName := range j.refQueueNames {
+	for refQueueName := range j.refQueueCreators {
 		err := j.StartRefConsumer(refQueueName)
 		if err != nil {
 			return err
@@ -242,7 +256,7 @@ func (j *Joiner) HandleDoneDataset() error {
 		return err
 	}
 
-	j.refDoneReceived = defaultRequiredRefQueues()
+	j.refDoneReceived = defaultRequiredRefQueues(j.config)
 	j.refDatasetStore.ResetStore()
 
 	return SendMessageToControllerConnection(j.controllerConnection, j.workerName, true)

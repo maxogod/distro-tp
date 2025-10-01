@@ -17,8 +17,7 @@ import (
 )
 
 const (
-	RabbitURL              = "amqp://guest:guest@localhost:5670/"
-	GatewayControllerQueue = "node_connections"
+	RabbitURL = "amqp://guest:guest@localhost:5670/"
 )
 
 func JoinerConfig(storeDir string) config.Config {
@@ -26,13 +25,16 @@ func JoinerConfig(storeDir string) config.Config {
 		GatewayAddress:                     RabbitURL,
 		StorePath:                          storeDir,
 		StoreTPVQueue:                      "store_tpv",
+		Users:                              "users",
+		Stores:                             "stores",
+		MenuItems:                          "menu_items",
 		TransactionCountedQueue:            "transaction_counted",
 		TransactionSumQueue:                "transaction_sum",
 		UserTransactionsQueue:              "user_transactions",
 		JoinedBestSellingTransactionsQueue: "joined_best_selling_transactions",
 		JoinedMostProfitsTransactionsQueue: "joined_most_profits_transactions",
-		JoinedStoresTPVQueue:               "joined_stores_tpv_queue",
-		JoinedUserTransactionsQueue:        "joined_user_transactions_queue",
+		JoinedStoresTPVQueue:               "joined_stores_tpv",
+		JoinedUserTransactionsQueue:        "joined_user_transactions",
 		FinishRoutingKey:                   "joiner",
 	}
 }
@@ -65,11 +67,10 @@ func StartJoiner(t *testing.T, storeDir string, refQueueNames []string) *joiner.
 	return j
 }
 
-func SendDataBatch(t *testing.T, inputQueue string, dataBatch *data_batch.DataBatch) {
+func SendDataBatch(t *testing.T, inputQueue func(url string) middleware.MessageMiddleware, dataBatch *data_batch.DataBatch) {
 	t.Helper()
 
-	pubProcessedData, err := middleware.NewQueueMiddleware(RabbitURL, inputQueue)
-	assert.NoError(t, err)
+	pubProcessedData := inputQueue(RabbitURL)
 	defer func() {
 		_ = pubProcessedData.Close()
 	}()
@@ -95,13 +96,12 @@ func SendReferenceBatches(t *testing.T, pub middleware.MessageMiddleware, csvPay
 
 func GetAllOutputMessages[T proto.Message](
 	t *testing.T,
-	outputQueue string,
+	outputQueueCreator func(url string) middleware.MessageMiddleware,
 	unmarshal func([]byte) (T, error),
 ) []T {
 	t.Helper()
 
-	consumer, err := middleware.NewQueueMiddleware(RabbitURL, outputQueue)
-	assert.NoError(t, err)
+	consumer := outputQueueCreator(RabbitURL)
 	defer func() {
 		_ = consumer.StopConsuming()
 		_ = consumer.Close()
@@ -117,7 +117,7 @@ func GetAllOutputMessages[T proto.Message](
 
 			received = append(received, msgProto)
 
-			err = msg.Ack(false)
+			err := msg.Ack(false)
 			assert.NoError(t, err)
 		}
 		close(done)

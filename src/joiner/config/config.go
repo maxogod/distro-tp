@@ -12,6 +12,9 @@ type Config struct {
 	GatewayAddress                     string
 	StorePath                          string
 	LogLevel                           string
+	Users                              string
+	Stores                             string
+	MenuItems                          string
 	StoreTPVQueue                      string
 	TransactionCountedQueue            string
 	TransactionSumQueue                string
@@ -26,12 +29,15 @@ type Config struct {
 func (c Config) String() string {
 	return fmt.Sprintf(
 		"GatewayAddress: %s | LogLevel: %s | StorePath: %s | StoreTPVQueue: %s"+
-			" | TransactionCountedQueue: %s | TransactionSumQueue: %s | UserTransactionsQueue: %s "+
-			"| JoinedMostProfitsTransactionsQueue: %s | JoinedBestSellingTransactionsQueue: %s | JoinedStoresTPVQueue: %s "+
-			"| JoinedUserTransactionsQueue: %s | FinishRoutingKey: %s",
+			" | Users: %s | Stores: %s | MenuItems: %s | TransactionCountedQueue: %s | TransactionSumQueue: %s "+
+			"| UserTransactionsQueue: %s | JoinedMostProfitsTransactionsQueue: %s | JoinedBestSellingTransactionsQueue: %s "+
+			"| JoinedStoresTPVQueue: %s | JoinedUserTransactionsQueue: %s | FinishRoutingKey: %s",
 		c.GatewayAddress,
 		c.StorePath,
 		c.LogLevel,
+		c.Users,
+		c.Stores,
+		c.MenuItems,
 		c.StoreTPVQueue,
 		c.TransactionCountedQueue,
 		c.TransactionSumQueue,
@@ -61,6 +67,9 @@ func InitConfig() (*Config, error) {
 		GatewayAddress:                     v.GetString("gateway.address"),
 		StorePath:                          v.GetString("datasets.path"),
 		LogLevel:                           v.GetString("log.level"),
+		Users:                              v.GetString("refQueues.users"),
+		Stores:                             v.GetString("refQueues.stores"),
+		MenuItems:                          v.GetString("refQueues.menu_items"),
 		StoreTPVQueue:                      v.GetString("queues.store_tpv_queue"),
 		TransactionCountedQueue:            v.GetString("queues.transaction_counted_queue"),
 		TransactionSumQueue:                v.GetString("queues.transaction_sum_queue"),

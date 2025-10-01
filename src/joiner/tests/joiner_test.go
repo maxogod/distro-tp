@@ -176,9 +176,9 @@ func TestHandleTaskType3_ProducesJoinedBatch(t *testing.T) {
 	}
 	dataBatch := helpers.PrepareStoreTPVBatch(t, tpvs, enum.T3)
 
-	helpers.SendDataBatch(t, "store_tpv", dataBatch)
+	helpers.SendDataBatch(t, middleware.GetStoresTPVQueue, dataBatch)
 
-	received := helpers.GetAllOutputMessages(t, "joined_stores_tpv_queue", func(body []byte) (*data_batch.DataBatch, error) {
+	received := helpers.GetAllOutputMessages(t, middleware.GetJoinedStoresTPVQueue, func(body []byte) (*data_batch.DataBatch, error) {
 		batch := &data_batch.DataBatch{}
 		if err := proto.Unmarshal(body, batch); err != nil {
 			return nil, err
@@ -223,14 +223,14 @@ func TestHandleTaskType2_ProducesJoinedBatch(t *testing.T) {
 		{YearMonthCreatedAt: "2024-02", ItemId: 2, SellingsQty: 91218},
 	}
 	bestSellingBatch := helpers.PrepareBestSellingBatch(t, bestSelling, enum.T2)
-	helpers.SendDataBatch(t, "transaction_counted", bestSellingBatch)
+	helpers.SendDataBatch(t, middleware.GetBestSellingTransactionsQueue, bestSellingBatch)
 
 	mostProfits := []*reduced.MostProfitsProducts{
 		{YearMonthCreatedAt: "2024-01", ItemId: 1, ProfitSum: 260611.0},
 		{YearMonthCreatedAt: "2024-02", ItemId: 2, ProfitSum: 91218.0},
 	}
 	mostProfitsBatch := helpers.PrepareMostProfitsBatch(t, mostProfits, enum.T2)
-	helpers.SendDataBatch(t, "transaction_sum", mostProfitsBatch)
+	helpers.SendDataBatch(t, middleware.GetMostProfitsTransactionsQueue, mostProfitsBatch)
 
 	expectedBestSelling := []*joined.JoinBestSellingProducts{
 		{YearMonthCreatedAt: "2024-01", ItemName: "Espresso", SellingsQty: 260611},
@@ -242,7 +242,7 @@ func TestHandleTaskType2_ProducesJoinedBatch(t *testing.T) {
 		{YearMonthCreatedAt: "2024-02", ItemName: "Americano", ProfitSum: 91218.0},
 	}
 
-	mostProfitsBatches := helpers.GetAllOutputMessages(t, "joined_most_profits_transactions", func(body []byte) (*data_batch.DataBatch, error) {
+	mostProfitsBatches := helpers.GetAllOutputMessages(t, middleware.GetJoinedMostProfitsTransactionsQueue, func(body []byte) (*data_batch.DataBatch, error) {
 		batch := &data_batch.DataBatch{}
 		if err := proto.Unmarshal(body, batch); err != nil {
 			return nil, err
@@ -250,7 +250,7 @@ func TestHandleTaskType2_ProducesJoinedBatch(t *testing.T) {
 		return batch, nil
 	})
 
-	bestSellingBatches := helpers.GetAllOutputMessages(t, "joined_best_selling_transactions", func(body []byte) (*data_batch.DataBatch, error) {
+	bestSellingBatches := helpers.GetAllOutputMessages(t, middleware.GetJoinedBestSellingTransactionsQueue, func(body []byte) (*data_batch.DataBatch, error) {
 		batch := &data_batch.DataBatch{}
 		if err := proto.Unmarshal(body, batch); err != nil {
 			return nil, err
@@ -315,14 +315,14 @@ func TestHandleTaskType4_ProducesJoinedBatch(t *testing.T) {
 		{StoreId: 6, UserId: 2, PurchasesQty: 91218},
 	}
 	mostPurchasesUsersBatch := helpers.PrepareMostPurchasesUserBatch(t, mostPurchasesUsers, enum.T4)
-	helpers.SendDataBatch(t, "user_transactions", mostPurchasesUsersBatch)
+	helpers.SendDataBatch(t, middleware.GetdUserTransactionsQueue, mostPurchasesUsersBatch)
 
 	expectedMostPurchasesUsers := []*joined.JoinMostPurchasesUser{
 		{StoreName: "G Coffee @ Seksyen 21", UserBirthdate: "1970-04-22", PurchasesQty: 260611},
 		{StoreName: "G Coffee @ Alam Tun Hussein Onn", UserBirthdate: "1974-06-21", PurchasesQty: 91218},
 	}
 
-	received := helpers.GetAllOutputMessages(t, "joined_user_transactions_queue", func(body []byte) (*data_batch.DataBatch, error) {
+	received := helpers.GetAllOutputMessages(t, middleware.GetJoinedUserTransactionsQueue, func(body []byte) (*data_batch.DataBatch, error) {
 		batch := &data_batch.DataBatch{}
 		if err := proto.Unmarshal(body, batch); err != nil {
 			return nil, err
@@ -376,14 +376,14 @@ func TestHandleTaskType4Server(t *testing.T) {
 		{StoreId: 6, UserId: 2, PurchasesQty: 91218},
 	}
 	mostPurchasesUsersBatch := helpers.PrepareMostPurchasesUserBatch(t, mostPurchasesUsers, enum.T4)
-	helpers.SendDataBatch(t, "user_transactions", mostPurchasesUsersBatch)
+	helpers.SendDataBatch(t, middleware.GetdUserTransactionsQueue, mostPurchasesUsersBatch)
 
 	expectedMostPurchasesUsers := []*joined.JoinMostPurchasesUser{
 		{StoreName: "G Coffee @ Seksyen 21", UserBirthdate: "1970-04-22", PurchasesQty: 260611},
 		{StoreName: "G Coffee @ Alam Tun Hussein Onn", UserBirthdate: "1974-06-21", PurchasesQty: 91218},
 	}
 
-	received := helpers.GetAllOutputMessages(t, "joined_user_transactions_queue", func(body []byte) (*data_batch.DataBatch, error) {
+	received := helpers.GetAllOutputMessages(t, middleware.GetJoinedUserTransactionsQueue, func(body []byte) (*data_batch.DataBatch, error) {
 		batch := &data_batch.DataBatch{}
 		if err := proto.Unmarshal(body, batch); err != nil {
 			return nil, err
@@ -404,7 +404,7 @@ func TestHandleConnectionGatewayController(t *testing.T) {
 		wg.Wait()
 	}()
 
-	helpers.AssertConnectionMsg(t, helpers.GatewayControllerQueue, true)
+	helpers.AssertConnectionMsg(t, middleware.GetNodeConnectionsQueue, true)
 
 	finishExchange := middleware.GetFinishExchange(helpers.RabbitURL, enum.Joiner)
 
@@ -418,5 +418,5 @@ func TestHandleConnectionGatewayController(t *testing.T) {
 	e := finishExchange.Send(dataMessage)
 	assert.Equal(t, 0, int(e))
 
-	helpers.AssertConnectionMsg(t, helpers.GatewayControllerQueue, false)
+	helpers.AssertConnectionMsg(t, middleware.GetNodeConnectionsQueue, false)
 }

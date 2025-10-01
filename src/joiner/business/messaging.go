@@ -11,12 +11,7 @@ import (
 type MessageHandler func(msgBody []byte) error
 type MessageExchange func() error
 
-func StartConsumer(gatewayAddress, queueName string, handler MessageHandler) (middleware.MessageMiddleware, error) {
-	m, err := middleware.NewQueueMiddleware(gatewayAddress, queueName)
-	if err != nil {
-		return nil, fmt.Errorf("failed to start queue middleware: %w", err)
-	}
-
+func StartConsumer(m middleware.MessageMiddleware, handler MessageHandler) error {
 	e := m.StartConsuming(func(consumeChannel middleware.ConsumeChannel, d chan error) {
 		for msg := range consumeChannel {
 			handlerErr := handler(msg.Body)
@@ -30,10 +25,10 @@ func StartConsumer(gatewayAddress, queueName string, handler MessageHandler) (mi
 	})
 
 	if e != middleware.MessageMiddlewareSuccess {
-		return nil, fmt.Errorf("StartConsuming returned error code %d", int(e))
+		return fmt.Errorf("StartConsuming returned error code %d", int(e))
 	}
 
-	return m, nil
+	return nil
 }
 
 func StopConsumers(middlewares MessageMiddlewares) (MessageMiddlewares, error) {
@@ -62,15 +57,6 @@ func StopConsumer(m middleware.MessageMiddleware) error {
 		return fmt.Errorf("failed to delete middleware")
 	}
 	return nil
-}
-
-func StartSender(gatewayAddress, queueName string) (middleware.MessageMiddleware, error) {
-	m, err := middleware.NewQueueMiddleware(gatewayAddress, queueName)
-	if err != nil {
-		return nil, fmt.Errorf("failed to start queue middleware: %w", err)
-	}
-
-	return m, nil
 }
 
 func StopSender(m middleware.MessageMiddleware) error {
