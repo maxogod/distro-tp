@@ -235,13 +235,23 @@ func TestHandleTaskType2_ProducesJoinedBatch(t *testing.T) {
 		{YearMonthCreatedAt: "2024-02", ItemName: "Americano", ProfitSum: 91218.0},
 	}
 
-	allBatches := helpers.GetAllOutputMessages(t, "joined_transactions_queue", func(body []byte) (*data_batch.DataBatch, error) {
+	mostProfitsBatches := helpers.GetAllOutputMessages(t, "joined_most_profits_transactions", func(body []byte) (*data_batch.DataBatch, error) {
 		batch := &data_batch.DataBatch{}
 		if err := proto.Unmarshal(body, batch); err != nil {
 			return nil, err
 		}
 		return batch, nil
 	})
+
+	bestSellingBatches := helpers.GetAllOutputMessages(t, "joined_best_selling_transactions", func(body []byte) (*data_batch.DataBatch, error) {
+		batch := &data_batch.DataBatch{}
+		if err := proto.Unmarshal(body, batch); err != nil {
+			return nil, err
+		}
+		return batch, nil
+	})
+
+	allBatches := append(mostProfitsBatches, bestSellingBatches...)
 
 	var bestSellingJoined, mostProfitsJoined *data_batch.DataBatch
 	for _, batch := range allBatches {
