@@ -11,7 +11,6 @@ import (
 	"github.com/maxogod/distro-tp/src/common/middleware"
 	"github.com/maxogod/distro-tp/src/common/models/data_batch"
 	"github.com/maxogod/distro-tp/src/common/models/enum"
-	"github.com/maxogod/distro-tp/src/common/models/joined"
 	"google.golang.org/protobuf/proto"
 )
 
