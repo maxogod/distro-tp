@@ -28,6 +28,7 @@ func NewClientSession(id int, conn *network.ConnectionInterface, taskHandler han
 }
 
 func (cs *clientSession) ProcessRequest() error {
+	log.Debugln("Starting to process client requests")
 	// i know that the variable is not necesary but geodude likes this handling
 	var taskType enum.TaskType
 	for cs.processData {
@@ -48,10 +49,14 @@ func (cs *clientSession) ProcessRequest() error {
 		cs.taskHandler.HandleTask(taskType, request)
 	}
 
+	log.Debugln("All data received from client, sending done signal to task handler")
+
 	err := cs.taskHandler.SendDone(taskType)
 	if err != nil {
 		return err
 	}
+
+	log.Debugln("Starting to send report data to client")
 
 	err = cs.processResponse()
 	if err != nil {

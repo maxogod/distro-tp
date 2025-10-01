@@ -92,6 +92,7 @@ func (th *TaskHandler) HandleReferenceData(dataBatch *data_batch.DataBatch) erro
 }
 
 func (th *TaskHandler) SendDone(taskType enum.TaskType) error {
+	th.getWorkerStatusChan <- true
 	nodeConnections := middleware.GetNodeConnectionsQueue(th.middlewareUrl)
 	finishExchangeTopic := middleware.GetFinishExchange(th.middlewareUrl, enum.Filter)
 	defer nodeConnections.StopConsuming()
@@ -110,7 +111,9 @@ func (th *TaskHandler) SendDone(taskType enum.TaskType) error {
 	done := make(chan bool)
 	nodeConnections.StartConsuming(func(ch middleware.ConsumeChannel, d chan error) {
 		areAllWorkersFinished := false
+		log.Debug("Started listening for worker finished messages")
 		for msg := range ch {
+			log.Debug("Received worker finished message")
 			if areAllWorkersFinished {
 				break
 			}
@@ -121,10 +124,15 @@ func (th *TaskHandler) SendDone(taskType enum.TaskType) error {
 				continue
 			}
 
+			if !workerConn.Finished {
+				continue
+			}
+
 			err = th.workerManager.FinishWorker(workerConn.WorkerName)
 			if err != nil {
 				continue
 			}
+			msg.Ack(false)
 
 			// Refresh exchange topic in case all workers of a stage are finished
 			finishTopic, allFinished := th.workerManager.GetFinishExchangeTopic()
@@ -132,6 +140,7 @@ func (th *TaskHandler) SendDone(taskType enum.TaskType) error {
 			finishExchangeTopic.Close()
 			finishExchangeTopic = middleware.GetFinishExchange(th.middlewareUrl, finishTopic)
 			finishExchangeTopic.Send(serializedDoneBatch)
+			log.Debugln("New iter")
 		}
 		done <- true
 	})
