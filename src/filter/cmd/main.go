@@ -15,8 +15,11 @@ func main() {
 		log.Fatalf("%s", err)
 	}
 
+	log.Debug(conf.String())
+
 	server := server.InitServer(conf)
 
 	server.Run()
+	log.Debug("Squirtle thanks you for using the Filter Worker!")
 
 }

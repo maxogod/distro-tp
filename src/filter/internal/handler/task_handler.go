@@ -4,93 +4,155 @@ import (
 	"fmt"
 
 	"github.com/maxogod/distro-tp/src/common/logger"
-	"github.com/maxogod/distro-tp/src/common/models"
-	"github.com/maxogod/distro-tp/src/common/models/transaction"
-	"github.com/maxogod/distro-tp/src/common/models/transaction_items"
+	"github.com/maxogod/distro-tp/src/common/models/enum"
+	"github.com/maxogod/distro-tp/src/common/models/raw"
+	"github.com/maxogod/distro-tp/src/common/utils"
 	"github.com/maxogod/distro-tp/src/filter/business"
+	"google.golang.org/protobuf/proto"
 )
 
 var log = logger.GetLogger()
 
 type TaskHandler struct {
 	FilterService *business.FilterService
-	// TODO: this should be replace with a protocol buffer that when given the task type, then process the payload insted of
-	// directly giving the task type and payload
-	taskHandlers map[models.TaskType]func(any) (any, error)
-	TaskConfig   *TaskConfig
+	queueHandler  *MessageHandler
+	TaskConfig    *TaskConfig
+	taskHandlers  map[enum.TaskType]func([]byte) error
 }
 
-func NewTaskHandler(filterService *business.FilterService, taskConfig *TaskConfig) *TaskHandler {
+func NewTaskHandler(
+	filterService *business.FilterService,
+	queueHandler *MessageHandler,
+	taskConfig *TaskConfig) *TaskHandler {
 	th := &TaskHandler{
 		FilterService: filterService,
+		queueHandler:  queueHandler,
 		TaskConfig:    taskConfig,
 	}
 
-	th.taskHandlers = map[models.TaskType]func(any) (any, error){
-		models.T1: th.handleTaskType1,
-		models.T2: th.handleTaskType2,
-		models.T3: th.handleTaskType3,
-		models.T4: th.handleTaskType4,
+	th.taskHandlers = map[enum.TaskType]func([]byte) error{
+		enum.T1: th.handleTaskType1,
+		enum.T2: th.handleTaskType2,
+		enum.T3: th.handleTaskType3,
+		enum.T4: th.handleTaskType4,
 	}
 
 	return th
 }
 
-func (th *TaskHandler) HandleTask(taskType models.TaskType, payload any) (any, error) {
+func (th *TaskHandler) HandleTask(taskType enum.TaskType, payload []byte) error {
 	handler, exists := th.taskHandlers[taskType]
 	if !exists {
-		return nil, fmt.Errorf("unknown task type: %d", taskType)
+		return fmt.Errorf("unknown task type: %d", taskType)
 	}
 	return handler(payload)
 }
 
-func (th *TaskHandler) handleTaskType1(payload any) (any, error) {
+func (th *TaskHandler) handleTaskType1(payload []byte) error {
+
 	log.Debug("Handling Task Type 1")
 
-	transactions, ok := payload.([]*transaction.Transaction)
-	if !ok {
-		return nil, fmt.Errorf("task T1 expects a batch of Transactions, got %T", payload)
+	transactions, err := utils.GetTransactions(payload)
+	if err != nil {
+		return err
 	}
 
 	result := business.FilterByYearBetween(th.TaskConfig.FilterYearFrom, th.TaskConfig.FilterYearTo, transactions)
 	result = business.FilterByHourBetween(th.TaskConfig.BusinessHourFrom, th.TaskConfig.BusinessHourTo, result)
 	result = business.FilterByTotalAmountGreaterThan(th.TaskConfig.TotalAmountThreshold, result)
-	return result, nil
+
+	filteredBatch := &raw.TransactionBatch{
+		Transactions: result,
+	}
+
+	serializedTransactions, err := proto.Marshal(filteredBatch)
+	if err != nil {
+		return err
+	}
+	// Sends the transactions to the process data queue
+	err = th.queueHandler.SendData(enum.T1, serializedTransactions)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
-func (th *TaskHandler) handleTaskType2(payload any) (any, error) {
-	log.Debug("Handling Task Type 2")
+func (th *TaskHandler) handleTaskType2(payload []byte) error {
 
-	items, ok := payload.([]*transaction_items.TransactionItems)
-	if !ok {
-		return nil, fmt.Errorf("task T2 expects a batch of Transaction Item, got %T", payload)
+	items, err := utils.GetTransactionItems(payload)
+	if err != nil {
+		return err
 	}
 
 	result := business.FilterByYearBetween(th.TaskConfig.FilterYearFrom, th.TaskConfig.FilterYearTo, items)
-	return result, nil
+
+	filteredBatch := &raw.TransactionItemsBatch{
+		TransactionItems: result,
+	}
+
+	serializedItems, err := proto.Marshal(filteredBatch)
+	if err != nil {
+		return err
+	}
+	// Sends the transaction items to both reducer queues
+	err = th.queueHandler.SendData(enum.T2, serializedItems)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
-func (th *TaskHandler) handleTaskType3(payload any) (any, error) {
-	log.Debug("Handling Task Type 3")
+func (th *TaskHandler) handleTaskType3(payload []byte) error {
 
-	transactions, ok := payload.([]*transaction.Transaction)
-	if !ok {
-		return nil, fmt.Errorf("task T3 expects a batch of Transactions, got %T", payload)
+	transactions, err := utils.GetTransactions(payload)
+	if err != nil {
+		return err
 	}
 
 	result := business.FilterByYearBetween(th.TaskConfig.FilterYearFrom, th.TaskConfig.FilterYearTo, transactions)
 	result = business.FilterByHourBetween(th.TaskConfig.BusinessHourFrom, th.TaskConfig.BusinessHourTo, result)
-	return result, nil
+
+	filteredBatch := &raw.TransactionBatch{
+		Transactions: result,
+	}
+
+	serializedTransactions, err := proto.Marshal(filteredBatch)
+	if err != nil {
+		return err
+	}
+	// Sends the transactions to the reduce sum queue
+	err = th.queueHandler.SendData(enum.T3, serializedTransactions)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
-func (th *TaskHandler) handleTaskType4(payload any) (any, error) {
-	log.Debug("Handling Task Type 4")
+func (th *TaskHandler) handleTaskType4(payload []byte) error {
 
-	transactions, ok := payload.([]*transaction.Transaction)
-	if !ok {
-		return nil, fmt.Errorf("task T4 expects a batch of Transactions, got %T", payload)
+	transactions, err := utils.GetTransactions(payload)
+	if err != nil {
+		return err
 	}
 
 	result := business.FilterByYearBetween(th.TaskConfig.FilterYearFrom, th.TaskConfig.FilterYearTo, transactions)
-	return result, nil
+
+	filteredBatch := &raw.TransactionBatch{
+		Transactions: result,
+	}
+
+	serializedTransactions, err := proto.Marshal(filteredBatch)
+	if err != nil {
+		return err
+	}
+	// Sends the transactions to the reduce count queue
+	err = th.queueHandler.SendData(enum.T4, serializedTransactions)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
