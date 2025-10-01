@@ -37,7 +37,24 @@ func TestHandleTaskType4(t *testing.T) {
 			return nil, err
 		}
 		return batch, nil
-	})[0]
+	})
 
-	helpers.AssertAggregatedMostPurchasesUsers(t, received, mostPurchasesUsers)
+	helpers.AssertAggregatedMostPurchasesUsers(t, received[0], mostPurchasesUsers)
+
+	doneDataMsg := received[1]
+	assert.Equal(t, int32(enum.T4), doneDataMsg.TaskType)
+	assert.Equal(t, true, doneDataMsg.Done)
+}
+
+func TestHandleConnection(t *testing.T) {
+	storeDir := t.TempDir()
+
+	aggregatorConfig := helpers.AggregatorConfig(storeDir)
+
+	agg := aggregator.NewAggregator(&aggregatorConfig)
+
+	err := agg.InitService()
+	assert.NoError(t, err)
+
+	helpers.AssertConnectionMsg(t, aggregatorConfig.GatewayControllerConnectionQueue, false)
 }

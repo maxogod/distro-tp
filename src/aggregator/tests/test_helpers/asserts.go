@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/maxogod/distro-tp/src/common/models/controller_connection"
 	"github.com/maxogod/distro-tp/src/common/models/data_batch"
 	"github.com/maxogod/distro-tp/src/common/models/joined"
 	"github.com/stretchr/testify/assert"
@@ -16,6 +17,7 @@ import (
 
 type UnmarshalBatchFunc[T any] func(payload []byte) ([]*T, error)
 type CompareFunc[T any] func(exp, got *T, idx int, t *testing.T)
+type EqualFunc[T any] func(exp, got *T) bool
 
 func assertBatchPersistence[T any](
 	t *testing.T,
@@ -78,7 +80,7 @@ func assertJoinedBatchIsTheExpected[T any](
 	received *data_batch.DataBatch,
 	expected []*T,
 	unmarshalBatch UnmarshalBatchFunc[T],
-	compare CompareFunc[T],
+	equal EqualFunc[T],
 ) {
 	t.Helper()
 
@@ -89,12 +91,15 @@ func assertJoinedBatchIsTheExpected[T any](
 
 	assert.Len(t, items, len(expected), "unexpected number of joined records")
 
-	for i, exp := range expected {
-		if i >= len(items) {
-			t.Fatalf("expected at least %d items but got %d", len(expected), len(items))
+	for _, exp := range expected {
+		found := false
+		for _, got := range items {
+			if equal(exp, got) {
+				found = true
+				break
+			}
 		}
-		got := items[i]
-		compare(exp, got, i, t)
+		assert.True(t, found, "expected item %+v not found in received batch", exp)
 	}
 }
 
@@ -249,11 +254,29 @@ func AssertAggregatedMostPurchasesUsers(
 		return batch.Users, nil
 	}
 
-	compare := func(exp, got *joined.JoinMostPurchasesUser, idx int, t *testing.T) {
-		assert.Equal(t, exp.StoreName, got.StoreName, "StoreName mismatch at index %d", idx)
-		assert.Equal(t, exp.UserBirthdate, got.UserBirthdate, "UserBirthdate mismatch at index %d", idx)
-		assert.Equal(t, exp.PurchasesQty, got.PurchasesQty, "PurchasesQty mismatch at index %d", idx)
+	equal := func(exp, got *joined.JoinMostPurchasesUser) bool {
+		return exp.StoreName == got.StoreName &&
+			exp.UserBirthdate == got.UserBirthdate &&
+			exp.PurchasesQty == got.PurchasesQty
 	}
 
-	assertJoinedBatchIsTheExpected(t, received, expected, unmarshal, compare)
+	assertJoinedBatchIsTheExpected(t, received, expected, unmarshal, equal)
+}
+
+func AssertConnectionMsg(t *testing.T, gatewayControllerQueue string, finished bool) {
+	initConnectionMsg := GetAllOutputMessages(t, gatewayControllerQueue, func(body []byte) (*controller_connection.ControllerConnection, error) {
+		ctrl := &controller_connection.ControllerConnection{}
+		if err := proto.Unmarshal(body, ctrl); err != nil {
+			return nil, err
+		}
+		return ctrl, nil
+	})[0]
+
+	assert.Regexp(t, `^aggregator-.*`, initConnectionMsg.WorkerName)
+
+	if finished {
+		assert.True(t, initConnectionMsg.Finished)
+	} else {
+		assert.False(t, initConnectionMsg.Finished)
+	}
 }
