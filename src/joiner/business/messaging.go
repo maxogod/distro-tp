@@ -80,14 +80,6 @@ func StopSender(m middleware.MessageMiddleware) error {
 	return nil
 }
 
-func StartAnnouncer(gatewayAddress, gatewayControllerQueue string) (middleware.MessageMiddleware, error) {
-	m, err := middleware.NewQueueMiddleware(gatewayAddress, gatewayControllerQueue)
-	if err != nil {
-		return nil, fmt.Errorf("failed to start queue middleware: %w", err)
-	}
-	return m, nil
-}
-
 func SendMessageToControllerConnection(
 	controllerConnection middleware.MessageMiddleware,
 	workerName string,
@@ -110,13 +102,7 @@ func SendMessageToControllerConnection(
 	return nil
 }
 
-func StartDirectExchange(gatewayAddress, exchangeName, routingKey string, handler MessageExchange) (middleware.MessageMiddleware, error) {
-	finishExchange, err := middleware.NewExchangeMiddleware(gatewayAddress, exchangeName, "direct", []string{routingKey})
-
-	if err != nil {
-		return nil, fmt.Errorf("failed to start queue middleware: %w", err)
-	}
-
+func StartDirectExchange(finishExchange middleware.MessageMiddleware, handler MessageExchange) error {
 	e := finishExchange.StartConsuming(func(consumeChannel middleware.ConsumeChannel, d chan error) {
 		for msg := range consumeChannel {
 			handlerErr := handler()
@@ -130,8 +116,8 @@ func StartDirectExchange(gatewayAddress, exchangeName, routingKey string, handle
 	})
 
 	if e != middleware.MessageMiddlewareSuccess {
-		return nil, fmt.Errorf("StartConsuming returned error code %d", int(e))
+		return fmt.Errorf("StartConsuming returned error code %d", int(e))
 	}
 
-	return finishExchange, nil
+	return nil
 }

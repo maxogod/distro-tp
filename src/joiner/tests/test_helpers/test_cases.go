@@ -5,11 +5,11 @@ import (
 
 	"github.com/maxogod/distro-tp/src/common/middleware"
 	"github.com/maxogod/distro-tp/src/common/models/enum"
-	"github.com/stretchr/testify/assert"
 )
 
 type TestCase struct {
-	Queue         string
+	QueueName     string
+	Queue         func(url string) middleware.MessageMiddleware
 	DatasetType   enum.RefDatasetType
 	CsvPayloads   [][]byte
 	ExpectedFiles []string
@@ -20,8 +20,7 @@ type TestCase struct {
 func RunTest(t *testing.T, c TestCase) {
 	t.Helper()
 
-	pub, err := middleware.NewQueueMiddleware(RabbitURL, c.Queue)
-	assert.NoError(t, err)
+	pub := c.Queue(RabbitURL)
 	defer func() {
 		_ = pub.Delete()
 		_ = pub.Close()
@@ -37,6 +36,8 @@ func RunTest(t *testing.T, c TestCase) {
 			AssertStoresAreTheExpected(t, expectedFile, c.CsvPayloads, c.DatasetType, c.TaskDone)
 		case enum.MenuItems:
 			AssertMenuItemsAreTheExpected(t, expectedFile, c.CsvPayloads, c.DatasetType, c.TaskDone)
+		default:
+			panic("unhandled default case")
 		}
 	}
 

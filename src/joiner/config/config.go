@@ -20,8 +20,6 @@ type Config struct {
 	JoinedBestSellingTransactionsQueue string
 	JoinedStoresTPVQueue               string
 	JoinedUserTransactionsQueue        string
-	GatewayControllerQueue             string
-	GatewayControllerExchange          string
 	FinishRoutingKey                   string
 }
 
@@ -30,8 +28,7 @@ func (c Config) String() string {
 		"GatewayAddress: %s | LogLevel: %s | StorePath: %s | StoreTPVQueue: %s"+
 			" | TransactionCountedQueue: %s | TransactionSumQueue: %s | UserTransactionsQueue: %s "+
 			"| JoinedMostProfitsTransactionsQueue: %s | JoinedBestSellingTransactionsQueue: %s | JoinedStoresTPVQueue: %s "+
-			"| JoinedUserTransactionsQueue: %s | GatewayControllerQueue: %s | GatewayControllerExchange: %s "+
-			"| FinishRoutingKey: %s",
+			"| JoinedUserTransactionsQueue: %s | FinishRoutingKey: %s",
 		c.GatewayAddress,
 		c.StorePath,
 		c.LogLevel,
@@ -43,8 +40,6 @@ func (c Config) String() string {
 		c.JoinedBestSellingTransactionsQueue,
 		c.JoinedStoresTPVQueue,
 		c.JoinedUserTransactionsQueue,
-		c.GatewayControllerQueue,
-		c.GatewayControllerExchange,
 		c.FinishRoutingKey,
 	)
 }
@@ -74,8 +69,6 @@ func InitConfig() (*Config, error) {
 		JoinedBestSellingTransactionsQueue: v.GetString("aggregator_queues.joined_best_selling_transactions_queue"),
 		JoinedStoresTPVQueue:               v.GetString("aggregator_queues.joined_stores_tpv_queue"),
 		JoinedUserTransactionsQueue:        v.GetString("aggregator_queues.joined_user_transactions_queue"),
-		GatewayControllerQueue:             v.GetString("queues.gateway_controller_queue"),
-		GatewayControllerExchange:          v.GetString("exchanges.gateway_controller_exchange"),
 		FinishRoutingKey:                   v.GetString("exchanges.finish_routing_key"),
 	}
 

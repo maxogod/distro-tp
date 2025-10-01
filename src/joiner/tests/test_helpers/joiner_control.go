@@ -17,7 +17,8 @@ import (
 )
 
 const (
-	RabbitURL = "amqp://guest:guest@localhost:5672/"
+	RabbitURL              = "amqp://guest:guest@localhost:5670/"
+	GatewayControllerQueue = "node_connections"
 )
 
 func JoinerConfig(storeDir string) config.Config {
@@ -32,8 +33,6 @@ func JoinerConfig(storeDir string) config.Config {
 		JoinedMostProfitsTransactionsQueue: "joined_most_profits_transactions",
 		JoinedStoresTPVQueue:               "joined_stores_tpv_queue",
 		JoinedUserTransactionsQueue:        "joined_user_transactions_queue",
-		GatewayControllerQueue:             "node_connections",
-		GatewayControllerExchange:          "finish_exchange",
 		FinishRoutingKey:                   "joiner",
 	}
 }

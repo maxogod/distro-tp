@@ -204,29 +204,21 @@ func (j *Joiner) InitService() error {
 		}
 	}
 
-	m, err := StartAnnouncer(j.config.GatewayAddress, j.config.GatewayControllerQueue)
+	j.controllerConnection = middleware.GetNodeConnectionsQueue(j.config.GatewayAddress)
+
+	err := SendMessageToControllerConnection(j.controllerConnection, j.workerName, false)
 	if err != nil {
 		return err
 	}
 
-	j.controllerConnection = m
-
-	err = SendMessageToControllerConnection(j.controllerConnection, j.workerName, false)
-	if err != nil {
-		return err
-	}
-
-	exchange, err := StartDirectExchange(
-		j.config.GatewayAddress,
-		j.config.GatewayControllerExchange,
-		j.config.FinishRoutingKey,
+	j.finishExchange = middleware.GetFinishExchange(j.config.GatewayAddress, enum.Joiner)
+	err = StartDirectExchange(
+		j.finishExchange,
 		j.HandleDoneDataset,
 	)
 	if err != nil {
 		return err
 	}
-
-	j.finishExchange = exchange
 
 	return nil
 }
