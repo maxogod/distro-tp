@@ -72,12 +72,14 @@ func (cs *clientSession) ProcessRequest() error {
 func (cs *clientSession) processResponse() error {
 	data := make(chan []byte)
 	disconnect := make(chan bool)
-	for cs.clientConnection.IsConnected() {
+	isDone := false
+	for cs.clientConnection.IsConnected() && !isDone {
 		go cs.taskHandler.GetReportData(data, disconnect)
 
 		for batch := range data {
 			err := cs.clientConnection.SendData(batch)
 			if err != nil {
+				isDone = true
 				break
 			}
 
@@ -85,10 +87,12 @@ func (cs *clientSession) processResponse() error {
 			dataBatch := &data_batch.DataBatch{}
 			err = proto.Unmarshal(batch, dataBatch)
 			if err != nil {
+				isDone = true
 				break
 			}
 			if dataBatch.GetDone() {
 				log.Debugln("Received done signal from task handler")
+				isDone = true
 				break
 			}
 		}
@@ -124,6 +128,5 @@ func (cs *clientSession) HandleReferenceData(response *data_batch.DataBatch) err
 }
 
 func (cs *clientSession) Close() {
-	cs.taskHandler.Close()
 	cs.clientConnection.Close()
 }

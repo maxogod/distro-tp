@@ -47,7 +47,6 @@ func (s *Server) Run() error {
 	}
 
 	for s.isRunning {
-
 		clientConnection, err := s.connectionManager.AcceptConnection()
 		if err != nil {
 			log.Errorf("Failed to accept connection: %v", err)
@@ -57,7 +56,6 @@ func (s *Server) Run() error {
 		clientSession := s.clientManager.AddClient(clientConnection, s.taskHandler)
 
 		err = clientSession.ProcessRequest()
-
 		if err != nil {
 			log.Errorf("Error handling client request: %v", err)
 			return err
@@ -67,6 +65,7 @@ func (s *Server) Run() error {
 
 		s.clientManager.RemoveClient(clientSession.Id)
 
+		log.Debug("Ready to accept new connections")
 	}
 
 	log.Info("Server shutdown complete")
@@ -87,5 +86,8 @@ func (s *Server) setupGracefulShutdown() {
 
 func (s *Server) Shutdown() {
 	s.isRunning = false
+	s.taskHandler.Close()
+	s.clientManager.Close()
+	s.connectionManager.Close()
 	log.Infof("action: shutdown | result: success")
 }
