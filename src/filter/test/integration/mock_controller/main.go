@@ -99,7 +99,7 @@ func main() {
 		log.Fatalf("Failed to marshal data batch: %v", err)
 	}
 
-	e = finishQueue.Send(finishPayload)
+	e = filterQueue.Send(finishPayload)
 	if e != middleware.MessageMiddlewareSuccess {
 		log.Fatalf("Failed to send message to finish queue: %v", e)
 	}

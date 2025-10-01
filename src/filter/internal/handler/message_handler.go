@@ -144,39 +144,37 @@ func (mh *MessageHandler) StartReceiving(
 	callback func(payload []byte, taskType int32) error,
 ) error {
 
-	finishConsuming := make(chan bool, 1)
+	// finishConsuming := make(chan bool, 1)
 
-	go func() {
-		_ = mh.listenForDone(finishConsuming)
-	}()
+	// go func() {
+	// 	_ = mh.listenForDone(finishConsuming)
+	// }()
 
 	mh.filterQueue.StartConsuming(func(consumeChannel middleware.ConsumeChannel, d chan error) {
 
-		for {
-			select {
-			case msg, ok := <-consumeChannel:
-				if !ok {
-					return
-				}
-				msg.Ack(false)
-				dataBatch, err := utils.GetDataBatch(msg.Body)
-				if err != nil {
-					log.Errorf("Failed to get data batch: %v", err)
-					continue
-				}
-				payload := dataBatch.GetPayload()
-				taskType := dataBatch.GetTaskType()
-
-				err = callback(payload, taskType)
-				if err != nil {
-					log.Errorf("Failed to process message: %v", err)
-					continue
-				}
-			case <-finishConsuming:
-				log.Info("Received done signal, stopping message consumption.")
-				mh.stopConsuming <- true
-				return
+		for msg := range consumeChannel {
+			msg.Ack(false)
+			dataBatch, err := utils.GetDataBatch(msg.Body)
+			if err != nil {
+				log.Errorf("Failed to get data batch: %v", err)
+				continue
 			}
+			payload := dataBatch.GetPayload()
+			taskType := dataBatch.GetTaskType()
+			done := dataBatch.GetDone()
+
+			if done {
+				log.Info("Received done message. Finishing processing.")
+				mh.stopConsuming <- true
+				break
+			}
+
+			err = callback(payload, taskType)
+			if err != nil {
+				log.Errorf("Failed to process message: %v", err)
+				continue
+			}
+
 		}
 	})
 	<-mh.stopConsuming
