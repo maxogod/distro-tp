@@ -1,11 +1,13 @@
 package test_helpers
 
 import (
+	"sync"
 	"testing"
 	"time"
 
 	aggregator "github.com/maxogod/distro-tp/src/aggregator/business"
 	"github.com/maxogod/distro-tp/src/aggregator/config"
+	"github.com/maxogod/distro-tp/src/aggregator/internal/server"
 	"github.com/maxogod/distro-tp/src/common/middleware"
 	"github.com/maxogod/distro-tp/src/common/models/data_batch"
 	"github.com/maxogod/distro-tp/src/common/models/enum"
@@ -119,4 +121,20 @@ func GetAllOutputMessages[T proto.Message](
 	}
 
 	return received
+}
+
+func InitServer(t *testing.T, storeDir string, wg *sync.WaitGroup) *server.Server {
+	aggConfig := AggregatorConfig(storeDir)
+
+	aggServer := server.InitServer(&aggConfig)
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		err := aggServer.Run()
+		if err != nil {
+			assert.NoError(t, err)
+		}
+	}()
+
+	return aggServer
 }
