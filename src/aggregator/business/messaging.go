@@ -6,6 +6,8 @@ import (
 	"github.com/maxogod/distro-tp/src/aggregator/handler"
 	"github.com/maxogod/distro-tp/src/common/middleware"
 	"github.com/maxogod/distro-tp/src/common/models/controller_connection"
+	"github.com/maxogod/distro-tp/src/common/models/data_batch"
+	"github.com/maxogod/distro-tp/src/common/models/enum"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -100,7 +102,41 @@ func startConsuming(m middleware.MessageMiddleware, handler MessageHandler) erro
 	return nil
 }
 
-func SendDataBatch(dataBatch *handler.DataBatch, queue middleware.MessageMiddleware) error {
+func SendBatchToGateway(batch proto.Message, gatewayQueue middleware.MessageMiddleware, taskType enum.TaskType) error {
+	payload, marshalErr := proto.Marshal(batch)
+	if marshalErr != nil {
+		return marshalErr
+	}
+
+	dataBatch := &data_batch.DataBatch{
+		TaskType: int32(taskType),
+		Done:     false,
+		Payload:  payload,
+	}
+
+	sendErr := sendDataBatch(dataBatch, gatewayQueue)
+	if sendErr != nil {
+		return sendErr
+	}
+
+	return nil
+}
+
+func SendDoneBatchToGateway(gatewayQueue middleware.MessageMiddleware, taskType enum.TaskType) error {
+	dataBatch := &data_batch.DataBatch{
+		TaskType: int32(taskType),
+		Done:     true,
+	}
+
+	sendErr := sendDataBatch(dataBatch, gatewayQueue)
+	if sendErr != nil {
+		return sendErr
+	}
+
+	return nil
+}
+
+func sendDataBatch(dataBatch *handler.DataBatch, queue middleware.MessageMiddleware) error {
 	dataBytes, err := proto.Marshal(dataBatch)
 	if err != nil {
 		return err
@@ -114,11 +150,7 @@ func SendDataBatch(dataBatch *handler.DataBatch, queue middleware.MessageMiddlew
 	return nil
 }
 
-func SendControllerConnectionMsg(
-	controllerConnection middleware.MessageMiddleware,
-	workerName string,
-	isFinished bool,
-) error {
+func SendControllerConnectionMsg(controllerConnection middleware.MessageMiddleware, workerName string, isFinished bool) error {
 	announceMsg := &controller_connection.ControllerConnection{
 		WorkerName: workerName,
 		Finished:   isFinished,
