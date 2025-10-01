@@ -4,7 +4,6 @@ import (
 	"github.com/maxogod/distro-tp/src/common/logger"
 	"github.com/maxogod/distro-tp/src/common/models/data_batch"
 	"github.com/maxogod/distro-tp/src/common/models/enum"
-	"github.com/maxogod/distro-tp/src/common/models/raw"
 	"github.com/maxogod/distro-tp/src/common/network"
 	"github.com/maxogod/distro-tp/src/gateway_controller/internal/handler"
 	"google.golang.org/protobuf/proto"
@@ -15,11 +14,11 @@ var log = logger.GetLogger()
 type clientSession struct {
 	Id               int
 	clientConnection *network.ConnectionInterface
-	taskHandler      *handler.TaskHandler
+	taskHandler      handler.Handler
 	processData      bool
 }
 
-func NewClientSession(id int, conn *network.ConnectionInterface, taskHandler *handler.TaskHandler) *clientSession {
+func NewClientSession(id int, conn *network.ConnectionInterface, taskHandler handler.Handler) *clientSession {
 	return &clientSession{
 		Id:               id,
 		clientConnection: conn,
@@ -29,19 +28,16 @@ func NewClientSession(id int, conn *network.ConnectionInterface, taskHandler *ha
 }
 
 func (cs *clientSession) ProcessRequest() error {
-
 	// i know that the variable is not necesary but geodude likes this handling
+	var taskType enum.TaskType
 	for cs.processData {
-
 		request, err := cs.getRequest()
 		if err != nil {
 			return err
 		}
 
-		taskType := enum.TaskType(request.GetTaskType())
+		taskType = enum.TaskType(request.GetTaskType())
 		isRefData := request.GetIsReferenceData()
-
-		//log.Debugf("Received task type: %v | Done: %v", taskType, request.GetDone())
 
 		if isRefData {
 			return cs.taskHandler.HandleReferenceData(request)
@@ -52,26 +48,37 @@ func (cs *clientSession) ProcessRequest() error {
 		cs.taskHandler.HandleTask(taskType, request)
 	}
 
-	// err := cs.taskHandler.SendDone()
-	// if err != nil {
-	// 	return err
-	// }
-	// reportData, err := cs.taskHandler.GetReportData()
-	// if err != nil {
-	// 	return err
-	// }
+	err := cs.taskHandler.SendDone(taskType)
+	if err != nil {
+		return err
+	}
 
-	log.Debug("Session finished processing data, sending report")
-
-	reportData := []byte("mock report data")
-
-	err := cs.sendReportData(reportData)
+	err = cs.processResponse()
 	if err != nil {
 		return err
 	}
 
 	return nil
 
+}
+
+func (cs *clientSession) processResponse() error {
+	data := make(chan []byte)
+	disconnect := make(chan bool)
+	for cs.clientConnection.IsConnected() {
+		go cs.taskHandler.GetReportData(data, disconnect)
+
+		for batch := range data {
+			err := cs.clientConnection.SendData(batch)
+			if err != nil {
+				log.Errorf("Error sending report data: %v", err)
+				disconnect <- true
+				return err
+			}
+		}
+	}
+	disconnect <- true
+	return nil
 }
 
 func (cs *clientSession) getRequest() (*data_batch.DataBatch, error) {
@@ -89,68 +96,15 @@ func (cs *clientSession) getRequest() (*data_batch.DataBatch, error) {
 	return request, nil
 }
 
+// TODO: Remove deprecated
 func (cs *clientSession) sendReportData(reportData []byte) error {
-
-	var mockTransactionBatch = &raw.TransactionBatch{
-		Transactions: []*raw.Transaction{
-			{
-				TransactionId:   "mockTx1",
-				StoreId:         101,
-				PaymentMethod:   1,
-				VoucherId:       202,
-				UserId:          303,
-				OriginalAmount:  150.0,
-				DiscountApplied: 15.0,
-				FinalAmount:     135.0,
-				CreatedAt:       "2025-09-30T10:00:00Z",
-			},
-			{
-				TransactionId:   "mockTx2",
-				StoreId:         102,
-				PaymentMethod:   2,
-				VoucherId:       203,
-				UserId:          304,
-				OriginalAmount:  200.0,
-				DiscountApplied: 20.0,
-				FinalAmount:     180.0,
-				CreatedAt:       "2025-09-30T11:00:00Z",
-			},
-		},
-	}
-
-	reportDataX, _ := proto.Marshal(mockTransactionBatch)
-
-	dataBatch := &data_batch.DataBatch{
-		TaskType:        int32(enum.T1),
-		IsReferenceData: false,
-		Done:            false,
-		Payload:         reportDataX,
-	}
-
-	done := &data_batch.DataBatch{
-		TaskType:        int32(enum.T1),
-		IsReferenceData: false,
-		Done:            true,
-		Payload:         nil,
-	}
-
-	db, _ := proto.Marshal(dataBatch)
-	dn, _ := proto.Marshal(done)
-
-	log.Debug("Sending report data to client")
-	log.Debugf("Report data size: %d bytes", len(db))
-
-	cs.clientConnection.SendData(db)
-	cs.clientConnection.SendData(dn)
-
-	log.Debug("Sent!")
+	cs.clientConnection.SendData(reportData)
 	return nil
 }
 
+// TODO: Remove deprecated
 func (cs *clientSession) HandleReferenceData(response *data_batch.DataBatch) error {
-
 	return nil
-
 }
 
 func (cs *clientSession) Close() {

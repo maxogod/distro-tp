@@ -3,7 +3,8 @@ package enum
 type RefDatasetType int
 
 const (
-	MenuItems RefDatasetType = iota + 1
+	NoRef RefDatasetType = iota + 1
+	MenuItems
 	Stores
 	Users
 )

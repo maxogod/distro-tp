@@ -2,6 +2,8 @@ package middleware
 
 import (
 	"time"
+
+	"github.com/maxogod/distro-tp/src/common/models/enum"
 )
 
 const MIDDLEWARE_CONNECTION_RETRIES = 10
@@ -13,6 +15,14 @@ const WAIT_INTERVAL = 1 * time.Second
 func GetFilterQueue(url string) MessageMiddleware {
 	return retryMiddlewareCreation(MIDDLEWARE_CONNECTION_RETRIES, WAIT_INTERVAL, func() (MessageMiddleware, error) {
 		return NewQueueMiddleware(url, "filter")
+	})
+}
+
+// GetDataExchange retrieves the middleware used to send/receive data batches with the corresponding routing keys
+// and to send a worker-type level broadcast for the DONE message.
+func GetDataExchange(url string, subscriptionTopics []string) MessageMiddleware {
+	return retryMiddlewareCreation(MIDDLEWARE_CONNECTION_RETRIES, WAIT_INTERVAL, func() (MessageMiddleware, error) {
+		return NewExchangeMiddleware(url, "data_exchange", "direct", subscriptionTopics)
 	})
 }
 
@@ -39,9 +49,9 @@ func GetNodeConnectionsQueue(url string) MessageMiddleware {
 // GetFinishExchange retrieves the middleware for the given exchange
 // to send or receive with a specific topic pass the topics parameter.
 // Possible topics: filter, groupby, reducer, joiner, aggregator
-func GetFinishExchange(url string, subscriptionTopics []string) MessageMiddleware {
+func GetFinishExchange(url string, workerType enum.WorkerType) MessageMiddleware {
 	return retryMiddlewareCreation(MIDDLEWARE_CONNECTION_RETRIES, WAIT_INTERVAL, func() (MessageMiddleware, error) {
-		return NewExchangeMiddleware(url, "finish_exchange", "direct", subscriptionTopics)
+		return NewExchangeMiddleware(url, "finish_exchange", "direct", []string{string(workerType)})
 	})
 }
 

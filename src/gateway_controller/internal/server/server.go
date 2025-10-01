@@ -19,7 +19,7 @@ type Server struct {
 	config            *config.Config
 	isRunning         bool
 	workerService     *business.GatewayControllerService
-	taskHandler       *handler.TaskHandler
+	taskHandler       handler.Handler
 	connectionManager *network.ConnectionManager
 	clientManager     *session.ClientManager
 }
