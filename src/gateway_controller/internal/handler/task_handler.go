@@ -5,6 +5,7 @@ import (
 
 	"github.com/maxogod/distro-tp/src/common/logger"
 	"github.com/maxogod/distro-tp/src/common/middleware"
+	"github.com/maxogod/distro-tp/src/common/models/controller_connection"
 	"github.com/maxogod/distro-tp/src/common/models/data_batch"
 	"github.com/maxogod/distro-tp/src/common/models/enum"
 	"github.com/maxogod/distro-tp/src/common/models/raw"
@@ -22,6 +23,9 @@ type TaskHandler struct {
 	joinerStoreQueueMiddleware     middleware.MessageMiddleware
 	joinerUsersQueueMiddleware     middleware.MessageMiddleware
 	processedDataQueueMiddleware   middleware.MessageMiddleware
+
+	nodeConnections    middleware.MessageMiddleware
+	nodeConnectionsMap map[string]bool
 }
 
 func NewTaskHandler(controllerService *business.GatewayControllerService, url string) Handler {
@@ -35,6 +39,8 @@ func NewTaskHandler(controllerService *business.GatewayControllerService, url st
 	th.joinerStoreQueueMiddleware = middleware.GetStoresQueue(url)
 	th.joinerUsersQueueMiddleware = middleware.GetUsersQueue(url)
 	th.processedDataQueueMiddleware = middleware.GetProcessedDataQueue(url)
+
+	th.nodeConnections = middleware.GetNodeConnectionsQueue(url)
 
 	th.taskHandlers = map[enum.TaskType]func(*data_batch.DataBatch) error{
 		enum.T1: th.handleTaskType1,
@@ -76,9 +82,6 @@ func (th *TaskHandler) HandleReferenceData(dataBatch *data_batch.DataBatch) erro
 }
 
 func (th *TaskHandler) SendDone() error {
-	log.Info("All tasks processed. Sending done signal.")
-
-	// TODO: broadcast done to each worker node
 
 	return nil
 }
@@ -185,10 +188,34 @@ func (th *TaskHandler) sendCleanedDataToFilterQueue(dataBatch *data_batch.DataBa
 	return nil
 }
 
+func (th *TaskHandler) getWorkerStatus() {
+	defer th.nodeConnections.StopConsuming()
+
+	done := make(chan bool)
+	th.nodeConnections.StartConsuming(func(ch middleware.ConsumeChannel, d chan error) {
+		for msg := range ch {
+			nodeConn := &controller_connection.ControllerConnection{}
+			err := proto.Unmarshal(msg.Body, nodeConn)
+			if err != nil {
+				// TODO: should ack not be sent?
+				continue
+			}
+			if !nodeConn.Finished {
+				// Save and ack if is a worker announcement
+				th.nodeConnectionsMap[nodeConn.WorkerName] = false
+				msg.Ack(false)
+			}
+		}
+		done <- true
+	})
+	<-done
+}
+
 func (th *TaskHandler) Close() {
 	th.filterQueueMiddleware.Close()
 	th.joinerUsersQueueMiddleware.Close()
 	th.joinerStoreQueueMiddleware.Close()
 	th.joinerMenuItemsQueueMiddleware.Close()
 	th.processedDataQueueMiddleware.Close()
+	th.nodeConnections.Close()
 }

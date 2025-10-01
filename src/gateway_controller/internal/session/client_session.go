@@ -47,12 +47,12 @@ func (cs *clientSession) ProcessRequest() error {
 		cs.taskHandler.HandleTask(taskType, request)
 	}
 
-	// err := cs.taskHandler.SendDone()
-	// if err != nil {
-	// 	return err
-	// }
+	err := cs.taskHandler.SendDone()
+	if err != nil {
+		return err
+	}
 
-	err := cs.processResponse()
+	err = cs.processResponse()
 	if err != nil {
 		return err
 	}
