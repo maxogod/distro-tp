@@ -11,6 +11,7 @@ import (
 type Config struct {
 	GatewayAddress                     string
 	StorePath                          string
+	BatchSize                          int
 	LogLevel                           string
 	JoinedMostProfitsTransactionsQueue string
 	JoinedBestSellingTransactionsQueue string
@@ -24,7 +25,7 @@ type Config struct {
 
 func (c Config) String() string {
 	return fmt.Sprintf(
-		"GatewayAddress: %s | LogLevel: %s | StorePath: %s "+
+		"GatewayAddress: %s | LogLevel: %s | StorePath: %s | BatchSize: %d "+
 			"| JoinedMostProfitsTransactionsQueue: %s | JoinedBestSellingTransactionsQueue: %s "+
 			"| JoinedStoresTPVQueue: %s | JoinedUserTransactionsQueue: %s "+
 			"| GatewayControllerDataQueue: %s | GatewayControllerConnectionQueue: %s "+
@@ -32,6 +33,7 @@ func (c Config) String() string {
 		c.GatewayAddress,
 		c.LogLevel,
 		c.StorePath,
+		c.BatchSize,
 		c.JoinedMostProfitsTransactionsQueue,
 		c.JoinedBestSellingTransactionsQueue,
 		c.JoinedStoresTPVQueue,
@@ -59,6 +61,7 @@ func InitConfig() (*Config, error) {
 	config := &Config{
 		GatewayAddress:                     v.GetString("gateway.address"),
 		StorePath:                          v.GetString("datasets.path"),
+		BatchSize:                          v.GetInt("datasets.batch.size"),
 		LogLevel:                           v.GetString("log.level"),
 		JoinedMostProfitsTransactionsQueue: v.GetString("queues.joined_most_profits_transactions_queue"),
 		JoinedBestSellingTransactionsQueue: v.GetString("queues.joined_best_selling_transactions_queue"),

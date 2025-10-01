@@ -4,6 +4,7 @@ log:
   level: "DEBUG"
 dataset:
   path: "/aggregated_data/"
+  batch_size: 100
 queues:
   joined_most_profits_transactions_queue: "joined_most_profits_transactions"
   joined_best_selling_transactions_queue: "joined_best_selling_transactions"
