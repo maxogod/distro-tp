@@ -25,6 +25,8 @@ type ReferenceDatasetStore struct {
 type MergeFunc[T proto.Message] func(accumulated, incoming T) T
 type KeyFunc[T proto.Message] func(item T) string
 type MapJoinMostPurchasesUser map[string]*joined.JoinMostPurchasesUser
+type MapJoinStoreTPV map[string]*joined.JoinStoreTPV
+type SendAggTask3 func(items MapJoinStoreTPV) error
 type SendAggTask4 func(items MapJoinMostPurchasesUser) error
 
 func NewCacheStore(storePath string) *ReferenceDatasetStore {
@@ -161,8 +163,30 @@ func (refStore *ReferenceDatasetStore) AggregateDataTask2(gatewayControllerDataQ
 	return nil
 }
 
-func (refStore *ReferenceDatasetStore) AggregateDataTask3(gatewayControllerDataQueue string) error {
-	return nil
+func (refStore *ReferenceDatasetStore) AggregateDataTask3(gatewayControllerDataQueue string, sendAggDataTask3 SendAggTask3) error {
+	aggregatedData, err := aggregateData(
+		"task3",
+		refStore.storePath,
+		func() *joined.JoinStoreTPVBatch {
+			return &joined.JoinStoreTPVBatch{}
+		},
+		func(batch *joined.JoinStoreTPVBatch) []*joined.JoinStoreTPV {
+			return batch.Items
+		},
+		func(accumulated, incoming *joined.JoinStoreTPV) *joined.JoinStoreTPV {
+			accumulated.Tpv += incoming.Tpv
+			return accumulated
+		},
+		func(item *joined.JoinStoreTPV) string {
+			return item.YearHalfCreatedAt + "|" + item.StoreName
+		},
+	)
+
+	if err != nil {
+		return err
+	}
+
+	return sendAggDataTask3(aggregatedData)
 }
 
 func (refStore *ReferenceDatasetStore) AggregateDataTask4(gatewayControllerDataQueue string, sendAggDataTask4 SendAggTask4) error {

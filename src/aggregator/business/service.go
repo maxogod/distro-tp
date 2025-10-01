@@ -116,7 +116,7 @@ func (a *Aggregator) HandleDone(msgBatch []byte) error {
 	case enum.T2:
 		return a.refDatasetStore.AggregateDataTask2(a.config.GatewayControllerDataQueue)
 	case enum.T3:
-		return a.refDatasetStore.AggregateDataTask3(a.config.GatewayControllerDataQueue)
+		return a.refDatasetStore.AggregateDataTask3(a.config.GatewayControllerDataQueue, a.SendAggregateDataTask3)
 	case enum.T4:
 		return a.refDatasetStore.AggregateDataTask4(a.config.GatewayControllerDataQueue, a.SendAggregateDataTask4)
 	default:
@@ -201,7 +201,52 @@ func (a *Aggregator) SendAggregateDataTask4(items cache.MapJoinMostPurchasesUser
 		}
 	}
 
-	err = SendDoneBatchToGateway(gatewayQueue)
+	err = SendDoneBatchToGateway(gatewayQueue, enum.T4)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (a *Aggregator) SendAggregateDataTask3(items cache.MapJoinStoreTPV) error {
+	// TODO: Sacar a config.yaml
+	batchSize := 100
+	var currentBatch []*joined.JoinStoreTPV
+
+	gatewayQueue, err := StartQueueMiddleware(a.config.GatewayAddress, a.config.GatewayControllerDataQueue)
+	if err != nil {
+		return err
+	}
+
+	for _, item := range items {
+		currentBatch = append(currentBatch, item)
+		if len(currentBatch) >= batchSize {
+			specificBatch := &joined.JoinStoreTPVBatch{
+				Items: currentBatch,
+			}
+
+			sendErr := SendBatchToGateway(specificBatch, gatewayQueue)
+			if sendErr != nil {
+				return sendErr
+			}
+
+			currentBatch = []*joined.JoinStoreTPV{}
+		}
+	}
+
+	if len(currentBatch) > 0 {
+		specificBatch := &joined.JoinStoreTPVBatch{
+			Items: currentBatch,
+		}
+
+		sendErr := SendBatchToGateway(specificBatch, gatewayQueue)
+		if sendErr != nil {
+			return sendErr
+		}
+	}
+
+	err = SendDoneBatchToGateway(gatewayQueue, enum.T3)
 	if err != nil {
 		return err
 	}
@@ -229,9 +274,9 @@ func SendBatchToGateway(batch proto.Message, gatewayQueue middleware.MessageMidd
 	return nil
 }
 
-func SendDoneBatchToGateway(gatewayQueue middleware.MessageMiddleware) error {
+func SendDoneBatchToGateway(gatewayQueue middleware.MessageMiddleware, taskType enum.TaskType) error {
 	dataBatch := &data_batch.DataBatch{
-		TaskType: int32(enum.T4),
+		TaskType: int32(taskType),
 		Done:     true,
 	}
 
