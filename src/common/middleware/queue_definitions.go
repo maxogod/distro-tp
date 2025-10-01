@@ -7,10 +7,22 @@ import (
 const MIDDLEWARE_CONNECTION_RETRIES = 10
 const WAIT_INTERVAL = 1 * time.Second
 
+/* --- Worker Queues --- */
+
 // GetFilterQueue retrieves the middleware that the controller uses to put work on the filter queues
 func GetFilterQueue(url string) MessageMiddleware {
 	return retryMiddlewareCreation(MIDDLEWARE_CONNECTION_RETRIES, WAIT_INTERVAL, func() (MessageMiddleware, error) {
 		return NewQueueMiddleware(url, "filter")
+	})
+}
+
+/* --- Processed Data Queue --- */
+
+// GetProcessedDataQueue retrieves the middleware that the controller pops from to send the data back to the user.
+// Filters in case of task 1 and aggregators in case of the other tasks will be the producers.
+func GetProcessedDataQueue(url string) MessageMiddleware {
+	return retryMiddlewareCreation(MIDDLEWARE_CONNECTION_RETRIES, WAIT_INTERVAL, func() (MessageMiddleware, error) {
+		return NewQueueMiddleware(url, "processed_data")
 	})
 }
 
