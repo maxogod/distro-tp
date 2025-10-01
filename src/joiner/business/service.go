@@ -78,7 +78,7 @@ func NewJoiner(config *config.Config) *Joiner {
 		refDatasetStore:      cache.NewCacheStore(config.StorePath),
 		refQueueNames:        []string{UsersRefQueue, StoresRefQueue, MenuItemsRefQueue},
 		refDoneReceived:      defaultRequiredRefQueues(),
-		workerName:           "joiner" + uuid.New().String(),
+		workerName:           "joiner-" + uuid.New().String(),
 	}
 
 	joiner.taskHandler = handler.NewTaskHandler(joiner.SendBatchToAggregator, joiner.refDatasetStore)

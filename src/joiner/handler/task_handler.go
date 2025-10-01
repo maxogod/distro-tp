@@ -29,14 +29,14 @@ type TaskHandler struct {
 	taskHandlers          TaskHandlers
 	sendBatchToAggregator SendBatchToAggregator
 	refDatasetStore       *cache.ReferenceDatasetStore
-	taskHadlerAggregator  TaskHandlerAggregators
+	taskHandlerAggregator TaskHandlerAggregators
 }
 
 func NewTaskHandler(sender SendBatchToAggregator, referenceDatasetStore *cache.ReferenceDatasetStore) *TaskHandler {
 	th := &TaskHandler{
 		sendBatchToAggregator: sender,
 		refDatasetStore:       referenceDatasetStore,
-		taskHadlerAggregator:  make(TaskHandlerAggregators),
+		taskHandlerAggregator: make(TaskHandlerAggregators),
 	}
 
 	th.taskHandlers = TaskHandlers{
@@ -51,7 +51,7 @@ func NewTaskHandler(sender SendBatchToAggregator, referenceDatasetStore *cache.R
 func (th *TaskHandler) HandleTask(taskType enum.TaskType, isBestSellingTask bool, aggQueue middleware.MessageMiddleware) HandleTask {
 	taskHandler := th.taskHandlers[taskType]
 	if taskType != enum.T2 {
-		th.taskHadlerAggregator[KeyAggregator{TaskType: taskType, IsBestSellingTask: false}] = aggQueue
+		th.taskHandlerAggregator[KeyAggregator{TaskType: taskType, IsBestSellingTask: false}] = aggQueue
 		return taskHandler[mainHandler]
 	}
 
@@ -60,7 +60,7 @@ func (th *TaskHandler) HandleTask(taskType enum.TaskType, isBestSellingTask bool
 		taskHandlerT2 = bestSellingHandler
 	}
 
-	th.taskHadlerAggregator[KeyAggregator{TaskType: taskType, IsBestSellingTask: isBestSellingTask}] = aggQueue
+	th.taskHandlerAggregator[KeyAggregator{TaskType: taskType, IsBestSellingTask: isBestSellingTask}] = aggQueue
 
 	return taskHandler[taskHandlerT2]
 }
@@ -90,7 +90,7 @@ func (th *TaskHandler) handleBestSellingProducts(dataBatch *data_batch.DataBatch
 		}
 	}
 
-	aggregator := th.taskHadlerAggregator[KeyAggregator{TaskType: enum.TaskType(dataBatch.TaskType), IsBestSellingTask: true}]
+	aggregator := th.taskHandlerAggregator[KeyAggregator{TaskType: enum.TaskType(dataBatch.TaskType), IsBestSellingTask: true}]
 
 	return sendJoinedData(dataBatch, joinedData, cache.CreateBestSellingBatch, th.sendBatchToAggregator, aggregator)
 }
@@ -120,7 +120,7 @@ func (th *TaskHandler) handleMostProfitsProducts(dataBatch *data_batch.DataBatch
 		}
 	}
 
-	aggregator := th.taskHadlerAggregator[KeyAggregator{TaskType: enum.TaskType(dataBatch.TaskType), IsBestSellingTask: false}]
+	aggregator := th.taskHandlerAggregator[KeyAggregator{TaskType: enum.TaskType(dataBatch.TaskType), IsBestSellingTask: false}]
 
 	return sendJoinedData(dataBatch, joinedData, cache.CreateMostProfitsBatch, th.sendBatchToAggregator, aggregator)
 }
@@ -150,7 +150,7 @@ func (th *TaskHandler) handleTaskType3(dataBatch *data_batch.DataBatch) error {
 		}
 	}
 
-	aggregator := th.taskHadlerAggregator[KeyAggregator{TaskType: enum.TaskType(dataBatch.TaskType), IsBestSellingTask: false}]
+	aggregator := th.taskHandlerAggregator[KeyAggregator{TaskType: enum.TaskType(dataBatch.TaskType), IsBestSellingTask: false}]
 
 	return sendJoinedData(dataBatch, joinedData, cache.CreateJoinStoreTPVBatch, th.sendBatchToAggregator, aggregator)
 }
@@ -190,7 +190,7 @@ func (th *TaskHandler) handleTaskType4(dataBatch *data_batch.DataBatch) error {
 		})
 	}
 
-	aggregator := th.taskHadlerAggregator[KeyAggregator{TaskType: enum.TaskType(dataBatch.TaskType), IsBestSellingTask: false}]
+	aggregator := th.taskHandlerAggregator[KeyAggregator{TaskType: enum.TaskType(dataBatch.TaskType), IsBestSellingTask: false}]
 
 	return sendJoinedData(dataBatch, joinedData, cache.CreateMostPurchasesUserBatch, th.sendBatchToAggregator, aggregator)
 }

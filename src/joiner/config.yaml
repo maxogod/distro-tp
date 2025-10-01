@@ -2,6 +2,8 @@ gateway:
   address: "guest:guest@localhost:5672"
 log:
   level: "DEBUG"
+datasets:
+  path: "/datasets"
 queues:
   store_tpv_queue: "store_tpv"
   transaction_counted_queue: "transaction_counted"
