@@ -3,7 +3,7 @@ gateway:
 log:
   level: "DEBUG"
 datasets:
-  path: "/aggregated_data/"
+  path: "/aggregated_data"
   batch_size: 100
 queues:
   joined_most_profits_transactions_queue: "joined_most_profits_transactions"
