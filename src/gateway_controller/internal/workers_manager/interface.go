@@ -42,4 +42,7 @@ type WorkersManager interface {
 
 	// GetWorkerConnectionRR returns a FILTER worker middleware connection in a round-robin fashion.
 	GetWorkerConnectionRR() (middleware.MessageMiddleware, error)
+
+	// ClearStatus marks all connected workers as not finished
+	ClearStatus()
 }

@@ -24,10 +24,11 @@ const (
 type DataBatch struct {
 	state           protoimpl.MessageState `protogen:"open.v1"`
 	TaskType        int32                  `protobuf:"varint,1,opt,name=task_type,json=taskType,proto3" json:"task_type,omitempty"`
-	IsReferenceData bool                   `protobuf:"varint,2,opt,name=isReferenceData,proto3" json:"isReferenceData,omitempty"`
-	RefDataType     int32                  `protobuf:"varint,3,opt,name=refDataType,proto3" json:"refDataType,omitempty"`
-	Done            bool                   `protobuf:"varint,4,opt,name=done,proto3" json:"done,omitempty"`
-	Payload         []byte                 `protobuf:"bytes,5,opt,name=payload,proto3" json:"payload,omitempty"`
+	ClientId        string                 `protobuf:"bytes,2,opt,name=client_id,json=clientId,proto3" json:"client_id,omitempty"`
+	IsReferenceData bool                   `protobuf:"varint,3,opt,name=isReferenceData,proto3" json:"isReferenceData,omitempty"`
+	RefDataType     int32                  `protobuf:"varint,4,opt,name=refDataType,proto3" json:"refDataType,omitempty"`
+	Done            bool                   `protobuf:"varint,5,opt,name=done,proto3" json:"done,omitempty"`
+	Payload         []byte                 `protobuf:"bytes,6,opt,name=payload,proto3" json:"payload,omitempty"`
 	unknownFields   protoimpl.UnknownFields
 	sizeCache       protoimpl.SizeCache
 }
@@ -69,6 +70,13 @@ func (x *DataBatch) GetTaskType() int32 {
 	return 0
 }
 
+func (x *DataBatch) GetClientId() string {
+	if x != nil {
+		return x.ClientId
+	}
+	return ""
+}
+
 func (x *DataBatch) GetIsReferenceData() bool {
 	if x != nil {
 		return x.IsReferenceData
@@ -101,13 +109,14 @@ var File_src_common_protobufs_data_batch_proto protoreflect.FileDescriptor
 
 const file_src_common_protobufs_data_batch_proto_rawDesc = "" +
 	"\n" +
-	"%src/common/protobufs/data_batch.proto\x12\bprotocol\"\xa2\x01\n" +
+	"%src/common/protobufs/data_batch.proto\x12\bprotocol\"\xbf\x01\n" +
 	"\tDataBatch\x12\x1b\n" +
-	"\ttask_type\x18\x01 \x01(\x05R\btaskType\x12(\n" +
-	"\x0fisReferenceData\x18\x02 \x01(\bR\x0fisReferenceData\x12 \n" +
-	"\vrefDataType\x18\x03 \x01(\x05R\vrefDataType\x12\x12\n" +
-	"\x04done\x18\x04 \x01(\bR\x04done\x12\x18\n" +
-	"\apayload\x18\x05 \x01(\fR\apayloadB\x0eZ\f./data_batchb\x06proto3"
+	"\ttask_type\x18\x01 \x01(\x05R\btaskType\x12\x1b\n" +
+	"\tclient_id\x18\x02 \x01(\tR\bclientId\x12(\n" +
+	"\x0fisReferenceData\x18\x03 \x01(\bR\x0fisReferenceData\x12 \n" +
+	"\vrefDataType\x18\x04 \x01(\x05R\vrefDataType\x12\x12\n" +
+	"\x04done\x18\x05 \x01(\bR\x04done\x12\x18\n" +
+	"\apayload\x18\x06 \x01(\fR\apayloadB\x0eZ\f./data_batchb\x06proto3"
 
 var (
 	file_src_common_protobufs_data_batch_proto_rawDescOnce sync.Once

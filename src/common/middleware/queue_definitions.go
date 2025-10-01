@@ -51,7 +51,7 @@ func GetNodeConnectionsQueue(url string) MessageMiddleware {
 // Possible topics: filter, groupby, reducer, joiner, aggregator
 func GetFinishExchange(url string, workerType enum.WorkerType) MessageMiddleware {
 	return retryMiddlewareCreation(MIDDLEWARE_CONNECTION_RETRIES, WAIT_INTERVAL, func() (MessageMiddleware, error) {
-		return NewExchangeMiddleware(url, "finish_exchange", "direct", []string{string(workerType)})
+		return NewExchangeMiddleware(url, "data_exchange", "direct", []string{string(workerType)})
 	})
 }
 

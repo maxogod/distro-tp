@@ -49,9 +49,6 @@ func (th *TaskHandler) HandleTask(taskType enum.TaskType, payload []byte) error 
 }
 
 func (th *TaskHandler) handleTaskType1(payload []byte) error {
-
-	log.Debug("Handling Task Type 1")
-
 	transactions, err := utils.GetTransactions(payload)
 	if err != nil {
 		return err

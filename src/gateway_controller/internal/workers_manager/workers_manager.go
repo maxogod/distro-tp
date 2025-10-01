@@ -3,9 +3,12 @@ package workers_manager
 import (
 	"strings"
 
+	"github.com/maxogod/distro-tp/src/common/logger"
 	"github.com/maxogod/distro-tp/src/common/middleware"
 	"github.com/maxogod/distro-tp/src/common/models/enum"
 )
+
+var log = logger.GetLogger()
 
 type workerStatus struct {
 	finished   bool
@@ -152,5 +155,29 @@ func (wm *workersManager) GetWorkerConnectionRR() (middleware.MessageMiddleware,
 	if !exists {
 		return nil, &WorkerNotExistsError{}
 	}
+
 	return workerStat.connection, nil
+}
+
+func (wm *workersManager) ClearStatus() {
+	for id, workerStat := range wm.filterWorkers {
+		workerStat.finished = false
+		wm.filterWorkers[id] = workerStat
+	}
+	for id, workerStat := range wm.groupByWorkers {
+		workerStat.finished = false
+		wm.groupByWorkers[id] = workerStat
+	}
+	for id, workerStat := range wm.reducerWorkers {
+		workerStat.finished = false
+		wm.reducerWorkers[id] = workerStat
+	}
+	for id, workerStat := range wm.joinerWorkers {
+		workerStat.finished = false
+		wm.joinerWorkers[id] = workerStat
+	}
+	for id, workerStat := range wm.aggregatorWorkers {
+		workerStat.finished = false
+		wm.aggregatorWorkers[id] = workerStat
+	}
 }

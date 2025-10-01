@@ -12,13 +12,13 @@ import (
 var log = logger.GetLogger()
 
 type clientSession struct {
-	Id               int
+	Id               string
 	clientConnection *network.ConnectionInterface
 	taskHandler      handler.Handler
 	processData      bool
 }
 
-func NewClientSession(id int, conn *network.ConnectionInterface, taskHandler handler.Handler) *clientSession {
+func NewClientSession(id string, conn *network.ConnectionInterface, taskHandler handler.Handler) *clientSession {
 	return &clientSession{
 		Id:               id,
 		clientConnection: conn,
@@ -28,6 +28,7 @@ func NewClientSession(id int, conn *network.ConnectionInterface, taskHandler han
 }
 
 func (cs *clientSession) ProcessRequest() error {
+	log.Debugln("Starting to process client requests")
 	// i know that the variable is not necesary but geodude likes this handling
 	var taskType enum.TaskType
 	for cs.processData {
@@ -35,6 +36,7 @@ func (cs *clientSession) ProcessRequest() error {
 		if err != nil {
 			return err
 		}
+		request.ClientId = cs.Id
 
 		taskType = enum.TaskType(request.GetTaskType())
 		isRefData := request.GetIsReferenceData()
@@ -48,32 +50,50 @@ func (cs *clientSession) ProcessRequest() error {
 		cs.taskHandler.HandleTask(taskType, request)
 	}
 
-	err := cs.taskHandler.SendDone(taskType)
+	log.Debugln("All data received from client, sending done signal to task handler")
+
+	err := cs.taskHandler.SendDone(taskType, cs.Id)
 	if err != nil {
 		return err
 	}
+
+	log.Debugln("Starting to send report data to client")
 
 	err = cs.processResponse()
 	if err != nil {
 		return err
 	}
 
-	return nil
+	log.Debugln("All report data sent to client, closing session")
 
+	return nil
 }
 
 func (cs *clientSession) processResponse() error {
 	data := make(chan []byte)
 	disconnect := make(chan bool)
-	for cs.clientConnection.IsConnected() {
+	isDone := false
+	for cs.clientConnection.IsConnected() && !isDone {
 		go cs.taskHandler.GetReportData(data, disconnect)
 
 		for batch := range data {
 			err := cs.clientConnection.SendData(batch)
 			if err != nil {
-				log.Errorf("Error sending report data: %v", err)
-				disconnect <- true
-				return err
+				isDone = true
+				break
+			}
+
+			// If the process data is finished, break the loop
+			dataBatch := &data_batch.DataBatch{}
+			err = proto.Unmarshal(batch, dataBatch)
+			if err != nil {
+				isDone = true
+				break
+			}
+			if dataBatch.GetDone() {
+				log.Debugln("Received done signal from task handler")
+				isDone = true
+				break
 			}
 		}
 	}
@@ -108,6 +128,5 @@ func (cs *clientSession) HandleReferenceData(response *data_batch.DataBatch) err
 }
 
 func (cs *clientSession) Close() {
-	cs.taskHandler.Close()
 	cs.clientConnection.Close()
 }

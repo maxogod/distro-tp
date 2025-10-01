@@ -1,6 +1,8 @@
 package main
 
 import (
+	"time"
+
 	"github.com/maxogod/distro-tp/src/common/logger"
 	"github.com/maxogod/distro-tp/src/filter/config"
 	"github.com/maxogod/distro-tp/src/filter/internal/server"
@@ -9,6 +11,7 @@ import (
 var log = logger.GetLogger()
 
 func main() {
+	time.Sleep(12 * time.Second)
 
 	conf, err := config.InitConfig()
 	if err != nil {

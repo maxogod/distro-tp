@@ -13,7 +13,7 @@ var log = logger.GetLogger()
 
 func main() {
 
-	time.Sleep(11 * time.Second) // wait for rabbitmq to be ready
+	time.Sleep(14 * time.Second) // wait for rabbitmq to be ready
 
 	log.Debugln("initializing")
 
