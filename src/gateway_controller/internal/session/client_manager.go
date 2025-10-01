@@ -16,7 +16,7 @@ func NewClientManager() *ClientManager {
 	}
 }
 
-func (cm *ClientManager) AddClient(connection *network.ConnectionInterface, taskHandler *handler.TaskHandler) *clientSession {
+func (cm *ClientManager) AddClient(connection *network.ConnectionInterface, taskHandler handler.Handler) *clientSession {
 	cm.nextID++
 	session := NewClientSession(cm.nextID, connection, taskHandler)
 	cm.clients[cm.nextID] = session

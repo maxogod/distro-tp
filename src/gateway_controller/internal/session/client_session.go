@@ -14,11 +14,11 @@ var log = logger.GetLogger()
 type clientSession struct {
 	Id               int
 	clientConnection *network.ConnectionInterface
-	taskHandler      *handler.TaskHandler
+	taskHandler      handler.Handler
 	processData      bool
 }
 
-func NewClientSession(id int, conn *network.ConnectionInterface, taskHandler *handler.TaskHandler) *clientSession {
+func NewClientSession(id int, conn *network.ConnectionInterface, taskHandler handler.Handler) *clientSession {
 	return &clientSession{
 		Id:               id,
 		clientConnection: conn,

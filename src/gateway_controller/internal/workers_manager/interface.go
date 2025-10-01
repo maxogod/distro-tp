@@ -1,6 +1,11 @@
 package workers_manager
 
-import "fmt"
+import (
+	"fmt"
+
+	"github.com/maxogod/distro-tp/src/common/middleware"
+	"github.com/maxogod/distro-tp/src/common/models/enum"
+)
 
 type WorkerExistsError struct{}
 
@@ -33,5 +38,8 @@ type WorkersManager interface {
 	// GetFinishExchangeTopic returns the topic name for finishing exchange that should be used
 	// based on the amount of finished workers and the total number of workers for one specific stage.
 	// Also returns a boolean indicating whether the last stage was finished or not.
-	GetFinishExchangeTopic() (string, bool)
+	GetFinishExchangeTopic() (enum.WorkerType, bool)
+
+	// GetWorkerConnectionRR returns a FILTER worker middleware connection in a round-robin fashion.
+	GetWorkerConnectionRR() (middleware.MessageMiddleware, error)
 }

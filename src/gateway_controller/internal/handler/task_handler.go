@@ -22,7 +22,6 @@ type TaskHandler struct {
 
 	middlewareUrl string
 
-	filterQueueMiddleware          middleware.MessageMiddleware
 	joinerMenuItemsQueueMiddleware middleware.MessageMiddleware
 	joinerStoreQueueMiddleware     middleware.MessageMiddleware
 	joinerUsersQueueMiddleware     middleware.MessageMiddleware
@@ -30,6 +29,8 @@ type TaskHandler struct {
 
 	nodeConnections middleware.MessageMiddleware
 	workerManager   workers_manager.WorkersManager
+
+	getWorkerStatusChan chan bool
 }
 
 func NewTaskHandler(controllerService *business.GatewayControllerService, url string) Handler {
@@ -40,14 +41,13 @@ func NewTaskHandler(controllerService *business.GatewayControllerService, url st
 	th.middlewareUrl = url
 
 	// TODO pass address here somehow or instanciate somewhere else
-	th.filterQueueMiddleware = middleware.GetFilterQueue(url)
 	th.joinerMenuItemsQueueMiddleware = middleware.GetMenuItemsQueue(url)
 	th.joinerStoreQueueMiddleware = middleware.GetStoresQueue(url)
 	th.joinerUsersQueueMiddleware = middleware.GetUsersQueue(url)
 	th.processedDataQueueMiddleware = middleware.GetProcessedDataQueue(url)
 
 	th.nodeConnections = middleware.GetNodeConnectionsQueue(url)
-	th.workerManager = workers_manager.NewWorkersManager()
+	th.workerManager = workers_manager.NewWorkersManager(url)
 
 	th.taskHandlers = map[enum.TaskType]func(*data_batch.DataBatch) error{
 		enum.T1: th.handleTaskType1,
@@ -56,6 +56,7 @@ func NewTaskHandler(controllerService *business.GatewayControllerService, url st
 		enum.T4: th.handleTaskType4,
 	}
 
+	th.getWorkerStatusChan = make(chan bool, 1)
 	go th.getWorkerStatus()
 
 	return th
@@ -92,7 +93,7 @@ func (th *TaskHandler) HandleReferenceData(dataBatch *data_batch.DataBatch) erro
 
 func (th *TaskHandler) SendDone(taskType enum.TaskType) error {
 	nodeConnections := middleware.GetNodeConnectionsQueue(th.middlewareUrl)
-	finishExchangeTopic := middleware.GetFinishExchange(th.middlewareUrl, []string{string(enum.Filter)})
+	finishExchangeTopic := middleware.GetFinishExchange(th.middlewareUrl, enum.Filter)
 	defer nodeConnections.StopConsuming()
 	defer nodeConnections.Close()
 
@@ -129,7 +130,7 @@ func (th *TaskHandler) SendDone(taskType enum.TaskType) error {
 			finishTopic, allFinished := th.workerManager.GetFinishExchangeTopic()
 			areAllWorkersFinished = allFinished
 			finishExchangeTopic.Close()
-			finishExchangeTopic = middleware.GetFinishExchange(th.middlewareUrl, []string{finishTopic})
+			finishExchangeTopic = middleware.GetFinishExchange(th.middlewareUrl, finishTopic)
 			finishExchangeTopic.Send(serializedDoneBatch)
 		}
 		done <- true
@@ -237,7 +238,13 @@ func (th *TaskHandler) sendCleanedDataToFilterQueue(dataBatch *data_batch.DataBa
 		return err
 	}
 
-	th.filterQueueMiddleware.Send(serializedPayload)
+	conn, err := th.workerManager.GetWorkerConnectionRR()
+	if err != nil {
+		return err
+	}
+
+	conn.Send(serializedPayload)
+
 	return nil
 }
 
@@ -246,7 +253,15 @@ func (th *TaskHandler) getWorkerStatus() {
 
 	done := make(chan bool)
 	th.nodeConnections.StartConsuming(func(ch middleware.ConsumeChannel, d chan error) {
-		for msg := range ch {
+		for {
+			var msg middleware.MessageDelivery
+			select {
+			case <-th.getWorkerStatusChan:
+				done <- true
+				return
+			case msg = <-ch:
+			}
+
 			nodeConn := &controller_connection.ControllerConnection{}
 			err := proto.Unmarshal(msg.Body, nodeConn)
 			if err != nil {
@@ -262,16 +277,15 @@ func (th *TaskHandler) getWorkerStatus() {
 				msg.Ack(false)
 			}
 		}
-		done <- true
 	})
 	<-done
 }
 
 func (th *TaskHandler) Close() {
-	th.filterQueueMiddleware.Close()
 	th.joinerUsersQueueMiddleware.Close()
 	th.joinerStoreQueueMiddleware.Close()
 	th.joinerMenuItemsQueueMiddleware.Close()
 	th.processedDataQueueMiddleware.Close()
 	th.nodeConnections.Close()
+	th.getWorkerStatusChan <- true
 }
