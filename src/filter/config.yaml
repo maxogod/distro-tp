@@ -2,3 +2,11 @@ gateway:
   address: "guest:guest@localhost:5672"
 log:
   level: "DEBUG"
+filter:
+  year:
+    from: 2024
+    to: 2025
+  businessHours:
+    from: 6
+    to: 11
+  totalAmountThreshold: 75.0

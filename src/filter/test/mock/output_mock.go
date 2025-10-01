@@ -3,11 +3,10 @@ package mock
 import (
 	"time"
 
-	"github.com/maxogod/distro-tp/src/common/models/transaction"
-	"github.com/maxogod/distro-tp/src/common/models/transaction_items"
+	"github.com/maxogod/distro-tp/src/common/models/raw"
 )
 
-var MockTransactionsOutputT1 = map[string]*transaction.Transaction{
+var MockTransactionsOutputT1 = map[string]*raw.Transaction{
 	"tx1": {
 		TransactionId:   "tx1",
 		StoreId:         101,
@@ -21,7 +20,7 @@ var MockTransactionsOutputT1 = map[string]*transaction.Transaction{
 	},
 }
 
-var MockTransactionsOutputT3 = map[string]*transaction.Transaction{
+var MockTransactionsOutputT3 = map[string]*raw.Transaction{
 	"tx1": {
 		TransactionId:   "tx1",
 		StoreId:         101,
@@ -46,7 +45,7 @@ var MockTransactionsOutputT3 = map[string]*transaction.Transaction{
 	},
 }
 
-var MockTransactionsOutputT4 = map[string]*transaction.Transaction{
+var MockTransactionsOutputT4 = map[string]*raw.Transaction{
 	"tx1": {
 		TransactionId:   "tx1",
 		StoreId:         101,
@@ -82,7 +81,7 @@ var MockTransactionsOutputT4 = map[string]*transaction.Transaction{
 	},
 }
 
-var MockTransactionItemsOutputT2 = map[string]*transaction_items.TransactionItems{
+var MockTransactionItemsOutputT2 = map[string]*raw.TransactionItems{
 	"tx1": {
 		TransactionId: "tx1",
 		ItemId:        1,
