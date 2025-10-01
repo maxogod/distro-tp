@@ -97,6 +97,6 @@ func RunTest(t *testing.T, c TestCase) {
 	}
 
 	if c.SendDone {
-		SendDoneMessage(t, c.AggregatorConfig)
+		SendDoneMessage(t, c.AggregatorConfig, c.TaskDone)
 	}
 }

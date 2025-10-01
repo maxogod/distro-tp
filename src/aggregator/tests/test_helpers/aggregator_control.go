@@ -55,7 +55,7 @@ func SendDataBatch(t *testing.T, dataQueue middleware.MessageMiddleware, dataBat
 	assert.Equal(t, 0, int(e))
 }
 
-func SendDoneMessage(t *testing.T, aggregatorConfig config.Config) {
+func SendDoneMessage(t *testing.T, aggregatorConfig config.Config, taskType enum.TaskType) {
 	t.Helper()
 
 	finishExchange, err := middleware.NewExchangeMiddleware(
@@ -67,7 +67,7 @@ func SendDoneMessage(t *testing.T, aggregatorConfig config.Config) {
 	assert.NoError(t, err)
 
 	finishMsg := &data_batch.DataBatch{
-		TaskType: int32(enum.T4),
+		TaskType: int32(taskType),
 		Done:     true,
 	}
 

@@ -167,6 +167,6 @@ func TestHandleTaskType3(t *testing.T) {
 	helpers.AssertAggregatedStoresTPV(t, received[0], expectedStoresTPVs)
 
 	doneDataMsg := received[1]
-	assert.Equal(t, int32(enum.T4), doneDataMsg.TaskType)
+	assert.Equal(t, int32(enum.T3), doneDataMsg.TaskType)
 	assert.Equal(t, true, doneDataMsg.Done)
 }
