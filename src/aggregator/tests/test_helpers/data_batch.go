@@ -6,6 +6,7 @@ import (
 	"github.com/maxogod/distro-tp/src/common/models/data_batch"
 	"github.com/maxogod/distro-tp/src/common/models/enum"
 	"github.com/maxogod/distro-tp/src/common/models/joined"
+	"github.com/maxogod/distro-tp/src/common/models/raw"
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/protobuf/proto"
 )
@@ -50,5 +51,11 @@ func PrepareJoinMostPurchasesUserBatch(t *testing.T, items []*joined.JoinMostPur
 func PrepareJoinStoreTPVBatch(t *testing.T, items []*joined.JoinStoreTPV, taskType enum.TaskType) *data_batch.DataBatch {
 	return prepareDataBatch(t, taskType, items, func(items []*joined.JoinStoreTPV) proto.Message {
 		return &joined.JoinStoreTPVBatch{Items: items}
+	})
+}
+
+func PrepareTransactionsBatch(t *testing.T, items []*raw.Transaction, taskType enum.TaskType) *data_batch.DataBatch {
+	return prepareDataBatch(t, taskType, items, func(items []*raw.Transaction) proto.Message {
+		return &raw.TransactionBatch{Transactions: items}
 	})
 }

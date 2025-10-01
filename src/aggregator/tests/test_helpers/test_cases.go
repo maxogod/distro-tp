@@ -14,7 +14,7 @@ import (
 )
 
 const (
-	RabbitURL = "amqp://guest:guest@localhost:5672/"
+	RabbitURL = "amqp://guest:guest@localhost:5670/"
 )
 
 type TestCase struct {
@@ -25,6 +25,18 @@ type TestCase struct {
 	SendDone         bool
 	AggregatorConfig config.Config
 	IsBestSelling    bool
+}
+
+func CreateTestCaseTask1(storeDir string, dataBach *data_batch.DataBatch, sendDone bool) TestCase {
+	return TestCase{
+		Queue:            "filtered_transactions",
+		DataBatch:        dataBach,
+		ExpectedFile:     filepath.Join(storeDir, "task1.pb"),
+		TaskDone:         enum.T1,
+		SendDone:         sendDone,
+		AggregatorConfig: AggregatorConfig(storeDir),
+		IsBestSelling:    false,
+	}
 }
 
 func CreateTestCaseTask2(

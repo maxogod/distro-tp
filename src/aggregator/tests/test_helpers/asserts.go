@@ -11,6 +11,7 @@ import (
 	"github.com/maxogod/distro-tp/src/common/models/controller_connection"
 	"github.com/maxogod/distro-tp/src/common/models/data_batch"
 	"github.com/maxogod/distro-tp/src/common/models/joined"
+	"github.com/maxogod/distro-tp/src/common/models/raw"
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/protobuf/proto"
 )
@@ -351,4 +352,34 @@ func AssertConnectionMsg(t *testing.T, gatewayControllerQueue string, finished b
 	} else {
 		assert.False(t, initConnectionMsg.Finished)
 	}
+}
+
+func AssertAggregatedTransactions(
+	t *testing.T,
+	received *data_batch.DataBatch,
+	expected []*raw.Transaction,
+) {
+	t.Helper()
+
+	unmarshal := func(payload []byte) ([]*raw.Transaction, error) {
+		var batch raw.TransactionBatch
+		if err := proto.Unmarshal(payload, &batch); err != nil {
+			return nil, err
+		}
+		return batch.Transactions, nil
+	}
+
+	equal := func(exp, got *raw.Transaction) bool {
+		return exp.TransactionId == got.TransactionId &&
+			exp.StoreId == got.StoreId &&
+			exp.PaymentMethod == got.PaymentMethod &&
+			exp.VoucherId == got.VoucherId &&
+			exp.UserId == got.UserId &&
+			exp.OriginalAmount == got.OriginalAmount &&
+			exp.DiscountApplied == got.DiscountApplied &&
+			exp.FinalAmount == got.FinalAmount &&
+			exp.CreatedAt == got.CreatedAt
+	}
+
+	assertJoinedBatchIsTheExpected(t, received, expected, unmarshal, equal)
 }

@@ -9,6 +9,7 @@ import (
 	"github.com/maxogod/distro-tp/src/common/models/data_batch"
 	"github.com/maxogod/distro-tp/src/common/models/enum"
 	"github.com/maxogod/distro-tp/src/common/models/joined"
+	"github.com/maxogod/distro-tp/src/common/models/raw"
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/protobuf/proto"
 )
@@ -318,5 +319,60 @@ func TestHandleTaskServer(t *testing.T) {
 
 	doneDataMsg := received[1]
 	assert.Equal(t, int32(enum.T4), doneDataMsg.TaskType)
+	assert.Equal(t, true, doneDataMsg.Done)
+}
+
+func TestHandleTaskType1(t *testing.T) {
+	storeDir := t.TempDir()
+
+	transactions := []*raw.Transaction{
+		{
+			TransactionId:   "tx-001",
+			StoreId:         101,
+			PaymentMethod:   1,
+			VoucherId:       0,
+			UserId:          501,
+			OriginalAmount:  10.00,
+			DiscountApplied: 0.00,
+			FinalAmount:     10.00,
+			CreatedAt:       "2024-01-15T10:05:00Z",
+		},
+		{
+			TransactionId:   "tx-002",
+			StoreId:         101,
+			PaymentMethod:   1,
+			VoucherId:       1234,
+			UserId:          502,
+			OriginalAmount:  15.00,
+			DiscountApplied: 5.00,
+			FinalAmount:     10.00,
+			CreatedAt:       "2024-02-10T14:20:00Z",
+		},
+	}
+
+	transactionsBatch := helpers.PrepareTransactionsBatch(t, transactions, enum.T1)
+
+	testCase := helpers.CreateTestCaseTask1(storeDir, transactionsBatch, true)
+
+	agg := helpers.StartAggregator(t, storeDir, []string{testCase.Queue})
+	defer func(agg *aggregator.Aggregator) {
+		err := agg.Stop()
+		assert.NoError(t, err)
+	}(agg)
+
+	helpers.RunTest(t, testCase)
+
+	received := helpers.GetAllOutputMessages(t, testCase.AggregatorConfig.GatewayControllerDataQueue, func(body []byte) (*data_batch.DataBatch, error) {
+		batch := &data_batch.DataBatch{}
+		if err := proto.Unmarshal(body, batch); err != nil {
+			return nil, err
+		}
+		return batch, nil
+	})
+
+	helpers.AssertAggregatedTransactions(t, received[0], transactions)
+
+	doneDataMsg := received[1]
+	assert.Equal(t, int32(enum.T3), doneDataMsg.TaskType)
 	assert.Equal(t, true, doneDataMsg.Done)
 }
