@@ -81,7 +81,7 @@ func RunTest(t *testing.T, c TestCase) {
 	pub, err := middleware.NewQueueMiddleware(RabbitURL, c.Queue)
 	assert.NoError(t, err)
 	defer func() {
-		_ = pub.Delete() // Posible error si llamo dos veces a RunTest con la misma cola
+		_ = pub.Delete()
 		_ = pub.Close()
 	}()
 

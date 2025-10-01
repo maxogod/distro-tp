@@ -114,11 +114,11 @@ func (a *Aggregator) HandleDone(msgBatch []byte) error {
 
 	switch enum.TaskType(batch.TaskType) {
 	case enum.T2:
-		return a.refDatasetStore.AggregateDataTask2(a.config.GatewayControllerDataQueue)
+		return a.refDatasetStore.AggregateDataTask2(a.SendAggregateDataBestSelling, a.SendAggregateDataMostProfits)
 	case enum.T3:
-		return a.refDatasetStore.AggregateDataTask3(a.config.GatewayControllerDataQueue, a.SendAggregateDataTask3)
+		return a.refDatasetStore.AggregateDataTask3(a.SendAggregateDataTask3)
 	case enum.T4:
-		return a.refDatasetStore.AggregateDataTask4(a.config.GatewayControllerDataQueue, a.SendAggregateDataTask4)
+		return a.refDatasetStore.AggregateDataTask4(a.SendAggregateDataTask4)
 	default:
 		return fmt.Errorf("unknown task type: %v", batch.TaskType)
 	}
@@ -247,6 +247,96 @@ func (a *Aggregator) SendAggregateDataTask3(items cache.MapJoinStoreTPV) error {
 	}
 
 	err = SendDoneBatchToGateway(gatewayQueue, enum.T3)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (a *Aggregator) SendAggregateDataBestSelling(items cache.MapJoinBestSelling) error {
+	// TODO: Sacar a config.yaml
+	batchSize := 100
+	var currentBatch []*joined.JoinBestSellingProducts
+
+	gatewayQueue, err := StartQueueMiddleware(a.config.GatewayAddress, a.config.GatewayControllerDataQueue)
+	if err != nil {
+		return err
+	}
+
+	for _, item := range items {
+		currentBatch = append(currentBatch, item)
+		if len(currentBatch) >= batchSize {
+			specificBatch := &joined.JoinBestSellingProductsBatch{
+				Items: currentBatch,
+			}
+
+			sendErr := SendBatchToGateway(specificBatch, gatewayQueue)
+			if sendErr != nil {
+				return sendErr
+			}
+
+			currentBatch = []*joined.JoinBestSellingProducts{}
+		}
+	}
+
+	if len(currentBatch) > 0 {
+		specificBatch := &joined.JoinBestSellingProductsBatch{
+			Items: currentBatch,
+		}
+
+		sendErr := SendBatchToGateway(specificBatch, gatewayQueue)
+		if sendErr != nil {
+			return sendErr
+		}
+	}
+
+	err = SendDoneBatchToGateway(gatewayQueue, enum.T2)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (a *Aggregator) SendAggregateDataMostProfits(items cache.MapJoinMostProfits) error {
+	// TODO: Sacar a config.yaml
+	batchSize := 100
+	var currentBatch []*joined.JoinMostProfitsProducts
+
+	gatewayQueue, err := StartQueueMiddleware(a.config.GatewayAddress, a.config.GatewayControllerDataQueue)
+	if err != nil {
+		return err
+	}
+
+	for _, item := range items {
+		currentBatch = append(currentBatch, item)
+		if len(currentBatch) >= batchSize {
+			specificBatch := &joined.JoinMostProfitsProductsBatch{
+				Items: currentBatch,
+			}
+
+			sendErr := SendBatchToGateway(specificBatch, gatewayQueue)
+			if sendErr != nil {
+				return sendErr
+			}
+
+			currentBatch = []*joined.JoinMostProfitsProducts{}
+		}
+	}
+
+	if len(currentBatch) > 0 {
+		specificBatch := &joined.JoinMostProfitsProductsBatch{
+			Items: currentBatch,
+		}
+
+		sendErr := SendBatchToGateway(specificBatch, gatewayQueue)
+		if sendErr != nil {
+			return sendErr
+		}
+	}
+
+	err = SendDoneBatchToGateway(gatewayQueue, enum.T2)
 	if err != nil {
 		return err
 	}

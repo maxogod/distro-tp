@@ -205,7 +205,7 @@ func TestHandleTaskType2(t *testing.T) {
 	bestSellingBatch := helpers.PrepareJoinBestSellingBatch(t, bestSelling, enum.T2)
 	mostProfitsBatch := helpers.PrepareJoinMostProfitsBatch(t, mostProfits, enum.T2)
 
-	testCaseBestSelling := helpers.CreateTestCaseTask2(storeDir, bestSellingBatch, "task2_1", true, true)
+	testCaseBestSelling := helpers.CreateTestCaseTask2(storeDir, bestSellingBatch, "task2_1", true, false)
 	testCaseMostProfits := helpers.CreateTestCaseTask2(storeDir, mostProfitsBatch, "task2_2", false, true)
 
 	agg := helpers.StartAggregator(t, storeDir, []string{testCaseBestSelling.Queue, testCaseMostProfits.Queue})
@@ -238,12 +238,12 @@ func TestHandleTaskType2(t *testing.T) {
 	helpers.AssertAggregatedBestSelling(t, received[0], expectedBestSelling)
 
 	doneDataMsg := received[1]
-	assert.Equal(t, int32(enum.T3), doneDataMsg.TaskType)
+	assert.Equal(t, int32(enum.T2), doneDataMsg.TaskType)
 	assert.Equal(t, true, doneDataMsg.Done)
 
 	helpers.AssertAggregatedMostProfits(t, received[2], expectedMostProfits)
 
 	doneDataMsg = received[3]
-	assert.Equal(t, int32(enum.T3), doneDataMsg.TaskType)
+	assert.Equal(t, int32(enum.T2), doneDataMsg.TaskType)
 	assert.Equal(t, true, doneDataMsg.Done)
 }

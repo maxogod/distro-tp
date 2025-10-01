@@ -26,6 +26,10 @@ type MergeFunc[T proto.Message] func(accumulated, incoming T) T
 type KeyFunc[T proto.Message] func(item T) string
 type MapJoinMostPurchasesUser map[string]*joined.JoinMostPurchasesUser
 type MapJoinStoreTPV map[string]*joined.JoinStoreTPV
+type MapJoinBestSelling map[string]*joined.JoinBestSellingProducts
+type MapJoinMostProfits map[string]*joined.JoinMostProfitsProducts
+type SendAggBestSelling func(items MapJoinBestSelling) error
+type SendAggMostProfits func(items MapJoinMostProfits) error
 type SendAggTask3 func(items MapJoinStoreTPV) error
 type SendAggTask4 func(items MapJoinMostPurchasesUser) error
 
@@ -159,11 +163,70 @@ func aggregateData[T proto.Message, B proto.Message](
 	return aggregatedItems, nil
 }
 
-func (refStore *ReferenceDatasetStore) AggregateDataTask2(gatewayControllerDataQueue string) error {
+func (refStore *ReferenceDatasetStore) AggregateDataTask2(
+	sendAggBestSelling SendAggBestSelling,
+	sendAggMostProfits SendAggMostProfits,
+) error {
+	aggregatedBestSellingData, err := aggregateData(
+		"task2_1",
+		refStore.storePath,
+		func() *joined.JoinBestSellingProductsBatch {
+			return &joined.JoinBestSellingProductsBatch{}
+		},
+		func(batch *joined.JoinBestSellingProductsBatch) []*joined.JoinBestSellingProducts {
+			return batch.Items
+		},
+		func(accumulated, incoming *joined.JoinBestSellingProducts) *joined.JoinBestSellingProducts {
+			accumulated.SellingsQty += incoming.SellingsQty
+			return accumulated
+		},
+		func(item *joined.JoinBestSellingProducts) string {
+			return item.YearMonthCreatedAt + "|" + item.ItemName
+		},
+	)
+
+	if err != nil {
+		return err
+	}
+
+	topBestSelling := top1BestSelling(aggregatedBestSellingData)
+	err = sendAggBestSelling(topBestSelling)
+	if err != nil {
+		return err
+	}
+
+	aggregatedMostProfitsData, err := aggregateData(
+		"task2_2",
+		refStore.storePath,
+		func() *joined.JoinMostProfitsProductsBatch {
+			return &joined.JoinMostProfitsProductsBatch{}
+		},
+		func(batch *joined.JoinMostProfitsProductsBatch) []*joined.JoinMostProfitsProducts {
+			return batch.Items
+		},
+		func(accumulated, incoming *joined.JoinMostProfitsProducts) *joined.JoinMostProfitsProducts {
+			accumulated.ProfitSum += incoming.ProfitSum
+			return accumulated
+		},
+		func(item *joined.JoinMostProfitsProducts) string {
+			return item.YearMonthCreatedAt + "|" + item.ItemName
+		},
+	)
+
+	if err != nil {
+		return err
+	}
+
+	topMostProfits := top1MostProfits(aggregatedMostProfitsData)
+	err = sendAggMostProfits(topMostProfits)
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
-func (refStore *ReferenceDatasetStore) AggregateDataTask3(gatewayControllerDataQueue string, sendAggDataTask3 SendAggTask3) error {
+func (refStore *ReferenceDatasetStore) AggregateDataTask3(sendAggDataTask3 SendAggTask3) error {
 	aggregatedData, err := aggregateData(
 		"task3",
 		refStore.storePath,
@@ -189,7 +252,7 @@ func (refStore *ReferenceDatasetStore) AggregateDataTask3(gatewayControllerDataQ
 	return sendAggDataTask3(aggregatedData)
 }
 
-func (refStore *ReferenceDatasetStore) AggregateDataTask4(gatewayControllerDataQueue string, sendAggDataTask4 SendAggTask4) error {
+func (refStore *ReferenceDatasetStore) AggregateDataTask4(sendAggDataTask4 SendAggTask4) error {
 	aggregatedData, err := aggregateData(
 		"task4",
 		refStore.storePath,
@@ -241,6 +304,58 @@ func top3ByStore(data MapJoinMostPurchasesUser) MapJoinMostPurchasesUser {
 		for _, user := range users[:limit] {
 			k := user.StoreName + "|" + user.UserBirthdate
 			result[k] = user
+		}
+	}
+
+	return result
+}
+
+func top1BestSelling(data MapJoinBestSelling) MapJoinBestSelling {
+	itemsByYearMonth := make(map[string][]*joined.JoinBestSellingProducts)
+	for _, item := range data {
+		itemsByYearMonth[item.YearMonthCreatedAt] = append(itemsByYearMonth[item.YearMonthCreatedAt], item)
+	}
+
+	result := make(map[string]*joined.JoinBestSellingProducts)
+
+	for _, items := range itemsByYearMonth {
+		sort.Slice(items, func(i, j int) bool {
+			if items[i].SellingsQty == items[j].SellingsQty {
+				return items[i].ItemName < items[j].ItemName
+			}
+			return items[i].SellingsQty > items[j].SellingsQty
+		})
+
+		if len(items) > 0 {
+			item := items[0]
+			k := item.YearMonthCreatedAt + "|" + item.ItemName
+			result[k] = item
+		}
+	}
+
+	return result
+}
+
+func top1MostProfits(data MapJoinMostProfits) MapJoinMostProfits {
+	itemsByYearMonth := make(map[string][]*joined.JoinMostProfitsProducts)
+	for _, item := range data {
+		itemsByYearMonth[item.YearMonthCreatedAt] = append(itemsByYearMonth[item.YearMonthCreatedAt], item)
+	}
+
+	result := make(map[string]*joined.JoinMostProfitsProducts)
+
+	for _, items := range itemsByYearMonth {
+		sort.Slice(items, func(i, j int) bool {
+			if items[i].ProfitSum == items[j].ProfitSum {
+				return items[i].ItemName < items[j].ItemName
+			}
+			return items[i].ProfitSum > items[j].ProfitSum
+		})
+
+		if len(items) > 0 {
+			item := items[0]
+			k := item.YearMonthCreatedAt + "|" + item.ItemName
+			result[k] = item
 		}
 	}
 
