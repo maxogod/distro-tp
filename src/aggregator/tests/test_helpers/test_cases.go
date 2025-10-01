@@ -35,7 +35,13 @@ func CreateTestCaseTask2(
 	sendDone bool,
 ) TestCase {
 	return TestCase{
-		Queue:            "joined_transactions",
+		Queue: func() string {
+			if isBestSelling {
+				return "joined_best_selling_transactions"
+			} else {
+				return "joined_most_profits_transactions"
+			}
+		}(),
 		DataBatch:        dataBach,
 		ExpectedFile:     filepath.Join(storeDir, fmt.Sprintf("%s.pb", expectedFileName)),
 		TaskDone:         enum.T2,

@@ -287,6 +287,54 @@ func AssertAggregatedStoresTPV(
 	assertJoinedBatchIsTheExpected(t, received, expected, unmarshal, equal)
 }
 
+func AssertAggregatedBestSelling(
+	t *testing.T,
+	received *data_batch.DataBatch,
+	expected []*joined.JoinBestSellingProducts,
+) {
+	t.Helper()
+
+	unmarshal := func(payload []byte) ([]*joined.JoinBestSellingProducts, error) {
+		var batch joined.JoinBestSellingProductsBatch
+		if err := proto.Unmarshal(payload, &batch); err != nil {
+			return nil, err
+		}
+		return batch.Items, nil
+	}
+
+	equal := func(exp, got *joined.JoinBestSellingProducts) bool {
+		return exp.ItemName == got.ItemName &&
+			exp.YearMonthCreatedAt == got.YearMonthCreatedAt &&
+			exp.SellingsQty == got.SellingsQty
+	}
+
+	assertJoinedBatchIsTheExpected(t, received, expected, unmarshal, equal)
+}
+
+func AssertAggregatedMostProfits(
+	t *testing.T,
+	received *data_batch.DataBatch,
+	expected []*joined.JoinMostProfitsProducts,
+) {
+	t.Helper()
+
+	unmarshal := func(payload []byte) ([]*joined.JoinMostProfitsProducts, error) {
+		var batch joined.JoinMostProfitsProductsBatch
+		if err := proto.Unmarshal(payload, &batch); err != nil {
+			return nil, err
+		}
+		return batch.Items, nil
+	}
+
+	equal := func(exp, got *joined.JoinMostProfitsProducts) bool {
+		return exp.ItemName == got.ItemName &&
+			exp.YearMonthCreatedAt == got.YearMonthCreatedAt &&
+			exp.ProfitSum == got.ProfitSum
+	}
+
+	assertJoinedBatchIsTheExpected(t, received, expected, unmarshal, equal)
+}
+
 func AssertConnectionMsg(t *testing.T, gatewayControllerQueue string, finished bool) {
 	initConnectionMsg := GetAllOutputMessages(t, gatewayControllerQueue, func(body []byte) (*controller_connection.ControllerConnection, error) {
 		ctrl := &controller_connection.ControllerConnection{}

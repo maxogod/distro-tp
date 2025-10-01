@@ -170,3 +170,80 @@ func TestHandleTaskType3(t *testing.T) {
 	assert.Equal(t, int32(enum.T3), doneDataMsg.TaskType)
 	assert.Equal(t, true, doneDataMsg.Done)
 }
+
+func TestHandleTaskType2(t *testing.T) {
+	storeDir := t.TempDir()
+
+	bestSelling := []*joined.JoinBestSellingProducts{
+		{YearMonthCreatedAt: "2024-01", ItemName: "Espresso", SellingsQty: 1},
+		{YearMonthCreatedAt: "2024-01", ItemName: "Espresso", SellingsQty: 1},
+		{YearMonthCreatedAt: "2024-01", ItemName: "Espresso", SellingsQty: 1},
+		{YearMonthCreatedAt: "2024-01", ItemName: "Americano", SellingsQty: 1},
+		{YearMonthCreatedAt: "2024-01", ItemName: "Americano", SellingsQty: 1},
+
+		{YearMonthCreatedAt: "2024-02", ItemName: "Espresso", SellingsQty: 1},
+		{YearMonthCreatedAt: "2024-02", ItemName: "Espresso", SellingsQty: 1},
+		{YearMonthCreatedAt: "2024-02", ItemName: "Americano", SellingsQty: 1},
+		{YearMonthCreatedAt: "2024-02", ItemName: "Americano", SellingsQty: 1},
+		{YearMonthCreatedAt: "2024-02", ItemName: "Americano", SellingsQty: 1},
+	}
+
+	mostProfits := []*joined.JoinMostProfitsProducts{
+		{YearMonthCreatedAt: "2024-01", ItemName: "Espresso", ProfitSum: 1},
+		{YearMonthCreatedAt: "2024-01", ItemName: "Espresso", ProfitSum: 1},
+		{YearMonthCreatedAt: "2024-01", ItemName: "Espresso", ProfitSum: 1},
+		{YearMonthCreatedAt: "2024-01", ItemName: "Americano", ProfitSum: 1},
+		{YearMonthCreatedAt: "2024-01", ItemName: "Americano", ProfitSum: 1},
+
+		{YearMonthCreatedAt: "2024-02", ItemName: "Espresso", ProfitSum: 1},
+		{YearMonthCreatedAt: "2024-02", ItemName: "Espresso", ProfitSum: 1},
+		{YearMonthCreatedAt: "2024-02", ItemName: "Americano", ProfitSum: 1},
+		{YearMonthCreatedAt: "2024-02", ItemName: "Americano", ProfitSum: 1},
+		{YearMonthCreatedAt: "2024-02", ItemName: "Americano", ProfitSum: 1},
+	}
+
+	bestSellingBatch := helpers.PrepareJoinBestSellingBatch(t, bestSelling, enum.T2)
+	mostProfitsBatch := helpers.PrepareJoinMostProfitsBatch(t, mostProfits, enum.T2)
+
+	testCaseBestSelling := helpers.CreateTestCaseTask2(storeDir, bestSellingBatch, "task2_1", true, true)
+	testCaseMostProfits := helpers.CreateTestCaseTask2(storeDir, mostProfitsBatch, "task2_2", false, true)
+
+	agg := helpers.StartAggregator(t, storeDir, []string{testCaseBestSelling.Queue, testCaseMostProfits.Queue})
+	defer func(agg *aggregator.Aggregator) {
+		err := agg.Stop()
+		assert.NoError(t, err)
+	}(agg)
+
+	helpers.RunTest(t, testCaseBestSelling)
+	helpers.RunTest(t, testCaseMostProfits)
+
+	received := helpers.GetAllOutputMessages(t, testCaseBestSelling.AggregatorConfig.GatewayControllerDataQueue, func(body []byte) (*data_batch.DataBatch, error) {
+		batch := &data_batch.DataBatch{}
+		if err := proto.Unmarshal(body, batch); err != nil {
+			return nil, err
+		}
+		return batch, nil
+	})
+
+	expectedBestSelling := []*joined.JoinBestSellingProducts{
+		{YearMonthCreatedAt: "2024-01", ItemName: "Espresso", SellingsQty: 3},
+		{YearMonthCreatedAt: "2024-02", ItemName: "Americano", SellingsQty: 3},
+	}
+
+	expectedMostProfits := []*joined.JoinMostProfitsProducts{
+		{YearMonthCreatedAt: "2024-01", ItemName: "Espresso", ProfitSum: 3},
+		{YearMonthCreatedAt: "2024-02", ItemName: "Americano", ProfitSum: 3},
+	}
+
+	helpers.AssertAggregatedBestSelling(t, received[0], expectedBestSelling)
+
+	doneDataMsg := received[1]
+	assert.Equal(t, int32(enum.T3), doneDataMsg.TaskType)
+	assert.Equal(t, true, doneDataMsg.Done)
+
+	helpers.AssertAggregatedMostProfits(t, received[2], expectedMostProfits)
+
+	doneDataMsg = received[3]
+	assert.Equal(t, int32(enum.T3), doneDataMsg.TaskType)
+	assert.Equal(t, true, doneDataMsg.Done)
+}
