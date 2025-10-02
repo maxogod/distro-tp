@@ -89,6 +89,8 @@ func (s *Server) Run() error {
 			return fmt.Errorf("failed to send done message: %v", err)
 		}
 
+		s.refStore.ResetStore()
+
 	}
 
 	return nil

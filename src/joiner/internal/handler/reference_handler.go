@@ -11,7 +11,6 @@ import (
 )
 
 type ReferenceHandler struct {
-	// TODO: CHANGE WITH CACHE SERVICE!!!
 	joinerService *business.JoinerService
 	taskHandlers  map[enum.RefDatasetType]func([]byte) error
 	refStore      *cache.ReferenceDatasetStore
