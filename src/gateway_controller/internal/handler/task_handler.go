@@ -157,10 +157,12 @@ func (th *TaskHandler) SendDone(taskType enum.TaskType, currentClientID string) 
 }
 
 func (th *TaskHandler) GetReportData(data chan []byte, disconnect chan bool) {
+	log.Debug("Starting to get report data")
 	defer th.processedDataQueueMiddleware.StopConsuming()
 
 	done := make(chan bool)
 	th.processedDataQueueMiddleware.StartConsuming(func(msgs middleware.ConsumeChannel, d chan error) {
+		log.Debug("Started listening for processed data")
 		for {
 			select {
 			case msg := <-msgs:
