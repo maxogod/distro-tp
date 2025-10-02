@@ -8,7 +8,7 @@ import (
 // TODO: DOCUMENT THIS INTERFACE
 type Handler interface {
 	HandleTask(taskType enum.TaskType, dataBatch *data_batch.DataBatch) error
-	HandleReferenceData(dataBatch *data_batch.DataBatch) error
+	HandleReferenceData(dataBatch *data_batch.DataBatch, clientID string) error
 	SendDone(taskType enum.TaskType, currentClientID string) error
 	GetReportData(data chan []byte, disconnect chan bool)
 	Close()

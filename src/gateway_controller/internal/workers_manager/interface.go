@@ -3,7 +3,6 @@ package workers_manager
 import (
 	"fmt"
 
-	"github.com/maxogod/distro-tp/src/common/middleware"
 	"github.com/maxogod/distro-tp/src/common/models/enum"
 )
 
@@ -35,13 +34,10 @@ type WorkersManager interface {
 	// FinishWorker marks the worker node with the given UUID as finished.
 	FinishWorker(id string) error
 
-	// GetFinishExchangeTopic returns the topic name for finishing exchange that should be used
+	// GetNextWorkerStageToFinish returns the topic name for finishing exchange that should be used
 	// based on the amount of finished workers and the total number of workers for one specific stage.
 	// Also returns a boolean indicating whether the last stage was finished or not.
-	GetFinishExchangeTopic() (enum.WorkerType, bool)
-
-	// GetWorkerConnectionRR returns a FILTER worker middleware connection in a round-robin fashion.
-	GetWorkerConnectionRR() (middleware.MessageMiddleware, error)
+	GetNextWorkerStageToFinish() (enum.WorkerType, bool)
 
 	// ClearStatus marks all connected workers as not finished
 	ClearStatus()

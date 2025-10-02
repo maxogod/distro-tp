@@ -53,7 +53,6 @@ func (s *Server) Run() error {
 	}
 
 	for s.isRunning {
-
 		e := s.messageHandler.Start(func(payload []byte, taskType int32) error {
 			return s.taskHandler.HandleTask(enum.TaskType(taskType), payload)
 		})

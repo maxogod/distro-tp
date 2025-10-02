@@ -42,7 +42,8 @@ func (cs *clientSession) ProcessRequest() error {
 		isRefData := request.GetIsReferenceData()
 
 		if isRefData {
-			return cs.taskHandler.HandleReferenceData(request)
+			// forward reference data including done signal to task handler
+			return cs.taskHandler.HandleReferenceData(request, cs.Id)
 		} else if request.GetDone() {
 			cs.processData = false
 			break
