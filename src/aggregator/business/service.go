@@ -2,6 +2,7 @@ package service
 
 import (
 	"fmt"
+	"log"
 	"sync"
 
 	"github.com/google/uuid"
@@ -69,6 +70,7 @@ func NewAggregator(config *config.Config) *Aggregator {
 		config.JoinedMostProfitsTransactionsQueue,
 		config.JoinedStoresTPVQueue,
 		config.JoinedUserTransactionsQueue,
+		config.FilteredTransactionsQueue,
 	}
 
 	return aggregator
@@ -140,6 +142,7 @@ func (a *Aggregator) HandleDone(msgBatch []byte) error {
 
 func (a *Aggregator) InitService() error {
 	for _, dataQueueName := range a.dataQueueNames {
+		log.Printf("Starting data consumer for queue: %s", dataQueueName)
 		err := a.StartDataConsumer(dataQueueName)
 		if err != nil {
 			return err
