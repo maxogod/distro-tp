@@ -21,7 +21,7 @@ func GetFilterQueue(url string) MessageMiddleware {
 // GetGroupByQueue retrieves the middleware that the controller uses to put work on the group by queues
 func GetGroupByQueue(url string) MessageMiddleware {
 	return retryMiddlewareCreation(MIDDLEWARE_CONNECTION_RETRIES, WAIT_INTERVAL, func() (MessageMiddleware, error) {
-		return NewQueueMiddleware(url, "groupby")
+		return NewQueueMiddleware(url, "group_by")
 	})
 }
 
@@ -37,8 +37,21 @@ func GetReduceSumQueue(url string) MessageMiddleware {
 	})
 }
 
+func GetJoinerQueue(url string) MessageMiddleware {
+	return retryMiddlewareCreation(MIDDLEWARE_CONNECTION_RETRIES, WAIT_INTERVAL, func() (MessageMiddleware, error) {
+		return NewQueueMiddleware(url, "joiner")
+	})
+}
+
+func GetAggregatorQueue(url string) MessageMiddleware {
+	return retryMiddlewareCreation(MIDDLEWARE_CONNECTION_RETRIES, WAIT_INTERVAL, func() (MessageMiddleware, error) {
+		return NewQueueMiddleware(url, "aggregator")
+	})
+}
+
 // GetDataExchange retrieves the middleware used to send/receive data batches with the corresponding routing keys
 // and to send a worker-type level broadcast for the DONE message.
+// TODO: deprecated
 func GetDataExchange(url string, subscriptionTopics []string) MessageMiddleware {
 	return retryMiddlewareCreation(MIDDLEWARE_CONNECTION_RETRIES, WAIT_INTERVAL, func() (MessageMiddleware, error) {
 		return NewExchangeMiddleware(url, "data_exchange", "direct", subscriptionTopics)
@@ -68,6 +81,7 @@ func GetNodeConnectionsQueue(url string) MessageMiddleware {
 // GetFinishExchange retrieves the middleware for the given exchange
 // to send or receive with a specific topic pass the topics parameter.
 // Possible topics: filter, groupby, reducer, joiner, aggregator
+// TODO: deprecated
 func GetFinishExchange(url string, workerType enum.WorkerType) MessageMiddleware {
 	return retryMiddlewareCreation(MIDDLEWARE_CONNECTION_RETRIES, WAIT_INTERVAL, func() (MessageMiddleware, error) {
 		return NewExchangeMiddleware(url, "data_exchange", "direct", []string{string(workerType)})
@@ -77,6 +91,7 @@ func GetFinishExchange(url string, workerType enum.WorkerType) MessageMiddleware
 /* --- Reference Data Queues --- */
 
 // GetMenuItemsQueue retrieves the middleware used by controller to send menu_items reference data.
+// TODO: deprecated
 func GetMenuItemsQueue(url string) MessageMiddleware {
 	return retryMiddlewareCreation(MIDDLEWARE_CONNECTION_RETRIES, WAIT_INTERVAL, func() (MessageMiddleware, error) {
 		return NewQueueMiddleware(url, "menu_items")
@@ -84,6 +99,7 @@ func GetMenuItemsQueue(url string) MessageMiddleware {
 }
 
 // GetStoresQueue retrieves the middleware used by controller to send stores reference data.
+// TODO: deprecated
 func GetStoresQueue(url string) MessageMiddleware {
 	return retryMiddlewareCreation(MIDDLEWARE_CONNECTION_RETRIES, WAIT_INTERVAL, func() (MessageMiddleware, error) {
 		return NewQueueMiddleware(url, "stores")
@@ -91,6 +107,7 @@ func GetStoresQueue(url string) MessageMiddleware {
 }
 
 // GetUsersQueue retrieves the middleware used by controller to send users reference data.
+// TODO: deprecated
 func GetUsersQueue(url string) MessageMiddleware {
 	return retryMiddlewareCreation(MIDDLEWARE_CONNECTION_RETRIES, WAIT_INTERVAL, func() (MessageMiddleware, error) {
 		return NewQueueMiddleware(url, "users")
@@ -98,6 +115,7 @@ func GetUsersQueue(url string) MessageMiddleware {
 }
 
 // GetMostProfitsTransactionsQueue retrieves the middleware used by controller to send most profits transactions.
+// TODO: deprecated
 func GetMostProfitsTransactionsQueue(url string) MessageMiddleware {
 	return retryMiddlewareCreation(MIDDLEWARE_CONNECTION_RETRIES, WAIT_INTERVAL, func() (MessageMiddleware, error) {
 		return NewQueueMiddleware(url, "transaction_sum")
@@ -105,6 +123,7 @@ func GetMostProfitsTransactionsQueue(url string) MessageMiddleware {
 }
 
 // GetBestSellingTransactionsQueue retrieves the middleware used by controller to send best selling transactions.
+// TODO: deprecated
 func GetBestSellingTransactionsQueue(url string) MessageMiddleware {
 	return retryMiddlewareCreation(MIDDLEWARE_CONNECTION_RETRIES, WAIT_INTERVAL, func() (MessageMiddleware, error) {
 		return NewQueueMiddleware(url, "transaction_counted")
@@ -112,6 +131,7 @@ func GetBestSellingTransactionsQueue(url string) MessageMiddleware {
 }
 
 // GetStoresTPVQueue retrieves the middleware used by controller to send store TPV data.
+// TODO: deprecated
 func GetStoresTPVQueue(url string) MessageMiddleware {
 	return retryMiddlewareCreation(MIDDLEWARE_CONNECTION_RETRIES, WAIT_INTERVAL, func() (MessageMiddleware, error) {
 		return NewQueueMiddleware(url, "store_tpv")
@@ -119,6 +139,7 @@ func GetStoresTPVQueue(url string) MessageMiddleware {
 }
 
 // GetUserTransactionsQueue retrieves the middleware used by controller to send user transactions.
+// TODO: deprecated
 func GetUserTransactionsQueue(url string) MessageMiddleware {
 	return retryMiddlewareCreation(MIDDLEWARE_CONNECTION_RETRIES, WAIT_INTERVAL, func() (MessageMiddleware, error) {
 		return NewQueueMiddleware(url, "user_transactions")
@@ -126,6 +147,7 @@ func GetUserTransactionsQueue(url string) MessageMiddleware {
 }
 
 // GetJoinedMostProfitsTransactionsQueue retrieves the middleware used by controller to send joined most profits transactions.
+// TODO: deprecated
 func GetJoinedMostProfitsTransactionsQueue(url string) MessageMiddleware {
 	return retryMiddlewareCreation(MIDDLEWARE_CONNECTION_RETRIES, WAIT_INTERVAL, func() (MessageMiddleware, error) {
 		return NewQueueMiddleware(url, "joined_most_profits_transactions")
@@ -133,6 +155,7 @@ func GetJoinedMostProfitsTransactionsQueue(url string) MessageMiddleware {
 }
 
 // GetJoinedBestSellingTransactionsQueue retrieves the middleware used by controller to send joined best selling transactions.
+// TODO: deprecated
 func GetJoinedBestSellingTransactionsQueue(url string) MessageMiddleware {
 	return retryMiddlewareCreation(MIDDLEWARE_CONNECTION_RETRIES, WAIT_INTERVAL, func() (MessageMiddleware, error) {
 		return NewQueueMiddleware(url, "joined_best_selling_transactions")
@@ -140,6 +163,7 @@ func GetJoinedBestSellingTransactionsQueue(url string) MessageMiddleware {
 }
 
 // GetJoinedStoresTPVQueue retrieves the middleware used by controller to send joined store TPV data.
+// TODO: deprecated
 func GetJoinedStoresTPVQueue(url string) MessageMiddleware {
 	return retryMiddlewareCreation(MIDDLEWARE_CONNECTION_RETRIES, WAIT_INTERVAL, func() (MessageMiddleware, error) {
 		return NewQueueMiddleware(url, "joined_stores_tpv")
@@ -147,6 +171,7 @@ func GetJoinedStoresTPVQueue(url string) MessageMiddleware {
 }
 
 // GetJoinedUserTransactionsQueue retrieves the middleware used by controller to send joined user transactions.
+// TODO: deprecated
 func GetJoinedUserTransactionsQueue(url string) MessageMiddleware {
 	return retryMiddlewareCreation(MIDDLEWARE_CONNECTION_RETRIES, WAIT_INTERVAL, func() (MessageMiddleware, error) {
 		return NewQueueMiddleware(url, "joined_user_transactions")
@@ -154,6 +179,7 @@ func GetJoinedUserTransactionsQueue(url string) MessageMiddleware {
 }
 
 // GetFilteredTransactionsQueue retrieves the middleware used by controller to send filtered transactions.
+// TODO: deprecated
 func GetFilteredTransactionsQueue(url string) MessageMiddleware {
 	return retryMiddlewareCreation(MIDDLEWARE_CONNECTION_RETRIES, WAIT_INTERVAL, func() (MessageMiddleware, error) {
 		return NewQueueMiddleware(url, "filtered_transactions")
