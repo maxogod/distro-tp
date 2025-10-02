@@ -12,7 +12,7 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-const GroupByPrefix = "group_by"
+const ReducerPrefix = "reducer"
 
 type MessageHandler struct {
 	currentClientID string
@@ -33,7 +33,7 @@ func NewMessageHandler(
 	Address string,
 ) *MessageHandler {
 
-	workerName := fmt.Sprintf("%s_%s", GroupByPrefix, uuid.New().String())
+	workerName := fmt.Sprintf("%s_%s", ReducerPrefix, uuid.New().String())
 	mh := &MessageHandler{
 		reducerQueue:        middleware.GetReducerQueue(Address),
 		nodeConnectionQueue: middleware.GetNodeConnectionsQueue(Address),

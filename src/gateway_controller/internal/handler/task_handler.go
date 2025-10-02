@@ -47,8 +47,7 @@ func NewTaskHandler(controllerService *business.GatewayControllerService, url st
 	th.workersFinishQueues = make(map[enum.WorkerType]middleware.MessageMiddleware)
 	th.workersFinishQueues[enum.Filter] = middleware.GetFilterQueue(url)
 	th.workersFinishQueues[enum.GroupBy] = middleware.GetGroupByQueue(url)
-	th.workersFinishQueues[enum.ReducerSum] = middleware.GetReduceSumQueue(url)
-	th.workersFinishQueues[enum.ReducerCount] = middleware.GetReduceCountQueue(url)
+	th.workersFinishQueues[enum.Reducer] = middleware.GetReducerQueue(url)
 	th.workersFinishQueues[enum.Joiner] = middleware.GetJoinerQueue(url)
 	th.workersFinishQueues[enum.Aggregator] = middleware.GetAggregatorQueue(url)
 
