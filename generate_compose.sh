@@ -14,8 +14,8 @@ echo "  rabbitmq:
       dockerfile: Dockerfile
     image: rabbitmq:latest
     ports:
-      - '5672:5672'
-      - '15672:15672'
+      - '5670:5672'
+      - '15670:15672'
     networks:
       - tp_net
 " >> "$OUTPUT_FILE"
@@ -36,18 +36,36 @@ while IFS= read -r line; do
         echo "  ${name}:
     container_name: ${name}
     build:
-      context: ./src/${service}
-      dockerfile: Dockerfile
+      dockerfile: ./src/${service}/Dockerfile
     image: ${service}:latest
     networks:
       - tp_net
+    depends_on:
+      - rabbitmq" >> "$OUTPUT_FILE"
+
+    if [ "$service" = "gateway_controller" ]; then
+            echo "    ports:
+      - '8080:8080'" >> "$OUTPUT_FILE"
+    fi
+
+    if [ "$service" = "gateway" ]; then
+        echo '    entrypoint: ["/app/app", "t1"]
     volumes:
+      - ./.data:/app/.data
+      - ./.output:/app/.output
+' >> "$OUTPUT_FILE"
+    else
+        echo "    volumes:
       - ./src/${service}/config.yaml:/config.yaml
 " >> "$OUTPUT_FILE"
+        fi
     done
 done < "$CONFIG_FILE"
 
 # networks
 echo "networks:
   tp_net:
-    driver: bridge" >> "$OUTPUT_FILE"
+    ipam:
+      driver: default
+      config:
+        - subnet: 172.25.125.0/24" >> "$OUTPUT_FILE"
