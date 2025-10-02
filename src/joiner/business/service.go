@@ -106,7 +106,7 @@ func NewJoiner(config *config.Config) *Joiner {
 		dataQueueCreators:    defaultDataQueueCreators(config),
 		aggQueueCreators:     defaultAggQueueCreators(config),
 		refDoneReceived:      defaultRequiredRefQueues(config),
-		workerName:           "joiner-" + uuid.New().String(),
+		workerName:           "joiner_" + uuid.New().String(),
 	}
 
 	joiner.taskHandler = handler.NewTaskHandler(joiner.SendBatchToAggregator, joiner.refDatasetStore)

@@ -14,6 +14,7 @@ func sendAggregateData[T proto.Message, B proto.Message](
 	taskType enum.TaskType,
 	createSpecificBatch func([]T) B,
 	batchSize int,
+	clientID string,
 ) error {
 	var currentBatch []T
 	for _, item := range items {
@@ -34,7 +35,7 @@ func sendAggregateData[T proto.Message, B proto.Message](
 		}
 	}
 
-	if err := SendDoneBatchToGateway(gatewayQueue, taskType); err != nil {
+	if err := SendDoneBatchToGateway(gatewayQueue, taskType, clientID); err != nil {
 		return err
 	}
 
@@ -50,6 +51,7 @@ func (a *Aggregator) SendAggregateDataTask1(items MapTransactions) error {
 			return &raw.TransactionBatch{Transactions: batch}
 		},
 		a.config.BatchSize,
+		a.currentClientID,
 	)
 }
 
@@ -62,6 +64,7 @@ func (a *Aggregator) SendAggregateDataTask4(items MapJoinMostPurchasesUser) erro
 			return &joined.JoinMostPurchasesUserBatch{Users: batch}
 		},
 		a.config.BatchSize,
+		a.currentClientID,
 	)
 }
 
@@ -74,6 +77,7 @@ func (a *Aggregator) SendAggregateDataTask3(items MapJoinStoreTPV) error {
 			return &joined.JoinStoreTPVBatch{Items: batch}
 		},
 		a.config.BatchSize,
+		a.currentClientID,
 	)
 }
 
@@ -86,6 +90,7 @@ func (a *Aggregator) SendAggregateDataBestSelling(items MapJoinBestSelling) erro
 			return &joined.JoinBestSellingProductsBatch{Items: batch}
 		},
 		a.config.BatchSize,
+		a.currentClientID,
 	)
 }
 
@@ -98,5 +103,6 @@ func (a *Aggregator) SendAggregateDataMostProfits(items MapJoinMostProfits) erro
 			return &joined.JoinMostProfitsProductsBatch{Items: batch}
 		},
 		a.config.BatchSize,
+		a.currentClientID,
 	)
 }

@@ -115,6 +115,7 @@ func (wm *workersManager) GetFinishExchangeTopic() (enum.WorkerType, bool) {
 				return enum.Filter, false
 			}
 		}
+		log.Debug("All filter workers finished")
 	}
 	if len(wm.groupByWorkers) > 0 {
 		for _, workerStat := range wm.groupByWorkers {
@@ -122,6 +123,7 @@ func (wm *workersManager) GetFinishExchangeTopic() (enum.WorkerType, bool) {
 				return enum.GroupBy, false
 			}
 		}
+		log.Debug("All group by workers finished")
 	}
 	if len(wm.reducerWorkers) > 0 {
 		for _, workerStat := range wm.reducerWorkers {
@@ -129,6 +131,7 @@ func (wm *workersManager) GetFinishExchangeTopic() (enum.WorkerType, bool) {
 				return enum.Reducer, false
 			}
 		}
+		log.Debug("All reducer workers finished")
 	}
 	if len(wm.joinerWorkers) > 0 {
 		for _, workerStat := range wm.joinerWorkers {
@@ -136,6 +139,15 @@ func (wm *workersManager) GetFinishExchangeTopic() (enum.WorkerType, bool) {
 				return enum.Joiner, false
 			}
 		}
+		log.Debug("All joiner workers finished")
+	}
+	if len(wm.aggregatorWorkers) > 0 {
+		for _, workerStat := range wm.aggregatorWorkers {
+			if !workerStat.finished {
+				return enum.Aggregator, false
+			}
+		}
+		log.Debug("All aggregator workers finished")
 	}
 
 	return enum.Aggregator, true

@@ -2,7 +2,6 @@ package service
 
 import (
 	"fmt"
-	"log"
 	"sync"
 
 	"github.com/google/uuid"
@@ -41,6 +40,7 @@ func defaultDataQueueCreators(config *config.Config) MessageMiddlewareCreators {
 
 type Aggregator struct {
 	config                 *config.Config
+	currentClientID        string
 	dataQueueTaskType      DataQueueTaskType
 	dataQueueNames         []string
 	dataMiddlewares        MessageMiddlewares
@@ -61,7 +61,7 @@ func NewAggregator(config *config.Config) *Aggregator {
 		dataMiddlewares:   make(MessageMiddlewares),
 		refDatasetStore:   cache.NewCacheStore(config.StorePath),
 		dataQueueCreators: defaultDataQueueCreators(config),
-		workerName:        "aggregator-" + uuid.New().String(),
+		workerName:        "aggregator_" + uuid.New().String(),
 	}
 
 	aggregator.taskHandler = handler.NewTaskHandler(aggregator.refDatasetStore)
@@ -119,30 +119,38 @@ func (a *Aggregator) Stop() error {
 }
 
 func (a *Aggregator) HandleDone(msgBatch []byte) error {
+	log.Debugln("Received done message from gateway")
 	batch := &data_batch.DataBatch{}
 	if err := proto.Unmarshal(msgBatch, batch); err != nil {
 		return err
 	}
+	a.currentClientID = batch.ClientId
 
 	a.gatewayDataQueue = middleware.GetProcessedDataQueue(a.config.GatewayAddress)
 
+	var err error
 	switch enum.TaskType(batch.TaskType) {
 	case enum.T1:
-		return a.AggregateDataTask1()
+		err = a.AggregateDataTask1()
 	case enum.T2:
-		return a.AggregateDataTask2()
+		err = a.AggregateDataTask2()
 	case enum.T3:
-		return a.AggregateDataTask3()
+		err = a.AggregateDataTask3()
 	case enum.T4:
-		return a.AggregateDataTask4()
+		err = a.AggregateDataTask4()
 	default:
-		return fmt.Errorf("unknown task type: %v", batch.TaskType)
+		err = fmt.Errorf("unknown task type: %v", batch.TaskType)
 	}
+	if err != nil {
+		return err
+	}
+
+	return SendControllerConnectionMsg(a.gatewayConnectionQueue, a.workerName, a.currentClientID, true)
 }
 
 func (a *Aggregator) InitService() error {
 	for _, dataQueueName := range a.dataQueueNames {
-		log.Printf("Starting data consumer for queue: %s", dataQueueName)
+		log.Debugln("Starting data consumer for queue: %s", dataQueueName)
 		err := a.StartDataConsumer(dataQueueName)
 		if err != nil {
 			return err
@@ -151,7 +159,7 @@ func (a *Aggregator) InitService() error {
 
 	a.gatewayConnectionQueue = middleware.GetNodeConnectionsQueue(a.config.GatewayAddress)
 
-	err := SendControllerConnectionMsg(a.gatewayConnectionQueue, a.workerName, false)
+	err := SendControllerConnectionMsg(a.gatewayConnectionQueue, a.workerName, a.currentClientID, false)
 	if err != nil {
 		return err
 	}
