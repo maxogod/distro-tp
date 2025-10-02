@@ -9,15 +9,19 @@ import (
 )
 
 type Config struct {
-	Address  string
-	LogLevel string
+	Address   string
+	LogLevel  string
+	StorePath string
+	BatchSize int
 }
 
 func (c Config) String() string {
 	return fmt.Sprintf(
-		"Address: %s | LogLevel: %s",
+		"Address: %s | LogLevel: %s | storePath: %s | BatchSize: %d",
 		c.Address,
 		c.LogLevel,
+		c.StorePath,
+		c.BatchSize,
 	)
 }
 
@@ -35,8 +39,10 @@ func InitConfig() (*Config, error) {
 	}
 
 	config := &Config{
-		Address:  v.GetString("gateway.address"),
-		LogLevel: v.GetString("log.level"),
+		Address:   v.GetString("gateway.address"),
+		LogLevel:  v.GetString("log.level"),
+		StorePath: v.GetString("datasets.path"),
+		BatchSize: v.GetInt("datasets.batch_size"),
 	}
 
 	return config, nil

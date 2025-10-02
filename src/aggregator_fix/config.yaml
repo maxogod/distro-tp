@@ -2,11 +2,6 @@ gateway:
   address: "amqp://guest:guest@rabbitmq:5672/"
 log:
   level: "DEBUG"
-filter:
-  year:
-    from: 2024
-    to: 2025
-  businessHours:
-    from: 6
-    to: 23
-  totalAmountThreshold: 75.0
+datasets:
+  path: "/aggregated_data"
+  batch_size: 100

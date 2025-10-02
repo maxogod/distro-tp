@@ -3,29 +3,23 @@ package handler
 import (
 	"fmt"
 
-	"github.com/maxogod/distro-tp/src/aggregator_fix/business"
+	"github.com/maxogod/distro-tp/src/aggregator_fix/cache"
 	"github.com/maxogod/distro-tp/src/common/logger"
 	"github.com/maxogod/distro-tp/src/common/models/enum"
-	"github.com/maxogod/distro-tp/src/common/models/raw"
-	"github.com/maxogod/distro-tp/src/common/utils"
-	"google.golang.org/protobuf/proto"
 )
 
 var log = logger.GetLogger()
 
 type TaskHandler struct {
-	aggregatorService *business.AggregatorService
-	queueHandler      *MessageHandler
-	taskHandlers      map[enum.TaskType]func([]byte) error
+	taskHandlers    map[enum.TaskType]func([]byte) error
+	refDatasetStore *cache.DataBatchStore
 }
 
 func NewTaskHandler(
-	aggregatorService *business.AggregatorService,
-	queueHandler *MessageHandler,
+	referenceDatasetStore *cache.DataBatchStore,
 ) *TaskHandler {
 	th := &TaskHandler{
-		aggregatorService: aggregatorService,
-		queueHandler:      queueHandler,
+		refDatasetStore: referenceDatasetStore,
 	}
 
 	th.taskHandlers = map[enum.TaskType]func([]byte) error{
@@ -48,125 +42,41 @@ func (th *TaskHandler) HandleTask(taskType enum.TaskType, payload []byte) error 
 }
 
 func (th *TaskHandler) handleTaskType1(payload []byte) error {
-
-	// CHANGE WITH AGGREGATE LOGIC HERE
-	transactions, err := utils.GetTransactions(payload)
+	err := th.refDatasetStore.StoreDataTask1(payload)
 	if err != nil {
 		return err
 	}
-
-	result := business.FilterByYearBetween(th.TaskConfig.FilterYearFrom, th.TaskConfig.FilterYearTo, transactions)
-	result = business.FilterByHourBetween(th.TaskConfig.BusinessHourFrom, th.TaskConfig.BusinessHourTo, result)
-	result = business.FilterByTotalAmountGreaterThan(th.TaskConfig.TotalAmountThreshold, result)
-
-	filteredBatch := &raw.TransactionBatch{
-		Transactions: result,
-	}
-
-	serializedTransactions, err := proto.Marshal(filteredBatch)
-	if err != nil {
-		return err
-	}
-	// ====================================
-
-	if err != nil {
-		return err
-	}
-
 	return nil
 }
 
 func (th *TaskHandler) handleTaskType2_1(payload []byte) error {
-
-	// CHANGE WITH AGGREGATE LOGIC HERE
-	transactions, err := utils.GetTransactions(payload)
+	err := th.refDatasetStore.StoreDataBestSelling(payload)
 	if err != nil {
 		return err
 	}
-
-	result := business.FilterByYearBetween(th.TaskConfig.FilterYearFrom, th.TaskConfig.FilterYearTo, transactions)
-	result = business.FilterByHourBetween(th.TaskConfig.BusinessHourFrom, th.TaskConfig.BusinessHourTo, result)
-	result = business.FilterByTotalAmountGreaterThan(th.TaskConfig.TotalAmountThreshold, result)
-
-	filteredBatch := &raw.TransactionBatch{
-		Transactions: result,
-	}
-
-	serializedTransactions, err := proto.Marshal(filteredBatch)
-	if err != nil {
-		return err
-	}
-	// ====================================
-
 	return nil
 }
 
 func (th *TaskHandler) handleTaskType2_2(payload []byte) error {
-
-	// CHANGE WITH AGGREGATE LOGIC HERE
-	items, err := utils.GetTransactionItems(payload)
+	err := th.refDatasetStore.StoreDataMostProfits(payload)
 	if err != nil {
 		return err
 	}
-
-	result := business.FilterByYearBetween(th.TaskConfig.FilterYearFrom, th.TaskConfig.FilterYearTo, items)
-
-	filteredBatch := &raw.TransactionItemsBatch{
-		TransactionItems: result,
-	}
-
-	serializedItems, err := proto.Marshal(filteredBatch)
-	if err != nil {
-		return err
-	}
-	// ====================================
-
 	return nil
 }
 
 func (th *TaskHandler) handleTaskType3(payload []byte) error {
-
-	// CHANGE WITH AGGREGATE LOGIC HERE
-	transactions, err := utils.GetTransactions(payload)
+	err := th.refDatasetStore.StoreDataTask3(payload)
 	if err != nil {
 		return err
 	}
-
-	result := business.FilterByYearBetween(th.TaskConfig.FilterYearFrom, th.TaskConfig.FilterYearTo, transactions)
-	result = business.FilterByHourBetween(th.TaskConfig.BusinessHourFrom, th.TaskConfig.BusinessHourTo, result)
-
-	filteredBatch := &raw.TransactionBatch{
-		Transactions: result,
-	}
-
-	serializedTransactions, err := proto.Marshal(filteredBatch)
-	if err != nil {
-		return err
-	}
-	// ====================================
-
 	return nil
 }
 
 func (th *TaskHandler) handleTaskType4(payload []byte) error {
-
-	// CHANGE WITH AGGREGATE LOGIC HERE
-	transactions, err := utils.GetTransactions(payload)
+	err := th.refDatasetStore.StoreDataTask4(payload)
 	if err != nil {
 		return err
 	}
-
-	result := business.FilterByYearBetween(th.TaskConfig.FilterYearFrom, th.TaskConfig.FilterYearTo, transactions)
-
-	filteredBatch := &raw.TransactionBatch{
-		Transactions: result,
-	}
-
-	serializedTransactions, err := proto.Marshal(filteredBatch)
-	if err != nil {
-		return err
-	}
-	// ====================================
-
 	return nil
 }

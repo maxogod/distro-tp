@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/google/uuid"
+	"github.com/maxogod/distro-tp/src/aggregator_fix/business"
 	"github.com/maxogod/distro-tp/src/common/middleware"
 	"github.com/maxogod/distro-tp/src/common/models/controller_connection"
 	"github.com/maxogod/distro-tp/src/common/models/data_batch"
@@ -21,22 +22,26 @@ type MessageHandler struct {
 
 	// internal data
 	currentClientID     string
+	storePath           string
 	nodeConnectionQueue middleware.MessageMiddleware
 	messageHandlers     map[enum.TaskType]func(enum.TaskType, []byte) error
 	workerName          string
 	stopConsuming       chan bool
+	batchSize           int
+	aggregatorService   *business.AggregatorService
 }
 
-func NewMessageHandler(
-	Address string,
-) *MessageHandler {
+func NewMessageHandler(address string, storePath string, batchSize int, aggregatorService *business.AggregatorService) *MessageHandler {
 
 	workerName := fmt.Sprintf("%s_%s", AggregatorPrefix, uuid.New().String())
 	mh := &MessageHandler{
-		joinQueue:           middleware.GetJoinerQueue(Address),
-		processedDataQueue:  middleware.GetProcessedDataQueue(Address),
-		nodeConnectionQueue: middleware.GetNodeConnectionsQueue(Address),
+		aggregatorService:   aggregatorService,
+		joinQueue:           middleware.GetJoinerQueue(address),
+		processedDataQueue:  middleware.GetProcessedDataQueue(address),
+		nodeConnectionQueue: middleware.GetNodeConnectionsQueue(address),
 		workerName:          workerName,
+		storePath:           storePath,
+		batchSize:           batchSize,
 	}
 
 	mh.stopConsuming = make(chan bool, 1)
@@ -80,7 +85,7 @@ func (mh *MessageHandler) AnnounceToController() error {
 }
 
 func (mh *MessageHandler) Start(
-	callback func(payload []byte, taskType int32) error,
+	msgHandler func(payload []byte, taskType int32) error,
 ) (enum.TaskType, error) {
 	defer mh.joinQueue.StopConsuming()
 
@@ -110,7 +115,7 @@ func (mh *MessageHandler) Start(
 				return
 			}
 
-			err = callback(payload, taskType)
+			err = msgHandler(payload, taskType)
 			if err != nil {
 				log.Errorf("Failed to process message: %v", err)
 				continue
@@ -138,9 +143,31 @@ func (mh *MessageHandler) SendDone() error {
 	return nil
 }
 
-func (mh *MessageHandler) SendData(doneTaskType enum.TaskType) error {
+func (mh *MessageHandler) SendDoneBatchToGateway(doneTaskType enum.TaskType, clientId string) error {
+	batch := &data_batch.DataBatch{
+		TaskType: int32(doneTaskType),
+		ClientId: clientId,
+		Done:     true,
+	}
 
-	// TODO GET THE PAYLOAD FROM THE TASK SERVICE WITH CORRECT TYPE
+	serializedData, marshalErr := proto.Marshal(batch)
+	if marshalErr != nil {
+		return marshalErr
+	}
+
+	err := mh.sendToQueues(doneTaskType, serializedData, mh.processedDataQueue)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (mh *MessageHandler) SendData(batch proto.Message, doneTaskType enum.TaskType) error {
+	serializedData, marshalErr := proto.Marshal(batch)
+	if marshalErr != nil {
+		return marshalErr
+	}
 
 	err := mh.sendToQueues(doneTaskType, serializedData, mh.processedDataQueue)
 	if err != nil {
@@ -156,6 +183,7 @@ func (mh *MessageHandler) sendToQueues(
 	queues ...middleware.MessageMiddleware,
 ) error {
 	dataBatch := &data_batch.DataBatch{
+		TaskType: int32(doneTaskType),
 		ClientId: mh.currentClientID,
 		Payload:  payload,
 		Done:     false,
@@ -167,7 +195,7 @@ func (mh *MessageHandler) sendToQueues(
 
 	for _, queue := range queues {
 		if e := queue.Send(serializedDataBatch); e != middleware.MessageMiddlewareSuccess {
-			return fmt.Errorf("Failed to send filtered data to queue: %d", e)
+			return fmt.Errorf("failed to send data to queue: %d", e)
 		}
 	}
 	return nil
@@ -192,5 +220,54 @@ func (mh *MessageHandler) sendMessageToNodeConnection(
 		return fmt.Errorf("A error occurred while sending message to controller connection: %d", int(e))
 	}
 
+	return nil
+}
+
+func (mh *MessageHandler) SendAllData(taskType enum.TaskType) error {
+	switch taskType {
+	case enum.T1:
+		aggregatedData, err := mh.aggregatorService.AggregateDataTask1(mh.storePath)
+		if err != nil {
+			return err
+		}
+
+		err = mh.SendAggregateDataTask1(aggregatedData)
+		if err != nil {
+			return err
+		}
+	case enum.T2:
+		topBestSelling, err := mh.aggregatorService.AggregateBestSellingData(mh.storePath)
+		if err != nil {
+			return err
+		}
+
+		err = mh.SendAggregateDataBestSelling(topBestSelling)
+		if err != nil {
+			return err
+		}
+
+		topMostProfits, errS := mh.aggregatorService.AggregateMostProfitsData(mh.storePath)
+		if errS != nil {
+			return err
+		}
+
+		return mh.SendAggregateDataMostProfits(topMostProfits)
+	case enum.T3:
+		aggregatedData, err := mh.aggregatorService.AggregateDataTask3(mh.storePath)
+		if err != nil {
+			return err
+		}
+
+		return mh.SendAggregateDataTask3(aggregatedData)
+	case enum.T4:
+		topMostPurchases, err := mh.aggregatorService.AggregateDataTask4(mh.storePath)
+		if err != nil {
+			return err
+		}
+
+		return mh.SendAggregateDataTask4(topMostPurchases)
+	default:
+		return fmt.Errorf("unknown task type: %v", taskType)
+	}
 	return nil
 }

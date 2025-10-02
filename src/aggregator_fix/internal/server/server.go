@@ -7,6 +7,7 @@ import (
 	"syscall"
 
 	"github.com/maxogod/distro-tp/src/aggregator_fix/business"
+	"github.com/maxogod/distro-tp/src/aggregator_fix/cache"
 	"github.com/maxogod/distro-tp/src/aggregator_fix/config"
 	"github.com/maxogod/distro-tp/src/aggregator_fix/internal/handler"
 	"github.com/maxogod/distro-tp/src/common/logger"
@@ -28,15 +29,16 @@ func InitServer(conf *config.Config) *Server {
 
 	messageHandler := handler.NewMessageHandler(
 		conf.Address,
+		conf.StorePath,
+		conf.BatchSize,
+		aggregatorService,
 	)
 
 	return &Server{
 		config:         conf,
 		isRunning:      true,
 		messageHandler: messageHandler,
-		taskHandler: handler.NewTaskHandler(
-			aggregatorService,
-			messageHandler),
+		taskHandler:    handler.NewTaskHandler(cache.NewCacheStore(conf.StorePath)),
 	}
 }
 
@@ -52,7 +54,6 @@ func (s *Server) Run() error {
 	}
 
 	for s.isRunning {
-
 		doneTaskType, e := s.messageHandler.Start(func(payload []byte, taskType int32) error {
 			return s.taskHandler.HandleTask(enum.TaskType(taskType), payload)
 		})
@@ -69,11 +70,12 @@ func (s *Server) Run() error {
 			break
 		}
 
-		err := s.messageHandler.SendDone()
+		err := s.messageHandler.SendAllData(doneTaskType)
+		if err != nil {
+			return err
+		}
 
-		// TODO IMPLEMENT THIS METHOD TO SEND THE DATA
-		s.messageHandler.SendAllData(doneTaskType)
-
+		err = s.messageHandler.SendDone()
 		log.Debug("Sent done message to controller")
 
 		if err != nil {

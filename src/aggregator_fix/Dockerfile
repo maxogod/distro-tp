@@ -7,11 +7,11 @@ WORKDIR /build/github.com/maxogod/distro-tp
 COPY go.mod go.sum ./
 
 # Copy worker_base to the correct location
-COPY src/filter/ ./src/filter/
+COPY src/aggregator/ ./src/aggregator/
 COPY src/common/ ./src/common/
 
-RUN go build -o bin/filter ./src/filter/cmd
+RUN go build -o bin/aggregator ./src/aggregator/cmd
 
 FROM busybox:latest
-COPY --from=builder /build/github.com/maxogod/distro-tp/bin/filter /filter
-ENTRYPOINT ["/filter"]
+COPY --from=builder /build/github.com/maxogod/distro-tp/bin/aggregator /aggregator
+ENTRYPOINT ["/aggregator"]
