@@ -62,8 +62,8 @@ func (s *Server) Run() error {
 			func(payload []byte, taskType int32) error {
 				return s.taskHandler.HandleTask(enum.TaskType(taskType), payload)
 			},
-			func(payload []byte, taskType int32) error { // TODO: replace with reference handler
-				return s.referenceHandler.HandleReference(enum.RefDatasetType(taskType), payload)
+			func(payload []byte, refType int32) error { // TODO: replace with reference handler
+				return s.referenceHandler.HandleReference(enum.RefDatasetType(refType), payload)
 			},
 		)
 
@@ -88,6 +88,8 @@ func (s *Server) Run() error {
 			s.Shutdown()
 			return fmt.Errorf("failed to send done message: %v", err)
 		}
+
+		s.refStore.ResetStore()
 
 	}
 

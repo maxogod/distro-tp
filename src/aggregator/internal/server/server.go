@@ -7,7 +7,6 @@ import (
 	"syscall"
 
 	"github.com/maxogod/distro-tp/src/aggregator/business"
-	"github.com/maxogod/distro-tp/src/aggregator/cache"
 	"github.com/maxogod/distro-tp/src/aggregator/config"
 	"github.com/maxogod/distro-tp/src/aggregator/internal/handler"
 	"github.com/maxogod/distro-tp/src/common/logger"
@@ -21,7 +20,6 @@ type Server struct {
 	isRunning      bool
 	messageHandler *handler.MessageHandler
 	taskHandler    *handler.TaskHandler
-	cacheService   *cache.DataBatchStore
 }
 
 func InitServer(conf *config.Config) *Server {
@@ -35,14 +33,11 @@ func InitServer(conf *config.Config) *Server {
 		aggregatorService,
 	)
 
-	cacheService := cache.NewCacheStore(conf.StorePath)
-
 	return &Server{
 		config:         conf,
 		isRunning:      true,
 		messageHandler: messageHandler,
-		taskHandler:    handler.NewTaskHandler(cacheService),
-		cacheService:   cacheService,
+		taskHandler:    handler.NewTaskHandler(conf.StorePath),
 	}
 }
 
@@ -89,7 +84,10 @@ func (s *Server) Run() error {
 			return fmt.Errorf("failed to send done message: %v", err)
 		}
 
-		s.cacheService.ResetStore()
+		err = s.taskHandler.ResetStore()
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil

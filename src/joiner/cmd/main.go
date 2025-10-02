@@ -1,6 +1,7 @@
 package main
 
 import (
+	"os"
 	"time"
 
 	"github.com/maxogod/distro-tp/src/common/logger"
@@ -20,9 +21,14 @@ func main() {
 
 	log.Debug(conf.String())
 
+	if err = os.MkdirAll(conf.StorePath, 0755); err != nil {
+		log.Errorf("failed to create output directory: %v", err)
+		return
+	}
+
 	server := server.InitServer(conf)
 
 	server.Run()
-	log.Debug("Squirtle thanks you for using the Joiner!")
+	log.Debug("Charmander thanks you for using the Joiner!")
 
 }

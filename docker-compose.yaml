@@ -28,7 +28,7 @@ services:
 
   gateway:
     container_name: gateway
-    entrypoint: ["/app/app", "t2"]
+    entrypoint: ["/app/app", "t4"]
     build:
       dockerfile: ./src/gateway/Dockerfile
     image: gateway:latest
@@ -61,6 +61,30 @@ services:
       - tp_net
     volumes:
       - ./src/reducer/config.yaml:/config.yaml
+    depends_on:
+      - rabbitmq
+
+  joiner:
+    container_name: joiner 
+    build:
+      dockerfile: ./src/joiner/Dockerfile
+    image: joiner:latest
+    networks:
+      - tp_net
+    volumes:
+      - ./src/joiner/config.yaml:/config.yaml
+    depends_on:
+      - rabbitmq
+
+  aggregator:
+    container_name: aggregator 
+    build:
+      dockerfile: ./src/aggregator/Dockerfile
+    image: aggregator:latest
+    networks:
+      - tp_net
+    volumes:
+      - ./src/aggregator/config.yaml:/config.yaml
     depends_on:
       - rabbitmq
 

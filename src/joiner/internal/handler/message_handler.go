@@ -112,7 +112,7 @@ func (mh *MessageHandler) Start(
 			}
 
 			if isReference {
-				err = referenceCallback(payload, taskType)
+				err = referenceCallback(payload, dataBatch.GetRefDataType())
 			} else {
 				err = dataCallback(payload, taskType)
 			}
