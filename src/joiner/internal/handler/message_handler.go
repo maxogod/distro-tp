@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/google/uuid"
+	"github.com/maxogod/distro-tp/src/common/logger"
 	"github.com/maxogod/distro-tp/src/common/middleware"
 	"github.com/maxogod/distro-tp/src/common/models/controller_connection"
 	"github.com/maxogod/distro-tp/src/common/models/data_batch"
@@ -12,7 +13,9 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-const FilterPrefix = "filter"
+var log = logger.GetLogger()
+
+const JoinerPrefix = "joiner"
 
 type MessageHandler struct {
 	// connection data
@@ -30,7 +33,7 @@ func NewMessageHandler(
 	Address string,
 ) *MessageHandler {
 
-	workerName := fmt.Sprintf("%s_%s", FilterPrefix, uuid.New().String())
+	workerName := fmt.Sprintf("%s_%s", JoinerPrefix, uuid.New().String())
 	mh := &MessageHandler{
 		joinerQueue:         middleware.GetJoinerQueue(Address),
 		aggregatorQueue:     middleware.GetAggregatorQueue(Address),
@@ -114,10 +117,6 @@ func (mh *MessageHandler) Start(
 				err = dataCallback(payload, taskType)
 			}
 
-			if err != nil {
-				log.Errorf("Failed to process message: %v", err)
-				continue
-			}
 			if err != nil {
 				log.Errorf("Failed to process message: %v", err)
 				continue

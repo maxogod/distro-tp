@@ -68,3 +68,12 @@ func GetTransactionItems(payload []byte) ([]*raw.TransactionItems, error) {
 
 	return transactions.GetTransactionItems(), nil
 }
+
+// UnmarshalPayload unmarshals payload into a proto.Message of type T.
+func UnmarshalPayload[T proto.Message](payload []byte, msg T) (T, error) {
+	err := proto.Unmarshal(payload, msg)
+	if err != nil {
+		return msg, err
+	}
+	return msg, nil
+}

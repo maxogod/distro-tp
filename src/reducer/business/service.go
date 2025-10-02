@@ -12,7 +12,7 @@ func NewReduceCountService() *ReducerService {
 }
 
 // This represents T2_1
-func (r *ReducerService) SumMostProfitsProducts(items []*raw.TransactionItems) *reduced.BestSellingProducts {
+func (r *ReducerService) SumBestSellingProducts(items []*raw.TransactionItems) *reduced.BestSellingProducts {
 
 	// Since i get this data from the group_by worker
 	// i can assume that the data in this batch is already grouped by item ID and year-month date
@@ -34,7 +34,7 @@ func (r *ReducerService) SumMostProfitsProducts(items []*raw.TransactionItems) *
 }
 
 // This represents T2_2
-func (r *ReducerService) SumBestSellingProducts(items []*raw.TransactionItems) *reduced.MostProfitsProducts {
+func (r *ReducerService) SumMostProfitsProducts(items []*raw.TransactionItems) *reduced.MostProfitsProducts {
 
 	// Since i get this data from the group_by worker
 	// i can assume that the data in this batch is already grouped by item ID and year-month date
@@ -78,7 +78,7 @@ func (r *ReducerService) SumTPV(transactions []*raw.Transaction) *reduced.StoreT
 }
 
 // This represents T4
-func (r *ReducerService) CountMostPurchasesByPerson(transactions []*raw.Transaction) *reduced.MostPurchasesUser {
+func (r *ReducerService) CountMostPurchasesByUser(transactions []*raw.Transaction) *reduced.MostPurchasesUser {
 
 	// Since i get this data from the group_by worker
 	// i can assume that the data in this batch is already grouped by userId and storeId

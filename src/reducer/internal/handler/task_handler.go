@@ -49,7 +49,7 @@ func (th *TaskHandler) handleTaskType2_1(payload []byte) error {
 	if err != nil {
 		return err
 	}
-	reducedItems := th.reducerService.SumMostProfitsProducts(items)
+	reducedItems := th.reducerService.SumBestSellingProducts(items)
 	serialized, err := proto.Marshal(reducedItems)
 	return th.queueHandler.SendData(enum.T2_1, serialized)
 }
@@ -59,7 +59,7 @@ func (th *TaskHandler) handleTaskType2_2(payload []byte) error {
 	if err != nil {
 		return err
 	}
-	reducedItems := th.reducerService.SumBestSellingProducts(items)
+	reducedItems := th.reducerService.SumMostProfitsProducts(items)
 	serialized, err := proto.Marshal(reducedItems)
 	return th.queueHandler.SendData(enum.T2_2, serialized)
 }
@@ -79,7 +79,7 @@ func (th *TaskHandler) handleTaskType4(payload []byte) error {
 	if err != nil {
 		return err
 	}
-	reducedTransactions := th.reducerService.CountMostPurchasesByPerson(transactions)
+	reducedTransactions := th.reducerService.CountMostPurchasesByUser(transactions)
 	serialized, err := proto.Marshal(reducedTransactions)
 	return th.queueHandler.SendData(enum.T4, serialized)
 }

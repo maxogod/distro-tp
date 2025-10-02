@@ -9,6 +9,7 @@ import (
 	"github.com/maxogod/distro-tp/src/common/logger"
 	"github.com/maxogod/distro-tp/src/common/models/enum"
 	"github.com/maxogod/distro-tp/src/joiner/business"
+	"github.com/maxogod/distro-tp/src/joiner/cache"
 	"github.com/maxogod/distro-tp/src/joiner/config"
 	"github.com/maxogod/distro-tp/src/joiner/internal/handler"
 )
@@ -16,28 +17,32 @@ import (
 var log = logger.GetLogger()
 
 type Server struct {
-	config         *config.Config
-	isRunning      bool
-	messageHandler *handler.MessageHandler
-	taskHandler    *handler.TaskHandler
+	config           *config.Config
+	isRunning        bool
+	messageHandler   *handler.MessageHandler
+	taskHandler      *handler.TaskHandler
+	referenceHandler *handler.ReferenceHandler
+	refStore         *cache.ReferenceDatasetStore
 }
 
 func InitServer(conf *config.Config) *Server {
 
 	joinerService := business.NewFilterService()
 
-	messageHandler := handler.NewMessageHandler(
-		conf.Address,
-	)
+	messageHandler := handler.NewMessageHandler(conf.Address)
+	refStore := cache.NewCacheStore(conf.StorePath)
 
 	return &Server{
 		config:         conf,
 		isRunning:      true,
 		messageHandler: messageHandler,
+		refStore:       refStore,
 		taskHandler: handler.NewTaskHandler(
 			joinerService,
-			messageHandler,
-			&conf.TaskConfig),
+			messageHandler),
+		referenceHandler: handler.NewReferenceHandler(
+			joinerService,
+			refStore),
 	}
 }
 
@@ -59,7 +64,7 @@ func (s *Server) Run() error {
 				return s.taskHandler.HandleTask(enum.TaskType(taskType), payload)
 			},
 			func(payload []byte, taskType int32) error { // TODO: replace with reference handler
-				return s.taskHandler.HandleReferenceTask(enum.TaskType(taskType), payload)
+				return s.referenceHandler.HandleReference(enum.RefDatasetType(taskType), payload)
 			},
 		)
 
