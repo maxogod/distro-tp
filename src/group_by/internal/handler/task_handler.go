@@ -49,7 +49,7 @@ func (th *TaskHandler) handleTaskType2(payload []byte) error {
 	if err != nil {
 		return err
 	}
-	groupedItems := th.groupByService.GroupTransactionByYearMonth(items)
+	groupedItems := th.groupByService.GroupItemsByYearMonthAndItem(items)
 	return th.sendGroupedToQueue(groupedItems, enum.T2)
 }
 
@@ -58,7 +58,7 @@ func (th *TaskHandler) handleTaskType3(payload []byte) error {
 	if err != nil {
 		return err
 	}
-	groupedTransactions := th.groupByService.GroupItemsBySemester(transactions)
+	groupedTransactions := th.groupByService.GroupItemsBySemesterAndStore(transactions)
 	return th.sendGroupedToQueue(groupedTransactions, enum.T3)
 }
 
@@ -67,7 +67,7 @@ func (th *TaskHandler) handleTaskType4(payload []byte) error {
 	if err != nil {
 		return err
 	}
-	groupedTransactions := th.groupByService.GroupTransactionByUserID(transactions)
+	groupedTransactions := th.groupByService.GroupTransactionByUserAndStore(transactions)
 	return th.sendGroupedToQueue(groupedTransactions, enum.T4)
 }
 

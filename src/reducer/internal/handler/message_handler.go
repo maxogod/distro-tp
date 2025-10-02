@@ -17,14 +17,13 @@ const GroupByPrefix = "group_by"
 type MessageHandler struct {
 	currentClientID string
 	// TODO >> READ FROM ONE QUEUE NOT 2
-	reduceSumQueue   middleware.MessageMiddleware
-	reduceCountQueue middleware.MessageMiddleware
+	reducerQueue middleware.MessageMiddleware
 
 	// Added for joiner
 	joinerQueue middleware.MessageMiddleware
 
+	// internals
 	nodeConnectionQueue middleware.MessageMiddleware
-	dataQueue           middleware.MessageMiddleware
 	messageHandlers     map[enum.TaskType]func([]byte) error
 	workerName          string
 	stopConsuming       chan bool
@@ -36,10 +35,8 @@ func NewMessageHandler(
 
 	workerName := fmt.Sprintf("%s_%s", GroupByPrefix, uuid.New().String())
 	mh := &MessageHandler{
-		reduceSumQueue:      middleware.GetReduceSumQueue(Address),
-		reduceCountQueue:    middleware.GetReduceCountQueue(Address),
+		reducerQueue:        middleware.GetReducerQueue(Address),
 		nodeConnectionQueue: middleware.GetNodeConnectionsQueue(Address),
-		dataQueue:           middleware.GetDataExchange(Address, []string{GroupByPrefix, workerName}),
 		workerName:          workerName,
 	}
 
@@ -52,14 +49,9 @@ func (mh *MessageHandler) Close() error {
 
 	mh.stopConsuming <- true
 
-	e := mh.reduceSumQueue.Close()
+	e := mh.reducerQueue.Close()
 	if e != middleware.MessageMiddlewareSuccess {
 		return fmt.Errorf("Error closing reduce sum queue middleware: %v", e)
-	}
-
-	e = mh.reduceCountQueue.Close()
-	if e != middleware.MessageMiddlewareSuccess {
-		return fmt.Errorf("Error closing reduce count queue middleware: %v", e)
 	}
 
 	e = mh.nodeConnectionQueue.Close()
@@ -67,7 +59,7 @@ func (mh *MessageHandler) Close() error {
 		return fmt.Errorf("Error closing controller connection middleware: %v", e)
 	}
 
-	e = mh.dataQueue.Close()
+	e = mh.reducerQueue.Close()
 	if e != middleware.MessageMiddlewareSuccess {
 		return fmt.Errorf("Error closing finish exchange middleware: %v", e)
 	}
@@ -91,10 +83,10 @@ func (mh *MessageHandler) AnnounceToController() error {
 func (mh *MessageHandler) Start(
 	callback func(payload []byte, taskType int32) error,
 ) error {
-	defer mh.dataQueue.StopConsuming()
+	defer mh.reducerQueue.StopConsuming()
 
 	isFirstMessage := true
-	mh.dataQueue.StartConsuming(func(consumeChannel middleware.ConsumeChannel, d chan error) {
+	mh.reducerQueue.StartConsuming(func(consumeChannel middleware.ConsumeChannel, d chan error) {
 		for msg := range consumeChannel {
 			msg.Ack(false)
 			dataBatch, err := utils.GetDataBatch(msg.Body)

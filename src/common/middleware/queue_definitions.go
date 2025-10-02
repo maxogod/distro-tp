@@ -25,15 +25,9 @@ func GetGroupByQueue(url string) MessageMiddleware {
 	})
 }
 
-func GetReduceCountQueue(url string) MessageMiddleware {
+func GetReducerQueue(url string) MessageMiddleware {
 	return retryMiddlewareCreation(MIDDLEWARE_CONNECTION_RETRIES, WAIT_INTERVAL, func() (MessageMiddleware, error) {
-		return NewQueueMiddleware(url, "reduce_count")
-	})
-}
-
-func GetReduceSumQueue(url string) MessageMiddleware {
-	return retryMiddlewareCreation(MIDDLEWARE_CONNECTION_RETRIES, WAIT_INTERVAL, func() (MessageMiddleware, error) {
-		return NewQueueMiddleware(url, "reduce_sum")
+		return NewQueueMiddleware(url, "reducer")
 	})
 }
 

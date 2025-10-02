@@ -16,28 +16,34 @@ func NewGroupByService() *GroupByService {
 	return &GroupByService{}
 }
 
-func (s *GroupByService) GroupTransactionByYearMonth(transactions []*raw.TransactionItems) map[string][]*raw.TransactionItems {
+// This represents T2
+func (s *GroupByService) GroupItemsByYearMonthAndItem(transactions []*raw.TransactionItems) map[string][]*raw.TransactionItems {
 	result := make(map[string][]*raw.TransactionItems)
 
 	for _, tx := range transactions {
 		createdAt := tx.GetCreatedAt()
-		// Parse the date, assuming format "2006-01-02 15:04:05" or ISO 8601
+		itemID := tx.GetItemId()
 		t, err := time.Parse("2006-01-02 15:04:05", createdAt)
 		if err != nil {
 			log.Debugf("Failed to parse date %s: %v", createdAt, err)
 			continue
 		}
-		key := fmt.Sprintf("%04d-%02d", t.Year(), t.Month())
+		year_month := fmt.Sprintf("%04d-%02d", t.Year(), t.Month())
+		tx.CreatedAt = year_month // change createdAt to year-month format
+
+		key := fmt.Sprintf("%s-%d", year_month, itemID)
 		result[key] = append(result[key], tx)
 	}
 
 	return result
 }
 
-func (s *GroupByService) GroupItemsBySemester(items []*raw.Transaction) map[string][]*raw.Transaction {
+// This represents T3
+func (s *GroupByService) GroupItemsBySemesterAndStore(items []*raw.Transaction) map[string][]*raw.Transaction {
 	result := make(map[string][]*raw.Transaction)
 
 	for _, item := range items {
+		storeID := item.GetStoreId()
 		createdAt := item.GetCreatedAt()
 		t, err := time.Parse("2006-01-02 15:04:05", createdAt)
 		if err != nil {
@@ -50,21 +56,25 @@ func (s *GroupByService) GroupItemsBySemester(items []*raw.Transaction) map[stri
 		if t.Month() >= 7 {
 			semester = "H2"
 		}
+		semesterDate := fmt.Sprintf("%04d-%s", t.Year(), semester)
+		item.CreatedAt = semesterDate // change createdAt to semester format
 
-		key := fmt.Sprintf("%04d_%s", t.Year(), semester)
-		item.CreatedAt = key // Update CreatedAt to reflect the semester grouping
+		key := fmt.Sprintf("%s_%d", semesterDate, storeID)
 		result[key] = append(result[key], item)
 	}
 
 	return result
 }
 
-func (s *GroupByService) GroupTransactionByUserID(transactions []*raw.Transaction) map[string][]*raw.Transaction {
+// This represents T4
+func (s *GroupByService) GroupTransactionByUserAndStore(transactions []*raw.Transaction) map[string][]*raw.Transaction {
 	result := make(map[string][]*raw.Transaction)
 
 	for _, tx := range transactions {
 		userID := fmt.Sprintf("%d", tx.GetUserId())
-		result[userID] = append(result[userID], tx)
+		storeID := tx.GetStoreId()
+		key := fmt.Sprintf("%s_%d", userID, storeID)
+		result[key] = append(result[key], tx)
 	}
 
 	return result

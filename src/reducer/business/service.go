@@ -15,9 +15,9 @@ func NewReduceCountService() *ReducerService {
 func (r *ReducerService) SumMostProfitsProducts(items []*raw.TransactionItems) *reduced.BestSellingProducts {
 
 	// Since i get this data from the group_by worker
-	// i can assume that the data in this batch is already grouped by userId and storeId
-	itemID := items[0].GetItemId()
+	// i can assume that the data in this batch is already grouped by item ID and year-month date
 	yearMonthDate := items[0].GetCreatedAt()
+	itemID := items[0].GetItemId()
 
 	sellingQuantity := int64(0)
 	for _, item := range items {
@@ -37,9 +37,9 @@ func (r *ReducerService) SumMostProfitsProducts(items []*raw.TransactionItems) *
 func (r *ReducerService) SumBestSellingProducts(items []*raw.TransactionItems) *reduced.MostProfitsProducts {
 
 	// Since i get this data from the group_by worker
-	// i can assume that the data in this batch is already grouped by userId and storeId
-	itemID := items[0].GetItemId()
+	// i can assume that the data in this batch is already grouped by item ID and year-month date
 	yearMonthDate := items[0].GetCreatedAt()
+	itemID := items[0].GetItemId()
 
 	profitSum := float64(0)
 	for _, item := range items {
