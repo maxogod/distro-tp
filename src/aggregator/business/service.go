@@ -7,7 +7,7 @@ import (
 	"os"
 	"sort"
 
-	"github.com/maxogod/distro-tp/src/aggregator_fix/cache"
+	"github.com/maxogod/distro-tp/src/aggregator/cache"
 	"github.com/maxogod/distro-tp/src/common/models/joined"
 	"github.com/maxogod/distro-tp/src/common/models/raw"
 	"google.golang.org/protobuf/proto"

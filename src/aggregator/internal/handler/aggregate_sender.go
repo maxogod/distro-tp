@@ -1,7 +1,7 @@
 package handler
 
 import (
-	"github.com/maxogod/distro-tp/src/aggregator_fix/business"
+	"github.com/maxogod/distro-tp/src/aggregator/business"
 	"github.com/maxogod/distro-tp/src/common/models/enum"
 	"github.com/maxogod/distro-tp/src/common/models/joined"
 	"github.com/maxogod/distro-tp/src/common/models/raw"

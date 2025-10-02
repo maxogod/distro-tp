@@ -6,10 +6,10 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/maxogod/distro-tp/src/aggregator_fix/business"
-	"github.com/maxogod/distro-tp/src/aggregator_fix/cache"
-	"github.com/maxogod/distro-tp/src/aggregator_fix/config"
-	"github.com/maxogod/distro-tp/src/aggregator_fix/internal/handler"
+	"github.com/maxogod/distro-tp/src/aggregator/business"
+	"github.com/maxogod/distro-tp/src/aggregator/cache"
+	"github.com/maxogod/distro-tp/src/aggregator/config"
+	"github.com/maxogod/distro-tp/src/aggregator/internal/handler"
 	"github.com/maxogod/distro-tp/src/common/logger"
 	"github.com/maxogod/distro-tp/src/common/models/enum"
 )

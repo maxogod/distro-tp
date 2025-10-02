@@ -4,7 +4,7 @@ import (
 	"fmt"
 
 	"github.com/google/uuid"
-	"github.com/maxogod/distro-tp/src/aggregator_fix/business"
+	"github.com/maxogod/distro-tp/src/aggregator/business"
 	"github.com/maxogod/distro-tp/src/common/middleware"
 	"github.com/maxogod/distro-tp/src/common/models/controller_connection"
 	"github.com/maxogod/distro-tp/src/common/models/data_batch"

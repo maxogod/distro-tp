@@ -3,7 +3,7 @@ package handler
 import (
 	"fmt"
 
-	"github.com/maxogod/distro-tp/src/aggregator_fix/cache"
+	"github.com/maxogod/distro-tp/src/aggregator/cache"
 	"github.com/maxogod/distro-tp/src/common/logger"
 	"github.com/maxogod/distro-tp/src/common/models/enum"
 )

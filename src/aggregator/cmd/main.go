@@ -4,8 +4,8 @@ import (
 	"os"
 	"time"
 
-	"github.com/maxogod/distro-tp/src/aggregator_fix/config"
-	"github.com/maxogod/distro-tp/src/aggregator_fix/internal/server"
+	"github.com/maxogod/distro-tp/src/aggregator/config"
+	"github.com/maxogod/distro-tp/src/aggregator/internal/server"
 	"github.com/maxogod/distro-tp/src/common/logger"
 )
 
