@@ -1,0 +1,20 @@
+syntax = "proto3";
+
+option go_package = "./raw;raw";
+
+message Store {
+    int32 store_id = 1;
+    string store_name = 2;
+    string street = 3;
+    int32 postal_code = 4;
+    string city = 5;
+    string state = 6;
+    double latitude = 7;
+    double longitude = 8;
+}
+
+message StoreBatch {
+    repeated Store stores = 1;
+}
+
+

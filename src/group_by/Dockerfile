@@ -1,0 +1,17 @@
+FROM golang:1.24.6 AS builder
+
+# Create the full path to match your imports
+RUN mkdir -p /build/github.com/maxogod/distro-tp
+WORKDIR /build/github.com/maxogod/distro-tp
+
+COPY go.mod go.sum ./
+
+# Copy worker_base to the correct location
+COPY src/group_by/ ./src/group_by/
+COPY src/common/ ./src/common/
+
+RUN go build -o bin/group_by ./src/group_by/cmd
+
+FROM busybox:latest
+COPY --from=builder /build/github.com/maxogod/distro-tp/bin/group_by /group_by
+ENTRYPOINT ["/group_by"]

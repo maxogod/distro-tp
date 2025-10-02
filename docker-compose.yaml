@@ -1,0 +1,120 @@
+name: tp1
+services:
+  rabbitmq:
+    container_name: rabbitmq
+    build:
+      context: ./src/rabbitmq
+      dockerfile: Dockerfile
+    image: rabbitmq:latest
+    ports:
+      - '5670:5672'
+      - '15670:15672'
+    networks:
+      - tp_net
+
+  gateway_controller:
+    container_name: gateway_controller
+    build:
+      dockerfile: ./src/gateway_controller/Dockerfile
+    image: gateway_controller:latest
+    networks:
+      - tp_net
+    ports:
+      - '8080:8080'
+    volumes:
+      - ./src/gateway_controller/config.yaml:/config.yaml
+    depends_on:
+      - rabbitmq
+
+  gateway:
+    container_name: gateway
+    entrypoint: ["/app/app", "t4"]
+    build:
+      dockerfile: ./src/gateway/Dockerfile
+    image: gateway:latest
+    networks:
+      - tp_net
+    volumes:
+      - ./.data:/app/.data
+      - ./.output:/app/.output
+    depends_on:
+      - gateway_controller
+
+  groupby:
+    container_name: groupby
+    build:
+      dockerfile: ./src/group_by/Dockerfile
+    image: groupby:latest
+    networks:
+      - tp_net
+    volumes:
+      - ./src/group_by/config.yaml:/config.yaml
+    depends_on:
+      - rabbitmq
+
+  reducer:
+    container_name: reducer
+    build:
+      dockerfile: ./src/reducer/Dockerfile
+    image: reducer:latest
+    networks:
+      - tp_net
+    volumes:
+      - ./src/reducer/config.yaml:/config.yaml
+    depends_on:
+      - rabbitmq
+
+  joiner:
+    container_name: joiner 
+    build:
+      dockerfile: ./src/joiner/Dockerfile
+    image: joiner:latest
+    networks:
+      - tp_net
+    volumes:
+      - ./src/joiner/config.yaml:/config.yaml
+    depends_on:
+      - rabbitmq
+
+  aggregator:
+    container_name: aggregator 
+    build:
+      dockerfile: ./src/aggregator/Dockerfile
+    image: aggregator:latest
+    networks:
+      - tp_net
+    volumes:
+      - ./src/aggregator/config.yaml:/config.yaml
+    depends_on:
+      - rabbitmq
+
+  filter:
+    container_name: filter
+    build:
+      dockerfile: ./src/filter/Dockerfile
+    image: filter:latest
+    networks:
+      - tp_net
+    volumes:
+      - ./src/filter/config.yaml:/config.yaml
+    depends_on:
+      - rabbitmq
+
+  filter2:
+    container_name: filter2
+    build:
+      dockerfile: ./src/filter/Dockerfile
+    image: filter:latest
+    networks:
+      - tp_net
+    volumes:
+      - ./src/filter/config.yaml:/config.yaml
+    depends_on:
+      - rabbitmq
+
+networks:
+  tp_net:
+    ipam:
+      driver: default
+      config:
+        - subnet: 172.25.125.0/24
