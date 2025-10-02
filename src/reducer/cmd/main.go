@@ -4,8 +4,8 @@ import (
 	"time"
 
 	"github.com/maxogod/distro-tp/src/common/logger"
-	"github.com/maxogod/distro-tp/src/reduce_count/config"
-	"github.com/maxogod/distro-tp/src/reduce_count/internal/server"
+	"github.com/maxogod/distro-tp/src/reducer/config"
+	"github.com/maxogod/distro-tp/src/reducer/internal/server"
 )
 
 var log = logger.GetLogger()
