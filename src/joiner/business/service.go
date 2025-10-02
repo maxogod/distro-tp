@@ -3,58 +3,94 @@ package business
 import (
 	"github.com/maxogod/distro-tp/src/common/models/joined"
 	"github.com/maxogod/distro-tp/src/common/models/reduced"
+	"github.com/maxogod/distro-tp/src/joiner/cache"
 )
 
-type JoinerService struct{}
+type JoinerService struct {
+	refStore *cache.ReferenceDatasetStore
+}
 
-func NewFilterService() *JoinerService {
-	return &JoinerService{}
+func NewFilterService(refStore *cache.ReferenceDatasetStore) *JoinerService {
+	return &JoinerService{refStore: refStore}
 }
 
 // This is T2_1
-func (js *JoinerService) JoinBestSellingProducts(bsp *reduced.BestSellingProducts) *joined.JoinBestSellingProducts {
+func (js *JoinerService) JoinBestSellingProducts(batch *reduced.BestSellingProducts) (*joined.JoinBestSellingProducts, error) {
 
-	// ====================
-	// ADD JOIN LOGIC HERE
-	// ====================
-	// add cache service as a atribuite to use here
+	menuItemsMap, loadErr := js.refStore.LoadMenuItems()
+	if loadErr != nil {
+		return nil, loadErr
+	}
 
-	return &joined.JoinBestSellingProducts{}
+	var joinedData *joined.JoinBestSellingProducts
+	if item, ok := menuItemsMap[batch.ItemId]; ok {
+		joinedData = &joined.JoinBestSellingProducts{
+			YearMonthCreatedAt: batch.YearMonthCreatedAt,
+			ItemName:           item.ItemName,
+			SellingsQty:        batch.SellingsQty,
+		}
+	}
 
+	return joinedData, nil
 }
 
 // This is T2_2
-func (js *JoinerService) JoinMostProfitsProducts(mpp *reduced.MostProfitsProducts) *joined.JoinMostProfitsProducts {
+func (js *JoinerService) JoinMostProfitsProducts(batch *reduced.MostProfitsProducts) (*joined.JoinMostProfitsProducts, error) {
+	menuItemsMap, loadErr := js.refStore.LoadMenuItems()
+	if loadErr != nil {
+		return nil, loadErr
+	}
 
-	// ====================
-	// ADD JOIN LOGIC HERE
-	// ====================
-	// add cache service as a atribuite to use here
+	var joinedData *joined.JoinMostProfitsProducts
+	if item, ok := menuItemsMap[batch.ItemId]; ok {
+		joinedData = &joined.JoinMostProfitsProducts{
+			YearMonthCreatedAt: batch.YearMonthCreatedAt,
+			ItemName:           item.ItemName,
+			ProfitSum:          batch.ProfitSum,
+		}
+	}
 
-	return &joined.JoinMostProfitsProducts{}
-
+	return joinedData, nil
 }
 
 // This is T3
-func (js *JoinerService) JoinTPV(tpv *reduced.StoreTPV) *joined.JoinStoreTPV {
+func (js *JoinerService) JoinTPV(batch *reduced.StoreTPV) (*joined.JoinStoreTPV, error) {
+	storesMap, loadErr := js.refStore.LoadStores()
+	if loadErr != nil {
+		return nil, loadErr
+	}
 
-	// ====================
-	// ADD JOIN LOGIC HERE
-	// ====================
-	// add cache service as a atribuite to use here
-
-	return &joined.JoinStoreTPV{}
-
+	var joinedData *joined.JoinStoreTPV
+	if store, ok := storesMap[batch.StoreId]; ok {
+		joinedData = &joined.JoinStoreTPV{
+			YearHalfCreatedAt: batch.YearHalfCreatedAt,
+			StoreName:         store.StoreName,
+			Tpv:               batch.Tpv,
+		}
+	}
+	return joinedData, nil
 }
 
 // This is T4
-func (js *JoinerService) JoinMostPurchasesByUser(mpp *reduced.MostPurchasesUser) *joined.JoinMostPurchasesUser {
+func (js *JoinerService) JoinMostPurchasesByUser(batch *reduced.MostPurchasesUser) (*joined.JoinMostPurchasesUser, error) {
+	storesMap, loadErr := js.refStore.LoadStores()
+	if loadErr != nil {
+		return nil, loadErr
+	}
 
-	// ====================
-	// ADD JOIN LOGIC HERE
-	// ====================
-	// add cache service as a atribuite to use here
+	user, loadErr := js.refStore.LoadUser(batch.UserId)
+	if loadErr != nil {
+		return nil, loadErr
+	}
 
-	return &joined.JoinMostPurchasesUser{}
+	var joinedData *joined.JoinMostPurchasesUser
+	store := storesMap[batch.StoreId]
 
+	joinedData = &joined.JoinMostPurchasesUser{
+		StoreName:     store.StoreName,
+		UserBirthdate: user.Birthdate,
+		PurchasesQty:  batch.PurchasesQty,
+	}
+
+	return joinedData, nil
 }

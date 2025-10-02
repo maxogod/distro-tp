@@ -7,7 +7,6 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"sort"
 	"strings"
 
 	"github.com/maxogod/distro-tp/src/common/models/raw"
@@ -20,7 +19,6 @@ const (
 
 type StoresMap map[int32]*raw.Store
 type MenuItemsMap map[int32]*raw.MenuItem
-type UsersMap map[int32]*raw.User
 
 func (refStore *ReferenceDatasetStore) LoadStores() (StoresMap, error) {
 	datasetName := "stores"
@@ -106,70 +104,37 @@ func (refStore *ReferenceDatasetStore) LoadMenuItems() (MenuItemsMap, error) {
 	return menuItemsMap, nil
 }
 
-func (refStore *ReferenceDatasetStore) LoadUsers(userIds []int) (UsersMap, error) {
-	sort.Ints(userIds)
-
-	idsSet := make(map[int]struct{}, len(userIds))
-	for _, id := range userIds {
-		idsSet[id] = struct{}{}
-	}
-
+func (refStore *ReferenceDatasetStore) LoadUser(userId int32) (*raw.User, error) {
 	files, openErr := os.ReadDir(refStore.storePath)
 	if openErr != nil {
 		return nil, fmt.Errorf("failed to read dir %s: %w", refStore.storePath, openErr)
 	}
 
-	datasetRanges := make(map[int][2]int)
-	for i, f := range files {
+	var datasetToLoad string
+	for _, f := range files {
 		if !f.IsDir() && strings.HasPrefix(f.Name(), "users_") {
 			usersDatasetPath := filepath.Join(refStore.storePath, f.Name())
 			firstId, lastId, err := getUserIdRangeFromDatasetName(usersDatasetPath)
 			if err != nil {
 				return nil, err
 			}
-			datasetRanges[i] = [2]int{firstId, lastId}
-		}
-	}
-
-	datasetsToLoad := make([]int, 0)
-	for i, rng := range datasetRanges {
-		const firstId = 0
-		const lastId = 1
-		if intersects(rng[firstId], rng[lastId], userIds) {
-			datasetsToLoad = append(datasetsToLoad, i)
-		}
-	}
-
-	usersMap := make(UsersMap)
-	for _, idx := range datasetsToLoad {
-		//users, err := loadUsersFile(
-		//	refStore.refDatasets[enum.Users][idx],
-		//	func() *raw.UserBatch { return &raw.UserBatch{} },
-		//	func(batch *raw.UserBatch) []*raw.User { return batch.Users },
-		//)
-		users, err := loadUsersFile()
-		if err != nil {
-			return nil, err
-		}
-
-		for _, user := range users {
-			if _, ok := idsSet[int(user.UserId)]; ok {
-				usersMap[user.UserId] = user
+			if int(userId) >= firstId && int(userId) <= lastId {
+				datasetToLoad = usersDatasetPath
+				break
 			}
 		}
 	}
 
-	return usersMap, nil
+	return loadUsersFile(datasetToLoad, userId)
 }
 
-func loadUsersFile(userFilePath string) ([]*raw.User, error) {
+func loadUsersFile(userFilePath string, userId int32) (*raw.User, error) {
 	f, openErr := os.Open(userFilePath)
 	if openErr != nil {
 		return nil, openErr
 	}
 	defer f.Close()
 
-	var users []*raw.User
 	for {
 		var length uint32
 		if err := binary.Read(f, binary.LittleEndian, &length); err != nil {
@@ -190,11 +155,14 @@ func loadUsersFile(userFilePath string) ([]*raw.User, error) {
 			return nil, err
 		}
 
-		items := userBatch.Users
-		users = append(users, items...)
+		for _, user := range userBatch.Users {
+			if user.UserId == userId {
+				return user, nil
+			}
+		}
 	}
 
-	return users, nil
+	return nil, fmt.Errorf("user with id %d not found in file %s", userId, userFilePath)
 }
 
 func getUserIdRangeFromDatasetName(usersDatasetPath string) (int, int, error) {
@@ -207,9 +175,4 @@ func getUserIdRangeFromDatasetName(usersDatasetPath string) (int, int, error) {
 		return 0, 0, fmt.Errorf("invalid users dataset name: %s", usersDatasetName)
 	}
 	return firstUserId, lastUserId, nil
-}
-
-func intersects(firstId, lastId int, userIds []int) bool {
-	i := sort.SearchInts(userIds, firstId)
-	return i < len(userIds) && userIds[i] <= lastId
 }

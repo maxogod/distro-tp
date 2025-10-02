@@ -47,15 +47,22 @@ func (th *TaskHandler) handleTaskType2_1(payload []byte) error {
 	if err != nil {
 		return err
 	}
-	joinedResult := th.joinerService.JoinBestSellingProducts(reducedData)
+
+	joinedResult, err := th.joinerService.JoinBestSellingProducts(reducedData)
+	if err != nil {
+		return err
+	}
+
 	serializedResults, err := proto.Marshal(joinedResult)
 	if err != nil {
 		return err
 	}
+
 	err = th.queueHandler.SendData(enum.T2_1, serializedResults)
 	if err != nil {
 		return err
 	}
+
 	return nil
 }
 
@@ -65,15 +72,22 @@ func (th *TaskHandler) handleTaskType2_2(payload []byte) error {
 	if err != nil {
 		return err
 	}
-	joinedResult := th.joinerService.JoinMostProfitsProducts(reducedData)
+
+	joinedResult, err := th.joinerService.JoinMostProfitsProducts(reducedData)
+	if err != nil {
+		return err
+	}
+
 	serializedResults, err := proto.Marshal(joinedResult)
 	if err != nil {
 		return err
 	}
+
 	err = th.queueHandler.SendData(enum.T2_2, serializedResults)
 	if err != nil {
 		return err
 	}
+
 	return nil
 }
 
@@ -83,15 +97,22 @@ func (th *TaskHandler) handleTaskType3(payload []byte) error {
 	if err != nil {
 		return err
 	}
-	joinedResult := th.joinerService.JoinTPV(reducedData)
+
+	joinedResult, err := th.joinerService.JoinTPV(reducedData)
+	if err != nil {
+		return err
+	}
+
 	serializedResults, err := proto.Marshal(joinedResult)
 	if err != nil {
 		return err
 	}
+
 	err = th.queueHandler.SendData(enum.T3, serializedResults)
 	if err != nil {
 		return err
 	}
+
 	return nil
 }
 
@@ -101,14 +122,21 @@ func (th *TaskHandler) handleTaskType4(payload []byte) error {
 	if err != nil {
 		return err
 	}
-	joinedResult := th.joinerService.JoinMostPurchasesByUser(reducedData)
+
+	joinedResult, err := th.joinerService.JoinMostPurchasesByUser(reducedData)
+	if err != nil {
+		return err
+	}
+
 	serializedResults, err := proto.Marshal(joinedResult)
 	if err != nil {
 		return err
 	}
+
 	err = th.queueHandler.SendData(enum.T4, serializedResults)
 	if err != nil {
 		return err
 	}
+
 	return nil
 }
