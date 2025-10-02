@@ -146,7 +146,7 @@ func (th *TaskHandler) SendDone(taskType enum.TaskType, currentClientID string) 
 			}
 			finishQueue.Send(serializedDoneBatch)
 			log.Debugf("Sent done signal to %s workers, waiting for response", finishTopic)
-			time.Sleep(2 * time.Second)
+			time.Sleep(10 * time.Second)
 		}
 		done <- true
 	})

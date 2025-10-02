@@ -16,11 +16,10 @@ const ReducerPrefix = "reducer"
 
 type MessageHandler struct {
 	currentClientID string
-	// TODO >> READ FROM ONE QUEUE NOT 2
-	reducerQueue middleware.MessageMiddleware
 
-	// Added for joiner
-	joinerQueue middleware.MessageMiddleware
+	// Connections
+	reducerQueue middleware.MessageMiddleware
+	joinerQueue  middleware.MessageMiddleware
 
 	// internals
 	nodeConnectionQueue middleware.MessageMiddleware
@@ -36,6 +35,7 @@ func NewMessageHandler(
 	workerName := fmt.Sprintf("%s_%s", ReducerPrefix, uuid.New().String())
 	mh := &MessageHandler{
 		reducerQueue:        middleware.GetReducerQueue(Address),
+		joinerQueue:         middleware.GetJoinerQueue(Address),
 		nodeConnectionQueue: middleware.GetNodeConnectionsQueue(Address),
 		workerName:          workerName,
 	}
