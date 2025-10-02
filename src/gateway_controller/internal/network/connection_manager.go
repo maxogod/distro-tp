@@ -24,7 +24,8 @@ func (cm *ConnectionManager) StartListening() error {
 	if err != nil {
 		return err
 	}
-	defer ln.Close()
+
+	cm.listener = ln
 
 	return nil
 }

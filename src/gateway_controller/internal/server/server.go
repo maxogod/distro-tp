@@ -19,7 +19,7 @@ type Server struct {
 	config            *config.Config
 	isRunning         bool
 	workerService     *business.GatewayControllerService
-	taskHandler       *handler.TaskHandler
+	taskHandler       handler.Handler
 	connectionManager *network.ConnectionManager
 	clientManager     *session.ClientManager
 }
@@ -28,7 +28,7 @@ func InitServer(conf *config.Config) *Server {
 	return &Server{
 		config:            conf,
 		isRunning:         true,
-		taskHandler:       handler.NewTaskHandler(business.NewControllerService(), "guest:guest@localhost:5672"),
+		taskHandler:       handler.NewTaskHandler(business.NewControllerService(), conf.GatewayAddress),
 		connectionManager: network.NewConnectionManager(conf.Port),
 		clientManager:     session.NewClientManager(),
 	}
@@ -47,29 +47,25 @@ func (s *Server) Run() error {
 	}
 
 	for s.isRunning {
-
 		clientConnection, err := s.connectionManager.AcceptConnection()
 		if err != nil {
 			log.Errorf("Failed to accept connection: %v", err)
-			continue
+			return err
 		}
 
 		clientSession := s.clientManager.AddClient(clientConnection, s.taskHandler)
 
 		err = clientSession.ProcessRequest()
-
 		if err != nil {
 			log.Errorf("Error handling client request: %v", err)
 			return err
 		}
 
-		err = clientSession.Close()
-		if err != nil {
-			log.Errorf("Error closing client session: %v", err)
-		}
+		clientSession.Close()
 
 		s.clientManager.RemoveClient(clientSession.Id)
 
+		log.Debug("Ready to accept new connections")
 	}
 
 	log.Info("Server shutdown complete")
@@ -90,5 +86,8 @@ func (s *Server) setupGracefulShutdown() {
 
 func (s *Server) Shutdown() {
 	s.isRunning = false
+	s.taskHandler.Close()
+	s.clientManager.Close()
+	s.connectionManager.Close()
 	log.Infof("action: shutdown | result: success")
 }

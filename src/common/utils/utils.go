@@ -4,6 +4,10 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+
+	"github.com/maxogod/distro-tp/src/common/models/data_batch"
+	"github.com/maxogod/distro-tp/src/common/models/raw"
+	"google.golang.org/protobuf/proto"
 )
 
 func AppendToCSVFile(path string, payload []byte) error {
@@ -30,4 +34,37 @@ func AppendToCSVFile(path string, payload []byte) error {
 		return err
 	}
 	return nil
+}
+
+func GetDataBatch(msg []byte) (*data_batch.DataBatch, error) {
+
+	dataBatch := &data_batch.DataBatch{}
+	err := proto.Unmarshal(msg, dataBatch)
+	if err != nil {
+		return nil, err
+	}
+
+	return dataBatch, nil
+}
+
+func GetTransactions(payload []byte) ([]*raw.Transaction, error) {
+
+	transactions := &raw.TransactionBatch{}
+	err := proto.Unmarshal(payload, transactions)
+	if err != nil {
+		return nil, err
+	}
+
+	return transactions.GetTransactions(), nil
+}
+
+func GetTransactionItems(payload []byte) ([]*raw.TransactionItems, error) {
+
+	transactions := &raw.TransactionItemsBatch{}
+	err := proto.Unmarshal(payload, transactions)
+	if err != nil {
+		return nil, err
+	}
+
+	return transactions.GetTransactionItems(), nil
 }

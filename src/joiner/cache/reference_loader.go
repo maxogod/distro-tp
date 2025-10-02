@@ -104,6 +104,11 @@ func (refStore *ReferenceDatasetStore) LoadMenuItems() (MenuItemsMap, error) {
 func (refStore *ReferenceDatasetStore) LoadUsers(userIds []int) (UsersMap, error) {
 	sort.Ints(userIds)
 
+	idsSet := make(map[int]struct{}, len(userIds))
+	for _, id := range userIds {
+		idsSet[id] = struct{}{}
+	}
+
 	datasetRanges := make(map[int][2]int)
 	for i, usersDatasetPath := range refStore.refDatasets[enum.Users] {
 		firstId, lastId, err := getUserIdRangeFromDatasetName(usersDatasetPath)
@@ -134,7 +139,9 @@ func (refStore *ReferenceDatasetStore) LoadUsers(userIds []int) (UsersMap, error
 		}
 
 		for _, user := range users {
-			usersMap[user.UserId] = user
+			if _, ok := idsSet[int(user.UserId)]; ok {
+				usersMap[user.UserId] = user
+			}
 		}
 	}
 

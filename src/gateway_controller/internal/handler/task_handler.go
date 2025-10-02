@@ -5,57 +5,49 @@ import (
 
 	"github.com/maxogod/distro-tp/src/common/logger"
 	"github.com/maxogod/distro-tp/src/common/middleware"
+	"github.com/maxogod/distro-tp/src/common/models/controller_connection"
 	"github.com/maxogod/distro-tp/src/common/models/data_batch"
 	"github.com/maxogod/distro-tp/src/common/models/enum"
 	"github.com/maxogod/distro-tp/src/common/models/raw"
 	"github.com/maxogod/distro-tp/src/gateway_controller/business"
+	"github.com/maxogod/distro-tp/src/gateway_controller/internal/workers_manager"
 	"google.golang.org/protobuf/proto"
 )
 
 var log = logger.GetLogger()
 
-type Handler interface {
-	handleTaskType1(dataBatch *data_batch.DataBatch) error
-	handleTaskType2(dataBatch *data_batch.DataBatch) error
-	handleTaskType3(dataBatch *data_batch.DataBatch) error
-	handleTaskType4(dataBatch *data_batch.DataBatch) error
-	HandleTask(taskType enum.TaskType, dataBatch *data_batch.DataBatch) error
-	HandleReferenceData(dataBatch *data_batch.DataBatch) error
-	SendDone() error
-	GetReportData() []byte
-}
-
-const (
-	JoinerQueue = "joiner"
-	FilterQueue = "filter"
-)
-
 type TaskHandler struct {
-	ControllerService     *business.GatewayControllerService
-	taskHandlers          map[enum.TaskType]func(*data_batch.DataBatch) error
-	filterQueueMiddleware middleware.MessageMiddleware
-	joinerQueueMiddleware middleware.MessageMiddleware
+	ControllerService *business.GatewayControllerService
+	taskHandlers      map[enum.TaskType]func(*data_batch.DataBatch) error
+
+	middlewareUrl string
+
+	joinerMenuItemsQueueMiddleware middleware.MessageMiddleware
+	joinerStoreQueueMiddleware     middleware.MessageMiddleware
+	joinerUsersQueueMiddleware     middleware.MessageMiddleware
+	processedDataQueueMiddleware   middleware.MessageMiddleware
+
+	nodeConnections middleware.MessageMiddleware
+	workerManager   workers_manager.WorkersManager
+
+	getWorkerStatusChan chan bool
 }
 
-func NewTaskHandler(controllerService *business.GatewayControllerService, url string) *TaskHandler {
+func NewTaskHandler(controllerService *business.GatewayControllerService, url string) Handler {
 	th := &TaskHandler{
 		ControllerService: controllerService,
 	}
 
-	// TODO pass address here somehow or instanciate somewhere else
-	filterQueueMiddleware, err := middleware.NewQueueMiddleware(url, FilterQueue)
-	if err != nil {
-		log.Errorf("Failed to create filter queue middleware: %v", err)
-		return nil
-	}
-	joinerQueueMiddleware, err := middleware.NewQueueMiddleware(url, JoinerQueue)
-	if err != nil {
-		log.Errorf("Failed to create joiner queue middleware: %v", err)
-		return nil
-	}
+	th.middlewareUrl = url
 
-	th.filterQueueMiddleware = filterQueueMiddleware
-	th.joinerQueueMiddleware = joinerQueueMiddleware
+	// TODO pass address here somehow or instanciate somewhere else
+	th.joinerMenuItemsQueueMiddleware = middleware.GetMenuItemsQueue(url)
+	th.joinerStoreQueueMiddleware = middleware.GetStoresQueue(url)
+	th.joinerUsersQueueMiddleware = middleware.GetUsersQueue(url)
+	th.processedDataQueueMiddleware = middleware.GetProcessedDataQueue(url)
+
+	th.nodeConnections = middleware.GetNodeConnectionsQueue(url)
+	th.workerManager = workers_manager.NewWorkersManager(url)
 
 	th.taskHandlers = map[enum.TaskType]func(*data_batch.DataBatch) error{
 		enum.T1: th.handleTaskType1,
@@ -63,6 +55,9 @@ func NewTaskHandler(controllerService *business.GatewayControllerService, url st
 		enum.T3: th.handleTaskType3,
 		enum.T4: th.handleTaskType4,
 	}
+
+	th.getWorkerStatusChan = make(chan bool, 1)
+	go th.getWorkerStatus()
 
 	return th
 }
@@ -77,29 +72,106 @@ func (th *TaskHandler) HandleTask(taskType enum.TaskType, dataBatch *data_batch.
 }
 
 func (th *TaskHandler) HandleReferenceData(dataBatch *data_batch.DataBatch) error {
-
-	// TODO: send this to the joiner node
 	log.Debugf("Received reference data")
 
-	return nil
+	serializedRefData, err := proto.Marshal(dataBatch)
+	if err != nil {
+		return err
+	}
 
+	switch enum.RefDatasetType(int(dataBatch.RefDataType)) {
+	case enum.MenuItems:
+		th.joinerMenuItemsQueueMiddleware.Send(serializedRefData)
+	case enum.Stores:
+		th.joinerStoreQueueMiddleware.Send(serializedRefData)
+	case enum.Users:
+		th.joinerUsersQueueMiddleware.Send(serializedRefData)
+	}
+
+	return nil
 }
 
-func (th *TaskHandler) SendDone() error {
-	log.Info("All tasks processed. Sending done signal.")
+func (th *TaskHandler) SendDone(taskType enum.TaskType, currentClientID string) error {
+	th.getWorkerStatusChan <- true
+	nodeConnections := middleware.GetNodeConnectionsQueue(th.middlewareUrl)
+	finishExchangeTopic := middleware.GetFinishExchange(th.middlewareUrl, enum.Filter)
 
-	// TODO: broadcast done to each worker node
+	doneBatch := &data_batch.DataBatch{
+		TaskType: int32(taskType),
+		Done:     true,
+	}
+	serializedDoneBatch, err := proto.Marshal(doneBatch)
+	if err != nil {
+		return err
+	}
+	finishExchangeTopic.Send(serializedDoneBatch)
+
+	done := make(chan bool)
+	nodeConnections.StartConsuming(func(ch middleware.ConsumeChannel, d chan error) {
+		log.Debug("Started listening for worker finished messages")
+		for msg := range ch {
+			log.Debug("Received worker finished message")
+
+			workerConn := &controller_connection.ControllerConnection{}
+			err := proto.Unmarshal(msg.Body, workerConn)
+			if err != nil {
+				continue
+			}
+
+			if !workerConn.Finished {
+				continue
+			} else if workerConn.GetClientId() != currentClientID {
+				msg.Ack(false)
+				continue
+			}
+
+			err = th.workerManager.FinishWorker(workerConn.WorkerName)
+			if err != nil {
+				continue
+			}
+			msg.Ack(false)
+
+			// Refresh exchange topic in case all workers of a stage are finished
+			finishTopic, allFinished := th.workerManager.GetFinishExchangeTopic()
+			finishExchangeTopic.Close()
+
+			if allFinished {
+				break
+			}
+
+			finishExchangeTopic = middleware.GetFinishExchange(th.middlewareUrl, finishTopic)
+			finishExchangeTopic.Send(serializedDoneBatch)
+		}
+		done <- true
+	})
+	<-done
+
+	nodeConnections.StopConsuming()
+	nodeConnections.Close()
+	th.workerManager.ClearStatus()
 
 	return nil
 }
 
-func (th *TaskHandler) GetReportData() ([]byte, error) {
+func (th *TaskHandler) GetReportData(data chan []byte, disconnect chan bool) {
+	defer th.processedDataQueueMiddleware.StopConsuming()
 
-	// TODO: gather real report data from aggregator after sendDone is implemented
+	done := make(chan bool)
+	th.processedDataQueueMiddleware.StartConsuming(func(msgs middleware.ConsumeChannel, d chan error) {
+		for {
+			select {
+			case msg := <-msgs:
+				data <- msg.Body
+				msg.Ack(false)
+			case <-done:
+				return
+			}
+		}
+	})
 
-	report := "Report: All tasks completed successfully."
-	log.Info(report)
-	return []byte(report), nil
+	// Wait until disconnection signal
+	<-disconnect
+	done <- true
 }
 
 func (th *TaskHandler) handleTaskType1(dataBatch *data_batch.DataBatch) error {
@@ -109,8 +181,6 @@ func (th *TaskHandler) handleTaskType1(dataBatch *data_batch.DataBatch) error {
 	if err != nil {
 		return err
 	}
-	log.Debugf("Cleaned data: %+v", cleanedData)
-
 	return th.sendCleanedDataToFilterQueue(dataBatch, cleanedData)
 }
 
@@ -120,8 +190,6 @@ func (th *TaskHandler) handleTaskType2(dataBatch *data_batch.DataBatch) error {
 	if err != nil {
 		return err
 	}
-	log.Debugf("Cleaned data: %+v", cleanedData)
-
 	return th.sendCleanedDataToFilterQueue(dataBatch, cleanedData)
 }
 
@@ -131,7 +199,6 @@ func (th *TaskHandler) handleTaskType3(dataBatch *data_batch.DataBatch) error {
 	if err != nil {
 		return err
 	}
-	log.Debugf("Cleaned data: %+v", cleanedData)
 	return th.sendCleanedDataToFilterQueue(dataBatch, cleanedData)
 }
 
@@ -141,7 +208,6 @@ func (th *TaskHandler) handleTaskType4(dataBatch *data_batch.DataBatch) error {
 	if err != nil {
 		return err
 	}
-	log.Debugf("Cleaned data: %+v", cleanedData)
 	return th.sendCleanedDataToFilterQueue(dataBatch, cleanedData)
 }
 
@@ -170,7 +236,6 @@ func (th *TaskHandler) processTransactionItems(
 		return nil, fmt.Errorf("failed to unmarshal payload: %v", err)
 	}
 	cleanedData, err := th.ControllerService.CleanTransactionItemData(items.TransactionItems, removeColumns)
-	log.Debugf("Cleaned data: %+v", cleanedData)
 	return &raw.TransactionItemsBatch{TransactionItems: cleanedData}, err
 }
 
@@ -186,11 +251,54 @@ func (th *TaskHandler) sendCleanedDataToFilterQueue(dataBatch *data_batch.DataBa
 		return err
 	}
 
-	th.filterQueueMiddleware.Send(serializedPayload)
+	conn, err := th.workerManager.GetWorkerConnectionRR()
+	if err != nil {
+		return err
+	}
+
+	conn.Send(serializedPayload)
+
 	return nil
 }
 
+func (th *TaskHandler) getWorkerStatus() {
+	defer th.nodeConnections.StopConsuming()
+
+	done := make(chan bool)
+	th.nodeConnections.StartConsuming(func(ch middleware.ConsumeChannel, d chan error) {
+		for {
+			var msg middleware.MessageDelivery
+			select {
+			case <-th.getWorkerStatusChan:
+				done <- true
+				return
+			case msg = <-ch:
+			}
+
+			nodeConn := &controller_connection.ControllerConnection{}
+			err := proto.Unmarshal(msg.Body, nodeConn)
+			if err != nil {
+				// TODO: should ack not be sent?
+				continue
+			}
+			if !nodeConn.Finished {
+				// Save and ack if is a worker announcement
+				err := th.workerManager.AddWorker(nodeConn.WorkerName)
+				if err != nil {
+					continue
+				}
+				msg.Ack(false)
+			}
+		}
+	})
+	<-done
+}
+
 func (th *TaskHandler) Close() {
-	th.filterQueueMiddleware.Close()
-	th.joinerQueueMiddleware.Close()
+	th.joinerUsersQueueMiddleware.Close()
+	th.joinerStoreQueueMiddleware.Close()
+	th.joinerMenuItemsQueueMiddleware.Close()
+	th.processedDataQueueMiddleware.Close()
+	th.nodeConnections.Close()
+	th.getWorkerStatusChan <- true
 }

@@ -339,7 +339,7 @@ func AssertJoinedMostPurchasesUsersIsExpected(
 	AssertJoinedBatchIsTheExpected(t, received, expected, unmarshal, compare)
 }
 
-func AssertConnectionMsg(t *testing.T, gatewayControllerQueue string, shouldBeFalse bool) {
+func AssertConnectionMsg(t *testing.T, gatewayControllerQueue func(url string) middleware.MessageMiddleware, shouldBeFalse bool) {
 	initConnectionMsg := GetAllOutputMessages(t, gatewayControllerQueue, func(body []byte) (*controller_connection.ControllerConnection, error) {
 		ctrl := &controller_connection.ControllerConnection{}
 		if err := proto.Unmarshal(body, ctrl); err != nil {

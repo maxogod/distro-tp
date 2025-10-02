@@ -3,7 +3,7 @@ package business
 import (
 	"time"
 
-	"github.com/maxogod/distro-tp/src/common/models/transaction"
+	"github.com/maxogod/distro-tp/src/common/models/raw"
 )
 
 // Generic constraint that ensures
@@ -54,8 +54,8 @@ func FilterByHourBetween[T TransactionCommon](from, to int, transactions []T) []
 	return filtered
 }
 
-func FilterByTotalAmountGreaterThan(totalAmount float64, transactions []*transaction.Transaction) []*transaction.Transaction {
-	var filtered []*transaction.Transaction
+func FilterByTotalAmountGreaterThan(totalAmount float64, transactions []*raw.Transaction) []*raw.Transaction {
+	var filtered []*raw.Transaction
 	for _, transaction := range transactions {
 		if transaction.GetFinalAmount() >= totalAmount {
 			filtered = append(filtered, transaction)

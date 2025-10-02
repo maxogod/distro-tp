@@ -2,7 +2,7 @@
 // versions:
 // 	protoc-gen-go v1.36.9
 // 	protoc        v3.21.12
-// source: controller_connection.proto
+// source: src/common/protobufs/controller_connection.proto
 
 package controller_connection
 
@@ -24,14 +24,15 @@ const (
 type ControllerConnection struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	WorkerName    string                 `protobuf:"bytes,1,opt,name=worker_name,json=workerName,proto3" json:"worker_name,omitempty"`
-	Finished      bool                   `protobuf:"varint,2,opt,name=finished,proto3" json:"finished,omitempty"`
+	ClientId      string                 `protobuf:"bytes,2,opt,name=client_id,json=clientId,proto3" json:"client_id,omitempty"`
+	Finished      bool                   `protobuf:"varint,3,opt,name=finished,proto3" json:"finished,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *ControllerConnection) Reset() {
 	*x = ControllerConnection{}
-	mi := &file_controller_connection_proto_msgTypes[0]
+	mi := &file_src_common_protobufs_controller_connection_proto_msgTypes[0]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -43,7 +44,7 @@ func (x *ControllerConnection) String() string {
 func (*ControllerConnection) ProtoMessage() {}
 
 func (x *ControllerConnection) ProtoReflect() protoreflect.Message {
-	mi := &file_controller_connection_proto_msgTypes[0]
+	mi := &file_src_common_protobufs_controller_connection_proto_msgTypes[0]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -56,12 +57,19 @@ func (x *ControllerConnection) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ControllerConnection.ProtoReflect.Descriptor instead.
 func (*ControllerConnection) Descriptor() ([]byte, []int) {
-	return file_controller_connection_proto_rawDescGZIP(), []int{0}
+	return file_src_common_protobufs_controller_connection_proto_rawDescGZIP(), []int{0}
 }
 
 func (x *ControllerConnection) GetWorkerName() string {
 	if x != nil {
 		return x.WorkerName
+	}
+	return ""
+}
+
+func (x *ControllerConnection) GetClientId() string {
+	if x != nil {
+		return x.ClientId
 	}
 	return ""
 }
@@ -73,33 +81,34 @@ func (x *ControllerConnection) GetFinished() bool {
 	return false
 }
 
-var File_controller_connection_proto protoreflect.FileDescriptor
+var File_src_common_protobufs_controller_connection_proto protoreflect.FileDescriptor
 
-const file_controller_connection_proto_rawDesc = "" +
+const file_src_common_protobufs_controller_connection_proto_rawDesc = "" +
 	"\n" +
-	"\x1bcontroller_connection.proto\x12\bprotocol\"S\n" +
+	"0src/common/protobufs/controller_connection.proto\x12\bprotocol\"p\n" +
 	"\x14ControllerConnection\x12\x1f\n" +
 	"\vworker_name\x18\x01 \x01(\tR\n" +
-	"workerName\x12\x1a\n" +
-	"\bfinished\x18\x02 \x01(\bR\bfinishedB\x19Z\x17./controller_connectionb\x06proto3"
+	"workerName\x12\x1b\n" +
+	"\tclient_id\x18\x02 \x01(\tR\bclientId\x12\x1a\n" +
+	"\bfinished\x18\x03 \x01(\bR\bfinishedB\x19Z\x17./controller_connectionb\x06proto3"
 
 var (
-	file_controller_connection_proto_rawDescOnce sync.Once
-	file_controller_connection_proto_rawDescData []byte
+	file_src_common_protobufs_controller_connection_proto_rawDescOnce sync.Once
+	file_src_common_protobufs_controller_connection_proto_rawDescData []byte
 )
 
-func file_controller_connection_proto_rawDescGZIP() []byte {
-	file_controller_connection_proto_rawDescOnce.Do(func() {
-		file_controller_connection_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_controller_connection_proto_rawDesc), len(file_controller_connection_proto_rawDesc)))
+func file_src_common_protobufs_controller_connection_proto_rawDescGZIP() []byte {
+	file_src_common_protobufs_controller_connection_proto_rawDescOnce.Do(func() {
+		file_src_common_protobufs_controller_connection_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_src_common_protobufs_controller_connection_proto_rawDesc), len(file_src_common_protobufs_controller_connection_proto_rawDesc)))
 	})
-	return file_controller_connection_proto_rawDescData
+	return file_src_common_protobufs_controller_connection_proto_rawDescData
 }
 
-var file_controller_connection_proto_msgTypes = make([]protoimpl.MessageInfo, 1)
-var file_controller_connection_proto_goTypes = []any{
+var file_src_common_protobufs_controller_connection_proto_msgTypes = make([]protoimpl.MessageInfo, 1)
+var file_src_common_protobufs_controller_connection_proto_goTypes = []any{
 	(*ControllerConnection)(nil), // 0: protocol.ControllerConnection
 }
-var file_controller_connection_proto_depIdxs = []int32{
+var file_src_common_protobufs_controller_connection_proto_depIdxs = []int32{
 	0, // [0:0] is the sub-list for method output_type
 	0, // [0:0] is the sub-list for method input_type
 	0, // [0:0] is the sub-list for extension type_name
@@ -107,26 +116,26 @@ var file_controller_connection_proto_depIdxs = []int32{
 	0, // [0:0] is the sub-list for field type_name
 }
 
-func init() { file_controller_connection_proto_init() }
-func file_controller_connection_proto_init() {
-	if File_controller_connection_proto != nil {
+func init() { file_src_common_protobufs_controller_connection_proto_init() }
+func file_src_common_protobufs_controller_connection_proto_init() {
+	if File_src_common_protobufs_controller_connection_proto != nil {
 		return
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
-			RawDescriptor: unsafe.Slice(unsafe.StringData(file_controller_connection_proto_rawDesc), len(file_controller_connection_proto_rawDesc)),
+			RawDescriptor: unsafe.Slice(unsafe.StringData(file_src_common_protobufs_controller_connection_proto_rawDesc), len(file_src_common_protobufs_controller_connection_proto_rawDesc)),
 			NumEnums:      0,
 			NumMessages:   1,
 			NumExtensions: 0,
 			NumServices:   0,
 		},
-		GoTypes:           file_controller_connection_proto_goTypes,
-		DependencyIndexes: file_controller_connection_proto_depIdxs,
-		MessageInfos:      file_controller_connection_proto_msgTypes,
+		GoTypes:           file_src_common_protobufs_controller_connection_proto_goTypes,
+		DependencyIndexes: file_src_common_protobufs_controller_connection_proto_depIdxs,
+		MessageInfos:      file_src_common_protobufs_controller_connection_proto_msgTypes,
 	}.Build()
-	File_controller_connection_proto = out.File
-	file_controller_connection_proto_goTypes = nil
-	file_controller_connection_proto_depIdxs = nil
+	File_src_common_protobufs_controller_connection_proto = out.File
+	file_src_common_protobufs_controller_connection_proto_goTypes = nil
+	file_src_common_protobufs_controller_connection_proto_depIdxs = nil
 }

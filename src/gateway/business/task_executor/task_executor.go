@@ -40,7 +40,7 @@ func (t *taskExecutor) Task1() error {
 		enum.T1,
 		transactionsDir,
 		t.batchSize,
-		false,
+		enum.NoRef,
 		utils.TransactionFromRecord,
 		utils.TransactionBatchFromList,
 	)
@@ -48,6 +48,8 @@ func (t *taskExecutor) Task1() error {
 		log.Errorf("failed to send transactions data: %v", err)
 		return err
 	}
+
+	log.Debug("All transactions data sent, waiting for results...")
 
 	receiveAndSaveResults(
 		t.conn,
@@ -68,6 +70,8 @@ func (t *taskExecutor) Task1() error {
 		},
 	)
 
+	log.Debug("Results saved successfully")
+
 	return nil
 }
 
@@ -78,7 +82,7 @@ func (t *taskExecutor) Task2() error {
 		enum.T2,
 		menuItemsDir,
 		t.batchSize,
-		true,
+		enum.MenuItems,
 		utils.MenuItemFromRecord,
 		utils.MenuItemBatchFromList,
 	)
@@ -93,7 +97,7 @@ func (t *taskExecutor) Task2() error {
 		enum.T2,
 		transactionsItemsDir,
 		t.batchSize,
-		false,
+		enum.NoRef,
 		utils.TransactionItemsFromRecord,
 		utils.TransactionItemsBatchFromList,
 	)
@@ -150,7 +154,7 @@ func (t *taskExecutor) Task3() error {
 		enum.T3,
 		storesDir,
 		t.batchSize,
-		true,
+		enum.Stores,
 		utils.StoreFromRecord,
 		utils.StoreBatchFromList,
 	)
@@ -165,7 +169,7 @@ func (t *taskExecutor) Task3() error {
 		enum.T3,
 		transactionsDir,
 		t.batchSize,
-		false,
+		enum.NoRef,
 		utils.TransactionFromRecord,
 		utils.TransactionBatchFromList,
 	)
@@ -203,7 +207,7 @@ func (t *taskExecutor) Task4() error {
 		enum.T4,
 		usersDir,
 		t.batchSize,
-		true,
+		enum.Users,
 		utils.UserFromRecord,
 		utils.UserBatchFromList,
 	)
@@ -218,7 +222,7 @@ func (t *taskExecutor) Task4() error {
 		enum.T4,
 		storesDir,
 		t.batchSize,
-		true,
+		enum.Stores,
 		utils.StoreFromRecord,
 		utils.StoreBatchFromList,
 	)
@@ -233,7 +237,7 @@ func (t *taskExecutor) Task4() error {
 		enum.T4,
 		transactionsDir,
 		t.batchSize,
-		false,
+		enum.NoRef,
 		utils.TransactionFromRecord,
 		utils.TransactionBatchFromList,
 	)
@@ -271,7 +275,7 @@ func readAndSendData[T any](
 	taskType enum.TaskType,
 	dataDir string,
 	batchSize int,
-	isReferenceData bool,
+	refDataType enum.RefDatasetType,
 	fromRecordFunc func([]string) T,
 	makeBatchFunc func([]T) []byte,
 ) error {
@@ -291,7 +295,8 @@ func readAndSendData[T any](
 			dataBatch, err := proto.Marshal(&data_batch.DataBatch{
 				TaskType:        int32(taskType),
 				Done:            false,
-				IsReferenceData: isReferenceData,
+				IsReferenceData: refDataType != enum.NoRef,
+				RefDataType:     int32(refDataType),
 				Payload:         makeBatchFunc(batch),
 			})
 			if err != nil {
@@ -303,8 +308,10 @@ func readAndSendData[T any](
 	}
 
 	donePayload, err := proto.Marshal(&data_batch.DataBatch{
-		TaskType: int32(taskType),
-		Done:     true,
+		TaskType:        int32(taskType),
+		IsReferenceData: refDataType != enum.NoRef,
+		RefDataType:     int32(refDataType),
+		Done:            true,
 	})
 	if err != nil {
 		return err
@@ -327,7 +334,7 @@ func receiveAndSaveResults(
 	fs := file_service.NewFileService[string](batchSize)
 
 	batchesCh := make(chan string)
-	fs.SaveCsvAsBatches(path, batchesCh, header)
+	go fs.SaveCsvAsBatches(path, batchesCh, header)
 
 	for {
 		res, err := conn.ReceiveData()
@@ -345,6 +352,9 @@ func receiveAndSaveResults(
 
 		generateStringObject(dataBatch, batchesCh)
 	}
+
+	// TODO: all data and done should only be sent by aggregator
+	log.Debug("Finished saving data")
 
 	return nil
 }

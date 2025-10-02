@@ -6,7 +6,8 @@ import (
 
 type MiddlewareConnection = *amqp.Connection
 type MiddlewareChannel = *amqp.Channel
-type ConsumeChannel = <-chan amqp.Delivery
+type MessageDelivery = amqp.Delivery
+type ConsumeChannel = <-chan MessageDelivery
 
 // TODO: why not use the actual error type?
 type MessageMiddlewareError int

@@ -2,14 +2,16 @@ package config
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/joho/godotenv"
 	"github.com/spf13/viper"
 )
 
 type Config struct {
-	Port     int32
-	LogLevel string
+	GatewayAddress string
+	Port           int32
+	LogLevel       string
 }
 
 func (c Config) String() string {
@@ -20,18 +22,27 @@ func (c Config) String() string {
 	)
 }
 
+const CONFIG_FILE_PATH = "/config.yaml"
+
 func InitConfig() (*Config, error) {
-
 	v := viper.New()
+	v.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 
-	// this function will do nothing if the file is missing,
-	// so only environment variables will be used.
 	_ = godotenv.Load(".env")
 	v.AutomaticEnv()
 
+	v.SetConfigFile(CONFIG_FILE_PATH)
+	_ = v.ReadInConfig() // ignore error if file missing
+
+	// Bind env vars to config keys
+	v.BindEnv("gateway.address", "GATEWAY_ADDRESS")
+	v.BindEnv("port", "PORT")
+	v.BindEnv("log.level", "LOG_LEVEL")
+
 	config := &Config{
-		Port:     v.GetInt32("PORT"),
-		LogLevel: v.GetString("LOG_LEVEL"),
+		GatewayAddress: v.GetString("gateway.address"),
+		Port:           int32(v.GetInt("port")),
+		LogLevel:       v.GetString("log.level"),
 	}
 
 	return config, nil
