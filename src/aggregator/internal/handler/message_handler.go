@@ -94,16 +94,22 @@ func (mh *MessageHandler) Start(
 
 	mh.joinQueue.StartConsuming(func(consumeChannel middleware.ConsumeChannel, d chan error) {
 		for msg := range consumeChannel {
-			msg.Ack(false)
+			err := msg.Ack(false)
+			if err != nil {
+				return
+			}
+
 			dataBatch, err := utils.GetDataBatch(msg.Body)
 			if err != nil {
 				log.Errorf("Failed to get data batch: %v", err)
 				continue
 			}
+
 			if isFirstMessage {
 				mh.currentClientID = dataBatch.GetClientId()
 				isFirstMessage = false
 			}
+
 			payload := dataBatch.GetPayload()
 			taskType := dataBatch.GetTaskType()
 			done := dataBatch.GetDone()

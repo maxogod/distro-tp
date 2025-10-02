@@ -26,9 +26,12 @@ func main() {
 
 	log.Debug(conf.String())
 
-	server := server.InitServer(conf)
+	aggServer := server.InitServer(conf)
 
-	server.Run()
+	err = aggServer.Run()
+	if err != nil {
+		return
+	}
 	log.Debug("Squirtle thanks you for using the Filter Worker!")
 
 }
