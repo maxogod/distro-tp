@@ -15,14 +15,16 @@ import (
 const GroupByPrefix = "group_by"
 
 type MessageHandler struct {
-	currentClientID     string
-	reduceSumQueue      middleware.MessageMiddleware
-	reduceCountQueue    middleware.MessageMiddleware
-	nodeConnectionQueue middleware.MessageMiddleware
+	// connections
 	groupByQueue        middleware.MessageMiddleware
-	messageHandlers     map[enum.TaskType]func([]byte) error
-	workerName          string
-	stopConsuming       chan bool
+	reducerQueue        middleware.MessageMiddleware
+	nodeConnectionQueue middleware.MessageMiddleware
+
+	// internals
+	currentClientID string
+	messageHandlers map[enum.TaskType]func([]byte) error
+	workerName      string
+	stopConsuming   chan bool
 }
 
 func NewMessageHandler(
@@ -31,10 +33,9 @@ func NewMessageHandler(
 
 	workerName := fmt.Sprintf("%s_%s", GroupByPrefix, uuid.New().String())
 	mh := &MessageHandler{
-		reduceSumQueue:      middleware.GetReduceSumQueue(Address),
-		reduceCountQueue:    middleware.GetReduceCountQueue(Address),
-		nodeConnectionQueue: middleware.GetNodeConnectionsQueue(Address),
 		groupByQueue:        middleware.GetGroupByQueue(Address),
+		reducerQueue:        middleware.GetReducerQueue(Address),
+		nodeConnectionQueue: middleware.GetNodeConnectionsQueue(Address),
 		workerName:          workerName,
 	}
 
@@ -53,14 +54,9 @@ func (mh *MessageHandler) Close() error {
 
 	mh.stopConsuming <- true
 
-	e := mh.reduceSumQueue.Close()
+	e := mh.reducerQueue.Close()
 	if e != middleware.MessageMiddlewareSuccess {
 		return fmt.Errorf("Error closing reduce sum queue middleware: %v", e)
-	}
-
-	e = mh.reduceCountQueue.Close()
-	if e != middleware.MessageMiddlewareSuccess {
-		return fmt.Errorf("Error closing reduce count queue middleware: %v", e)
 	}
 
 	e = mh.nodeConnectionQueue.Close()
@@ -160,15 +156,16 @@ func (mh *MessageHandler) SendData(taskType enum.TaskType, serializedFilteredTra
 }
 
 func (mh *MessageHandler) sendT2Data(payload []byte) error {
-	return mh.sendToQueues(enum.T2, payload, mh.reduceCountQueue, mh.reduceSumQueue)
+	mh.sendToQueues(enum.T2_1, payload, mh.reducerQueue)
+	return mh.sendToQueues(enum.T2_2, payload, mh.reducerQueue)
 }
 
 func (mh *MessageHandler) sendT3Data(payload []byte) error {
-	return mh.sendToQueues(enum.T3, payload, mh.reduceSumQueue)
+	return mh.sendToQueues(enum.T3, payload, mh.reducerQueue)
 }
 
 func (mh *MessageHandler) sendT4Data(payload []byte) error {
-	return mh.sendToQueues(enum.T4, payload, mh.reduceCountQueue)
+	return mh.sendToQueues(enum.T4, payload, mh.reducerQueue)
 }
 
 func (mh *MessageHandler) sendToQueues(
