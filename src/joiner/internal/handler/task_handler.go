@@ -3,31 +3,24 @@ package handler
 import (
 	"fmt"
 
-	"github.com/maxogod/distro-tp/src/common/logger"
 	"github.com/maxogod/distro-tp/src/common/models/enum"
-	"github.com/maxogod/distro-tp/src/common/models/raw"
+	"github.com/maxogod/distro-tp/src/common/models/reduced"
 	"github.com/maxogod/distro-tp/src/common/utils"
-	"github.com/maxogod/distro-tp/src/filter/business"
+	"github.com/maxogod/distro-tp/src/joiner/business"
 	"google.golang.org/protobuf/proto"
 )
 
-var log = logger.GetLogger()
-
 type TaskHandler struct {
-	FilterService *business.FilterService
+	joinerService *business.JoinerService
 	queueHandler  *MessageHandler
-	TaskConfig    *TaskConfig
 	taskHandlers  map[enum.TaskType]func([]byte) error
 }
 
 func NewTaskHandler(
-	filterService *business.FilterService,
-	queueHandler *MessageHandler,
-	taskConfig *TaskConfig) *TaskHandler {
+	joinerService *business.JoinerService, queueHandler *MessageHandler) *TaskHandler {
 	th := &TaskHandler{
-		FilterService: filterService,
+		joinerService: joinerService,
 		queueHandler:  queueHandler,
-		TaskConfig:    taskConfig,
 	}
 
 	th.taskHandlers = map[enum.TaskType]func([]byte) error{
@@ -49,107 +42,73 @@ func (th *TaskHandler) HandleTask(taskType enum.TaskType, payload []byte) error 
 }
 
 func (th *TaskHandler) handleTaskType2_1(payload []byte) error {
-	transactions, err := utils.GetTransactions(payload)
+
+	reducedData, err := utils.UnmarshalPayload(payload, &reduced.BestSellingProducts{})
 	if err != nil {
 		return err
 	}
-
-	result := business.FilterByYearBetween(th.TaskConfig.FilterYearFrom, th.TaskConfig.FilterYearTo, transactions)
-	result = business.FilterByHourBetween(th.TaskConfig.BusinessHourFrom, th.TaskConfig.BusinessHourTo, result)
-	result = business.FilterByTotalAmountGreaterThan(th.TaskConfig.TotalAmountThreshold, result)
-
-	filteredBatch := &raw.TransactionBatch{
-		Transactions: result,
-	}
-
-	serializedTransactions, err := proto.Marshal(filteredBatch)
+	joinedResult := th.joinerService.JoinBestSellingProducts(reducedData)
+	serializedResults, err := proto.Marshal(joinedResult)
 	if err != nil {
 		return err
 	}
-	// Sends the transactions to the process data queue
-	err = th.queueHandler.SendData(enum.T1, serializedTransactions)
+	err = th.queueHandler.SendData(enum.T2_1, serializedResults)
 	if err != nil {
 		return err
 	}
-
 	return nil
 }
 
 func (th *TaskHandler) handleTaskType2_2(payload []byte) error {
 
-	items, err := utils.GetTransactionItems(payload)
+	reducedData, err := utils.UnmarshalPayload(payload, &reduced.MostProfitsProducts{})
 	if err != nil {
 		return err
 	}
-
-	result := business.FilterByYearBetween(th.TaskConfig.FilterYearFrom, th.TaskConfig.FilterYearTo, items)
-
-	filteredBatch := &raw.TransactionItemsBatch{
-		TransactionItems: result,
-	}
-
-	serializedItems, err := proto.Marshal(filteredBatch)
+	joinedResult := th.joinerService.JoinMostProfitsProducts(reducedData)
+	serializedResults, err := proto.Marshal(joinedResult)
 	if err != nil {
 		return err
 	}
-	// Sends the transaction items to both reducer queues
-	err = th.queueHandler.SendData(enum.T2, serializedItems)
+	err = th.queueHandler.SendData(enum.T2_2, serializedResults)
 	if err != nil {
 		return err
 	}
-
 	return nil
 }
 
 func (th *TaskHandler) handleTaskType3(payload []byte) error {
 
-	transactions, err := utils.GetTransactions(payload)
+	reducedData, err := utils.UnmarshalPayload(payload, &reduced.StoreTPV{})
 	if err != nil {
 		return err
 	}
-
-	result := business.FilterByYearBetween(th.TaskConfig.FilterYearFrom, th.TaskConfig.FilterYearTo, transactions)
-	result = business.FilterByHourBetween(th.TaskConfig.BusinessHourFrom, th.TaskConfig.BusinessHourTo, result)
-
-	filteredBatch := &raw.TransactionBatch{
-		Transactions: result,
-	}
-
-	serializedTransactions, err := proto.Marshal(filteredBatch)
+	joinedResult := th.joinerService.JoinTPV(reducedData)
+	serializedResults, err := proto.Marshal(joinedResult)
 	if err != nil {
 		return err
 	}
-	// Sends the transactions to the reduce sum queue
-	err = th.queueHandler.SendData(enum.T3, serializedTransactions)
+	err = th.queueHandler.SendData(enum.T3, serializedResults)
 	if err != nil {
 		return err
 	}
-
 	return nil
 }
 
 func (th *TaskHandler) handleTaskType4(payload []byte) error {
 
-	transactions, err := utils.GetTransactions(payload)
+	reducedData, err := utils.UnmarshalPayload(payload, &reduced.MostPurchasesUser{})
 	if err != nil {
 		return err
 	}
-
-	result := business.FilterByYearBetween(th.TaskConfig.FilterYearFrom, th.TaskConfig.FilterYearTo, transactions)
-
-	filteredBatch := &raw.TransactionBatch{
-		Transactions: result,
-	}
-
-	serializedTransactions, err := proto.Marshal(filteredBatch)
+	joinedResult := th.joinerService.JoinMostPurchasesByUser(reducedData)
+	serializedResults, err := proto.Marshal(joinedResult)
 	if err != nil {
 		return err
 	}
-	// Sends the transactions to the reduce count queue
-	err = th.queueHandler.SendData(enum.T4, serializedTransactions)
+	err = th.queueHandler.SendData(enum.T4, serializedResults)
 	if err != nil {
 		return err
 	}
-
 	return nil
 }

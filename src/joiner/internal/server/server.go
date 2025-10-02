@@ -16,19 +16,18 @@ import (
 var log = logger.GetLogger()
 
 type Server struct {
-	config         *config.Config
-	isRunning      bool
-	messageHandler *handler.MessageHandler
-	taskHandler    *handler.TaskHandler
+	config           *config.Config
+	isRunning        bool
+	messageHandler   *handler.MessageHandler
+	taskHandler      *handler.TaskHandler
+	referenceHandler *handler.ReferenceHandler
 }
 
 func InitServer(conf *config.Config) *Server {
 
 	joinerService := business.NewFilterService()
 
-	messageHandler := handler.NewMessageHandler(
-		conf.Address,
-	)
+	messageHandler := handler.NewMessageHandler(conf.Address)
 
 	return &Server{
 		config:         conf,
@@ -36,8 +35,10 @@ func InitServer(conf *config.Config) *Server {
 		messageHandler: messageHandler,
 		taskHandler: handler.NewTaskHandler(
 			joinerService,
-			messageHandler,
-			&conf.TaskConfig),
+			messageHandler),
+		referenceHandler: handler.NewReferenceHandler(
+			joinerService, // TODO: CHANGE WITH CACHE SERVICE!!!
+			messageHandler),
 	}
 }
 
@@ -59,7 +60,7 @@ func (s *Server) Run() error {
 				return s.taskHandler.HandleTask(enum.TaskType(taskType), payload)
 			},
 			func(payload []byte, taskType int32) error { // TODO: replace with reference handler
-				return s.taskHandler.HandleReferenceTask(enum.TaskType(taskType), payload)
+				return s.referenceHandler.HandleReference(enum.RefDatasetType(taskType), payload)
 			},
 		)
 
