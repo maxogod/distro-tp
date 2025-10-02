@@ -18,6 +18,25 @@ func GetFilterQueue(url string) MessageMiddleware {
 	})
 }
 
+// GetGroupByQueue retrieves the middleware that the controller uses to put work on the group by queues
+func GetGroupByQueue(url string) MessageMiddleware {
+	return retryMiddlewareCreation(MIDDLEWARE_CONNECTION_RETRIES, WAIT_INTERVAL, func() (MessageMiddleware, error) {
+		return NewQueueMiddleware(url, "groupby")
+	})
+}
+
+func GetReduceCountQueue(url string) MessageMiddleware {
+	return retryMiddlewareCreation(MIDDLEWARE_CONNECTION_RETRIES, WAIT_INTERVAL, func() (MessageMiddleware, error) {
+		return NewQueueMiddleware(url, "reduce_count")
+	})
+}
+
+func GetReduceSumQueue(url string) MessageMiddleware {
+	return retryMiddlewareCreation(MIDDLEWARE_CONNECTION_RETRIES, WAIT_INTERVAL, func() (MessageMiddleware, error) {
+		return NewQueueMiddleware(url, "reduce_sum")
+	})
+}
+
 // GetDataExchange retrieves the middleware used to send/receive data batches with the corresponding routing keys
 // and to send a worker-type level broadcast for the DONE message.
 func GetDataExchange(url string, subscriptionTopics []string) MessageMiddleware {
@@ -127,7 +146,6 @@ func GetJoinedStoresTPVQueue(url string) MessageMiddleware {
 	})
 }
 
-
 // GetJoinedUserTransactionsQueue retrieves the middleware used by controller to send joined user transactions.
 func GetJoinedUserTransactionsQueue(url string) MessageMiddleware {
 	return retryMiddlewareCreation(MIDDLEWARE_CONNECTION_RETRIES, WAIT_INTERVAL, func() (MessageMiddleware, error) {
@@ -135,13 +153,13 @@ func GetJoinedUserTransactionsQueue(url string) MessageMiddleware {
 	})
 }
 
-
 // GetFilteredTransactionsQueue retrieves the middleware used by controller to send filtered transactions.
 func GetFilteredTransactionsQueue(url string) MessageMiddleware {
 	return retryMiddlewareCreation(MIDDLEWARE_CONNECTION_RETRIES, WAIT_INTERVAL, func() (MessageMiddleware, error) {
 		return NewQueueMiddleware(url, "filtered_transactions")
 	})
 }
+
 /* --- Utils --- */
 
 func retryMiddlewareCreation(retries int, waitInterval time.Duration, newMiddleware func() (MessageMiddleware, error)) MessageMiddleware {

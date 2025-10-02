@@ -13,7 +13,6 @@ import (
 )
 
 const (
-	FinishExchange       = "finish_exchange"
 	FilterQueue          = "filter"
 	CountQueue           = "count"
 	SumQueue             = "sum"
@@ -25,7 +24,7 @@ type MessageHandler struct {
 	currentClientID     string
 	reduceSumQueue      middleware.MessageMiddleware
 	reduceCountQueue    middleware.MessageMiddleware
-	processDataQueue    middleware.MessageMiddleware
+	aggregatorQueue     middleware.MessageMiddleware
 	nodeConnectionQueue middleware.MessageMiddleware
 	dataQueue           middleware.MessageMiddleware
 	messageHandlers     map[enum.TaskType]func([]byte) error
@@ -37,40 +36,13 @@ func NewMessageHandler(
 	Address string,
 ) *MessageHandler {
 
-	reduceCountQueue, err := middleware.NewQueueMiddleware(Address, CountQueue)
-	if err != nil {
-		log.Errorf("Failed to create count queue middleware: %v", err)
-		return nil
-	}
-
-	reduceSumQueue, err := middleware.NewQueueMiddleware(Address, SumQueue)
-	if err != nil {
-		log.Errorf("Failed to create sum queue middleware: %v", err)
-		return nil
-	}
-
-	processDataQueue, err := middleware.NewQueueMiddleware(Address, ProcessDataQueue)
-	if err != nil {
-		log.Errorf("Failed to create processed data queue middleware: %v", err)
-		return nil
-	}
-
-	nodeConnectionQueue, err := middleware.NewQueueMiddleware(Address, NodeConnectionsQueue)
-	if err != nil {
-		log.Errorf("Failed to create controller connection middleware: %v", err)
-		return nil
-	}
-
 	workerName := fmt.Sprintf("%s_%s", FilterQueue, uuid.New().String())
-
-	dataQueue := middleware.GetDataExchange(Address, []string{FilterQueue, workerName})
-
 	mh := &MessageHandler{
-		reduceSumQueue:      reduceSumQueue,
-		reduceCountQueue:    reduceCountQueue,
-		processDataQueue:    processDataQueue,
-		nodeConnectionQueue: nodeConnectionQueue,
-		dataQueue:           dataQueue,
+		reduceSumQueue:      middleware.GetReduceSumQueue(Address),
+		reduceCountQueue:    middleware.GetReduceCountQueue(Address),
+		aggregatorQueue:     middleware.GetFilteredTransactionsQueue(Address),
+		nodeConnectionQueue: middleware.GetNodeConnectionsQueue(Address),
+		dataQueue:           middleware.GetDataExchange(Address, []string{FilterQueue, workerName}),
 		workerName:          workerName,
 	}
 
@@ -100,7 +72,7 @@ func (mh *MessageHandler) Close() error {
 		return fmt.Errorf("Error closing reduce count queue middleware: %v", e)
 	}
 
-	e = mh.processDataQueue.Close()
+	e = mh.aggregatorQueue.Close()
 	if e != middleware.MessageMiddlewareSuccess {
 		return fmt.Errorf("Error closing process data queue middleware: %v", e)
 	}
@@ -202,7 +174,7 @@ func (mh *MessageHandler) SendData(taskType enum.TaskType, serializedFilteredTra
 }
 
 func (mh *MessageHandler) sendT1Data(payload []byte) error {
-	return mh.sendToQueues(enum.T1, payload, mh.processDataQueue)
+	return mh.sendToQueues(enum.T1, payload, mh.aggregatorQueue)
 }
 
 func (mh *MessageHandler) sendT2Data(payload []byte) error {
