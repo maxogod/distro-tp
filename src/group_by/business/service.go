@@ -52,6 +52,7 @@ func (s *GroupByService) GroupItemsBySemester(items []*raw.Transaction) map[stri
 		}
 
 		key := fmt.Sprintf("%04d_%s", t.Year(), semester)
+		item.CreatedAt = key // Update CreatedAt to reflect the semester grouping
 		result[key] = append(result[key], item)
 	}
 
