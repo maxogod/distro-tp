@@ -1,0 +1,22 @@
+gateway:
+  address: "guest:guest@localhost:5672"
+log:
+  level: "DEBUG"
+datasets:
+  path: "/datasets"
+refQueues:
+  users: "users"
+  stores: "stores"
+  menu_items: "menu_items"
+queues:
+  store_tpv_queue: "store_tpv"
+  transaction_counted_queue: "transaction_counted"
+  transaction_sum_queue: "transaction_sum"
+  user_transactions_queue: "user_transactions"
+aggregator_queues:
+  joined_most_profits_transactions_queue: "joined_most_profits_transactions"
+  joined_best_selling_transactions_queue: "joined_best_selling_transactions"
+  joined_stores_tpv_queue: "joined_stores_tpv"
+  joined_user_transactions_queue: "joined_user_transactions"
+exchanges:
+  finish_routing_key: "joiner"
