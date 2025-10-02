@@ -4,53 +4,27 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/maxogod/distro-tp/src/filter/internal/handler"
 	"github.com/pkg/errors"
 	"github.com/spf13/viper"
 )
 
 type Config struct {
-	GatewayAddress                     string
-	StorePath                          string
-	LogLevel                           string
-	Users                              string
-	Stores                             string
-	MenuItems                          string
-	StoreTPVQueue                      string
-	TransactionCountedQueue            string
-	TransactionSumQueue                string
-	UserTransactionsQueue              string
-	JoinedMostProfitsTransactionsQueue string
-	JoinedBestSellingTransactionsQueue string
-	JoinedStoresTPVQueue               string
-	JoinedUserTransactionsQueue        string
-	FinishRoutingKey                   string
+	Address    string
+	LogLevel   string
+	TaskConfig handler.TaskConfig
 }
 
 func (c Config) String() string {
 	return fmt.Sprintf(
-		"GatewayAddress: %s | LogLevel: %s | StorePath: %s | StoreTPVQueue: %s"+
-			" | Users: %s | Stores: %s | MenuItems: %s | TransactionCountedQueue: %s | TransactionSumQueue: %s "+
-			"| UserTransactionsQueue: %s | JoinedMostProfitsTransactionsQueue: %s | JoinedBestSellingTransactionsQueue: %s "+
-			"| JoinedStoresTPVQueue: %s | JoinedUserTransactionsQueue: %s | FinishRoutingKey: %s",
-		c.GatewayAddress,
-		c.StorePath,
+		"Address: %s | LogLevel: %s | TaskConfig: [%s]",
+		c.Address,
 		c.LogLevel,
-		c.Users,
-		c.Stores,
-		c.MenuItems,
-		c.StoreTPVQueue,
-		c.TransactionCountedQueue,
-		c.TransactionSumQueue,
-		c.UserTransactionsQueue,
-		c.JoinedMostProfitsTransactionsQueue,
-		c.JoinedBestSellingTransactionsQueue,
-		c.JoinedStoresTPVQueue,
-		c.JoinedUserTransactionsQueue,
-		c.FinishRoutingKey,
+		c.TaskConfig.String(),
 	)
 }
 
-const ConfigFilePath = "/config.yaml"
+const CONFIG_FILE_PATH = "./config.yaml"
 
 func InitConfig() (*Config, error) {
 
@@ -58,27 +32,21 @@ func InitConfig() (*Config, error) {
 	v.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 	v.AutomaticEnv()
 
-	v.SetConfigFile(ConfigFilePath)
+	v.SetConfigFile(CONFIG_FILE_PATH)
 	if err := v.ReadInConfig(); err != nil {
-		return nil, errors.Wrapf(err, "failed to read config file %s", ConfigFilePath)
+		return nil, errors.Wrapf(err, "failed to read config file %s", CONFIG_FILE_PATH)
 	}
 
 	config := &Config{
-		GatewayAddress:                     v.GetString("gateway.address"),
-		StorePath:                          v.GetString("datasets.path"),
-		LogLevel:                           v.GetString("log.level"),
-		Users:                              v.GetString("refQueues.users"),
-		Stores:                             v.GetString("refQueues.stores"),
-		MenuItems:                          v.GetString("refQueues.menu_items"),
-		StoreTPVQueue:                      v.GetString("queues.store_tpv_queue"),
-		TransactionCountedQueue:            v.GetString("queues.transaction_counted_queue"),
-		TransactionSumQueue:                v.GetString("queues.transaction_sum_queue"),
-		UserTransactionsQueue:              v.GetString("queues.user_transactions_queue"),
-		JoinedMostProfitsTransactionsQueue: v.GetString("aggregator_queues.joined_most_profits_transactions_queue"),
-		JoinedBestSellingTransactionsQueue: v.GetString("aggregator_queues.joined_best_selling_transactions_queue"),
-		JoinedStoresTPVQueue:               v.GetString("aggregator_queues.joined_stores_tpv_queue"),
-		JoinedUserTransactionsQueue:        v.GetString("aggregator_queues.joined_user_transactions_queue"),
-		FinishRoutingKey:                   v.GetString("exchanges.finish_routing_key"),
+		Address:  v.GetString("gateway.address"),
+		LogLevel: v.GetString("log.level"),
+		TaskConfig: handler.TaskConfig{
+			FilterYearFrom:       v.GetInt("filter.year.from"),
+			FilterYearTo:         v.GetInt("filter.year.to"),
+			BusinessHourFrom:     v.GetInt("filter.businessHours.from"),
+			BusinessHourTo:       v.GetInt("filter.businessHours.to"),
+			TotalAmountThreshold: v.GetFloat64("filter.totalAmountThreshold"),
+		},
 	}
 
 	return config, nil

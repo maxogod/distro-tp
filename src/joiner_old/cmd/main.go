@@ -1,8 +1,6 @@
 package main
 
 import (
-	"time"
-
 	"github.com/maxogod/distro-tp/src/common/logger"
 	"github.com/maxogod/distro-tp/src/joiner/config"
 	"github.com/maxogod/distro-tp/src/joiner/internal/server"
@@ -11,18 +9,19 @@ import (
 var log = logger.GetLogger()
 
 func main() {
-	time.Sleep(12 * time.Second)
 
-	conf, err := config.InitConfig()
+	initConfig, err := config.InitConfig()
 	if err != nil {
 		log.Fatalf("%s", err)
 	}
 
-	log.Debug(conf.String())
+	log.Debugln(initConfig)
 
-	server := server.InitServer(conf)
+	server := server.InitServer(initConfig)
 
-	server.Run()
-	log.Debug("Squirtle thanks you for using the Joiner!")
+	err = server.Run()
+	if err != nil {
+		return
+	}
 
 }
