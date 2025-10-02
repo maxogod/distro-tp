@@ -1,10 +1,6 @@
 package cache
 
 import (
-	"fmt"
-	"os"
-	"path/filepath"
-
 	"github.com/maxogod/distro-tp/src/common/models/enum"
 	"github.com/maxogod/distro-tp/src/common/models/raw"
 )
@@ -31,6 +27,9 @@ type ReferenceDatasetStore struct {
 
 func NewCacheStore(storePath string) *ReferenceDatasetStore {
 	return &ReferenceDatasetStore{
+		Users:        make(map[int32]*raw.User),
+		Menu_items:   make(map[int32]*raw.MenuItem),
+		Stores:       make(map[int32]*raw.Store),
 		datasetTypes: defaultReferenceDatasets(),
 		storePath:    storePath,
 	}
@@ -145,26 +144,26 @@ func (refStore *ReferenceDatasetStore) PersistUsersBatch(batch *raw.UserBatch) e
 	// return f.Sync()
 }
 
-func (refStore *ReferenceDatasetStore) getUserDatasetFilename(users []*raw.User, datasetName string) string {
-	firstUser := users[0]
-	lastUser := users[len(users)-1]
-	return filepath.Join(refStore.storePath, fmt.Sprintf("%s_%d-%d.pb", datasetName, firstUser.UserId, lastUser.UserId))
-}
+// func (refStore *ReferenceDatasetStore) getUserDatasetFilename(users []*raw.User, datasetName string) string {
+// 	firstUser := users[0]
+// 	lastUser := users[len(users)-1]
+// 	return filepath.Join(refStore.storePath, fmt.Sprintf("%s_%d-%d.pb", datasetName, firstUser.UserId, lastUser.UserId))
+// }
 
-func (refStore *ReferenceDatasetStore) ResetStore() error {
-	entries, err := os.ReadDir(refStore.storePath)
-	if err != nil {
-		return err
-	}
+// func (refStore *ReferenceDatasetStore) ResetStore() error {
+// 	entries, err := os.ReadDir(refStore.storePath)
+// 	if err != nil {
+// 		return err
+// 	}
 
-	for _, entry := range entries {
-		path := filepath.Join(refStore.storePath, entry.Name())
+// 	for _, entry := range entries {
+// 		path := filepath.Join(refStore.storePath, entry.Name())
 
-		err = os.RemoveAll(path)
-		if err != nil {
-			return err
-		}
-	}
+// 		err = os.RemoveAll(path)
+// 		if err != nil {
+// 			return err
+// 		}
+// 	}
 
-	return nil
-}
+// 	return nil
+// }
