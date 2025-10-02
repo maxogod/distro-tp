@@ -5,9 +5,12 @@ import (
 	"io"
 	"os"
 
+	"github.com/maxogod/distro-tp/src/common/logger"
 	"github.com/maxogod/distro-tp/src/common/models/data_batch"
 	"google.golang.org/protobuf/proto"
 )
+
+var log = logger.GetLogger()
 
 type MergeFunc[T proto.Message] func(accumulated, incoming T) T
 type KeyFunc[T proto.Message] func(item T) string

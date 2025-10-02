@@ -11,7 +11,7 @@ import (
 	"github.com/maxogod/distro-tp/src/aggregator/config"
 	"github.com/maxogod/distro-tp/src/aggregator/internal/handler"
 	"github.com/maxogod/distro-tp/src/common/logger"
-	"github.com/maxogod/distro-tp/src/common/models/enum"
+	"github.com/maxogod/distro-tp/src/common/models/data_batch"
 )
 
 var log = logger.GetLogger()
@@ -21,6 +21,7 @@ type Server struct {
 	isRunning      bool
 	messageHandler *handler.MessageHandler
 	taskHandler    *handler.TaskHandler
+	cacheService   *cache.DataBatchStore
 }
 
 func InitServer(conf *config.Config) *Server {
@@ -34,11 +35,14 @@ func InitServer(conf *config.Config) *Server {
 		aggregatorService,
 	)
 
+	cacheService := cache.NewCacheStore(conf.StorePath)
+
 	return &Server{
 		config:         conf,
 		isRunning:      true,
 		messageHandler: messageHandler,
-		taskHandler:    handler.NewTaskHandler(cache.NewCacheStore(conf.StorePath)),
+		taskHandler:    handler.NewTaskHandler(cacheService),
+		cacheService:   cacheService,
 	}
 }
 
@@ -54,8 +58,8 @@ func (s *Server) Run() error {
 	}
 
 	for s.isRunning {
-		doneTaskType, e := s.messageHandler.Start(func(payload []byte, taskType int32) error {
-			return s.taskHandler.HandleTask(enum.TaskType(taskType), payload)
+		doneTaskType, e := s.messageHandler.Start(func(payload *data_batch.DataBatch) error {
+			return s.taskHandler.HandleTask(payload)
 		})
 
 		if e != nil {
@@ -85,6 +89,7 @@ func (s *Server) Run() error {
 			return fmt.Errorf("failed to send done message: %v", err)
 		}
 
+		s.cacheService.ResetStore()
 	}
 
 	return nil

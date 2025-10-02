@@ -42,7 +42,7 @@ func (mh *MessageHandler) SendAggregateDataTask4(items business.MapJoinMostPurch
 		currentBatch = append(currentBatch, item)
 		if len(currentBatch) >= mh.batchSize {
 			batch := &joined.JoinMostPurchasesUserBatch{Users: currentBatch}
-			if sendErr := mh.SendData(batch, enum.T1); sendErr != nil {
+			if sendErr := mh.SendData(batch, enum.T4); sendErr != nil {
 				return sendErr
 			}
 			currentBatch = []*joined.JoinMostPurchasesUser{}
@@ -51,12 +51,12 @@ func (mh *MessageHandler) SendAggregateDataTask4(items business.MapJoinMostPurch
 
 	if len(currentBatch) > 0 {
 		batch := &joined.JoinMostPurchasesUserBatch{Users: currentBatch}
-		if sendErr := mh.SendData(batch, enum.T1); sendErr != nil {
+		if sendErr := mh.SendData(batch, enum.T4); sendErr != nil {
 			return sendErr
 		}
 	}
 
-	if err := mh.SendDoneBatchToGateway(enum.T1, mh.currentClientID); err != nil {
+	if err := mh.SendDoneBatchToGateway(enum.T4, mh.currentClientID); err != nil {
 		return err
 	}
 
@@ -69,7 +69,7 @@ func (mh *MessageHandler) SendAggregateDataTask3(items business.MapJoinStoreTPV)
 		currentBatch = append(currentBatch, item)
 		if len(currentBatch) >= mh.batchSize {
 			batch := &joined.JoinStoreTPVBatch{Items: currentBatch}
-			if sendErr := mh.SendData(batch, enum.T1); sendErr != nil {
+			if sendErr := mh.SendData(batch, enum.T3); sendErr != nil {
 				return sendErr
 			}
 			currentBatch = []*joined.JoinStoreTPV{}
@@ -78,12 +78,12 @@ func (mh *MessageHandler) SendAggregateDataTask3(items business.MapJoinStoreTPV)
 
 	if len(currentBatch) > 0 {
 		batch := &joined.JoinStoreTPVBatch{Items: currentBatch}
-		if sendErr := mh.SendData(batch, enum.T1); sendErr != nil {
+		if sendErr := mh.SendData(batch, enum.T3); sendErr != nil {
 			return sendErr
 		}
 	}
 
-	if err := mh.SendDoneBatchToGateway(enum.T1, mh.currentClientID); err != nil {
+	if err := mh.SendDoneBatchToGateway(enum.T3, mh.currentClientID); err != nil {
 		return err
 	}
 
@@ -96,7 +96,7 @@ func (mh *MessageHandler) SendAggregateDataBestSelling(items business.MapJoinBes
 		currentBatch = append(currentBatch, item)
 		if len(currentBatch) >= mh.batchSize {
 			batch := &joined.JoinBestSellingProductsBatch{Items: currentBatch}
-			if sendErr := mh.SendData(batch, enum.T1); sendErr != nil {
+			if sendErr := mh.SendData(batch, enum.T2); sendErr != nil {
 				return sendErr
 			}
 			currentBatch = []*joined.JoinBestSellingProducts{}
@@ -105,12 +105,12 @@ func (mh *MessageHandler) SendAggregateDataBestSelling(items business.MapJoinBes
 
 	if len(currentBatch) > 0 {
 		batch := &joined.JoinBestSellingProductsBatch{Items: currentBatch}
-		if sendErr := mh.SendData(batch, enum.T1); sendErr != nil {
+		if sendErr := mh.SendData(batch, enum.T2); sendErr != nil {
 			return sendErr
 		}
 	}
 
-	if err := mh.SendDoneBatchToGateway(enum.T1, mh.currentClientID); err != nil {
+	if err := mh.SendDoneBatchToGateway(enum.T2, mh.currentClientID); err != nil {
 		return err
 	}
 
@@ -123,7 +123,7 @@ func (mh *MessageHandler) SendAggregateDataMostProfits(items business.MapJoinMos
 		currentBatch = append(currentBatch, item)
 		if len(currentBatch) >= mh.batchSize {
 			batch := &joined.JoinMostProfitsProductsBatch{Items: currentBatch}
-			if sendErr := mh.SendData(batch, enum.T1); sendErr != nil {
+			if sendErr := mh.SendData(batch, enum.T2); sendErr != nil {
 				return sendErr
 			}
 			currentBatch = []*joined.JoinMostProfitsProducts{}
@@ -132,12 +132,12 @@ func (mh *MessageHandler) SendAggregateDataMostProfits(items business.MapJoinMos
 
 	if len(currentBatch) > 0 {
 		batch := &joined.JoinMostProfitsProductsBatch{Items: currentBatch}
-		if sendErr := mh.SendData(batch, enum.T1); sendErr != nil {
+		if sendErr := mh.SendData(batch, enum.T2); sendErr != nil {
 			return sendErr
 		}
 	}
 
-	if err := mh.SendDoneBatchToGateway(enum.T1, mh.currentClientID); err != nil {
+	if err := mh.SendDoneBatchToGateway(enum.T2, mh.currentClientID); err != nil {
 		return err
 	}
 

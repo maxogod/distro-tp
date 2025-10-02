@@ -6,7 +6,9 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/maxogod/distro-tp/src/common/models/data_batch"
 	"github.com/maxogod/distro-tp/src/common/models/enum"
+	"google.golang.org/protobuf/proto"
 )
 
 type StoreDataPaths map[enum.TaskType][]string
@@ -23,7 +25,7 @@ func NewCacheStore(storePath string) *DataBatchStore {
 	}
 }
 
-func (cacheStore *DataBatchStore) storeData(data []byte, taskType enum.TaskType, filename string) error {
+func (cacheStore *DataBatchStore) storeData(data *data_batch.DataBatch, taskType enum.TaskType, filename string) error {
 	datasetFilename := filepath.Join(cacheStore.storePath, fmt.Sprintf("%s.pb", filename))
 
 	f, openErr := os.OpenFile(datasetFilename, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
@@ -32,12 +34,17 @@ func (cacheStore *DataBatchStore) storeData(data []byte, taskType enum.TaskType,
 	}
 	defer f.Close()
 
-	length := uint32(len(data))
+	rawBytes, marshalErr := proto.Marshal(data)
+	if marshalErr != nil {
+		return marshalErr
+	}
+
+	length := uint32(len(rawBytes))
 	if writeLenErr := binary.Write(f, binary.LittleEndian, length); writeLenErr != nil {
 		return writeLenErr
 	}
 
-	if _, writeDataErr := f.Write(data); writeDataErr != nil {
+	if _, writeDataErr := f.Write(rawBytes); writeDataErr != nil {
 		return writeDataErr
 	}
 
@@ -46,24 +53,24 @@ func (cacheStore *DataBatchStore) storeData(data []byte, taskType enum.TaskType,
 	return f.Sync()
 }
 
-func (cacheStore *DataBatchStore) StoreDataTask1(batch []byte) error {
-	return cacheStore.storeData(batch, enum.T1, "task1")
+func (cacheStore *DataBatchStore) StoreDataTask1(data *data_batch.DataBatch) error {
+	return cacheStore.storeData(data, enum.T1, "task1")
 }
 
-func (cacheStore *DataBatchStore) StoreDataBestSelling(batch []byte) error {
-	return cacheStore.storeData(batch, enum.T2, "task2_1")
+func (cacheStore *DataBatchStore) StoreDataBestSelling(data *data_batch.DataBatch) error {
+	return cacheStore.storeData(data, enum.T2, "task2_1")
 }
 
-func (cacheStore *DataBatchStore) StoreDataMostProfits(batch []byte) error {
-	return cacheStore.storeData(batch, enum.T2, "task2_2")
+func (cacheStore *DataBatchStore) StoreDataMostProfits(data *data_batch.DataBatch) error {
+	return cacheStore.storeData(data, enum.T2, "task2_2")
 }
 
-func (cacheStore *DataBatchStore) StoreDataTask3(batch []byte) error {
-	return cacheStore.storeData(batch, enum.T3, "task3")
+func (cacheStore *DataBatchStore) StoreDataTask3(data *data_batch.DataBatch) error {
+	return cacheStore.storeData(data, enum.T3, "task3")
 }
 
-func (cacheStore *DataBatchStore) StoreDataTask4(batch []byte) error {
-	return cacheStore.storeData(batch, enum.T4, "task4")
+func (cacheStore *DataBatchStore) StoreDataTask4(data *data_batch.DataBatch) error {
+	return cacheStore.storeData(data, enum.T4, "task4")
 }
 
 func (cacheStore *DataBatchStore) updateStorePaths(taskType enum.TaskType, datasetFilename string) {

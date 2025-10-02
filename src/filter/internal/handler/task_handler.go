@@ -57,6 +57,9 @@ func (th *TaskHandler) handleTaskType1(payload []byte) error {
 	result := business.FilterByYearBetween(th.TaskConfig.FilterYearFrom, th.TaskConfig.FilterYearTo, transactions)
 	result = business.FilterByHourBetween(th.TaskConfig.BusinessHourFrom, th.TaskConfig.BusinessHourTo, result)
 	result = business.FilterByTotalAmountGreaterThan(th.TaskConfig.TotalAmountThreshold, result)
+	if len(result) == 0 {
+		return nil
+	}
 
 	filteredBatch := &raw.TransactionBatch{
 		Transactions: result,
@@ -76,13 +79,15 @@ func (th *TaskHandler) handleTaskType1(payload []byte) error {
 }
 
 func (th *TaskHandler) handleTaskType2(payload []byte) error {
-
 	items, err := utils.GetTransactionItems(payload)
 	if err != nil {
 		return err
 	}
 
 	result := business.FilterByYearBetween(th.TaskConfig.FilterYearFrom, th.TaskConfig.FilterYearTo, items)
+	if len(result) == 0 {
+		return nil
+	}
 
 	filteredBatch := &raw.TransactionItemsBatch{
 		TransactionItems: result,
@@ -110,6 +115,9 @@ func (th *TaskHandler) handleTaskType3(payload []byte) error {
 
 	result := business.FilterByYearBetween(th.TaskConfig.FilterYearFrom, th.TaskConfig.FilterYearTo, transactions)
 	result = business.FilterByHourBetween(th.TaskConfig.BusinessHourFrom, th.TaskConfig.BusinessHourTo, result)
+	if len(result) == 0 {
+		return nil
+	}
 
 	filteredBatch := &raw.TransactionBatch{
 		Transactions: result,
@@ -136,6 +144,9 @@ func (th *TaskHandler) handleTaskType4(payload []byte) error {
 	}
 
 	result := business.FilterByYearBetween(th.TaskConfig.FilterYearFrom, th.TaskConfig.FilterYearTo, transactions)
+	if len(result) == 0 {
+		return nil
+	}
 
 	filteredBatch := &raw.TransactionBatch{
 		Transactions: result,
