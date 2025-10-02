@@ -32,9 +32,9 @@ func NewMessageHandler(
 	workerName := fmt.Sprintf("%s_%s", FilterPrefix, uuid.New().String())
 	mh := &MessageHandler{
 		groupbyQueue:        middleware.GetGroupByQueue(Address),
-		aggregatorQueue:     middleware.GetFilteredTransactionsQueue(Address),
+		aggregatorQueue:     middleware.GetAggregatorQueue(Address),
 		nodeConnectionQueue: middleware.GetNodeConnectionsQueue(Address),
-		dataQueue:           middleware.GetDataExchange(Address, []string{FilterPrefix, workerName}),
+		dataQueue:           middleware.GetFilterQueue(Address),
 		workerName:          workerName,
 	}
 
@@ -51,7 +51,6 @@ func NewMessageHandler(
 }
 
 func (mh *MessageHandler) Close() error {
-
 	mh.stopConsuming <- true
 
 	e := mh.groupbyQueue.Close()
@@ -132,7 +131,6 @@ func (mh *MessageHandler) Start(
 }
 
 func (mh *MessageHandler) SendDone() error {
-
 	log.Debug("Sending done message to controller")
 
 	e := mh.sendMessageToNodeConnection(

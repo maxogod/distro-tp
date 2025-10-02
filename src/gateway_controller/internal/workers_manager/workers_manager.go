@@ -4,60 +4,54 @@ import (
 	"strings"
 
 	"github.com/maxogod/distro-tp/src/common/logger"
-	"github.com/maxogod/distro-tp/src/common/middleware"
 	"github.com/maxogod/distro-tp/src/common/models/enum"
 )
 
 var log = logger.GetLogger()
-
-type workerStatus struct {
-	finished   bool
-	connection middleware.MessageMiddleware
-}
 
 type workersManager struct {
 	middlewareUrl string
 	rrCounter     int
 	rrIDs         []string
 
-	filterWorkers     map[string]workerStatus
-	groupByWorkers    map[string]workerStatus
-	reducerWorkers    map[string]workerStatus
-	joinerWorkers     map[string]workerStatus
-	aggregatorWorkers map[string]workerStatus
+	filterWorkers       map[string]bool
+	groupByWorkers      map[string]bool
+	reducerSumWorkers   map[string]bool
+	reducerCountWorkers map[string]bool
+	joinerWorkers       map[string]bool
+	aggregatorWorkers   map[string]bool
 }
 
 func NewWorkersManager(middlewareUrl string) WorkersManager {
 	return &workersManager{
-		middlewareUrl:     middlewareUrl,
-		rrCounter:         0,
-		rrIDs:             []string{},
-		filterWorkers:     make(map[string]workerStatus),
-		groupByWorkers:    make(map[string]workerStatus),
-		reducerWorkers:    make(map[string]workerStatus),
-		joinerWorkers:     make(map[string]workerStatus),
-		aggregatorWorkers: make(map[string]workerStatus),
+		middlewareUrl:       middlewareUrl,
+		rrCounter:           0,
+		rrIDs:               []string{},
+		filterWorkers:       make(map[string]bool),
+		groupByWorkers:      make(map[string]bool),
+		reducerSumWorkers:   make(map[string]bool),
+		reducerCountWorkers: make(map[string]bool),
+		joinerWorkers:       make(map[string]bool),
+		aggregatorWorkers:   make(map[string]bool),
 	}
 }
 
 func (wm *workersManager) AddWorker(id string) error {
 	group := strings.Split(id, "_")[0]
-	workerStat := workerStatus{
-		finished:   false,
-		connection: middleware.GetDataExchange(wm.middlewareUrl, []string{id}),
-	}
 	wm.rrIDs = append(wm.rrIDs, id)
 	switch enum.WorkerType(group) {
 	case enum.Filter:
-		wm.filterWorkers[id] = workerStat
+		wm.filterWorkers[id] = false
 	case enum.GroupBy:
-		wm.groupByWorkers[id] = workerStat
-	case enum.Reducer:
-		wm.reducerWorkers[id] = workerStat
+		wm.groupByWorkers[id] = false
+	case enum.ReducerSum:
+		wm.reducerSumWorkers[id] = false
+	case enum.ReducerCount:
+		wm.reducerCountWorkers[id] = false
 	case enum.Joiner:
-		wm.joinerWorkers[id] = workerStat
+		wm.joinerWorkers[id] = false
 	case enum.Aggregator:
-		wm.aggregatorWorkers[id] = workerStat
+		wm.aggregatorWorkers[id] = false
 	default:
 		return &InvalidWorkerTypeError{workerType: group}
 	}
@@ -68,82 +62,91 @@ func (wm *workersManager) FinishWorker(id string) error {
 	group := strings.Split(id, "_")[0]
 	switch enum.WorkerType(group) {
 	case enum.Filter:
-		workerStat, exists := wm.filterWorkers[id]
+		_, exists := wm.filterWorkers[id]
 		if !exists {
 			return &WorkerNotExistsError{}
 		}
-		workerStat.finished = true
-		wm.filterWorkers[id] = workerStat
+		wm.filterWorkers[id] = true
 	case enum.GroupBy:
-		workerStat, exists := wm.groupByWorkers[id]
+		_, exists := wm.groupByWorkers[id]
 		if !exists {
 			return &WorkerNotExistsError{}
 		}
-		workerStat.finished = true
-		wm.groupByWorkers[id] = workerStat
-	case enum.Reducer:
-		workerStat, exists := wm.reducerWorkers[id]
+		wm.groupByWorkers[id] = true
+	case enum.ReducerSum:
+		_, exists := wm.reducerSumWorkers[id]
 		if !exists {
 			return &WorkerNotExistsError{}
 		}
-		workerStat.finished = true
-		wm.reducerWorkers[id] = workerStat
+		wm.reducerSumWorkers[id] = true
+	case enum.ReducerCount:
+		_, exists := wm.reducerCountWorkers[id]
+		if !exists {
+			return &WorkerNotExistsError{}
+		}
+		wm.reducerCountWorkers[id] = true
 	case enum.Joiner:
-		workerStat, exists := wm.joinerWorkers[id]
+		_, exists := wm.joinerWorkers[id]
 		if !exists {
 			return &WorkerNotExistsError{}
 		}
-		workerStat.finished = true
-		wm.joinerWorkers[id] = workerStat
+		wm.joinerWorkers[id] = true
 	case enum.Aggregator:
-		workerStat, exists := wm.aggregatorWorkers[id]
+		_, exists := wm.aggregatorWorkers[id]
 		if !exists {
 			return &WorkerNotExistsError{}
 		}
-		workerStat.finished = true
-		wm.aggregatorWorkers[id] = workerStat
+		wm.aggregatorWorkers[id] = true
 	default:
 		return &InvalidWorkerTypeError{workerType: group}
 	}
 	return nil
 }
 
-func (wm *workersManager) GetFinishExchangeTopic() (enum.WorkerType, bool) {
+func (wm *workersManager) GetNextWorkerStageToFinish() (enum.WorkerType, bool) {
 	if len(wm.filterWorkers) > 0 {
-		for _, workerStat := range wm.filterWorkers {
-			if !workerStat.finished {
+		for _, isFinished := range wm.filterWorkers {
+			if !isFinished {
 				return enum.Filter, false
 			}
 		}
 		log.Debug("All filter workers finished")
 	}
 	if len(wm.groupByWorkers) > 0 {
-		for _, workerStat := range wm.groupByWorkers {
-			if !workerStat.finished {
+		for _, isFinished := range wm.groupByWorkers {
+			if !isFinished {
 				return enum.GroupBy, false
 			}
 		}
 		log.Debug("All group by workers finished")
 	}
-	if len(wm.reducerWorkers) > 0 {
-		for _, workerStat := range wm.reducerWorkers {
-			if !workerStat.finished {
-				return enum.Reducer, false
+	if len(wm.reducerSumWorkers) > 0 {
+		for _, isFinished := range wm.reducerSumWorkers {
+			if !isFinished {
+				return enum.ReducerSum, false
 			}
 		}
-		log.Debug("All reducer workers finished")
+		log.Debug("All reducer sum workers finished")
+	}
+	if len(wm.reducerCountWorkers) > 0 {
+		for _, isFinished := range wm.reducerCountWorkers {
+			if !isFinished {
+				return enum.ReducerCount, false
+			}
+		}
+		log.Debug("All reducer count workers finished")
 	}
 	if len(wm.joinerWorkers) > 0 {
-		for _, workerStat := range wm.joinerWorkers {
-			if !workerStat.finished {
+		for _, isFinished := range wm.joinerWorkers {
+			if !isFinished {
 				return enum.Joiner, false
 			}
 		}
 		log.Debug("All joiner workers finished")
 	}
 	if len(wm.aggregatorWorkers) > 0 {
-		for _, workerStat := range wm.aggregatorWorkers {
-			if !workerStat.finished {
+		for _, isFinished := range wm.aggregatorWorkers {
+			if !isFinished {
 				return enum.Aggregator, false
 			}
 		}
@@ -153,43 +156,23 @@ func (wm *workersManager) GetFinishExchangeTopic() (enum.WorkerType, bool) {
 	return enum.Aggregator, true
 }
 
-func (wm *workersManager) GetWorkerConnectionRR() (middleware.MessageMiddleware, error) {
-	if len(wm.filterWorkers) == 0 {
-		return nil, &WorkerNotExistsError{}
-	} else if wm.rrCounter >= len(wm.rrIDs) {
-		wm.rrCounter = 0
-	}
-
-	id := wm.rrIDs[wm.rrCounter]
-	wm.rrCounter++
-
-	workerStat, exists := wm.filterWorkers[id]
-	if !exists {
-		return nil, &WorkerNotExistsError{}
-	}
-
-	return workerStat.connection, nil
-}
-
 func (wm *workersManager) ClearStatus() {
-	for id, workerStat := range wm.filterWorkers {
-		workerStat.finished = false
-		wm.filterWorkers[id] = workerStat
+	for id, _ := range wm.filterWorkers {
+		wm.filterWorkers[id] = false
 	}
-	for id, workerStat := range wm.groupByWorkers {
-		workerStat.finished = false
-		wm.groupByWorkers[id] = workerStat
+	for id, _ := range wm.groupByWorkers {
+		wm.groupByWorkers[id] = false
 	}
-	for id, workerStat := range wm.reducerWorkers {
-		workerStat.finished = false
-		wm.reducerWorkers[id] = workerStat
+	for id, _ := range wm.reducerSumWorkers {
+		wm.reducerSumWorkers[id] = false
 	}
-	for id, workerStat := range wm.joinerWorkers {
-		workerStat.finished = false
-		wm.joinerWorkers[id] = workerStat
+	for id, _ := range wm.reducerCountWorkers {
+		wm.reducerCountWorkers[id] = false
 	}
-	for id, workerStat := range wm.aggregatorWorkers {
-		workerStat.finished = false
-		wm.aggregatorWorkers[id] = workerStat
+	for id, _ := range wm.joinerWorkers {
+		wm.joinerWorkers[id] = false
+	}
+	for id, _ := range wm.aggregatorWorkers {
+		wm.aggregatorWorkers[id] = false
 	}
 }
