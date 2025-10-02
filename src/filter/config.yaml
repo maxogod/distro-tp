@@ -8,5 +8,5 @@ filter:
     to: 2025
   businessHours:
     from: 6
-    to: 11
+    to: 23
   totalAmountThreshold: 75.0

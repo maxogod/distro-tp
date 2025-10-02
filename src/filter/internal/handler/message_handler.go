@@ -12,13 +12,7 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-const (
-	FilterQueue          = "filter"
-	CountQueue           = "count"
-	SumQueue             = "sum"
-	ProcessDataQueue     = "processed_data"
-	NodeConnectionsQueue = "node_connections"
-)
+const FilterPrefix = "filter"
 
 type MessageHandler struct {
 	currentClientID     string
@@ -35,12 +29,12 @@ func NewMessageHandler(
 	Address string,
 ) *MessageHandler {
 
-	workerName := fmt.Sprintf("%s_%s", FilterQueue, uuid.New().String())
+	workerName := fmt.Sprintf("%s_%s", FilterPrefix, uuid.New().String())
 	mh := &MessageHandler{
 		groupbyQueue:        middleware.GetGroupByQueue(Address),
 		aggregatorQueue:     middleware.GetFilteredTransactionsQueue(Address),
 		nodeConnectionQueue: middleware.GetNodeConnectionsQueue(Address),
-		dataQueue:           middleware.GetDataExchange(Address, []string{FilterQueue, workerName}),
+		dataQueue:           middleware.GetDataExchange(Address, []string{FilterPrefix, workerName}),
 		workerName:          workerName,
 	}
 
