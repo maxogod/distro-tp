@@ -70,7 +70,7 @@ func (s *Server) Run() error {
 		}
 
 		log.Debug("All data received, sending processed data to controller")
-		err := s.messageHandler.SendAllData(doneTaskType)
+		err := s.messageHandler.SendAllData(doneTaskType, s.taskHandler)
 		if err != nil {
 			return err
 		}

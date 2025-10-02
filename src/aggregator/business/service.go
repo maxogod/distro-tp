@@ -1,10 +1,6 @@
 package business
 
 import (
-	"errors"
-	"fmt"
-	"io"
-	"os"
 	"sort"
 
 	"github.com/maxogod/distro-tp/src/aggregator/cache"
@@ -34,151 +30,120 @@ func NewAggregatorService() *AggregatorService {
 	return &AggregatorService{}
 }
 
-func aggregateTask[T proto.Message, B proto.Message, M ~map[string]T](
-	datasetName, storePath string,
-	createSpecificBatch func() B,
-	getItems func(B) []T,
-	merge cache.MergeFunc[T],
-	key cache.KeyFunc[T],
-	combineTop func(M) M,
-) (M, error) {
-	filename := fmt.Sprintf("%s/%s.pb", storePath, datasetName)
-	log.Debugf("Reading data from %s", filename)
-	f, err := os.Open(filename)
-	if err != nil {
-		return nil, err
-	}
-	defer f.Close()
+func AggregateDataTask1(refStore *cache.DataBatchStore) (MapTransactions, error) {
+	finalAgg := make(MapTransactions)
 
-	finalAgg := make(M)
-	i := 0
-
-	for {
-		currAgg, aggErr := cache.AggregateData(f, createSpecificBatch, getItems, merge, key)
-		if aggErr != nil {
-			if errors.Is(aggErr, io.EOF) {
-				log.Debugf("Reached end of file after $d iters", i)
-				break
-			}
-			return nil, aggErr
+	for _, currBatch := range refStore.GetBatches() {
+		specificBatch := &raw.TransactionBatch{}
+		if err := proto.Unmarshal(currBatch.Payload, specificBatch); err != nil {
+			return nil, err
 		}
 
-		for k, v := range currAgg {
-			if existing, ok := finalAgg[k]; ok {
-				finalAgg[k] = merge(existing, v)
-			} else {
-				finalAgg[k] = v
-			}
+		for _, transaction := range specificBatch.Transactions {
+			finalAgg[transaction.TransactionId] = transaction
 		}
-
-		finalAgg = combineTop(finalAgg)
-		i++
 	}
 	log.Debugf("Final aggregation completed with %d items", len(finalAgg))
 
 	return finalAgg, nil
 }
 
-func (a *AggregatorService) AggregateDataTask1(storePath string) (MapTransactions, error) {
-	return aggregateTask(
-		"task1",
-		storePath,
-		func() *raw.TransactionBatch { return &raw.TransactionBatch{} },
-		func(batch *raw.TransactionBatch) []*raw.Transaction {
-			return batch.Transactions
-		},
-		func(accumulated, incoming *raw.Transaction) *raw.Transaction {
-			panic("This should not happen")
-		},
-		func(item *raw.Transaction) string {
-			return item.TransactionId
-		},
-		func(m MapTransactions) MapTransactions { return m },
-	)
+func AggregateBestSellingData(refStore *cache.DataBatchStore) (MapJoinBestSelling, error) {
+	finalAgg := make(MapJoinBestSelling)
+
+	for _, currBatch := range refStore.GetBatches() {
+		specificBatch := &joined.JoinBestSellingProductsBatch{}
+		if err := proto.Unmarshal(currBatch.Payload, specificBatch); err != nil {
+			return nil, err
+		}
+
+		for _, bestSelling := range specificBatch.Items {
+			id := bestSelling.YearMonthCreatedAt + "|" + bestSelling.ItemName
+			if existing, ok := finalAgg[id]; ok {
+				existing.SellingsQty += bestSelling.SellingsQty
+			} else {
+				finalAgg[id] = bestSelling
+			}
+
+			finalAgg = top1BestSelling(finalAgg)
+		}
+	}
+	log.Debugf("Final aggregation completed with %d items", len(finalAgg))
+
+	return finalAgg, nil
 }
 
-func (a *AggregatorService) AggregateBestSellingData(storePath string) (MapJoinBestSelling, error) {
-	return aggregateTask(
-		"task2_1",
-		storePath,
-		func() *joined.JoinBestSellingProductsBatch {
-			return &joined.JoinBestSellingProductsBatch{}
-		},
-		func(batch *joined.JoinBestSellingProductsBatch) []*joined.JoinBestSellingProducts {
-			return batch.Items
-		},
-		func(accumulated, incoming *joined.JoinBestSellingProducts) *joined.JoinBestSellingProducts {
-			accumulated.SellingsQty += incoming.SellingsQty
-			return accumulated
-		},
-		func(item *joined.JoinBestSellingProducts) string {
-			return item.YearMonthCreatedAt + "|" + item.ItemName
-		},
-		func(m MapJoinBestSelling) MapJoinBestSelling { return top1BestSelling(m) },
-	)
+func AggregateMostProfitsData(refStore *cache.DataBatchStore) (MapJoinMostProfits, error) {
+	finalAgg := make(MapJoinMostProfits)
+
+	for _, currBatch := range refStore.GetBatches() {
+		specificBatch := &joined.JoinMostProfitsProductsBatch{}
+		if err := proto.Unmarshal(currBatch.Payload, specificBatch); err != nil {
+			return nil, err
+		}
+
+		for _, mostProfits := range specificBatch.Items {
+			id := mostProfits.YearMonthCreatedAt + "|" + mostProfits.ItemName
+			if existing, ok := finalAgg[id]; ok {
+				existing.ProfitSum += mostProfits.ProfitSum
+			} else {
+				finalAgg[id] = mostProfits
+			}
+
+			finalAgg = top1MostProfits(finalAgg)
+		}
+	}
+	log.Debugf("Final aggregation completed with %d items", len(finalAgg))
+
+	return finalAgg, nil
 }
 
-func (a *AggregatorService) AggregateMostProfitsData(storePath string) (MapJoinMostProfits, error) {
-	return aggregateTask(
-		"task2_2",
-		storePath,
-		func() *joined.JoinMostProfitsProductsBatch {
-			return &joined.JoinMostProfitsProductsBatch{}
-		},
-		func(batch *joined.JoinMostProfitsProductsBatch) []*joined.JoinMostProfitsProducts {
-			return batch.Items
-		},
-		func(accumulated, incoming *joined.JoinMostProfitsProducts) *joined.JoinMostProfitsProducts {
-			accumulated.ProfitSum += incoming.ProfitSum
-			return accumulated
-		},
-		func(item *joined.JoinMostProfitsProducts) string {
-			return item.YearMonthCreatedAt + "|" + item.ItemName
-		},
-		func(m MapJoinMostProfits) MapJoinMostProfits { return top1MostProfits(m) },
-	)
+func AggregateDataTask3(refStore *cache.DataBatchStore) (MapJoinStoreTPV, error) {
+	finalAgg := make(MapJoinStoreTPV)
+
+	for _, currBatch := range refStore.GetBatches() {
+		specificBatch := &joined.JoinStoreTPVBatch{}
+		if err := proto.Unmarshal(currBatch.Payload, specificBatch); err != nil {
+			return nil, err
+		}
+
+		for _, storesTPV := range specificBatch.Items {
+			id := storesTPV.YearHalfCreatedAt + "|" + storesTPV.StoreName
+			if existing, ok := finalAgg[id]; ok {
+				existing.Tpv += storesTPV.Tpv
+			} else {
+				finalAgg[id] = storesTPV
+			}
+		}
+	}
+	log.Debugf("Final aggregation completed with %d items", len(finalAgg))
+
+	return finalAgg, nil
 }
 
-func (a *AggregatorService) AggregateDataTask3(storePath string) (MapJoinStoreTPV, error) {
-	return aggregateTask(
-		"task3",
-		storePath,
-		func() *joined.JoinStoreTPVBatch {
-			return &joined.JoinStoreTPVBatch{}
-		},
-		func(batch *joined.JoinStoreTPVBatch) []*joined.JoinStoreTPV {
-			return batch.Items
-		},
-		func(accumulated, incoming *joined.JoinStoreTPV) *joined.JoinStoreTPV {
-			accumulated.Tpv += incoming.Tpv
-			return accumulated
-		},
-		func(item *joined.JoinStoreTPV) string {
-			return item.YearHalfCreatedAt + "|" + item.StoreName
-		},
-		func(m MapJoinStoreTPV) MapJoinStoreTPV { return m },
-	)
-}
+func AggregateDataTask4(refStore *cache.DataBatchStore) (MapJoinMostPurchasesUser, error) {
+	finalAgg := make(MapJoinMostPurchasesUser)
 
-func (a *AggregatorService) AggregateDataTask4(storePath string) (MapJoinMostPurchasesUser, error) {
-	return aggregateTask(
-		"task4",
-		storePath,
-		func() *joined.JoinMostPurchasesUserBatch {
-			return &joined.JoinMostPurchasesUserBatch{}
-		},
-		func(batch *joined.JoinMostPurchasesUserBatch) []*joined.JoinMostPurchasesUser {
-			return batch.Users
-		},
-		func(accumulated, incoming *joined.JoinMostPurchasesUser) *joined.JoinMostPurchasesUser {
-			accumulated.PurchasesQty += incoming.PurchasesQty
-			return accumulated
-		},
-		func(item *joined.JoinMostPurchasesUser) string {
-			return item.StoreName + "|" + item.UserBirthdate
-		},
-		func(m MapJoinMostPurchasesUser) MapJoinMostPurchasesUser { return top3ByStore(m) },
-	)
+	for _, currBatch := range refStore.GetBatches() {
+		specificBatch := &joined.JoinMostPurchasesUserBatch{}
+		if err := proto.Unmarshal(currBatch.Payload, specificBatch); err != nil {
+			return nil, err
+		}
+
+		for _, purchaseUser := range specificBatch.Users {
+			id := purchaseUser.StoreName + "|" + purchaseUser.UserBirthdate
+			if existing, ok := finalAgg[id]; ok {
+				existing.PurchasesQty += purchaseUser.PurchasesQty
+			} else {
+				finalAgg[id] = purchaseUser
+			}
+
+			finalAgg = top3ByStore(finalAgg)
+		}
+	}
+	log.Debugf("Final aggregation completed with %d items", len(finalAgg))
+
+	return finalAgg, nil
 }
 
 func topNByGroup[T proto.Message, M ~map[string]T](
