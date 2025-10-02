@@ -31,10 +31,10 @@ func NewReferenceHandler(filterService *business.JoinerService, refStore *cache.
 	return rh
 }
 
-func (rh *ReferenceHandler) HandleReference(taskType enum.RefDatasetType, payload []byte) error {
-	handler, exists := rh.taskHandlers[taskType]
+func (rh *ReferenceHandler) HandleReference(referenceType enum.RefDatasetType, payload []byte) error {
+	handler, exists := rh.taskHandlers[referenceType]
 	if !exists {
-		return fmt.Errorf("unknown task type: %d", taskType)
+		return fmt.Errorf("unknown ref type: %d", referenceType)
 	}
 	return handler(payload)
 }

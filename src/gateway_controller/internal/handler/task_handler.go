@@ -78,7 +78,6 @@ func (th *TaskHandler) HandleTask(taskType enum.TaskType, dataBatch *data_batch.
 }
 
 func (th *TaskHandler) HandleReferenceData(dataBatch *data_batch.DataBatch, currentClientID string) error {
-	log.Debugf("Received reference data")
 	dataBatch.ClientId = currentClientID
 
 	serializedRefData, err := proto.Marshal(dataBatch)
