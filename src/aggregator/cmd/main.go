@@ -12,26 +12,26 @@ import (
 var log = logger.GetLogger()
 
 func main() {
+	time.Sleep(12 * time.Second)
 
-	time.Sleep(12 * time.Second) // Wait for RabbitMQ to be ready
-
-	initConfig, err := config.InitConfig()
+	conf, err := config.InitConfig()
 	if err != nil {
 		log.Fatalf("%s", err)
 	}
 
-	if err := os.MkdirAll(initConfig.StorePath, 0755); err != nil {
+	if err = os.MkdirAll(conf.StorePath, 0755); err != nil {
 		log.Errorf("failed to create output directory: %v", err)
 		return
 	}
 
-	log.Debugln(initConfig)
+	log.Debug(conf.String())
 
-	server := server.InitServer(initConfig)
+	aggServer := server.InitServer(conf)
 
-	err = server.Run()
+	err = aggServer.Run()
 	if err != nil {
 		return
 	}
+	log.Debug("Squirtle thanks you for using the Filter Worker!")
 
 }

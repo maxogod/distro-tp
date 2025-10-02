@@ -6,9 +6,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/maxogod/distro-tp/src/common/models/data_batch"
 	"github.com/maxogod/distro-tp/src/common/models/enum"
-	"google.golang.org/protobuf/proto"
 )
 
 type StoreDataPaths map[enum.TaskType][]string
@@ -25,13 +23,8 @@ func NewCacheStore(storePath string) *DataBatchStore {
 	}
 }
 
-func (cacheStore *DataBatchStore) storeData(batch *data_batch.DataBatch, taskType enum.TaskType, filename string) error {
+func (cacheStore *DataBatchStore) storeData(data []byte, taskType enum.TaskType, filename string) error {
 	datasetFilename := filepath.Join(cacheStore.storePath, fmt.Sprintf("%s.pb", filename))
-
-	data, protoErr := proto.Marshal(batch)
-	if protoErr != nil {
-		return protoErr
-	}
 
 	f, openErr := os.OpenFile(datasetFilename, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
 	if openErr != nil {
@@ -53,23 +46,23 @@ func (cacheStore *DataBatchStore) storeData(batch *data_batch.DataBatch, taskTyp
 	return f.Sync()
 }
 
-func (cacheStore *DataBatchStore) StoreDataTask1(batch *data_batch.DataBatch) error {
+func (cacheStore *DataBatchStore) StoreDataTask1(batch []byte) error {
 	return cacheStore.storeData(batch, enum.T1, "task1")
 }
 
-func (cacheStore *DataBatchStore) StoreDataBestSelling(batch *data_batch.DataBatch) error {
+func (cacheStore *DataBatchStore) StoreDataBestSelling(batch []byte) error {
 	return cacheStore.storeData(batch, enum.T2, "task2_1")
 }
 
-func (cacheStore *DataBatchStore) StoreDataMostProfits(batch *data_batch.DataBatch) error {
+func (cacheStore *DataBatchStore) StoreDataMostProfits(batch []byte) error {
 	return cacheStore.storeData(batch, enum.T2, "task2_2")
 }
 
-func (cacheStore *DataBatchStore) StoreDataTask3(batch *data_batch.DataBatch) error {
+func (cacheStore *DataBatchStore) StoreDataTask3(batch []byte) error {
 	return cacheStore.storeData(batch, enum.T3, "task3")
 }
 
-func (cacheStore *DataBatchStore) StoreDataTask4(batch *data_batch.DataBatch) error {
+func (cacheStore *DataBatchStore) StoreDataTask4(batch []byte) error {
 	return cacheStore.storeData(batch, enum.T4, "task4")
 }
 

@@ -1,51 +1,91 @@
 package server
 
 import (
+	"fmt"
 	"os"
 	"os/signal"
 	"syscall"
 
-	service "github.com/maxogod/distro-tp/src/aggregator/business"
+	"github.com/maxogod/distro-tp/src/aggregator/business"
+	"github.com/maxogod/distro-tp/src/aggregator/cache"
 	"github.com/maxogod/distro-tp/src/aggregator/config"
+	"github.com/maxogod/distro-tp/src/aggregator/internal/handler"
 	"github.com/maxogod/distro-tp/src/common/logger"
+	"github.com/maxogod/distro-tp/src/common/models/enum"
 )
 
 var log = logger.GetLogger()
 
 type Server struct {
-	config        *config.Config
-	isRunning     bool
-	workerService *service.Aggregator
+	config         *config.Config
+	isRunning      bool
+	messageHandler *handler.MessageHandler
+	taskHandler    *handler.TaskHandler
 }
 
-func InitServer(config *config.Config) *Server {
+func InitServer(conf *config.Config) *Server {
+
+	aggregatorService := business.NewAggregatorService()
+
+	messageHandler := handler.NewMessageHandler(
+		conf.Address,
+		conf.StorePath,
+		conf.BatchSize,
+		aggregatorService,
+	)
+
 	return &Server{
-		config:        config,
-		isRunning:     true,
-		workerService: service.NewAggregator(config),
+		config:         conf,
+		isRunning:      true,
+		messageHandler: messageHandler,
+		taskHandler:    handler.NewTaskHandler(cache.NewCacheStore(conf.StorePath)),
 	}
 }
 
 func (s *Server) Run() error {
-	log.Info("Starting Basic Worker server...")
+	log.Info("Starting Filter server...")
 
 	s.setupGracefulShutdown()
-	defer s.Shutdown()
 
-	err := s.workerService.InitService()
-	if err != nil {
-		return err
+	e := s.messageHandler.AnnounceToController()
+	if e != nil {
+		log.Errorf("Failed to announce to controller: %v", e)
+		return fmt.Errorf("failed to announce to controller: %v", e)
 	}
 
 	for s.isRunning {
+		doneTaskType, e := s.messageHandler.Start(func(payload []byte, taskType int32) error {
+			return s.taskHandler.HandleTask(enum.TaskType(taskType), payload)
+		})
+
+		if e != nil {
+			log.Errorf("Failed to start consuming: %d", e)
+			s.Shutdown()
+			return fmt.Errorf("failed to start consuming: %d", e)
+		}
+
+		if !s.isRunning {
+			// Hot-fix to avoid
+			// sending done message twice in case of shutdown signal
+			break
+		}
+
+		err := s.messageHandler.SendAllData(doneTaskType)
+		if err != nil {
+			return err
+		}
+
+		err = s.messageHandler.SendDone()
+		log.Debug("Sent done message to controller")
+
+		if err != nil {
+			log.Errorf("Failed to send done message: %v", err)
+			s.Shutdown()
+			return fmt.Errorf("failed to send done message: %v", err)
+		}
+
 	}
 
-	err = s.workerService.Stop()
-	if err != nil {
-		log.Errorf("Error stopping worker service: %v", err)
-	}
-
-	log.Info("Server shutdown complete")
 	return nil
 }
 
@@ -56,12 +96,17 @@ func (s *Server) setupGracefulShutdown() {
 
 	go func() {
 		<-sigChannel
-		log.Infof("action: shutdown_signal | result: received")
+		log.Infof("Shutdown Signal received, shutting down...")
 		s.Shutdown()
 	}()
 }
 
 func (s *Server) Shutdown() {
+	log.Debug("Shutting down Filter Worker server...")
 	s.isRunning = false
-	log.Infof("action: shutdown | result: success")
+	err := s.messageHandler.Close()
+	if err != nil {
+		log.Errorf("Error closing message handler: %v", err)
+	}
+	log.Debug("Filter Worker server shut down successfully.")
 }
