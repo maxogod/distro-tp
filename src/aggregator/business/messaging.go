@@ -4,12 +4,15 @@ import (
 	"fmt"
 
 	"github.com/maxogod/distro-tp/src/aggregator/handler"
+	"github.com/maxogod/distro-tp/src/common/logger"
 	"github.com/maxogod/distro-tp/src/common/middleware"
 	"github.com/maxogod/distro-tp/src/common/models/controller_connection"
 	"github.com/maxogod/distro-tp/src/common/models/data_batch"
 	"github.com/maxogod/distro-tp/src/common/models/enum"
 	"google.golang.org/protobuf/proto"
 )
+
+var log = logger.GetLogger()
 
 type MessageHandler func(msgBody []byte) error
 
@@ -67,7 +70,8 @@ func startConsuming(m middleware.MessageMiddleware, handler MessageHandler) erro
 			handlerErr := handler(msg.Body)
 			if handlerErr != nil {
 				_ = msg.Nack(false, false)
-				continue
+				log.Errorf("Handler returned error: %v", handlerErr)
+				return
 			}
 			_ = msg.Ack(false)
 		}
@@ -101,9 +105,10 @@ func SendBatchToGateway(batch proto.Message, gatewayQueue middleware.MessageMidd
 	return nil
 }
 
-func SendDoneBatchToGateway(gatewayQueue middleware.MessageMiddleware, taskType enum.TaskType) error {
+func SendDoneBatchToGateway(gatewayQueue middleware.MessageMiddleware, taskType enum.TaskType, clientId string) error {
 	dataBatch := &data_batch.DataBatch{
 		TaskType: int32(taskType),
+		ClientId: clientId,
 		Done:     true,
 	}
 
@@ -111,6 +116,7 @@ func SendDoneBatchToGateway(gatewayQueue middleware.MessageMiddleware, taskType 
 	if sendErr != nil {
 		return sendErr
 	}
+	log.Debugf("Sent done batch for task %d to gateway", taskType)
 
 	return nil
 }
@@ -129,9 +135,10 @@ func sendDataBatch(dataBatch *handler.DataBatch, queue middleware.MessageMiddlew
 	return nil
 }
 
-func SendControllerConnectionMsg(controllerConnection middleware.MessageMiddleware, workerName string, isFinished bool) error {
+func SendControllerConnectionMsg(controllerConnection middleware.MessageMiddleware, workerName string, clientId string, isFinished bool) error {
 	announceMsg := &controller_connection.ControllerConnection{
 		WorkerName: workerName,
+		ClientId:   clientId,
 		Finished:   isFinished,
 	}
 

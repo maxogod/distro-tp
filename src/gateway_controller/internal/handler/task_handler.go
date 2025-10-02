@@ -98,6 +98,7 @@ func (th *TaskHandler) SendDone(taskType enum.TaskType, currentClientID string) 
 
 	doneBatch := &data_batch.DataBatch{
 		TaskType: int32(taskType),
+		ClientId: currentClientID,
 		Done:     true,
 	}
 	serializedDoneBatch, err := proto.Marshal(doneBatch)
@@ -122,6 +123,7 @@ func (th *TaskHandler) SendDone(taskType enum.TaskType, currentClientID string) 
 				continue
 			} else if workerConn.GetClientId() != currentClientID {
 				msg.Ack(false)
+				log.Debugf("Ignoring finished message from worker %s for different client %s (current client %s)", workerConn.WorkerName, workerConn.GetClientId(), currentClientID)
 				continue
 			}
 
