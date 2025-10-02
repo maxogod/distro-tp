@@ -8,9 +8,8 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strings"
 
-	"github.com/maxogod/distro-tp/src/common/models/data_batch"
-	"github.com/maxogod/distro-tp/src/common/models/enum"
 	"github.com/maxogod/distro-tp/src/common/models/raw"
 	"google.golang.org/protobuf/proto"
 )
@@ -23,18 +22,17 @@ type StoresMap map[int32]*raw.Store
 type MenuItemsMap map[int32]*raw.MenuItem
 type UsersMap map[int32]*raw.User
 
-func loadReferenceData[T proto.Message, B proto.Message](
-	path string,
-	createSpecificBatch func() B,
-	extractItems func(B) []T,
-) ([]T, error) {
-	f, openErr := os.Open(path)
+func (refStore *ReferenceDatasetStore) LoadStores() (StoresMap, error) {
+	datasetName := "stores"
+	datasetFilename := filepath.Join(refStore.storePath, fmt.Sprintf("%s.pb", datasetName))
+
+	f, openErr := os.Open(datasetFilename)
 	if openErr != nil {
 		return nil, openErr
 	}
 	defer f.Close()
 
-	var referenceDataset []T
+	var stores []*raw.Store
 	for {
 		var length uint32
 		if err := binary.Read(f, binary.LittleEndian, &length); err != nil {
@@ -44,37 +42,19 @@ func loadReferenceData[T proto.Message, B proto.Message](
 			return nil, err
 		}
 
-		refDatasetBytes := make([]byte, length)
-		if _, err := io.ReadFull(f, refDatasetBytes); err != nil {
+		storeBatchBytes := make([]byte, length)
+		if _, err := io.ReadFull(f, storeBatchBytes); err != nil {
 			return nil, err
 		}
 
-		refBatch := &data_batch.DataBatch{}
-		err := proto.Unmarshal(refDatasetBytes, refBatch)
+		storeBatch := &raw.StoreBatch{}
+		err := proto.Unmarshal(storeBatchBytes, storeBatch)
 		if err != nil {
 			return nil, err
 		}
 
-		specificBatch := createSpecificBatch()
-		if err = proto.Unmarshal(refBatch.Payload, specificBatch); err != nil {
-			return nil, err
-		}
-
-		items := extractItems(specificBatch)
-		referenceDataset = append(referenceDataset, items...)
-	}
-
-	return referenceDataset, nil
-}
-
-func (refStore *ReferenceDatasetStore) LoadStores() (StoresMap, error) {
-	stores, err := loadReferenceData(
-		refStore.refDatasets[enum.Stores][mainDataset],
-		func() *raw.StoreBatch { return &raw.StoreBatch{} },
-		func(batch *raw.StoreBatch) []*raw.Store { return batch.Stores },
-	)
-	if err != nil {
-		return nil, err
+		items := storeBatch.Stores
+		stores = append(stores, items...)
 	}
 
 	storesMap := make(map[int32]*raw.Store)
@@ -85,13 +65,38 @@ func (refStore *ReferenceDatasetStore) LoadStores() (StoresMap, error) {
 }
 
 func (refStore *ReferenceDatasetStore) LoadMenuItems() (MenuItemsMap, error) {
-	menuItems, err := loadReferenceData(
-		refStore.refDatasets[enum.MenuItems][mainDataset],
-		func() *raw.MenuItemBatch { return &raw.MenuItemBatch{} },
-		func(batch *raw.MenuItemBatch) []*raw.MenuItem { return batch.MenuItems },
-	)
-	if err != nil {
-		return nil, err
+	datasetName := "menu_items"
+	datasetFilename := filepath.Join(refStore.storePath, fmt.Sprintf("%s.pb", datasetName))
+
+	f, openErr := os.Open(datasetFilename)
+	if openErr != nil {
+		return nil, openErr
+	}
+	defer f.Close()
+
+	var menuItems []*raw.MenuItem
+	for {
+		var length uint32
+		if err := binary.Read(f, binary.LittleEndian, &length); err != nil {
+			if errors.Is(err, io.EOF) {
+				break
+			}
+			return nil, err
+		}
+
+		menuItemsBatchBytes := make([]byte, length)
+		if _, err := io.ReadFull(f, menuItemsBatchBytes); err != nil {
+			return nil, err
+		}
+
+		menuItemBatch := &raw.MenuItemBatch{}
+		err := proto.Unmarshal(menuItemsBatchBytes, menuItemBatch)
+		if err != nil {
+			return nil, err
+		}
+
+		items := menuItemBatch.MenuItems
+		menuItems = append(menuItems, items...)
 	}
 
 	menuItemsMap := make(map[int32]*raw.MenuItem)
@@ -109,13 +114,21 @@ func (refStore *ReferenceDatasetStore) LoadUsers(userIds []int) (UsersMap, error
 		idsSet[id] = struct{}{}
 	}
 
+	files, openErr := os.ReadDir(refStore.storePath)
+	if openErr != nil {
+		return nil, fmt.Errorf("failed to read dir %s: %w", refStore.storePath, openErr)
+	}
+
 	datasetRanges := make(map[int][2]int)
-	for i, usersDatasetPath := range refStore.refDatasets[enum.Users] {
-		firstId, lastId, err := getUserIdRangeFromDatasetName(usersDatasetPath)
-		if err != nil {
-			return nil, err
+	for i, f := range files {
+		if !f.IsDir() && strings.HasPrefix(f.Name(), "users_") {
+			usersDatasetPath := filepath.Join(refStore.storePath, f.Name())
+			firstId, lastId, err := getUserIdRangeFromDatasetName(usersDatasetPath)
+			if err != nil {
+				return nil, err
+			}
+			datasetRanges[i] = [2]int{firstId, lastId}
 		}
-		datasetRanges[i] = [2]int{firstId, lastId}
 	}
 
 	datasetsToLoad := make([]int, 0)
@@ -129,11 +142,12 @@ func (refStore *ReferenceDatasetStore) LoadUsers(userIds []int) (UsersMap, error
 
 	usersMap := make(UsersMap)
 	for _, idx := range datasetsToLoad {
-		users, err := loadReferenceData(
-			refStore.refDatasets[enum.Users][idx],
-			func() *raw.UserBatch { return &raw.UserBatch{} },
-			func(batch *raw.UserBatch) []*raw.User { return batch.Users },
-		)
+		//users, err := loadUsersFile(
+		//	refStore.refDatasets[enum.Users][idx],
+		//	func() *raw.UserBatch { return &raw.UserBatch{} },
+		//	func(batch *raw.UserBatch) []*raw.User { return batch.Users },
+		//)
+		users, err := loadUsersFile()
 		if err != nil {
 			return nil, err
 		}
@@ -146,6 +160,41 @@ func (refStore *ReferenceDatasetStore) LoadUsers(userIds []int) (UsersMap, error
 	}
 
 	return usersMap, nil
+}
+
+func loadUsersFile(userFilePath string) ([]*raw.User, error) {
+	f, openErr := os.Open(userFilePath)
+	if openErr != nil {
+		return nil, openErr
+	}
+	defer f.Close()
+
+	var users []*raw.User
+	for {
+		var length uint32
+		if err := binary.Read(f, binary.LittleEndian, &length); err != nil {
+			if errors.Is(err, io.EOF) {
+				break
+			}
+			return nil, err
+		}
+
+		userBatchBytes := make([]byte, length)
+		if _, err := io.ReadFull(f, userBatchBytes); err != nil {
+			return nil, err
+		}
+
+		userBatch := &raw.UserBatch{}
+		err := proto.Unmarshal(userBatchBytes, userBatch)
+		if err != nil {
+			return nil, err
+		}
+
+		items := userBatch.Users
+		users = append(users, items...)
+	}
+
+	return users, nil
 }
 
 func getUserIdRangeFromDatasetName(usersDatasetPath string) (int, int, error) {

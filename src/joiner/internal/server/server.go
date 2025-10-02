@@ -9,6 +9,7 @@ import (
 	"github.com/maxogod/distro-tp/src/common/logger"
 	"github.com/maxogod/distro-tp/src/common/models/enum"
 	"github.com/maxogod/distro-tp/src/joiner/business"
+	"github.com/maxogod/distro-tp/src/joiner/cache"
 	"github.com/maxogod/distro-tp/src/joiner/config"
 	"github.com/maxogod/distro-tp/src/joiner/internal/handler"
 )
@@ -21,6 +22,7 @@ type Server struct {
 	messageHandler   *handler.MessageHandler
 	taskHandler      *handler.TaskHandler
 	referenceHandler *handler.ReferenceHandler
+	refStore         *cache.ReferenceDatasetStore
 }
 
 func InitServer(conf *config.Config) *Server {
@@ -28,17 +30,19 @@ func InitServer(conf *config.Config) *Server {
 	joinerService := business.NewFilterService()
 
 	messageHandler := handler.NewMessageHandler(conf.Address)
+	refStore := cache.NewCacheStore(conf.StorePath)
 
 	return &Server{
 		config:         conf,
 		isRunning:      true,
 		messageHandler: messageHandler,
+		refStore:       refStore,
 		taskHandler: handler.NewTaskHandler(
 			joinerService,
 			messageHandler),
 		referenceHandler: handler.NewReferenceHandler(
-			joinerService, // TODO: CHANGE WITH CACHE SERVICE!!!
-			messageHandler),
+			joinerService,
+			refStore),
 	}
 }
 
