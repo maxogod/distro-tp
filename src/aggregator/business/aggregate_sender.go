@@ -46,7 +46,7 @@ func (a *Aggregator) SendAggregateDataTask1(items MapTransactions) error {
 	return sendAggregateData(
 		a.gatewayDataQueue,
 		items,
-		enum.T3,
+		enum.T1,
 		func(batch []*raw.Transaction) *raw.TransactionBatch {
 			return &raw.TransactionBatch{Transactions: batch}
 		},
