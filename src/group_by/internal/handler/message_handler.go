@@ -19,7 +19,7 @@ type MessageHandler struct {
 	reduceSumQueue      middleware.MessageMiddleware
 	reduceCountQueue    middleware.MessageMiddleware
 	nodeConnectionQueue middleware.MessageMiddleware
-	dataQueue           middleware.MessageMiddleware
+	groupByQueue        middleware.MessageMiddleware
 	messageHandlers     map[enum.TaskType]func([]byte) error
 	workerName          string
 	stopConsuming       chan bool
@@ -34,7 +34,7 @@ func NewMessageHandler(
 		reduceSumQueue:      middleware.GetReduceSumQueue(Address),
 		reduceCountQueue:    middleware.GetReduceCountQueue(Address),
 		nodeConnectionQueue: middleware.GetNodeConnectionsQueue(Address),
-		dataQueue:           middleware.GetDataExchange(Address, []string{GroupByPrefix, workerName}),
+		groupByQueue:        middleware.GetGroupByQueue(Address),
 		workerName:          workerName,
 	}
 
@@ -68,9 +68,9 @@ func (mh *MessageHandler) Close() error {
 		return fmt.Errorf("Error closing controller connection middleware: %v", e)
 	}
 
-	e = mh.dataQueue.Close()
+	e = mh.groupByQueue.Close()
 	if e != middleware.MessageMiddlewareSuccess {
-		return fmt.Errorf("Error closing finish exchange middleware: %v", e)
+		return fmt.Errorf("Error closing group by queue middleware: %v", e)
 	}
 
 	return nil
@@ -92,10 +92,10 @@ func (mh *MessageHandler) AnnounceToController() error {
 func (mh *MessageHandler) Start(
 	callback func(payload []byte, taskType int32) error,
 ) error {
-	defer mh.dataQueue.StopConsuming()
+	defer mh.groupByQueue.StopConsuming()
 
 	isFirstMessage := true
-	mh.dataQueue.StartConsuming(func(consumeChannel middleware.ConsumeChannel, d chan error) {
+	mh.groupByQueue.StartConsuming(func(consumeChannel middleware.ConsumeChannel, d chan error) {
 		for msg := range consumeChannel {
 			msg.Ack(false)
 			dataBatch, err := utils.GetDataBatch(msg.Body)
