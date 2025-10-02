@@ -17,10 +17,7 @@ func NewFilterService(refStore *cache.ReferenceDatasetStore) *JoinerService {
 // This is T2_1
 func (js *JoinerService) JoinBestSellingProducts(batch *reduced.BestSellingProducts) (*joined.JoinBestSellingProducts, error) {
 
-	menuItemsMap, loadErr := js.refStore.LoadMenuItems()
-	if loadErr != nil {
-		return nil, loadErr
-	}
+	menuItemsMap := js.refStore.Menu_items
 
 	var joinedData *joined.JoinBestSellingProducts
 	if item, ok := menuItemsMap[batch.ItemId]; ok {
@@ -36,10 +33,7 @@ func (js *JoinerService) JoinBestSellingProducts(batch *reduced.BestSellingProdu
 
 // This is T2_2
 func (js *JoinerService) JoinMostProfitsProducts(batch *reduced.MostProfitsProducts) (*joined.JoinMostProfitsProducts, error) {
-	menuItemsMap, loadErr := js.refStore.LoadMenuItems()
-	if loadErr != nil {
-		return nil, loadErr
-	}
+	menuItemsMap := js.refStore.Menu_items
 
 	var joinedData *joined.JoinMostProfitsProducts
 	if item, ok := menuItemsMap[batch.ItemId]; ok {
@@ -55,10 +49,7 @@ func (js *JoinerService) JoinMostProfitsProducts(batch *reduced.MostProfitsProdu
 
 // This is T3
 func (js *JoinerService) JoinTPV(batch *reduced.StoreTPV) (*joined.JoinStoreTPV, error) {
-	storesMap, loadErr := js.refStore.LoadStores()
-	if loadErr != nil {
-		return nil, loadErr
-	}
+	storesMap := js.refStore.Stores
 
 	var joinedData *joined.JoinStoreTPV
 	if store, ok := storesMap[batch.StoreId]; ok {
@@ -73,15 +64,9 @@ func (js *JoinerService) JoinTPV(batch *reduced.StoreTPV) (*joined.JoinStoreTPV,
 
 // This is T4
 func (js *JoinerService) JoinMostPurchasesByUser(batch *reduced.MostPurchasesUser) (*joined.JoinMostPurchasesUser, error) {
-	storesMap, loadErr := js.refStore.LoadStores()
-	if loadErr != nil {
-		return nil, loadErr
-	}
+	storesMap := js.refStore.Stores
 
-	user, loadErr := js.refStore.LoadUser(batch.UserId)
-	if loadErr != nil {
-		return nil, loadErr
-	}
+	user := js.refStore.Users[batch.UserId]
 
 	var joinedData *joined.JoinMostPurchasesUser
 	store := storesMap[batch.StoreId]
