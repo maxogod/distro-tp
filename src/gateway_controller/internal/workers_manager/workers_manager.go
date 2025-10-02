@@ -35,6 +35,7 @@ func NewWorkersManager(middlewareUrl string) WorkersManager {
 }
 
 func (wm *workersManager) AddWorker(id string) error {
+	log.Debugf("Adding worker %s to manager", id)
 	group := strings.Split(id, "_")[0]
 	wm.rrIDs = append(wm.rrIDs, id)
 	switch enum.WorkerType(group) {
@@ -55,6 +56,7 @@ func (wm *workersManager) AddWorker(id string) error {
 }
 
 func (wm *workersManager) FinishWorker(id string) error {
+	log.Debugf("Marking worker %s as finished", id)
 	group := strings.Split(id, "_")[0]
 	switch enum.WorkerType(group) {
 	case enum.Filter:

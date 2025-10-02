@@ -2,6 +2,7 @@ package handler
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/maxogod/distro-tp/src/common/logger"
 	"github.com/maxogod/distro-tp/src/common/middleware"
@@ -144,6 +145,8 @@ func (th *TaskHandler) SendDone(taskType enum.TaskType, currentClientID string) 
 				return
 			}
 			finishQueue.Send(serializedDoneBatch)
+			log.Debugf("Sent done signal to %s workers, waiting for response", finishTopic)
+			time.Sleep(2 * time.Second)
 		}
 		done <- true
 	})
