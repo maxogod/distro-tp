@@ -14,29 +14,28 @@ type workersManager struct {
 	rrCounter     int
 	rrIDs         []string
 
-	filterWorkers       map[string]bool
-	groupByWorkers      map[string]bool
-	reducerSumWorkers   map[string]bool
-	reducerCountWorkers map[string]bool
-	joinerWorkers       map[string]bool
-	aggregatorWorkers   map[string]bool
+	filterWorkers     map[string]bool
+	groupByWorkers    map[string]bool
+	reducerWorkers    map[string]bool
+	joinerWorkers     map[string]bool
+	aggregatorWorkers map[string]bool
 }
 
 func NewWorkersManager(middlewareUrl string) WorkersManager {
 	return &workersManager{
-		middlewareUrl:       middlewareUrl,
-		rrCounter:           0,
-		rrIDs:               []string{},
-		filterWorkers:       make(map[string]bool),
-		groupByWorkers:      make(map[string]bool),
-		reducerSumWorkers:   make(map[string]bool),
-		reducerCountWorkers: make(map[string]bool),
-		joinerWorkers:       make(map[string]bool),
-		aggregatorWorkers:   make(map[string]bool),
+		middlewareUrl:     middlewareUrl,
+		rrCounter:         0,
+		rrIDs:             []string{},
+		filterWorkers:     make(map[string]bool),
+		groupByWorkers:    make(map[string]bool),
+		reducerWorkers:    make(map[string]bool),
+		joinerWorkers:     make(map[string]bool),
+		aggregatorWorkers: make(map[string]bool),
 	}
 }
 
 func (wm *workersManager) AddWorker(id string) error {
+	log.Debugf("Adding worker %s to manager", id)
 	group := strings.Split(id, "_")[0]
 	wm.rrIDs = append(wm.rrIDs, id)
 	switch enum.WorkerType(group) {
@@ -44,10 +43,8 @@ func (wm *workersManager) AddWorker(id string) error {
 		wm.filterWorkers[id] = false
 	case enum.GroupBy:
 		wm.groupByWorkers[id] = false
-	case enum.ReducerSum:
-		wm.reducerSumWorkers[id] = false
-	case enum.ReducerCount:
-		wm.reducerCountWorkers[id] = false
+	case enum.Reducer:
+		wm.reducerWorkers[id] = false
 	case enum.Joiner:
 		wm.joinerWorkers[id] = false
 	case enum.Aggregator:
@@ -59,6 +56,7 @@ func (wm *workersManager) AddWorker(id string) error {
 }
 
 func (wm *workersManager) FinishWorker(id string) error {
+	log.Debugf("Marking worker %s as finished", id)
 	group := strings.Split(id, "_")[0]
 	switch enum.WorkerType(group) {
 	case enum.Filter:
@@ -73,18 +71,12 @@ func (wm *workersManager) FinishWorker(id string) error {
 			return &WorkerNotExistsError{}
 		}
 		wm.groupByWorkers[id] = true
-	case enum.ReducerSum:
-		_, exists := wm.reducerSumWorkers[id]
+	case enum.Reducer:
+		_, exists := wm.reducerWorkers[id]
 		if !exists {
 			return &WorkerNotExistsError{}
 		}
-		wm.reducerSumWorkers[id] = true
-	case enum.ReducerCount:
-		_, exists := wm.reducerCountWorkers[id]
-		if !exists {
-			return &WorkerNotExistsError{}
-		}
-		wm.reducerCountWorkers[id] = true
+		wm.reducerWorkers[id] = true
 	case enum.Joiner:
 		_, exists := wm.joinerWorkers[id]
 		if !exists {
@@ -120,21 +112,13 @@ func (wm *workersManager) GetNextWorkerStageToFinish() (enum.WorkerType, bool) {
 		}
 		log.Debug("All group by workers finished")
 	}
-	if len(wm.reducerSumWorkers) > 0 {
-		for _, isFinished := range wm.reducerSumWorkers {
+	if len(wm.reducerWorkers) > 0 {
+		for _, isFinished := range wm.reducerWorkers {
 			if !isFinished {
-				return enum.ReducerSum, false
+				return enum.Reducer, false
 			}
 		}
-		log.Debug("All reducer sum workers finished")
-	}
-	if len(wm.reducerCountWorkers) > 0 {
-		for _, isFinished := range wm.reducerCountWorkers {
-			if !isFinished {
-				return enum.ReducerCount, false
-			}
-		}
-		log.Debug("All reducer count workers finished")
+		log.Debug("All reducer workers finished")
 	}
 	if len(wm.joinerWorkers) > 0 {
 		for _, isFinished := range wm.joinerWorkers {
@@ -163,11 +147,8 @@ func (wm *workersManager) ClearStatus() {
 	for id, _ := range wm.groupByWorkers {
 		wm.groupByWorkers[id] = false
 	}
-	for id, _ := range wm.reducerSumWorkers {
-		wm.reducerSumWorkers[id] = false
-	}
-	for id, _ := range wm.reducerCountWorkers {
-		wm.reducerCountWorkers[id] = false
+	for id, _ := range wm.reducerWorkers {
+		wm.reducerWorkers[id] = false
 	}
 	for id, _ := range wm.joinerWorkers {
 		wm.joinerWorkers[id] = false

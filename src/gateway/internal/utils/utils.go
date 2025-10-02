@@ -41,7 +41,7 @@ func TransactionItemsFromRecord(record []string) *raw.TransactionItems {
 		Quantity:      int32(common_utils.ParseIntOrDefault(record[2])),
 		UnitPrice:     common_utils.ParseFloatOrDefault(record[3]),
 		Subtotal:      common_utils.ParseFloatOrDefault(record[4]),
-		CreatedAt:     record[8],
+		CreatedAt:     record[5],
 	}
 }
 

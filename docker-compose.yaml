@@ -40,7 +40,7 @@ services:
 
   gateway:
     container_name: gateway
-    entrypoint: ["/app/app", "t1"]
+    entrypoint: ["/app/app", "t2"]
     build:
       dockerfile: ./src/gateway/Dockerfile
     image: gateway:latest
@@ -51,6 +51,18 @@ services:
       - ./.output:/app/.output
     depends_on:
       - gateway_controller
+
+  groupby:
+    container_name: groupby
+    build:
+      dockerfile: ./src/group_by/Dockerfile
+    image: groupby:latest
+    networks:
+      - tp_net
+    volumes:
+      - ./src/group_by/config.yaml:/config.yaml
+    depends_on:
+      - rabbitmq
 
   filter:
     container_name: filter

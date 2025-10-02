@@ -12,8 +12,6 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-const GroupByPrefix = "group_by"
-
 type MessageHandler struct {
 	// connections
 	groupByQueue        middleware.MessageMiddleware
@@ -31,7 +29,7 @@ func NewMessageHandler(
 	Address string,
 ) *MessageHandler {
 
-	workerName := fmt.Sprintf("%s_%s", GroupByPrefix, uuid.New().String())
+	workerName := fmt.Sprintf("%s_%s", string(enum.GroupBy), uuid.New().String())
 	mh := &MessageHandler{
 		groupByQueue:        middleware.GetGroupByQueue(Address),
 		reducerQueue:        middleware.GetReducerQueue(Address),
@@ -108,6 +106,7 @@ func (mh *MessageHandler) Start(
 			done := dataBatch.GetDone()
 
 			if done {
+				log.Debugf("Payload length: %d", len(payload))
 				log.Info("Received done message. Finishing processing.")
 				mh.stopConsuming <- true
 				return
