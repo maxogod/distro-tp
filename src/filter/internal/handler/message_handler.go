@@ -22,12 +22,11 @@ const (
 
 type MessageHandler struct {
 	currentClientID     string
-	reduceSumQueue      middleware.MessageMiddleware
-	reduceCountQueue    middleware.MessageMiddleware
+	groupbyQueue        middleware.MessageMiddleware
 	aggregatorQueue     middleware.MessageMiddleware
 	nodeConnectionQueue middleware.MessageMiddleware
 	dataQueue           middleware.MessageMiddleware
-	messageHandlers     map[enum.TaskType]func([]byte) error
+	messageHandlers     map[enum.TaskType]func(enum.TaskType, []byte) error
 	workerName          string
 	stopConsuming       chan bool
 }
@@ -38,8 +37,7 @@ func NewMessageHandler(
 
 	workerName := fmt.Sprintf("%s_%s", FilterQueue, uuid.New().String())
 	mh := &MessageHandler{
-		reduceSumQueue:      middleware.GetReduceSumQueue(Address),
-		reduceCountQueue:    middleware.GetReduceCountQueue(Address),
+		groupbyQueue:        middleware.GetGroupByQueue(Address),
 		aggregatorQueue:     middleware.GetFilteredTransactionsQueue(Address),
 		nodeConnectionQueue: middleware.GetNodeConnectionsQueue(Address),
 		dataQueue:           middleware.GetDataExchange(Address, []string{FilterQueue, workerName}),
@@ -48,11 +46,11 @@ func NewMessageHandler(
 
 	mh.stopConsuming = make(chan bool, 1)
 
-	mh.messageHandlers = map[enum.TaskType]func([]byte) error{
-		enum.T1: mh.sendT1Data,
-		enum.T2: mh.sendT2Data,
-		enum.T3: mh.sendT3Data,
-		enum.T4: mh.sendT4Data,
+	mh.messageHandlers = map[enum.TaskType]func(enum.TaskType, []byte) error{
+		enum.T1: mh.sendToAggregator,
+		enum.T2: mh.sendToGroupBy,
+		enum.T3: mh.sendToGroupBy,
+		enum.T4: mh.sendToGroupBy,
 	}
 
 	return mh
@@ -62,14 +60,9 @@ func (mh *MessageHandler) Close() error {
 
 	mh.stopConsuming <- true
 
-	e := mh.reduceSumQueue.Close()
+	e := mh.groupbyQueue.Close()
 	if e != middleware.MessageMiddlewareSuccess {
-		return fmt.Errorf("Error closing reduce sum queue middleware: %v", e)
-	}
-
-	e = mh.reduceCountQueue.Close()
-	if e != middleware.MessageMiddlewareSuccess {
-		return fmt.Errorf("Error closing reduce count queue middleware: %v", e)
+		return fmt.Errorf("Error closing group by queue middleware: %v", e)
 	}
 
 	e = mh.aggregatorQueue.Close()
@@ -165,7 +158,7 @@ func (mh *MessageHandler) SendData(taskType enum.TaskType, serializedFilteredTra
 		return fmt.Errorf("unknown task type: %d", taskType)
 	}
 
-	err := handler(serializedFilteredTransactions)
+	err := handler(taskType, serializedFilteredTransactions)
 	if err != nil {
 		return err
 	}
@@ -173,20 +166,12 @@ func (mh *MessageHandler) SendData(taskType enum.TaskType, serializedFilteredTra
 	return nil
 }
 
-func (mh *MessageHandler) sendT1Data(payload []byte) error {
-	return mh.sendToQueues(enum.T1, payload, mh.aggregatorQueue)
+func (mh *MessageHandler) sendToAggregator(taskType enum.TaskType, payload []byte) error {
+	return mh.sendToQueues(taskType, payload, mh.aggregatorQueue)
 }
 
-func (mh *MessageHandler) sendT2Data(payload []byte) error {
-	return mh.sendToQueues(enum.T2, payload, mh.reduceCountQueue, mh.reduceSumQueue)
-}
-
-func (mh *MessageHandler) sendT3Data(payload []byte) error {
-	return mh.sendToQueues(enum.T3, payload, mh.reduceSumQueue)
-}
-
-func (mh *MessageHandler) sendT4Data(payload []byte) error {
-	return mh.sendToQueues(enum.T4, payload, mh.reduceCountQueue)
+func (mh *MessageHandler) sendToGroupBy(taskType enum.TaskType, payload []byte) error {
+	return mh.sendToQueues(taskType, payload, mh.groupbyQueue)
 }
 
 func (mh *MessageHandler) sendToQueues(
