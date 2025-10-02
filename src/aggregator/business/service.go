@@ -8,10 +8,13 @@ import (
 	"sort"
 
 	"github.com/maxogod/distro-tp/src/aggregator/cache"
+	"github.com/maxogod/distro-tp/src/common/logger"
 	"github.com/maxogod/distro-tp/src/common/models/joined"
 	"github.com/maxogod/distro-tp/src/common/models/raw"
 	"google.golang.org/protobuf/proto"
 )
+
+var log = logger.GetLogger()
 
 // Generic constraint that ensures
 // the type implements our required methods
@@ -52,6 +55,7 @@ func aggregateTask[T proto.Message, B proto.Message, M ~map[string]T](
 		currAgg, aggErr := cache.AggregateData(f, createSpecificBatch, getItems, merge, key)
 		if aggErr != nil {
 			if errors.Is(aggErr, io.EOF) {
+				log.Debugf("Reached end of file")
 				break
 			}
 			return nil, aggErr
@@ -67,6 +71,7 @@ func aggregateTask[T proto.Message, B proto.Message, M ~map[string]T](
 
 		finalAgg = combineTop(finalAgg)
 	}
+	log.Debugf("Final aggregation completed with %d items", len(finalAgg))
 
 	return finalAgg, nil
 }

@@ -43,7 +43,7 @@ func InitServer(conf *config.Config) *Server {
 }
 
 func (s *Server) Run() error {
-	log.Info("Starting Filter server...")
+	log.Info("Starting Agregator server...")
 
 	s.setupGracefulShutdown()
 
@@ -70,6 +70,7 @@ func (s *Server) Run() error {
 			break
 		}
 
+		log.Debug("All data received, sending processed data to controller")
 		err := s.messageHandler.SendAllData(doneTaskType)
 		if err != nil {
 			return err

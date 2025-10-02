@@ -60,10 +60,10 @@ func (cs *clientSession) ProcessRequest() error {
 
 	log.Debugln("Starting to send report data to client")
 
-	err = cs.processResponse()
-	if err != nil {
-		return err
-	}
+	// err = cs.processResponse()
+	// if err != nil {
+	// 	return err
+	// }
 
 	log.Debugln("All report data sent to client, closing session")
 

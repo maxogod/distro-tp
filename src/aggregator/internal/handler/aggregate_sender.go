@@ -16,6 +16,7 @@ func (mh *MessageHandler) SendAggregateDataTask1(items business.MapTransactions)
 			if sendErr := mh.SendData(batch, enum.T1); sendErr != nil {
 				return sendErr
 			}
+			log.Debugf("Sent batch of %d transactions", len(currentBatch))
 			currentBatch = []*raw.Transaction{}
 		}
 	}
@@ -25,6 +26,7 @@ func (mh *MessageHandler) SendAggregateDataTask1(items business.MapTransactions)
 		if sendErr := mh.SendData(batch, enum.T1); sendErr != nil {
 			return sendErr
 		}
+		log.Debugf("Sent final batch of %d transactions", len(currentBatch))
 	}
 
 	if err := mh.SendDoneBatchToGateway(enum.T1, mh.currentClientID); err != nil {
