@@ -17,7 +17,7 @@ const AggregatorPrefix = "aggregator"
 
 type MessageHandler struct {
 	// queue connections
-	joinQueue          middleware.MessageMiddleware
+	aggregatorQueue    middleware.MessageMiddleware
 	processedDataQueue middleware.MessageMiddleware
 
 	// internal data
@@ -36,7 +36,7 @@ func NewMessageHandler(address string, storePath string, batchSize int, aggregat
 	workerName := fmt.Sprintf("%s_%s", AggregatorPrefix, uuid.New().String())
 	mh := &MessageHandler{
 		aggregatorService:   aggregatorService,
-		joinQueue:           middleware.GetJoinerQueue(address),
+		aggregatorQueue:     middleware.GetAggregatorQueue(address),
 		processedDataQueue:  middleware.GetProcessedDataQueue(address),
 		nodeConnectionQueue: middleware.GetNodeConnectionsQueue(address),
 		workerName:          workerName,
@@ -53,7 +53,7 @@ func (mh *MessageHandler) Close() error {
 
 	mh.stopConsuming <- true
 
-	e := mh.joinQueue.Close()
+	e := mh.aggregatorQueue.Close()
 	if e != middleware.MessageMiddlewareSuccess {
 		return fmt.Errorf("Error closing join queue middleware: %v", e)
 	}
@@ -85,14 +85,15 @@ func (mh *MessageHandler) AnnounceToController() error {
 }
 
 func (mh *MessageHandler) Start(
-	msgHandler func(payload []byte, taskType int32) error,
+	msgHandler func(payload *data_batch.DataBatch) error,
 ) (enum.TaskType, error) {
-	defer mh.joinQueue.StopConsuming()
+	defer mh.aggregatorQueue.StopConsuming()
 
 	isFirstMessage := true
 	DoneTaskType := make(chan enum.TaskType, 1)
 
-	mh.joinQueue.StartConsuming(func(consumeChannel middleware.ConsumeChannel, d chan error) {
+	mh.aggregatorQueue.StartConsuming(func(consumeChannel middleware.ConsumeChannel, d chan error) {
+		log.Debug("Started consuming messages from aggregator queue")
 		for msg := range consumeChannel {
 			err := msg.Ack(false)
 			if err != nil {
@@ -110,7 +111,6 @@ func (mh *MessageHandler) Start(
 				isFirstMessage = false
 			}
 
-			payload := dataBatch.GetPayload()
 			taskType := dataBatch.GetTaskType()
 			done := dataBatch.GetDone()
 
@@ -121,7 +121,7 @@ func (mh *MessageHandler) Start(
 				return
 			}
 
-			err = msgHandler(payload, taskType)
+			err = msgHandler(dataBatch)
 			if err != nil {
 				log.Errorf("Failed to process message: %v", err)
 				continue
@@ -135,7 +135,6 @@ func (mh *MessageHandler) Start(
 }
 
 func (mh *MessageHandler) SendDone() error {
-
 	log.Debug("Sending done message to controller")
 
 	e := mh.sendMessageToNodeConnection(
@@ -161,10 +160,8 @@ func (mh *MessageHandler) SendDoneBatchToGateway(doneTaskType enum.TaskType, cli
 		return marshalErr
 	}
 
-	err := mh.sendToQueues(doneTaskType, serializedData, mh.processedDataQueue)
-	if err != nil {
-		return err
-	}
+	mh.processedDataQueue.Send(serializedData)
+	log.Debug("Sent done batch to gateway")
 
 	return nil
 }
@@ -236,6 +233,7 @@ func (mh *MessageHandler) SendAllData(taskType enum.TaskType) error {
 		if err != nil {
 			return err
 		}
+		log.Debugf("Aggregated data for Task 1, with %d items", len(aggregatedData))
 
 		err = mh.SendAggregateDataTask1(aggregatedData)
 		if err != nil {

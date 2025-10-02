@@ -11,5 +11,6 @@ type Handler interface {
 	HandleReferenceData(dataBatch *data_batch.DataBatch, clientID string) error
 	SendDone(taskType enum.TaskType, currentClientID string) error
 	GetReportData(data chan []byte, disconnect chan bool)
+	Reset()
 	Close()
 }

@@ -67,6 +67,8 @@ func (cs *clientSession) ProcessRequest() error {
 
 	log.Debugln("All report data sent to client, closing session")
 
+	cs.taskHandler.Reset()
+
 	return nil
 }
 

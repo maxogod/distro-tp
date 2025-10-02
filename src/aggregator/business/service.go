@@ -8,10 +8,13 @@ import (
 	"sort"
 
 	"github.com/maxogod/distro-tp/src/aggregator/cache"
+	"github.com/maxogod/distro-tp/src/common/logger"
 	"github.com/maxogod/distro-tp/src/common/models/joined"
 	"github.com/maxogod/distro-tp/src/common/models/raw"
 	"google.golang.org/protobuf/proto"
 )
+
+var log = logger.GetLogger()
 
 // Generic constraint that ensures
 // the type implements our required methods
@@ -40,6 +43,7 @@ func aggregateTask[T proto.Message, B proto.Message, M ~map[string]T](
 	combineTop func(M) M,
 ) (M, error) {
 	filename := fmt.Sprintf("%s/%s.pb", storePath, datasetName)
+	log.Debugf("Reading data from %s", filename)
 	f, err := os.Open(filename)
 	if err != nil {
 		return nil, err
@@ -47,11 +51,13 @@ func aggregateTask[T proto.Message, B proto.Message, M ~map[string]T](
 	defer f.Close()
 
 	finalAgg := make(M)
+	i := 0
 
 	for {
 		currAgg, aggErr := cache.AggregateData(f, createSpecificBatch, getItems, merge, key)
 		if aggErr != nil {
 			if errors.Is(aggErr, io.EOF) {
+				log.Debugf("Reached end of file after $d iters", i)
 				break
 			}
 			return nil, aggErr
@@ -66,7 +72,9 @@ func aggregateTask[T proto.Message, B proto.Message, M ~map[string]T](
 		}
 
 		finalAgg = combineTop(finalAgg)
+		i++
 	}
+	log.Debugf("Final aggregation completed with %d items", len(finalAgg))
 
 	return finalAgg, nil
 }

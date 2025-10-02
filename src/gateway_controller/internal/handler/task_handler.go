@@ -92,6 +92,7 @@ func (th *TaskHandler) HandleReferenceData(dataBatch *data_batch.DataBatch, curr
 
 func (th *TaskHandler) SendDone(taskType enum.TaskType, currentClientID string) error {
 	th.getWorkerStatusChan <- true
+	log.Debug("Sending done signal to workers")
 	nodeConnections := middleware.GetNodeConnectionsQueue(th.middlewareUrl)
 	finishQueue := th.workersFinishQueues[enum.Filter]
 
@@ -151,7 +152,6 @@ func (th *TaskHandler) SendDone(taskType enum.TaskType, currentClientID string) 
 
 	nodeConnections.StopConsuming()
 	nodeConnections.Close()
-	th.workerManager.ClearStatus()
 
 	return nil
 }
@@ -292,6 +292,13 @@ func (th *TaskHandler) getWorkerStatus() {
 		}
 	})
 	<-done
+}
+
+func (th *TaskHandler) Reset() {
+	th.workerManager.ClearStatus()
+	close(th.getWorkerStatusChan)
+	th.getWorkerStatusChan = make(chan bool, 1)
+	go th.getWorkerStatus()
 }
 
 func (th *TaskHandler) Close() {
