@@ -16,7 +16,6 @@ func (mh *MessageHandler) SendAggregateDataTask1(items business.MapTransactions)
 			if sendErr := mh.SendData(batch, enum.T1); sendErr != nil {
 				return sendErr
 			}
-			log.Debugf("Sent batch of %d transactions", len(currentBatch))
 			currentBatch = []*raw.Transaction{}
 		}
 	}
@@ -26,12 +25,13 @@ func (mh *MessageHandler) SendAggregateDataTask1(items business.MapTransactions)
 		if sendErr := mh.SendData(batch, enum.T1); sendErr != nil {
 			return sendErr
 		}
-		log.Debugf("Sent final batch of %d transactions", len(currentBatch))
 	}
 
 	if err := mh.SendDoneBatchToGateway(enum.T1, mh.currentClientID); err != nil {
 		return err
 	}
+
+	log.Debugf("Sent total of %d transactions in task 1", len(items))
 
 	return nil
 }
@@ -60,6 +60,8 @@ func (mh *MessageHandler) SendAggregateDataTask4(items business.MapJoinMostPurch
 		return err
 	}
 
+	log.Debugf("Sent total of %d users in task 4", len(items))
+
 	return nil
 }
 
@@ -86,6 +88,8 @@ func (mh *MessageHandler) SendAggregateDataTask3(items business.MapJoinStoreTPV)
 	if err := mh.SendDoneBatchToGateway(enum.T3, mh.currentClientID); err != nil {
 		return err
 	}
+
+	log.Debugf("Sent total of %d store TPV in task 3", len(items))
 
 	return nil
 }
@@ -114,6 +118,8 @@ func (mh *MessageHandler) SendAggregateDataBestSelling(items business.MapJoinBes
 		return err
 	}
 
+	log.Debugf("Sent total of %d best selling products in task 2", len(items))
+
 	return nil
 }
 
@@ -136,6 +142,8 @@ func (mh *MessageHandler) SendAggregateDataMostProfits(items business.MapJoinMos
 			return sendErr
 		}
 	}
+
+	log.Debugf("Sent total of %d most profits products in task 2", len(items))
 
 	if err := mh.SendDoneBatchToGateway(enum.T2, mh.currentClientID); err != nil {
 		return err

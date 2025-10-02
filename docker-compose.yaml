@@ -52,34 +52,6 @@ services:
     depends_on:
       - gateway_controller
 
-  gateway2:
-    container_name: gateway2
-    entrypoint: ["/app/app", "t1"]
-    build:
-      dockerfile: ./src/gateway/Dockerfile
-    image: gateway:latest
-    networks:
-      - tp_net
-    volumes:
-      - ./.data:/app/.data
-      - ./.output2:/app/.output
-    depends_on:
-      - gateway_controller
-
-  gateway3:
-    container_name: gateway3
-    entrypoint: ["/app/app", "t1"]
-    build:
-      dockerfile: ./src/gateway/Dockerfile
-    image: gateway:latest
-    networks:
-      - tp_net
-    volumes:
-      - ./.data:/app/.data
-      - ./.output3:/app/.output
-    depends_on:
-      - gateway_controller
-
   filter:
     container_name: filter
     build:
