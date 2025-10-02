@@ -69,6 +69,8 @@ func (s *Server) Run() error {
 			break
 		}
 
+		log.Debugln("All tasks processed, sending done message to controller...")
+
 		err := s.messageHandler.SendDone()
 
 		if err != nil {
