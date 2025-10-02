@@ -127,13 +127,21 @@ func GetJoinedStoresTPVQueue(url string) MessageMiddleware {
 	})
 }
 
-// GetJoinedUserTransactionsQueue retrieves the middleware used by controller to joined user transactions.
+
+// GetJoinedUserTransactionsQueue retrieves the middleware used by controller to send joined user transactions.
 func GetJoinedUserTransactionsQueue(url string) MessageMiddleware {
 	return retryMiddlewareCreation(MIDDLEWARE_CONNECTION_RETRIES, WAIT_INTERVAL, func() (MessageMiddleware, error) {
 		return NewQueueMiddleware(url, "joined_user_transactions")
 	})
 }
 
+
+// GetFilteredTransactionsQueue retrieves the middleware used by controller to send filtered transactions.
+func GetFilteredTransactionsQueue(url string) MessageMiddleware {
+	return retryMiddlewareCreation(MIDDLEWARE_CONNECTION_RETRIES, WAIT_INTERVAL, func() (MessageMiddleware, error) {
+		return NewQueueMiddleware(url, "filtered_transactions")
+	})
+}
 /* --- Utils --- */
 
 func retryMiddlewareCreation(retries int, waitInterval time.Duration, newMiddleware func() (MessageMiddleware, error)) MessageMiddleware {
