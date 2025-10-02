@@ -27,10 +27,9 @@ func NewTaskHandler(
 	}
 
 	th.taskHandlers = map[enum.TaskType]func([]byte) error{
-		enum.T2_1: th.handleTaskType2_1,
-		enum.T2_2: th.handleTaskType2_2,
-		enum.T3:   th.handleTaskType3,
-		enum.T4:   th.handleTaskType4,
+		enum.T2: th.handleTaskType2,
+		enum.T3: th.handleTaskType3,
+		enum.T4: th.handleTaskType4,
 	}
 
 	return th
@@ -44,24 +43,24 @@ func (th *TaskHandler) HandleTask(taskType enum.TaskType, payload []byte) error 
 	return handler(payload)
 }
 
-func (th *TaskHandler) handleTaskType2_1(payload []byte) error {
+func (th *TaskHandler) handleTaskType2(payload []byte) error {
 	items, err := utils.GetTransactionItems(payload)
 	if err != nil {
 		return err
 	}
-	reducedItems := th.reducerService.SumBestSellingProducts(items)
-	serialized, err := proto.Marshal(reducedItems)
-	return th.queueHandler.SendData(enum.T2_1, serialized)
-}
+	bestSelling := th.reducerService.SumMostProfitsProducts(items)
+	serialized, err := proto.Marshal(bestSelling)
+	errBestSelling := th.queueHandler.SendData(enum.T2_2, serialized)
 
-func (th *TaskHandler) handleTaskType2_2(payload []byte) error {
-	items, err := utils.GetTransactionItems(payload)
-	if err != nil {
-		return err
+	mostProfit := th.reducerService.SumBestSellingProducts(items)
+	serialized, err = proto.Marshal(mostProfit)
+	errMostProfit := th.queueHandler.SendData(enum.T2_1, serialized)
+
+	if errBestSelling != nil || errMostProfit != nil {
+		return fmt.Errorf("error sending data to queue")
 	}
-	reducedItems := th.reducerService.SumMostProfitsProducts(items)
-	serialized, err := proto.Marshal(reducedItems)
-	return th.queueHandler.SendData(enum.T2_2, serialized)
+
+	return nil
 }
 
 func (th *TaskHandler) handleTaskType3(payload []byte) error {

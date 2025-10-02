@@ -26,18 +26,6 @@ services:
     depends_on:
       - rabbitmq
 
-  aggregator:
-    container_name: aggregator
-    build:
-      dockerfile: ./src/aggregator/Dockerfile
-    image: aggregator:latest
-    networks:
-      - tp_net
-    volumes:
-      - ./src/aggregator/config.yaml:/config.yaml
-    depends_on:
-      - rabbitmq
-
   gateway:
     container_name: gateway
     entrypoint: ["/app/app", "t2"]
@@ -61,6 +49,18 @@ services:
       - tp_net
     volumes:
       - ./src/group_by/config.yaml:/config.yaml
+    depends_on:
+      - rabbitmq
+
+  reducer:
+    container_name: reducer
+    build:
+      dockerfile: ./src/reducer/Dockerfile
+    image: reducer:latest
+    networks:
+      - tp_net
+    volumes:
+      - ./src/reducer/config.yaml:/config.yaml
     depends_on:
       - rabbitmq
 

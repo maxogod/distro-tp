@@ -155,8 +155,7 @@ func (mh *MessageHandler) SendData(taskType enum.TaskType, serializedFilteredTra
 }
 
 func (mh *MessageHandler) sendT2Data(payload []byte) error {
-	mh.sendToQueues(enum.T2_1, payload, mh.reducerQueue)
-	return mh.sendToQueues(enum.T2_2, payload, mh.reducerQueue)
+	return mh.sendToQueues(enum.T2, payload, mh.reducerQueue)
 }
 
 func (mh *MessageHandler) sendT3Data(payload []byte) error {
