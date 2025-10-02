@@ -226,10 +226,10 @@ func (mh *MessageHandler) sendMessageToNodeConnection(
 	return nil
 }
 
-func (mh *MessageHandler) SendAllData(taskType enum.TaskType) error {
+func (mh *MessageHandler) SendAllData(taskType enum.TaskType, handler *TaskHandler) error {
 	switch taskType {
 	case enum.T1:
-		aggregatedData, err := mh.aggregatorService.AggregateDataTask1(mh.storePath)
+		aggregatedData, err := handler.HandleDataTask1()
 		if err != nil {
 			return err
 		}
@@ -240,7 +240,7 @@ func (mh *MessageHandler) SendAllData(taskType enum.TaskType) error {
 			return err
 		}
 	case enum.T2:
-		topBestSelling, err := mh.aggregatorService.AggregateBestSellingData(mh.storePath)
+		topBestSelling, err := handler.HandleBestSellingData()
 		if err != nil {
 			return err
 		}
@@ -250,21 +250,21 @@ func (mh *MessageHandler) SendAllData(taskType enum.TaskType) error {
 			return err
 		}
 
-		topMostProfits, errS := mh.aggregatorService.AggregateMostProfitsData(mh.storePath)
+		topMostProfits, errS := handler.HandleMostProfitsData()
 		if errS != nil {
 			return err
 		}
 
 		return mh.SendAggregateDataMostProfits(topMostProfits)
 	case enum.T3:
-		aggregatedData, err := mh.aggregatorService.AggregateDataTask3(mh.storePath)
+		aggregatedData, err := handler.HandleDataTask3()
 		if err != nil {
 			return err
 		}
 
 		return mh.SendAggregateDataTask3(aggregatedData)
 	case enum.T4:
-		topMostPurchases, err := mh.aggregatorService.AggregateDataTask4(mh.storePath)
+		topMostPurchases, err := handler.HandleDataTask4()
 		if err != nil {
 			return err
 		}
