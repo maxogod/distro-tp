@@ -7,13 +7,9 @@
 | Maximo Utrera       | 109651  | mutrera@fi.uba.ar      |
 
 - [Entrega I: Diseño](./docs/diseño.pdf)
+- [Entrega II: Escalabilidad](./docs/escalabilidad.pdf)
 
 # Index
 
-## [Worker Base](docs/worker_base.md)
-## [Middleware](docs/middleware.md)
-
-## [Filter](docs/filter.md)
-
-
-protoc -I=src/common/protobufs/*  src/common/protobufs/* --go_out=./src/common/models
+- [Middleware](docs/middleware.md)
+- [Worker Base](docs/worker_base.md)
