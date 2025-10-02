@@ -27,10 +27,9 @@ type Server struct {
 
 func InitServer(conf *config.Config) *Server {
 
-	joinerService := business.NewFilterService()
-
 	messageHandler := handler.NewMessageHandler(conf.Address)
 	refStore := cache.NewCacheStore(conf.StorePath)
+	joinerService := business.NewFilterService(refStore)
 
 	return &Server{
 		config:         conf,

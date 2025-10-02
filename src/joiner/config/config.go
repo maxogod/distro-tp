@@ -4,23 +4,22 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/maxogod/distro-tp/src/filter/internal/handler"
 	"github.com/pkg/errors"
 	"github.com/spf13/viper"
 )
 
 type Config struct {
-	Address    string
-	LogLevel   string
-	TaskConfig handler.TaskConfig
+	Address   string
+	LogLevel  string
+	StorePath string
 }
 
 func (c Config) String() string {
 	return fmt.Sprintf(
-		"Address: %s | LogLevel: %s | TaskConfig: [%s]",
+		"Address: %s | LogLevel: %s | StorePath: %s",
 		c.Address,
 		c.LogLevel,
-		c.TaskConfig.String(),
+		c.StorePath,
 	)
 }
 
@@ -38,15 +37,9 @@ func InitConfig() (*Config, error) {
 	}
 
 	config := &Config{
-		Address:  v.GetString("gateway.address"),
-		LogLevel: v.GetString("log.level"),
-		TaskConfig: handler.TaskConfig{
-			FilterYearFrom:       v.GetInt("filter.year.from"),
-			FilterYearTo:         v.GetInt("filter.year.to"),
-			BusinessHourFrom:     v.GetInt("filter.businessHours.from"),
-			BusinessHourTo:       v.GetInt("filter.businessHours.to"),
-			TotalAmountThreshold: v.GetFloat64("filter.totalAmountThreshold"),
-		},
+		Address:   v.GetString("gateway.address"),
+		LogLevel:  v.GetString("log.level"),
+		StorePath: v.GetString("datasets.path"),
 	}
 
 	return config, nil
