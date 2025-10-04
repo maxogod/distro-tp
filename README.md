@@ -15,5 +15,5 @@
 
 ## [Filter](docs/filter.md)
 
-
-protoc -I=src/common/protobufs/*  src/common/protobufs/* --go_out=./src/common/models
+protoc -I=src/common/protobufs/  src/common/protobufs/protocol/*.proto --go
+_out=./src/common/models

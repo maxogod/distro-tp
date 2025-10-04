@@ -1,0 +1,13 @@
+syntax = "proto3";
+
+package group_by;
+
+option go_package = "./group_by";
+
+import "raw/transaction_item.proto";
+
+message GroupTransactionItems {
+  string item_id = 1;
+  string year_month = 2;
+  raw.TransactionItemsBatch items = 3;
+}

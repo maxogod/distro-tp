@@ -1,10 +1,9 @@
 package enum
 
-type RefDatasetType int
+type ReferenceType int32
 
 const (
-	NoRef RefDatasetType = iota + 1
-	MenuItems
+	MenuItems ReferenceType = iota
 	Stores
 	Users
 )
