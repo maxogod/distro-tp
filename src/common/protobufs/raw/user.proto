@@ -1,12 +1,13 @@
 syntax = "proto3";
 
-option go_package = "./raw;raw";
+package raw;
+
+option go_package = "./raw";
+
 
 message User {
     int32 user_id = 1;
-    string gender = 2;
-    string birthdate = 3;
-    string registered_at = 4; // ISO 8601 format
+    string birthdate = 2;
 }
 
 message UserBatch {

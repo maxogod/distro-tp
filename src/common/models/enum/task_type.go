@@ -1,6 +1,6 @@
 package enum
 
-type TaskType int
+type TaskType int32
 
 const (
 	T1 TaskType = iota + 1

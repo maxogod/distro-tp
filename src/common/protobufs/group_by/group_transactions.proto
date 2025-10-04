@@ -1,0 +1,15 @@
+syntax = "proto3";
+
+package group_by;
+
+option go_package = "./group_by";
+
+import "raw/transaction.proto";
+
+message GroupTransactions {
+  string transaction_id = 1;
+  string store_id = 2;
+  string user_id = 3;
+  string semester = 4;
+  raw.TransactionBatch transactions = 5;
+}

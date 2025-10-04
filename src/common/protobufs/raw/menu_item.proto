@@ -4,11 +4,11 @@ package raw;
 
 option go_package = "./raw";
 
-message Store {
+message MenuItem {
   string item_id = 1;
   string item_name = 2;
 }
 
-message StoreBatch {
-  repeated Store stores = 1;
+message MenuItemsBatch {
+  repeated MenuItem menu_items = 1;
 }

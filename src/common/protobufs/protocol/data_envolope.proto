@@ -1,0 +1,11 @@
+syntax = "proto3";
+
+package protocol;
+
+option go_package = "./protocol";
+
+message DataEnvolope {
+  string client_id = 1;
+  int32 task_type = 2;
+  bytes payload = 3;
+}
