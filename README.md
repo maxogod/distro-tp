@@ -14,6 +14,3 @@
 ## [Middleware](docs/middleware.md)
 
 ## [Filter](docs/filter.md)
-
-protoc -I=src/common/protobufs/  src/common/protobufs/protocol/*.proto --go
-_out=./src/common/models
