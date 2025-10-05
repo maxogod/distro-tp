@@ -24,14 +24,14 @@ type TaskExecutor interface {
 // A generic implementation of DataHandler that routes tasks to specific handlers based on the task type
 // This is not required for every worker, but highly recommended to use it
 // You only create this struct and pass it to the MessageHandler
-type TaskHandler struct {
+type taskHandler struct {
 	taskHandlers map[enum.TaskType]func([]byte) error
 	taskExecutor TaskExecutor
 }
 
 func NewTaskHandler(
 	taskExecutor TaskExecutor) DataHandler {
-	th := &TaskHandler{
+	th := &taskHandler{
 		taskExecutor: taskExecutor,
 	}
 
@@ -47,13 +47,13 @@ func NewTaskHandler(
 	return th
 }
 
-func (th *TaskHandler) HandleData(dataEnvelope *protocol.DataEnvelope) error {
+func (th *taskHandler) HandleData(dataEnvelope *protocol.DataEnvelope) error {
 	taskType := enum.TaskType(dataEnvelope.GetTaskType())
 	payload := dataEnvelope.GetPayload()
 	return th.handleTask(taskType, payload)
 }
 
-func (th *TaskHandler) handleTask(taskType enum.TaskType, payload []byte) error {
+func (th *taskHandler) handleTask(taskType enum.TaskType, payload []byte) error {
 	handler, exists := th.taskHandlers[taskType]
 	if !exists {
 		return fmt.Errorf("unknown task type: %d", taskType)
@@ -61,10 +61,10 @@ func (th *TaskHandler) handleTask(taskType enum.TaskType, payload []byte) error 
 	return handler(payload)
 }
 
-func (th *TaskHandler) HandleFinishClient(clientID string) error {
+func (th *taskHandler) HandleFinishClient(clientID string) error {
 	return th.taskExecutor.HandleFinishClient(clientID)
 }
 
-func (th *TaskHandler) Close() error {
+func (th *taskHandler) Close() error {
 	return th.taskExecutor.Close()
 }

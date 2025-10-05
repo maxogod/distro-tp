@@ -6,8 +6,10 @@ import (
 
 	"github.com/maxogod/distro-tp/src/common/logger"
 	"github.com/maxogod/distro-tp/src/common/middleware"
+	"github.com/maxogod/distro-tp/src/common/models/enum"
 	"github.com/maxogod/distro-tp/src/common/models/protocol"
 	"github.com/maxogod/distro-tp/src/common/utils"
+	"google.golang.org/protobuf/proto"
 )
 
 var log = logger.GetLogger()
@@ -17,7 +19,7 @@ const CLIENT_TIMEOUT = 10 * time.Second
 // when having to handle / finish clients, there is a bool to indicate if
 // the client is in finishing mode, and a timer to count down to when it should execute the
 // FinishClient function
-type Client struct {
+type client struct {
 	finishUp bool
 	timer    *time.Timer
 }
@@ -26,7 +28,7 @@ type Client struct {
 // from input queues and produces to output queues
 // passing data to a DataHandler function, and sending results to output queues
 // It is required to have a DataHandler implementation to handle the data
-type MessageHandler struct {
+type messageHandler struct {
 	// connections
 	inputQueues   []middleware.MessageMiddleware
 	finisherQueue middleware.MessageMiddleware
@@ -34,7 +36,7 @@ type MessageHandler struct {
 	// internals
 	dataHandler    DataHandler
 	monitorChannel chan *protocol.DataEnvelope
-	clientManager  map[string]Client
+	clientManager  map[string]client
 	isRunning      bool //GLT
 }
 
@@ -42,9 +44,9 @@ func NewMessageHandler(
 	dataHandler DataHandler,
 	inputQueues []middleware.MessageMiddleware,
 	finisherQueue middleware.MessageMiddleware,
-) *MessageHandler {
+) MessageHandler {
 
-	mh := &MessageHandler{
+	mh := &messageHandler{
 		dataHandler:    dataHandler,
 		inputQueues:    inputQueues,
 		monitorChannel: make(chan *protocol.DataEnvelope),
@@ -56,7 +58,7 @@ func NewMessageHandler(
 	// begins to wrap up any consumption of a specific clients messages
 	if finisherQueue != nil {
 		mh.finisherQueue = finisherQueue
-		mh.clientManager = make(map[string]Client)
+		mh.clientManager = make(map[string]client)
 		if err := mh.setupFinishListener(); err != nil {
 			log.Errorf("Failed to set up finish listener: %v", err)
 		}
@@ -65,8 +67,64 @@ func NewMessageHandler(
 	return mh
 }
 
+// Starts consuming indefinetly from monitor channel and handling messages with the provided dataHandler function
+func (mh *messageHandler) Start() error {
+
+	log.Debug("Starting MessageHandler...")
+	for _, queue := range mh.inputQueues {
+		go func(q middleware.MessageMiddleware) {
+			if err := mh.consumeFromQueue(q, mh.monitorChannel); err != nil {
+				log.Errorf("Failed to consume from queue: %v", err)
+			}
+		}(queue)
+	}
+
+	log.Debugf("All input queues are now consuming.")
+
+	// GLT! (Geodude Likes This)
+	for mh.isRunning {
+
+		dataEnvelope := <-mh.monitorChannel
+
+		clientID := dataEnvelope.GetClientId()
+
+		mh.checkClient(clientID)
+
+		if err := mh.dataHandler.HandleData(dataEnvelope); err != nil {
+			log.Errorf("Failed to handle data batch: %v", err)
+		}
+	}
+	return nil
+}
+
+func (mh *messageHandler) SendDataToMiddleware(data proto.Message, taskType enum.TaskType, clientID string, outputQueue middleware.MessageMiddleware) error {
+
+	envelope, err := utils.CreateSerializedEnvelope(data, int32(taskType), clientID)
+	if err != nil {
+		return fmt.Errorf("failed to envelope message: %v", err)
+	}
+
+	if e := outputQueue.Send(envelope); e != middleware.MessageMiddlewareSuccess {
+		return fmt.Errorf("failed to send message to output queue: %d", int(e))
+	}
+
+	return nil
+}
+
+func (mh *messageHandler) FinishClient(clientID string) error {
+
+	log.Debugf("Finishing client: %s", clientID)
+
+	if err := mh.dataHandler.HandleFinishClient(clientID); err != nil {
+		log.Errorf("Failed to finish client %s: %v", clientID, err)
+		return err
+	}
+	delete(mh.clientManager, clientID)
+	return nil
+}
+
 // Shuts down all connections and stops all consumption
-func (mh *MessageHandler) Close() error {
+func (mh *messageHandler) Close() error {
 	mh.isRunning = false
 	close(mh.monitorChannel)
 
@@ -87,8 +145,10 @@ func (mh *MessageHandler) Close() error {
 	return nil
 }
 
+/* --- PRIVATE UTIL METHODS --- */
+
 // Starts consuming for input queues indefinitely and placeing received messages into a monitor channel
-func (mh *MessageHandler) consumeFromQueue(inputQueue middleware.MessageMiddleware, channelOutput chan *protocol.DataEnvelope) error {
+func (mh *messageHandler) consumeFromQueue(inputQueue middleware.MessageMiddleware, channelOutput chan *protocol.DataEnvelope) error {
 
 	log.Debugf("Starting to consume from queue")
 
@@ -122,37 +182,7 @@ func (mh *MessageHandler) consumeFromQueue(inputQueue middleware.MessageMiddlewa
 	return nil
 }
 
-// Starts consuming indefinetly from monitor channel and handling messages with the provided dataHandler function
-func (mh *MessageHandler) Start() error {
-
-	log.Debug("Starting MessageHandler...")
-	for _, queue := range mh.inputQueues {
-		go func(q middleware.MessageMiddleware) {
-			if err := mh.consumeFromQueue(q, mh.monitorChannel); err != nil {
-				log.Errorf("Failed to consume from queue: %v", err)
-			}
-		}(queue)
-	}
-
-	log.Debugf("All input queues are now consuming.")
-
-	// GLT! (Geodude Likes This)
-	for mh.isRunning {
-
-		dataEnvelope := <-mh.monitorChannel
-
-		clientID := dataEnvelope.GetClientId()
-
-		mh.checkClient(clientID)
-
-		if err := mh.dataHandler.HandleData(dataEnvelope); err != nil {
-			log.Errorf("Failed to handle data batch: %v", err)
-		}
-	}
-	return nil
-}
-
-func (mh *MessageHandler) setupFinishListener() error {
+func (mh *messageHandler) setupFinishListener() error {
 
 	finisherChannel := make(chan *protocol.DataEnvelope)
 
@@ -174,7 +204,7 @@ func (mh *MessageHandler) setupFinishListener() error {
 			log.Debugf("Received finish message for client: %s", clientID)
 
 			if _, exists := mh.clientManager[clientID]; exists {
-				mh.clientManager[clientID] = Client{
+				mh.clientManager[clientID] = client{
 					finishUp: true,
 					timer: time.AfterFunc(CLIENT_TIMEOUT, func() {
 						mh.FinishClient(clientID)
@@ -189,7 +219,7 @@ func (mh *MessageHandler) setupFinishListener() error {
 	return nil
 }
 
-func (mh *MessageHandler) checkClient(clientID string) {
+func (mh *messageHandler) checkClient(clientID string) {
 	if clientID == "" || mh.finisherQueue == nil || mh.clientManager == nil {
 		return
 	}
@@ -197,7 +227,7 @@ func (mh *MessageHandler) checkClient(clientID string) {
 	log.Debugf("Checking client: %s", clientID)
 
 	if _, exists := mh.clientManager[clientID]; !exists {
-		mh.clientManager[clientID] = Client{
+		mh.clientManager[clientID] = client{
 			finishUp: false,
 			timer:    nil,
 		}
@@ -219,16 +249,4 @@ func (mh *MessageHandler) checkClient(clientID string) {
 		mh.clientManager[clientID] = client
 	}
 
-}
-
-func (mh *MessageHandler) FinishClient(clientID string) error {
-
-	log.Debugf("Finishing client: %s", clientID)
-
-	if err := mh.dataHandler.HandleFinishClient(clientID); err != nil {
-		log.Errorf("Failed to finish client %s: %v", clientID, err)
-		return err
-	}
-	delete(mh.clientManager, clientID)
-	return nil
 }
