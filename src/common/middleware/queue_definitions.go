@@ -2,8 +2,6 @@ package middleware
 
 import (
 	"time"
-
-	"github.com/maxogod/distro-tp/src/common/models/enum"
 )
 
 const MIDDLEWARE_CONNECTION_RETRIES = 10
@@ -76,9 +74,9 @@ func GetNodeConnectionsQueue(url string) MessageMiddleware {
 // to send or receive with a specific topic pass the topics parameter.
 // Possible topics: filter, groupby, reducer, joiner, aggregator
 // TODO: deprecated
-func GetFinishExchange(url string, workerType enum.WorkerType) MessageMiddleware {
+func GetFinishExchange(url string) MessageMiddleware {
 	return retryMiddlewareCreation(MIDDLEWARE_CONNECTION_RETRIES, WAIT_INTERVAL, func() (MessageMiddleware, error) {
-		return NewExchangeMiddleware(url, "data_exchange", "direct", []string{string(workerType)})
+		return NewExchangeMiddleware(url, "data_exchange", "direct", []string{})
 	})
 }
 

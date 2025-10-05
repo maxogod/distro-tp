@@ -5,8 +5,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/maxogod/distro-tp/src/common/models/data_batch"
-	"github.com/maxogod/distro-tp/src/common/models/raw"
+	"github.com/maxogod/distro-tp/src/common/models/protocol"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -36,9 +35,9 @@ func AppendToCSVFile(path string, payload []byte) error {
 	return nil
 }
 
-func GetDataBatch(msg []byte) (*data_batch.DataBatch, error) {
+func GetDataEnvelope(msg []byte) (*protocol.DataEnvelope, error) {
 
-	dataBatch := &data_batch.DataBatch{}
+	dataBatch := &protocol.DataEnvelope{}
 	err := proto.Unmarshal(msg, dataBatch)
 	if err != nil {
 		return nil, err
@@ -47,26 +46,21 @@ func GetDataBatch(msg []byte) (*data_batch.DataBatch, error) {
 	return dataBatch, nil
 }
 
-func GetTransactions(payload []byte) ([]*raw.Transaction, error) {
-
-	transactions := &raw.TransactionBatch{}
-	err := proto.Unmarshal(payload, transactions)
+// This function creates a marshaled DataEnvelope containing the provided data, task type, and client ID.
+// This simplifies the need to manually create and marshal DataEnvelope messages each time.
+func CreateSerializedEnvelope(data proto.Message, taskType int32, clientID string) ([]byte, error) {
+	payload, err := proto.Marshal(data)
 	if err != nil {
 		return nil, err
 	}
 
-	return transactions.GetTransactions(), nil
-}
-
-func GetTransactionItems(payload []byte) ([]*raw.TransactionItems, error) {
-
-	transactions := &raw.TransactionItemsBatch{}
-	err := proto.Unmarshal(payload, transactions)
-	if err != nil {
-		return nil, err
+	dataEnvelope := &protocol.DataEnvelope{
+		TaskType: taskType,
+		Payload:  payload,
+		ClientId: clientID,
 	}
 
-	return transactions.GetTransactionItems(), nil
+	return proto.Marshal(dataEnvelope)
 }
 
 // UnmarshalPayload unmarshals payload into a proto.Message of type T.
