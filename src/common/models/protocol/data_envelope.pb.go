@@ -26,7 +26,8 @@ type DataEnvelope struct {
 	ClientId      string                 `protobuf:"bytes,1,opt,name=client_id,json=clientId,proto3" json:"client_id,omitempty"`
 	TaskType      int32                  `protobuf:"varint,2,opt,name=task_type,json=taskType,proto3" json:"task_type,omitempty"`
 	IsDone        bool                   `protobuf:"varint,3,opt,name=is_done,json=isDone,proto3" json:"is_done,omitempty"`
-	Payload       []byte                 `protobuf:"bytes,4,opt,name=payload,proto3" json:"payload,omitempty"`
+	IsRef         bool                   `protobuf:"varint,4,opt,name=is_ref,json=isRef,proto3" json:"is_ref,omitempty"`
+	Payload       []byte                 `protobuf:"bytes,5,opt,name=payload,proto3" json:"payload,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -82,6 +83,13 @@ func (x *DataEnvelope) GetIsDone() bool {
 	return false
 }
 
+func (x *DataEnvelope) GetIsRef() bool {
+	if x != nil {
+		return x.IsRef
+	}
+	return false
+}
+
 func (x *DataEnvelope) GetPayload() []byte {
 	if x != nil {
 		return x.Payload
@@ -93,12 +101,13 @@ var File_protocol_data_envelope_proto protoreflect.FileDescriptor
 
 const file_protocol_data_envelope_proto_rawDesc = "" +
 	"\n" +
-	"\x1cprotocol/data_envelope.proto\x12\bprotocol\"{\n" +
+	"\x1cprotocol/data_envelope.proto\x12\bprotocol\"\x92\x01\n" +
 	"\fDataEnvelope\x12\x1b\n" +
 	"\tclient_id\x18\x01 \x01(\tR\bclientId\x12\x1b\n" +
 	"\ttask_type\x18\x02 \x01(\x05R\btaskType\x12\x17\n" +
-	"\ais_done\x18\x03 \x01(\bR\x06isDone\x12\x18\n" +
-	"\apayload\x18\x04 \x01(\fR\apayloadB\fZ\n" +
+	"\ais_done\x18\x03 \x01(\bR\x06isDone\x12\x15\n" +
+	"\x06is_ref\x18\x04 \x01(\bR\x05isRef\x12\x18\n" +
+	"\apayload\x18\x05 \x01(\fR\apayloadB\fZ\n" +
 	"./protocolb\x06proto3"
 
 var (
