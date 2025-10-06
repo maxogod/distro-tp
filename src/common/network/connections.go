@@ -1,0 +1,101 @@
+package network
+
+import (
+	"encoding/binary"
+	"io"
+	"net"
+)
+
+const HEADER_SIZE = 4
+
+type connectionInterface struct {
+	conn net.Conn
+}
+
+func NewConnection() ConnectionInterface {
+	return &connectionInterface{}
+}
+
+func NewConnectionFromExistent(conn net.Conn) ConnectionInterface {
+	return &connectionInterface{conn: conn}
+}
+
+func (c *connectionInterface) Connect(serverAddr string) error {
+	conn, err := net.Dial("tcp", serverAddr)
+	if err != nil {
+		return err
+	}
+	c.conn = conn
+	return nil
+}
+
+func (c *connectionInterface) IsConnected() bool {
+	return c.conn != nil
+}
+
+func (c *connectionInterface) ReceiveData() ([]byte, error) {
+	// Read the length of the incoming message
+	header := make([]byte, HEADER_SIZE)
+	if err := c.readFull(header); err != nil {
+		return nil, err
+	}
+	data := make([]byte, binary.BigEndian.Uint32(header))
+
+	if err := c.readFull(data); err != nil {
+		return nil, err
+	}
+
+	return data, nil
+}
+
+func (c *connectionInterface) SendData(data []byte) error {
+	lenBytes := make([]byte, HEADER_SIZE)
+	binary.BigEndian.PutUint32(lenBytes, uint32(len(data)))
+	payload := append(lenBytes, data...)
+
+	// Send the length header with data payload
+	return c.writeFull(payload)
+}
+
+func (c *connectionInterface) Close() error {
+	if c.conn != nil {
+		err := c.conn.Close()
+		if err != nil {
+			return err
+		}
+		c.conn = nil
+	}
+	return nil
+}
+
+// --- PRIVATE METHODS ---
+
+func (c *connectionInterface) readFull(buf []byte) error {
+	totalRead := 0
+	for totalRead < len(buf) {
+		n, err := c.conn.Read(buf[totalRead:])
+		if err != nil {
+			if err == io.EOF {
+				c.conn = nil
+			}
+			return err
+		}
+		totalRead += n
+	}
+	return nil
+}
+
+func (c *connectionInterface) writeFull(buf []byte) error {
+	totalWritten := 0
+	for totalWritten < len(buf) {
+		n, err := c.conn.Write(buf[totalWritten:])
+		if err != nil {
+			if err == io.EOF {
+				c.conn = nil
+			}
+			return err
+		}
+		totalWritten += n
+	}
+	return nil
+}
