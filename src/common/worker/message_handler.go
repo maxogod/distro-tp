@@ -92,6 +92,7 @@ func (mh *messageHandler) Start() error {
 
 		if err := mh.dataHandler.HandleData(dataEnvelope); err != nil {
 			log.Errorf("Failed to handle data batch: %v", err)
+			return err
 		}
 	}
 	return nil

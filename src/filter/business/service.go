@@ -14,8 +14,8 @@ type TransactionCommon interface {
 
 type FilterService struct{}
 
-func NewFilterService() *FilterService {
-	return &FilterService{}
+func NewFilterService() FilterService {
+	return FilterService{}
 }
 
 func FilterByYearBetween[T TransactionCommon](from, to int, transactions []T) []T {
