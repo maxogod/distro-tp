@@ -4,6 +4,7 @@ import (
 	"encoding/binary"
 	"io"
 	"net"
+	"time"
 )
 
 const HEADER_SIZE = 4
@@ -20,8 +21,16 @@ func NewConnectionFromExistent(conn net.Conn) ConnectionInterface {
 	return &connectionInterface{conn: conn}
 }
 
-func (c *connectionInterface) Connect(serverAddr string) error {
-	conn, err := net.Dial("tcp", serverAddr)
+func (c *connectionInterface) Connect(serverAddr string, retries int) error {
+	var conn net.Conn
+	var err error
+	for range retries {
+		conn, err = net.Dial("tcp", serverAddr)
+		if err == nil {
+			break
+		}
+		time.Sleep(1 * time.Second)
+	}
 	if err != nil {
 		return err
 	}

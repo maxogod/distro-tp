@@ -2,7 +2,7 @@ package network
 
 type ConnectionInterface interface {
 	// Connect initiates a connection to the specified server address.
-	Connect(serverAddr string) error
+	Connect(serverAddr string, retries int) error
 
 	// IsConnected checks if the connection is currently established.
 	IsConnected() bool
