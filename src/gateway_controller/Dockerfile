@@ -1,17 +1,24 @@
-FROM golang:1.24.6 AS builder
-
-# Create the full path to match your imports
-RUN mkdir -p /build/github.com/maxogod/distro-tp
-WORKDIR /build/github.com/maxogod/distro-tp
+# ** Download dependencies **
+FROM golang:1.24.6 AS deps
 
 COPY go.mod go.sum ./
+RUN go mod download
 
-# Copy worker_base to the correct location
-COPY src/gateway_controller/ ./src/gateway_controller/
+# ** Compile code **
+FROM golang:1.24.6 AS builder
+
+COPY --from=deps /go/pkg/mod /go/pkg/mod
 COPY src/common/ ./src/common/
+COPY src/gateway_controller/ ./src/gateway_controller/
 
-RUN go build -o bin/gateway_controller ./src/gateway_controller/cmd
+RUN go build -v -o /app/app ./src/gateway_controller/cmd
 
-FROM busybox:latest
-COPY --from=builder /build/github.com/maxogod/distro-tp/bin/gateway_controller /gateway_controller
-ENTRYPOINT ["/gateway_controller"]
+# ** Run binary **
+FROM busybox:latest AS runner
+
+WORKDIR /app
+
+COPY --from=builder /app/app ./app
+COPY --from=builder /app/src/gateway_controller/config.yaml ./config.yaml
+
+ENTRYPOINT ["./app"]
