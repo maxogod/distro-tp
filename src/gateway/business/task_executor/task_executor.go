@@ -5,10 +5,10 @@ import (
 	"path/filepath"
 
 	"github.com/maxogod/distro-tp/src/common/logger"
-	"github.com/maxogod/distro-tp/src/common/models/data_batch"
 	"github.com/maxogod/distro-tp/src/common/models/enum"
-	"github.com/maxogod/distro-tp/src/common/models/joined"
+	"github.com/maxogod/distro-tp/src/common/models/protocol"
 	"github.com/maxogod/distro-tp/src/common/models/raw"
+	"github.com/maxogod/distro-tp/src/common/models/reduced"
 	"github.com/maxogod/distro-tp/src/common/network"
 	"github.com/maxogod/distro-tp/src/gateway/business/file_service"
 	"github.com/maxogod/distro-tp/src/gateway/internal/utils"
@@ -21,10 +21,10 @@ type taskExecutor struct {
 	dataPath   string
 	outputPath string
 	batchSize  int
-	conn       *network.ConnectionInterface
+	conn       network.ConnectionInterface
 }
 
-func NewTaskExecutor(dataPath, outputPath string, batchSize int, conn *network.ConnectionInterface) TaskExecutor {
+func NewTaskExecutor(dataPath, outputPath string, batchSize int, conn network.ConnectionInterface) TaskExecutor {
 	return &taskExecutor{
 		dataPath:   dataPath,
 		outputPath: outputPath,
@@ -40,7 +40,6 @@ func (t *taskExecutor) Task1() error {
 		enum.T1,
 		transactionsDir,
 		t.batchSize,
-		enum.NoRef,
 		utils.TransactionFromRecord,
 		utils.TransactionBatchFromList,
 	)
@@ -53,10 +52,10 @@ func (t *taskExecutor) Task1() error {
 
 	receiveAndSaveResults(
 		t.conn,
-		filepath.Join(t.outputPath, "t1.csv"),
+		filepath.Join(t.outputPath, OUTPUT_FILE_T1),
 		utils.T1_RES_HEADER,
 		t.batchSize,
-		func(dataBatch *data_batch.DataBatch, ch chan string) {
+		func(dataBatch *protocol.DataEnvelope, ch chan string) {
 			transactionBatch := &raw.TransactionBatch{}
 			if err := proto.Unmarshal(dataBatch.Payload, transactionBatch); err != nil {
 				log.Errorf("failed to unmarshal transaction batch from server: %v", err)
@@ -70,8 +69,6 @@ func (t *taskExecutor) Task1() error {
 		},
 	)
 
-	log.Debug("Results saved successfully")
-
 	return nil
 }
 
@@ -82,7 +79,6 @@ func (t *taskExecutor) Task2() error {
 		enum.T2,
 		menuItemsDir,
 		t.batchSize,
-		enum.MenuItems,
 		utils.MenuItemFromRecord,
 		utils.MenuItemBatchFromList,
 	)
@@ -97,7 +93,6 @@ func (t *taskExecutor) Task2() error {
 		enum.T2,
 		transactionsItemsDir,
 		t.batchSize,
-		enum.NoRef,
 		utils.TransactionItemsFromRecord,
 		utils.TransactionItemsBatchFromList,
 	)
@@ -108,39 +103,35 @@ func (t *taskExecutor) Task2() error {
 
 	receiveAndSaveResults(
 		t.conn,
-		filepath.Join(t.outputPath, "t2_1.csv"),
+		filepath.Join(t.outputPath, OUTPUT_FILE_T2_1),
 		utils.T2_1_RES_HEADER,
 		t.batchSize,
-		func(dataBatch *data_batch.DataBatch, ch chan string) {
-			data := &joined.JoinBestSellingProductsBatch{}
+		func(dataBatch *protocol.DataEnvelope, ch chan string) {
+			data := &reduced.TotalSoldByQuantity{}
 			if err := proto.Unmarshal(dataBatch.Payload, data); err != nil {
 				log.Errorf("failed to unmarshal transaction items batch from server: %v", err)
 				return
 			}
 
-			for _, transactionItems := range data.Items {
-				line := utils.BestSellingItemsToCsv(transactionItems)
-				ch <- line
-			}
+			line := utils.BestSellingItemsToCsv(data)
+			ch <- line
 		},
 	)
 
 	receiveAndSaveResults(
 		t.conn,
-		filepath.Join(t.outputPath, "t2_2.csv"),
+		filepath.Join(t.outputPath, OUTPUT_FILE_T2_2),
 		utils.T2_1_RES_HEADER,
 		t.batchSize,
-		func(dataBatch *data_batch.DataBatch, ch chan string) {
-			data := &joined.JoinMostProfitsProductsBatch{}
+		func(dataBatch *protocol.DataEnvelope, ch chan string) {
+			data := &reduced.TotalProfitBySubtotal{}
 			if err := proto.Unmarshal(dataBatch.Payload, data); err != nil {
 				log.Errorf("failed to unmarshal transaction items batch from server: %v", err)
 				return
 			}
 
-			for _, transactionItems := range data.Items {
-				line := utils.MostProfitableItemsToCsv(transactionItems)
-				ch <- line
-			}
+			line := utils.MostProfitableItemsToCsv(data)
+			ch <- line
 		},
 	)
 
@@ -154,7 +145,6 @@ func (t *taskExecutor) Task3() error {
 		enum.T3,
 		storesDir,
 		t.batchSize,
-		enum.Stores,
 		utils.StoreFromRecord,
 		utils.StoreBatchFromList,
 	)
@@ -169,7 +159,6 @@ func (t *taskExecutor) Task3() error {
 		enum.T3,
 		transactionsDir,
 		t.batchSize,
-		enum.NoRef,
 		utils.TransactionFromRecord,
 		utils.TransactionBatchFromList,
 	)
@@ -180,20 +169,18 @@ func (t *taskExecutor) Task3() error {
 
 	receiveAndSaveResults(
 		t.conn,
-		filepath.Join(t.outputPath, "t3.csv"),
+		filepath.Join(t.outputPath, OUTPUT_FILE_T3),
 		utils.T3_RES_HEADER,
 		t.batchSize,
-		func(dataBatch *data_batch.DataBatch, ch chan string) {
-			data := &joined.JoinStoreTPVBatch{}
+		func(dataBatch *protocol.DataEnvelope, ch chan string) {
+			data := &reduced.TotalPaymentValue{}
 			if err := proto.Unmarshal(dataBatch.Payload, data); err != nil {
 				log.Errorf("failed to unmarshal store tpv batch from server: %v", err)
 				return
 			}
 
-			for _, storeTPV := range data.Items {
-				line := utils.TopStoresByTPVToCsv(storeTPV)
-				ch <- line
-			}
+			line := utils.TopStoresByTPVToCsv(data)
+			ch <- line
 		},
 	)
 
@@ -207,7 +194,6 @@ func (t *taskExecutor) Task4() error {
 		enum.T4,
 		usersDir,
 		t.batchSize,
-		enum.Users,
 		utils.UserFromRecord,
 		utils.UserBatchFromList,
 	)
@@ -222,7 +208,6 @@ func (t *taskExecutor) Task4() error {
 		enum.T4,
 		storesDir,
 		t.batchSize,
-		enum.Stores,
 		utils.StoreFromRecord,
 		utils.StoreBatchFromList,
 	)
@@ -237,7 +222,6 @@ func (t *taskExecutor) Task4() error {
 		enum.T4,
 		transactionsDir,
 		t.batchSize,
-		enum.NoRef,
 		utils.TransactionFromRecord,
 		utils.TransactionBatchFromList,
 	)
@@ -248,20 +232,18 @@ func (t *taskExecutor) Task4() error {
 
 	receiveAndSaveResults(
 		t.conn,
-		filepath.Join(t.outputPath, "t4.csv"),
+		filepath.Join(t.outputPath, OUTPUT_FILE_T4),
 		utils.T4_RES_HEADER,
 		t.batchSize,
-		func(dataBatch *data_batch.DataBatch, ch chan string) {
-			data := &joined.JoinMostPurchasesUserBatch{}
+		func(dataBatch *protocol.DataEnvelope, ch chan string) {
+			data := &reduced.CountedUserTransactions{}
 			if err := proto.Unmarshal(dataBatch.Payload, data); err != nil {
 				log.Errorf("failed to unmarshal most purchases user batch from server: %v", err)
 				return
 			}
 
-			for _, mostPurchasesUser := range data.Users {
-				line := utils.TopUsersByPurchasesToCsv(mostPurchasesUser)
-				ch <- line
-			}
+			line := utils.TopUsersByPurchasesToCsv(data)
+			ch <- line
 		},
 	)
 
@@ -271,11 +253,10 @@ func (t *taskExecutor) Task4() error {
 /* --- UTILS --- */
 
 func readAndSendData[T any](
-	conn *network.ConnectionInterface,
+	conn network.ConnectionInterface,
 	taskType enum.TaskType,
 	dataDir string,
 	batchSize int,
-	refDataType enum.RefDatasetType,
 	fromRecordFunc func([]string) T,
 	makeBatchFunc func([]T) []byte,
 ) error {
@@ -292,12 +273,10 @@ func readAndSendData[T any](
 		go fs.ReadAsBatches(filepath.Join(dataDir, file.Name()), ch, fromRecordFunc)
 
 		for batch := range ch {
-			dataBatch, err := proto.Marshal(&data_batch.DataBatch{
-				TaskType:        int32(taskType),
-				Done:            false,
-				IsReferenceData: refDataType != enum.NoRef,
-				RefDataType:     int32(refDataType),
-				Payload:         makeBatchFunc(batch),
+			dataBatch, err := proto.Marshal(&protocol.DataEnvelope{
+				TaskType: int32(taskType),
+				Payload:  makeBatchFunc(batch),
+				IsDone:   false,
 			})
 			if err != nil {
 				continue
@@ -307,11 +286,9 @@ func readAndSendData[T any](
 		}
 	}
 
-	donePayload, err := proto.Marshal(&data_batch.DataBatch{
-		TaskType:        int32(taskType),
-		IsReferenceData: refDataType != enum.NoRef,
-		RefDataType:     int32(refDataType),
-		Done:            true,
+	donePayload, err := proto.Marshal(&protocol.DataEnvelope{
+		TaskType: int32(taskType),
+		IsDone:   true,
 	})
 	if err != nil {
 		return err
@@ -325,11 +302,11 @@ func readAndSendData[T any](
 }
 
 func receiveAndSaveResults(
-	conn *network.ConnectionInterface,
+	conn network.ConnectionInterface,
 	path,
 	header string,
 	batchSize int,
-	generateStringObject func(*data_batch.DataBatch, chan string),
+	generateStringObject func(*protocol.DataEnvelope, chan string),
 ) error {
 	fs := file_service.NewFileService[string](batchSize)
 
@@ -342,18 +319,17 @@ func receiveAndSaveResults(
 			log.Errorf("failed to receive response from server: %v", err)
 			return err
 		}
-		dataBatch := &data_batch.DataBatch{}
+		dataBatch := &protocol.DataEnvelope{}
 		if err := proto.Unmarshal(res, dataBatch); err != nil {
 			log.Errorf("failed to unmarshal response from server: %v", err)
 			return err
-		} else if dataBatch.Done {
+		} else if dataBatch.IsDone {
 			break // No more batches
 		}
 
 		generateStringObject(dataBatch, batchesCh)
 	}
 
-	// TODO: all data and done should only be sent by aggregator
 	log.Debug("Finished saving data")
 
 	return nil

@@ -24,8 +24,8 @@ func NewClient(conf *config.Config) Client {
 
 func (c *client) Start(task string) error {
 	// Connect to server
-	conn := network.NewConnectionInterface()
-	err := conn.Connect(fmt.Sprintf("%s:%d", c.conf.ServerHost, c.conf.ServerPort))
+	conn := network.NewConnection()
+	err := conn.Connect(fmt.Sprintf("%s:%d", c.conf.ServerHost, c.conf.ServerPort), c.conf.ConnectionRetries)
 	if err != nil {
 		log.Errorf("could not connect to server: %v", err)
 		return err
