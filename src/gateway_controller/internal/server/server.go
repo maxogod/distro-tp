@@ -24,7 +24,7 @@ type Server struct {
 	clientManager     *session.ClientManager
 }
 
-func InitServer(conf *config.Config) *Server {
+func NewServer(conf *config.Config) *Server {
 	return &Server{
 		config:            conf,
 		isRunning:         true,
@@ -35,8 +35,6 @@ func InitServer(conf *config.Config) *Server {
 }
 
 func (s *Server) Run() error {
-	log.Info("Starting Basic Worker server...")
-
 	s.setupGracefulShutdown()
 	defer s.Shutdown()
 
@@ -50,22 +48,12 @@ func (s *Server) Run() error {
 		clientConnection, err := s.connectionManager.AcceptConnection()
 		if err != nil {
 			log.Errorf("Failed to accept connection: %v", err)
-			return err
+			break
 		}
 
 		clientSession := s.clientManager.AddClient(clientConnection, s.taskHandler)
 
-		err = clientSession.ProcessRequest()
-		if err != nil {
-			log.Errorf("Error handling client request: %v", err)
-			return err
-		}
-
-		clientSession.Close()
-
-		s.clientManager.RemoveClient(clientSession.Id)
-
-		log.Debug("Ready to accept new connections")
+		go clientSession.ProcessRequest()
 	}
 
 	log.Info("Server shutdown complete")
@@ -73,7 +61,6 @@ func (s *Server) Run() error {
 }
 
 func (s *Server) setupGracefulShutdown() {
-	// This is a graceful non-blocking setup to shut down the process in case
 	sigChannel := make(chan os.Signal, 1)
 	signal.Notify(sigChannel, syscall.SIGTERM, syscall.SIGINT)
 
