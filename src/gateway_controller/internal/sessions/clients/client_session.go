@@ -1,4 +1,4 @@
-package session
+package clients
 
 import (
 	"github.com/maxogod/distro-tp/src/common/logger"
@@ -15,62 +15,72 @@ type clientSession struct {
 	Id               string
 	clientConnection network.ConnectionInterface
 	taskHandler      handler.Handler
-	processData      bool
+	running          bool
 }
 
-func NewClientSession(id string, conn network.ConnectionInterface, taskHandler handler.Handler) *clientSession {
+func NewClientSession(id string, conn network.ConnectionInterface, taskHandler handler.Handler) ClientSession {
 	return &clientSession{
 		Id:               id,
 		clientConnection: conn,
 		taskHandler:      taskHandler,
-		processData:      true,
+		running:          true,
 	}
+}
+
+func (cs *clientSession) IsFinished() bool {
+	return !cs.running
 }
 
 func (cs *clientSession) ProcessRequest() error {
 	log.Debugln("Starting to process client requests")
-	// i know that the variable is not necesary but geodude likes this handling
+
+	processData := true
 	var taskType enum.TaskType
-	for cs.processData {
+
+	for processData {
 		request, err := cs.getRequest()
 		if err != nil {
 			return err
 		}
 		request.ClientId = cs.Id
 
-		taskType = enum.TaskType(request.GetTaskType())
-
 		if request.GetIsRef() {
-			// forward reference data including done signal to task handler
 			cs.taskHandler.HandleReferenceData(request, cs.Id)
-			continue
 		} else if request.GetIsDone() {
-			cs.processData = false
-			break
+			taskType = enum.TaskType(request.GetTaskType())
+			processData = false
+		} else {
+			cs.taskHandler.HandleTask(taskType, request)
 		}
-		cs.taskHandler.HandleTask(taskType, request)
 	}
 
 	log.Debugln("All data received from client, sending done signal to task handler")
-
 	err := cs.taskHandler.SendDone(taskType, cs.Id)
 	if err != nil {
 		return err
 	}
 
 	log.Debugln("Starting to send report data to client")
-
 	err = cs.processResponse()
 	if err != nil {
 		return err
 	}
 
-	log.Debugf("All report data sent to client %s, closing session", cs.Id)
+	// TODO: tell joiners to remove persisted data
 
+	log.Debugf("All report data sent to client %s, closing session", cs.Id)
 	cs.taskHandler.Reset()
+
+	cs.running = false
 
 	return nil
 }
+
+func (cs *clientSession) Close() {
+	cs.clientConnection.Close()
+}
+
+// --- PRIVATE METHODS ---
 
 func (cs *clientSession) processResponse() error {
 	data := make(chan []byte)
@@ -82,25 +92,15 @@ func (cs *clientSession) processResponse() error {
 		for batch := range data {
 			dataBatch := &protocol.DataEnvelope{}
 			err := proto.Unmarshal(batch, dataBatch)
-			if err != nil {
-				isDone = true
-				break
-			}
-			if dataBatch.GetClientId() != cs.Id {
+			if err != nil || err == nil && dataBatch.GetClientId() != cs.Id {
 				continue
 			}
 
-			err = cs.clientConnection.SendData(batch)
-			if err != nil {
-				isDone = true
-				break
-			}
+			cs.clientConnection.SendData(batch)
 
-			// If the process data is finished, break the loop
 			if dataBatch.GetIsDone() {
 				log.Debugln("Received done signal from task handler")
 				isDone = true
-				break
 			}
 		}
 	}
@@ -111,18 +111,16 @@ func (cs *clientSession) processResponse() error {
 func (cs *clientSession) getRequest() (*protocol.DataEnvelope, error) {
 	requestBytes, err := cs.clientConnection.ReceiveData()
 	if err != nil {
-		log.Errorf("Error receiving request type: %v", err)
+		log.Errorf("Error receiving data: %v", err)
 		return nil, err
 	}
+
 	request := &protocol.DataEnvelope{}
 	err = proto.Unmarshal(requestBytes, request)
 	if err != nil {
-		log.Errorf("Error receiving request type: %v", err)
+		log.Errorf("Error receiving data: %v", err)
 		return nil, err
 	}
-	return request, nil
-}
 
-func (cs *clientSession) Close() {
-	cs.clientConnection.Close()
+	return request, nil
 }

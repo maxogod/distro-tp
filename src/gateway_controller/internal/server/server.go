@@ -10,27 +10,27 @@ import (
 	"github.com/maxogod/distro-tp/src/gateway_controller/config"
 	"github.com/maxogod/distro-tp/src/gateway_controller/internal/handler"
 	"github.com/maxogod/distro-tp/src/gateway_controller/internal/network"
-	"github.com/maxogod/distro-tp/src/gateway_controller/internal/session"
+	"github.com/maxogod/distro-tp/src/gateway_controller/internal/sessions/manager"
 )
 
 var log = logger.GetLogger()
 
 type Server struct {
 	config            *config.Config
-	isRunning         bool
+	running           bool
 	workerService     *business.GatewayControllerService
 	taskHandler       handler.Handler
-	connectionManager *network.ConnectionManager
-	clientManager     *session.ClientManager
+	connectionManager network.ConnectionManager
+	clientManager     manager.ClientManager
 }
 
 func NewServer(conf *config.Config) *Server {
 	return &Server{
 		config:            conf,
-		isRunning:         true,
+		running:           true,
 		taskHandler:       handler.NewTaskHandler(business.NewControllerService(), conf.GatewayAddress),
 		connectionManager: network.NewConnectionManager(conf.Port),
-		clientManager:     session.NewClientManager(),
+		clientManager:     manager.NewClientManager(),
 	}
 }
 
@@ -44,7 +44,9 @@ func (s *Server) Run() error {
 		return err
 	}
 
-	for s.isRunning {
+	for s.running {
+		s.clientManager.ReapStaleClients()
+
 		clientConnection, err := s.connectionManager.AcceptConnection()
 		if err != nil {
 			log.Errorf("Failed to accept connection: %v", err)
@@ -56,7 +58,6 @@ func (s *Server) Run() error {
 		go clientSession.ProcessRequest()
 	}
 
-	log.Info("Server shutdown complete")
 	return nil
 }
 
@@ -72,7 +73,7 @@ func (s *Server) setupGracefulShutdown() {
 }
 
 func (s *Server) Shutdown() {
-	s.isRunning = false
+	s.running = false
 	s.taskHandler.Close()
 	s.clientManager.Close()
 	s.connectionManager.Close()
