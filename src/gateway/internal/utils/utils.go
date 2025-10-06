@@ -1,6 +1,8 @@
 package utils
 
 import (
+	"github.com/maxogod/distro-tp/src/common/models/enum"
+	"github.com/maxogod/distro-tp/src/common/models/protocol"
 	"github.com/maxogod/distro-tp/src/common/models/raw"
 	common_utils "github.com/maxogod/distro-tp/src/common/utils"
 	"google.golang.org/protobuf/proto"
@@ -10,15 +12,11 @@ import (
 
 func TransactionFromRecord(record []string) *raw.Transaction {
 	return &raw.Transaction{
-		TransactionId:   record[0],
-		StoreId:         int64(common_utils.ParseIntOrDefault(record[1])),
-		PaymentMethod:   int32(common_utils.ParseIntOrDefault(record[2])),
-		VoucherId:       int64(common_utils.ParseIntOrDefault(record[3])),
-		UserId:          int64(common_utils.ParseIntOrDefault(record[4])),
-		OriginalAmount:  common_utils.ParseFloatOrDefault(record[5]),
-		DiscountApplied: common_utils.ParseFloatOrDefault(record[6]),
-		FinalAmount:     common_utils.ParseFloatOrDefault(record[7]),
-		CreatedAt:       record[8],
+		TransactionId: record[0],
+		StoreId:       record[1],
+		UserId:        record[4],
+		FinalAmount:   common_utils.ParseFloatOrDefault(record[7]),
+		CreatedAt:     record[8],
 	}
 }
 
@@ -34,18 +32,16 @@ func TransactionBatchFromList(list []*raw.Transaction) []byte {
 
 /* --- Transaction Items Data --- */
 
-func TransactionItemsFromRecord(record []string) *raw.TransactionItems {
-	return &raw.TransactionItems{
-		TransactionId: record[0],
-		ItemId:        int64(common_utils.ParseIntOrDefault(record[1])),
-		Quantity:      int32(common_utils.ParseIntOrDefault(record[2])),
-		UnitPrice:     common_utils.ParseFloatOrDefault(record[3]),
-		Subtotal:      common_utils.ParseFloatOrDefault(record[4]),
-		CreatedAt:     record[5],
+func TransactionItemsFromRecord(record []string) *raw.TransactionItem {
+	return &raw.TransactionItem{
+		ItemId:    int64(common_utils.ParseIntOrDefault(record[1])),
+		Quantity:  int32(common_utils.ParseIntOrDefault(record[2])),
+		Subtotal:  common_utils.ParseFloatOrDefault(record[4]),
+		CreatedAt: record[5],
 	}
 }
 
-func TransactionItemsBatchFromList(list []*raw.TransactionItems) []byte {
+func TransactionItemsBatchFromList(list []*raw.TransactionItem) []byte {
 	data, err := proto.Marshal(&raw.TransactionItemsBatch{
 		TransactionItems: list,
 	})
@@ -59,10 +55,8 @@ func TransactionItemsBatchFromList(list []*raw.TransactionItems) []byte {
 
 func UserFromRecord(record []string) *raw.User {
 	return &raw.User{
-		UserId:       int32(common_utils.ParseIntOrDefault(record[0])),
-		Gender:       record[1],
-		Birthdate:    record[2],
-		RegisteredAt: record[3],
+		UserId:    int32(common_utils.ParseIntOrDefault(record[0])),
+		Birthdate: record[2],
 	}
 }
 
@@ -73,45 +67,50 @@ func UserBatchFromList(list []*raw.User) []byte {
 	if err != nil {
 		data = []byte{}
 	}
-	return data
+	envelope := &protocol.ReferenceEnvolope{
+		ReferenceType: int32(enum.Users),
+		Payload:       data,
+	}
+	envelopedData, err := proto.Marshal(envelope)
+	if err != nil {
+		envelopedData = []byte{}
+	}
+	return envelopedData
 }
 
 /* --- Menu Items Data --- */
 
 func MenuItemFromRecord(record []string) *raw.MenuItem {
 	return &raw.MenuItem{
-		ItemId:        int32(common_utils.ParseIntOrDefault(record[0])),
-		ItemName:      record[1],
-		Category:      record[2],
-		Price:         common_utils.ParseFloatOrDefault(record[3]),
-		IsSeasonal:    record[4] == "True",
-		AvailableFrom: record[5],
-		AvailableTo:   record[6],
+		ItemId:   record[0],
+		ItemName: record[1],
 	}
 }
 
 func MenuItemBatchFromList(list []*raw.MenuItem) []byte {
-	data, err := proto.Marshal(&raw.MenuItemBatch{
+	data, err := proto.Marshal(&raw.MenuItemsBatch{
 		MenuItems: list,
 	})
 	if err != nil {
 		data = []byte{}
 	}
-	return data
+	envelope := &protocol.ReferenceEnvolope{
+		ReferenceType: int32(enum.MenuItems),
+		Payload:       data,
+	}
+	envelopedData, err := proto.Marshal(envelope)
+	if err != nil {
+		envelopedData = []byte{}
+	}
+	return envelopedData
 }
 
 /* --- Stores Data --- */
 
 func StoreFromRecord(record []string) *raw.Store {
 	return &raw.Store{
-		StoreId:    int32(common_utils.ParseIntOrDefault(record[0])),
-		StoreName:  record[1],
-		Street:     record[2],
-		PostalCode: int32(common_utils.ParseIntOrDefault(record[3])),
-		City:       record[4],
-		State:      record[5],
-		Latitude:   common_utils.ParseFloatOrDefault(record[6]),
-		Longitude:  common_utils.ParseFloatOrDefault(record[7]),
+		StoreId:   record[0],
+		StoreName: record[1],
 	}
 }
 
@@ -122,5 +121,13 @@ func StoreBatchFromList(list []*raw.Store) []byte {
 	if err != nil {
 		data = []byte{}
 	}
-	return data
+	envelope := &protocol.ReferenceEnvolope{
+		ReferenceType: int32(enum.Stores),
+		Payload:       data,
+	}
+	envelopedData, err := proto.Marshal(envelope)
+	if err != nil {
+		envelopedData = []byte{}
+	}
+	return envelopedData
 }

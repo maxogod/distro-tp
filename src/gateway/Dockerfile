@@ -7,11 +7,14 @@ RUN go mod download
 # ** Compile code **
 FROM golang:1.24.6 AS builder
 
+WORKDIR /app
+
+COPY go.sum go.mod ./
 COPY --from=deps /go/pkg/mod /go/pkg/mod
 COPY src/common/ ./src/common/
 COPY src/gateway/ ./src/gateway/
 
-RUN go build -v -o /app/app ./src/gateway/cmd
+RUN go build -v -o ./app ./src/gateway/cmd
 
 # ** Run binary **
 FROM busybox:latest AS runner
