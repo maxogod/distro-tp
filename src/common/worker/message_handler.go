@@ -97,20 +97,6 @@ func (mh *messageHandler) Start() error {
 	return nil
 }
 
-func (mh *messageHandler) SendDataToMiddleware(data proto.Message, taskType enum.TaskType, clientID string, outputQueue middleware.MessageMiddleware) error {
-
-	envelope, err := utils.CreateSerializedEnvelope(data, int32(taskType), clientID)
-	if err != nil {
-		return fmt.Errorf("failed to envelope message: %v", err)
-	}
-
-	if e := outputQueue.Send(envelope); e != middleware.MessageMiddlewareSuccess {
-		return fmt.Errorf("failed to send message to output queue: %d", int(e))
-	}
-
-	return nil
-}
-
 func (mh *messageHandler) FinishClient(clientID string) error {
 
 	log.Debugf("Finishing client: %s", clientID)
@@ -249,4 +235,21 @@ func (mh *messageHandler) checkClient(clientID string) {
 		mh.clientManager[clientID] = client
 	}
 
+}
+
+/* --- MESSAGE HANDLER SEND DATA FUNCTION --- */
+
+// SendDataToMiddleware is a utility function to send data to a middleware queue
+func SendDataToMiddleware(data proto.Message, taskType enum.TaskType, clientID string, outputQueue middleware.MessageMiddleware) error {
+
+	envelope, err := utils.CreateSerializedEnvelope(data, int32(taskType), clientID)
+	if err != nil {
+		return fmt.Errorf("failed to envelope message: %v", err)
+	}
+
+	if e := outputQueue.Send(envelope); e != middleware.MessageMiddlewareSuccess {
+		return fmt.Errorf("failed to send message to output queue: %d", int(e))
+	}
+
+	return nil
 }
