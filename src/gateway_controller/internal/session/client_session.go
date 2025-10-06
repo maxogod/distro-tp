@@ -2,8 +2,8 @@ package session
 
 import (
 	"github.com/maxogod/distro-tp/src/common/logger"
-	"github.com/maxogod/distro-tp/src/common/models/data_batch"
 	"github.com/maxogod/distro-tp/src/common/models/enum"
+	"github.com/maxogod/distro-tp/src/common/models/protocol"
 	"github.com/maxogod/distro-tp/src/common/network"
 	"github.com/maxogod/distro-tp/src/gateway_controller/internal/handler"
 	"google.golang.org/protobuf/proto"
@@ -13,12 +13,12 @@ var log = logger.GetLogger()
 
 type clientSession struct {
 	Id               string
-	clientConnection *network.ConnectionInterface
+	clientConnection network.ConnectionInterface
 	taskHandler      handler.Handler
 	processData      bool
 }
 
-func NewClientSession(id string, conn *network.ConnectionInterface, taskHandler handler.Handler) *clientSession {
+func NewClientSession(id string, conn network.ConnectionInterface, taskHandler handler.Handler) *clientSession {
 	return &clientSession{
 		Id:               id,
 		clientConnection: conn,
@@ -39,13 +39,12 @@ func (cs *clientSession) ProcessRequest() error {
 		request.ClientId = cs.Id
 
 		taskType = enum.TaskType(request.GetTaskType())
-		isRefData := request.GetIsReferenceData()
 
-		if isRefData {
+		if request.GetIsRef() {
 			// forward reference data including done signal to task handler
 			cs.taskHandler.HandleReferenceData(request, cs.Id)
 			continue
-		} else if request.GetDone() {
+		} else if request.GetIsDone() {
 			cs.processData = false
 			break
 		}
@@ -66,7 +65,7 @@ func (cs *clientSession) ProcessRequest() error {
 		return err
 	}
 
-	log.Debugln("All report data sent to client, closing session")
+	log.Debugf("All report data sent to client %s, closing session", cs.Id)
 
 	cs.taskHandler.Reset()
 
@@ -81,7 +80,7 @@ func (cs *clientSession) processResponse() error {
 		go cs.taskHandler.GetReportData(data, disconnect)
 
 		for batch := range data {
-			dataBatch := &data_batch.DataBatch{}
+			dataBatch := &protocol.DataEnvelope{}
 			err := proto.Unmarshal(batch, dataBatch)
 			if err != nil {
 				isDone = true
@@ -98,7 +97,7 @@ func (cs *clientSession) processResponse() error {
 			}
 
 			// If the process data is finished, break the loop
-			if dataBatch.GetDone() {
+			if dataBatch.GetIsDone() {
 				log.Debugln("Received done signal from task handler")
 				isDone = true
 				break
@@ -109,30 +108,19 @@ func (cs *clientSession) processResponse() error {
 	return nil
 }
 
-func (cs *clientSession) getRequest() (*data_batch.DataBatch, error) {
+func (cs *clientSession) getRequest() (*protocol.DataEnvelope, error) {
 	requestBytes, err := cs.clientConnection.ReceiveData()
 	if err != nil {
 		log.Errorf("Error receiving request type: %v", err)
 		return nil, err
 	}
-	request := &data_batch.DataBatch{}
+	request := &protocol.DataEnvelope{}
 	err = proto.Unmarshal(requestBytes, request)
 	if err != nil {
 		log.Errorf("Error receiving request type: %v", err)
 		return nil, err
 	}
 	return request, nil
-}
-
-// TODO: Remove deprecated
-func (cs *clientSession) sendReportData(reportData []byte) error {
-	cs.clientConnection.SendData(reportData)
-	return nil
-}
-
-// TODO: Remove deprecated
-func (cs *clientSession) HandleReferenceData(response *data_batch.DataBatch) error {
-	return nil
 }
 
 func (cs *clientSession) Close() {

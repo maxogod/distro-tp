@@ -11,7 +11,6 @@ import (
 var log = logger.GetLogger()
 
 func main() {
-
 	time.Sleep(10 * time.Second) // wait for rabbitmq to be ready
 
 	conf, err := config.InitConfig()
@@ -19,11 +18,12 @@ func main() {
 		log.Fatalf("%s", err)
 	}
 
-	server := server.InitServer(conf)
-
+	log.Infoln("Controller server starting")
+	server := server.NewServer(conf)
 	err = server.Run()
 	if err != nil {
 		log.Fatalf("Failed to run server: %v", err)
 	}
-	log.Debug("Geodude thanks you for using the Gateway Controller!")
+
+	log.Infoln("Geodude finished successfully!")
 }
