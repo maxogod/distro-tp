@@ -128,6 +128,8 @@ func (mh *messageHandler) Close() error {
 		}
 	}
 
+	mh.dataHandler.Close()
+
 	return nil
 }
 
