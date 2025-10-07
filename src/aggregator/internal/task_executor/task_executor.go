@@ -3,31 +3,31 @@ package task_executor
 import (
 	"fmt"
 
+	"github.com/maxogod/distro-tp/src/aggregator/business"
 	"github.com/maxogod/distro-tp/src/common/middleware"
 	"github.com/maxogod/distro-tp/src/common/models/enum"
 	"github.com/maxogod/distro-tp/src/common/models/raw"
 	"github.com/maxogod/distro-tp/src/common/worker"
-	"github.com/maxogod/distro-tp/src/filter/business"
 	"google.golang.org/protobuf/proto"
 )
 
-type FilterExecutor struct {
-	config          TaskConfig
-	filterService   business.FilterService
-	aggregatorQueue middleware.MessageMiddleware
-	groupByQueue    middleware.MessageMiddleware
+type AggregatorExecutor struct {
+	config             TaskConfig
+	aggregatorService  business.AggregatorService
+	processedDataQueue middleware.MessageMiddleware
 }
 
-func NewFilterExecutor(config TaskConfig, filterService business.FilterService, groupByQueue middleware.MessageMiddleware, aggregatorQueue middleware.MessageMiddleware) worker.TaskExecutor {
-	return &FilterExecutor{
-		config:          config,
-		filterService:   filterService,
-		aggregatorQueue: aggregatorQueue,
-		groupByQueue:    groupByQueue,
+const TRANSACTION_SEND_LIMIT = 1000
+
+func NewAggregatorExecutor(config TaskConfig, aggregatorService business.AggregatorService, processedDataQueue middleware.MessageMiddleware) worker.TaskExecutor {
+	return &AggregatorExecutor{
+		config:             config,
+		aggregatorService:  aggregatorService,
+		processedDataQueue: processedDataQueue,
 	}
 }
 
-func (fe *FilterExecutor) HandleTask1(payload []byte, clientID string) error {
+func (ae *AggregatorExecutor) HandleTask1(payload []byte, clientID string) error {
 
 	transactionBatch := &raw.TransactionBatch{}
 	err := proto.Unmarshal(payload, transactionBatch)
@@ -35,69 +35,53 @@ func (fe *FilterExecutor) HandleTask1(payload []byte, clientID string) error {
 		return err
 	}
 
-	//==========================
-	// TODO: APPLY BUSINESS LOGIC HERE
-	//==========================
-
-	return worker.SendDataToMiddleware(transactionBatch, enum.T1, clientID, fe.aggregatorQueue)
+	return ae.aggregatorService.StoreTransactions(clientID, transactionBatch.Transactions)
 }
 
-func (fe *FilterExecutor) HandleTask2(payload []byte, clientID string) error {
-	transactionBatch := &raw.TransactionItemsBatch{}
-	err := proto.Unmarshal(payload, transactionBatch)
-	if err != nil {
-		return err
-	}
-
-	//==========================
-	// TODO: APPLY BUSINESS LOGIC HERE
-	//==========================
-
-	return worker.SendDataToMiddleware(transactionBatch, enum.T3, clientID, fe.groupByQueue)
-}
-
-func (fe *FilterExecutor) HandleTask3(payload []byte, clientID string) error {
-	transactionBatch := &raw.TransactionBatch{}
-	err := proto.Unmarshal(payload, transactionBatch)
-	if err != nil {
-		return err
-	}
-
-	//==========================
-	// TODO: APPLY BUSINESS LOGIC HERE
-	//==========================
-
-	return worker.SendDataToMiddleware(transactionBatch, enum.T3, clientID, fe.groupByQueue)
-}
-
-func (fe *FilterExecutor) HandleTask4(payload []byte, clientID string) error {
-	// TODO: implement task 4 handling logic
+func (ae *AggregatorExecutor) HandleTask2_1(payload []byte, clientID string) error {
+	// TODO: implement later
 	return nil
 }
 
-func (fe *FilterExecutor) Close() error {
-
-	e := fe.aggregatorQueue.Close()
-	if e != middleware.MessageMiddlewareSuccess {
-		return fmt.Errorf("failed to close aggregator queue: %v", e)
-	}
-
-	e = fe.groupByQueue.Close()
-
-	if e != middleware.MessageMiddlewareSuccess {
-		return fmt.Errorf("failed to close group by queue: %v", e)
-	}
+func (ae *AggregatorExecutor) HandleTask2_2(payload []byte, clientID string) error {
 	return nil
 }
 
-func (fe *FilterExecutor) HandleTask2_1(payload []byte, clientID string) error {
-	panic("The filter does not implement Task 2.1")
+func (ae *AggregatorExecutor) HandleTask3(payload []byte, clientID string) error {
+	// TODO: implement later
+	return nil
 }
 
-func (fe *FilterExecutor) HandleTask2_2(payload []byte, clientID string) error {
-	panic("The filter does not implement Task 2.2")
+func (ae *AggregatorExecutor) HandleTask4(payload []byte, clientID string) error {
+	// TODO: implement later
+	return nil
 }
 
-func (fe *FilterExecutor) HandleFinishClient(clientID string) error {
-	panic("Filter does not require client finishing handling")
+func (ae *AggregatorExecutor) HandleFinishClient(clientID string) error {
+
+	for transactions, moreBatches := ae.aggregatorService.GetStoredTransactions(clientID, TRANSACTION_SEND_LIMIT); moreBatches; transactions, moreBatches = ae.aggregatorService.GetStoredTransactions(clientID, TRANSACTION_SEND_LIMIT) {
+		transactionBatch := &raw.TransactionBatch{
+			Transactions: transactions,
+		}
+
+		if err := worker.SendDataToMiddleware(transactionBatch, enum.T1, clientID, ae.processedDataQueue); err != nil {
+			return fmt.Errorf("failed to send data to middleware: %v", err)
+		}
+	}
+	return worker.SendDone(clientID, ae.processedDataQueue)
+
+}
+
+func (ae *AggregatorExecutor) Close() error {
+
+	e := ae.processedDataQueue.Close()
+	if e != middleware.MessageMiddlewareSuccess {
+		return fmt.Errorf("failed to close processed data queue: %v", e)
+	}
+
+	return nil
+}
+
+func (ae *AggregatorExecutor) HandleTask2(payload []byte, clientID string) error {
+	panic("The filter does not implement Task 2")
 }

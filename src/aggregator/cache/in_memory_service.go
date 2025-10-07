@@ -8,7 +8,7 @@ import (
 )
 
 type storage struct {
-	heap         *messageHeap
+	sortedData   *messageHeap
 	unsortedData []*proto.Message
 	index        int
 }
@@ -27,18 +27,18 @@ func (c *InMemoryCache) StoreSortedBatch(cacheReference string, data []*proto.Me
 	storageData, exists := c.memoryStorage[cacheReference]
 
 	if !exists {
-		// first time this reference is seen → create its heap with sort function
+		// first time this reference is seen, create its heap with sort function
 		h := &messageHeap{
 			data:         []*proto.Message{},
 			sortFunction: sortFn,
 		}
 		heap.Init(h)
-		storageData = storage{heap: h}
+		storageData = storage{sortedData: h}
 	}
 
 	// Push data to the heap
 	for _, msg := range data {
-		heap.Push(storageData.heap, msg)
+		heap.Push(storageData.sortedData, msg)
 	}
 
 	// Update the storage
@@ -70,7 +70,7 @@ func (c *InMemoryCache) ReadBatch(cacheReference string, amount int32) ([]*proto
 	}
 
 	// Decide which private method to call
-	if storageData.heap != nil && storageData.heap.Len() > 0 {
+	if storageData.sortedData != nil && storageData.sortedData.Len() > 0 {
 		return c.readSortedBatch(cacheReference, amount)
 	} else if storageData.index < len(storageData.unsortedData) {
 		return c.readUnorderedBatch(cacheReference, amount)
@@ -82,13 +82,13 @@ func (c *InMemoryCache) ReadBatch(cacheReference string, amount int32) ([]*proto
 // readSortedBatch pops `amount` items from the sorted heap (private)
 func (c *InMemoryCache) readSortedBatch(cacheReference string, amount int32) ([]*proto.Message, error) {
 	storageData, exists := c.memoryStorage[cacheReference]
-	if !exists || storageData.heap == nil || storageData.heap.Len() == 0 {
+	if !exists || storageData.sortedData == nil || storageData.sortedData.Len() == 0 {
 		return nil, nil
 	}
 
 	results := make([]*proto.Message, 0, amount)
-	for i := int32(0); i < amount && storageData.heap.Len() > 0; i++ {
-		msg := heap.Pop(storageData.heap).(*proto.Message)
+	for i := int32(0); i < amount && storageData.sortedData.Len() > 0; i++ {
+		msg := heap.Pop(storageData.sortedData).(*proto.Message)
 		results = append(results, msg)
 	}
 
@@ -123,5 +123,10 @@ func (c *InMemoryCache) Remove(cacheReference string) error {
 	}
 
 	delete(c.memoryStorage, cacheReference)
+	return nil
+}
+
+func (c *InMemoryCache) Close() error {
+	c.memoryStorage = make(map[string]storage)
 	return nil
 }

@@ -256,3 +256,23 @@ func SendDataToMiddleware(data proto.Message, taskType enum.TaskType, clientID s
 
 	return nil
 }
+
+func SendDone(clientID string, outputQueue middleware.MessageMiddleware) error {
+
+	dataEnvelope := &protocol.DataEnvelope{
+		ClientId: clientID,
+		IsDone:   true,
+	}
+
+	data, err := proto.Marshal(dataEnvelope)
+
+	if err != nil {
+		return fmt.Errorf("failed to serialize done message: %v", err)
+	}
+
+	if e := outputQueue.Send(data); e != middleware.MessageMiddlewareSuccess {
+		return fmt.Errorf("failed to send message to output queue: %d", int(e))
+	}
+
+	return nil
+}

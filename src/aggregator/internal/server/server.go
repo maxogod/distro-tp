@@ -6,10 +6,12 @@ import (
 	"syscall"
 
 	"github.com/maxogod/distro-tp/src/aggregator/business"
+	"github.com/maxogod/distro-tp/src/aggregator/cache"
 	"github.com/maxogod/distro-tp/src/aggregator/config"
 	"github.com/maxogod/distro-tp/src/aggregator/internal/task_executor"
 	"github.com/maxogod/distro-tp/src/common/logger"
 	"github.com/maxogod/distro-tp/src/common/middleware"
+	"github.com/maxogod/distro-tp/src/common/models/enum"
 	"github.com/maxogod/distro-tp/src/common/worker"
 )
 
@@ -24,16 +26,17 @@ func InitServer(conf *config.Config) *Server {
 	// initiateOutputs
 	aggregatorInputQueue := middleware.GetAggregatorQueue(conf.Address)
 	processedDataOutputQueue := middleware.GetProcessedDataQueue(conf.Address)
+	finishExchange := middleware.GetFinishExchange(conf.Address, []string{string(enum.AggregatorWorker)})
 
 	// initiate internal components
+	cacheService := cache.NewInMemoryCache()
 
-	aggregatorService := business.NewAggregatorService()
+	aggregatorService := business.NewAggregatorService(cacheService)
 
-	taskExecutor := task_executor.NewaggregatorExecutor(
+	taskExecutor := task_executor.NewAggregatorExecutor(
 		conf.TaskConfig,
 		aggregatorService,
-		groupByOutputQueue,
-		aggregatorOutputQueue,
+		processedDataOutputQueue,
 	)
 
 	taskHandler := worker.NewTaskHandler(taskExecutor)
@@ -41,7 +44,7 @@ func InitServer(conf *config.Config) *Server {
 	messageHandler := worker.NewMessageHandler(
 		taskHandler,
 		[]middleware.MessageMiddleware{aggregatorInputQueue},
-		nil,
+		finishExchange,
 	)
 
 	return &Server{

@@ -1,65 +1,77 @@
 package business
 
 import (
-	"time"
-
+	"github.com/maxogod/distro-tp/src/aggregator/cache"
+	"github.com/maxogod/distro-tp/src/common/logger"
 	"github.com/maxogod/distro-tp/src/common/models/raw"
+	"github.com/maxogod/distro-tp/src/common/models/reduced"
+	"google.golang.org/protobuf/proto"
 )
 
-// Generic constraint that ensures
-// the type implements our required methods
-type TransactionCommon interface {
-	GetCreatedAt() string
+var log = logger.GetLogger()
+
+type AggregatorService struct {
+	cacheService cache.CacheService
 }
 
-type FilterService struct{}
-
-func NewAggregatorService() FilterService {
-	return FilterService{}
-}
-
-func FilterByYearBetween[T TransactionCommon](from, to int, transactions []T) []T {
-
-	var filtered []T
-	for _, transaction := range transactions {
-
-		date, err := time.Parse("2006-01-02 15:04:05", transaction.GetCreatedAt())
-		if err != nil {
-			continue
-		}
-
-		year := date.Year()
-		if year >= from && year <= to {
-			filtered = append(filtered, transaction)
-		}
+func NewAggregatorService(cacheService cache.CacheService) AggregatorService {
+	return AggregatorService{
+		cacheService: cacheService,
 	}
-	return filtered
 }
 
-func FilterByHourBetween[T TransactionCommon](from, to int, transactions []T) []T {
-	var filtered []T
-	for _, transaction := range transactions {
-		date, err := time.Parse("2006-01-02 15:04:05", transaction.GetCreatedAt())
-		if err != nil {
-			continue
-		}
+// This is T1
+func (as *AggregatorService) StoreTransactions(clientID string, transactions []*raw.Transaction) error {
 
-		// Extract hour and minute as decimal (e.g., 11:45 = 11.75)
-		timeDecimal := float64(date.Hour()) + float64(date.Minute())/60.0
-
-		if timeDecimal >= float64(from) && timeDecimal < float64(to+1) {
-			filtered = append(filtered, transaction)
-		}
+	protoTransactions := make([]*proto.Message, len(transactions))
+	for i, tx := range transactions {
+		msg := proto.Message(tx)
+		protoTransactions[i] = &msg
 	}
-	return filtered
+
+	return as.cacheService.StoreBatch(clientID, protoTransactions)
+
 }
 
-func FilterByTotalAmountGreaterThan(totalAmount float64, transactions []*raw.Transaction) []*raw.Transaction {
-	var filtered []*raw.Transaction
-	for _, transaction := range transactions {
-		if transaction.GetFinalAmount() >= totalAmount {
-			filtered = append(filtered, transaction)
-		}
+// This is T2_1
+func (as *AggregatorService) StoreTotalProfitBySubtotal(clientID string, reducedData []*reduced.TotalProfitBySubtotal) error {
+	return nil
+}
+
+// This is T2_2
+func (as *AggregatorService) StoreTotalSoldByQuantity(clientID string, reducedData []*reduced.TotalSoldByQuantity) error {
+	return nil
+}
+
+// This is T3
+func (as *AggregatorService) StoreTotalPaymentValue(clientID string, reducedData []*reduced.TotalPaymentValue) error {
+	return nil
+}
+
+// This is T4
+func (as *AggregatorService) StoreCountedUserTransactions(clientID string, reducedData []*reduced.CountedUserTransactions) error {
+	return nil
+}
+
+func (as *AggregatorService) GetStoredTransactions(clientID string, amount int32) ([]*raw.Transaction, bool) {
+	protoMessages, err := as.cacheService.ReadBatch(clientID, amount)
+	if err != nil {
+		log.Errorf("Error reading batch from cache: %v", err)
+		return nil, false
 	}
-	return filtered
+
+	if len(protoMessages) == 0 {
+		return nil, false
+	}
+
+	transactions := make([]*raw.Transaction, len(protoMessages))
+	for i, msg := range protoMessages {
+		transactions[i] = (*msg).(*raw.Transaction)
+	}
+
+	return transactions, true
+}
+
+func (as *AggregatorService) Close() error {
+	return as.cacheService.Close()
 }
