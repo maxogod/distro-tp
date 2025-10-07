@@ -9,9 +9,9 @@ import (
 )
 
 type Config struct {
-	GatewayAddress string
-	Port           int32
-	LogLevel       string
+	MiddlewareAddress string
+	Port              int32
+	LogLevel          string
 }
 
 func (c Config) String() string {
@@ -40,9 +40,9 @@ func InitConfig() (*Config, error) {
 	v.BindEnv("log.level", "LOG_LEVEL")
 
 	config := &Config{
-		GatewayAddress: v.GetString("gateway.address"),
-		Port:           int32(v.GetInt("port")),
-		LogLevel:       v.GetString("log.level"),
+		MiddlewareAddress: v.GetString("middleware.address"),
+		Port:              int32(v.GetInt("port")),
+		LogLevel:          v.GetString("log.level"),
 	}
 
 	return config, nil
