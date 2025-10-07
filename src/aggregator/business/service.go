@@ -10,6 +10,9 @@ import (
 
 var log = logger.GetLogger()
 
+// This service acts as a bridge between the business logic and the cache layer.
+// Allowing the aggregator to store or read data from the cache.
+// It requires a cache service to be provided at initialization.
 type AggregatorService struct {
 	cacheService cache.CacheService
 }
