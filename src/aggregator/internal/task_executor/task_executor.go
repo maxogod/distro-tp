@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/maxogod/distro-tp/src/aggregator/business"
+	"github.com/maxogod/distro-tp/src/aggregator/config"
 	"github.com/maxogod/distro-tp/src/common/logger"
 	"github.com/maxogod/distro-tp/src/common/middleware"
 	"github.com/maxogod/distro-tp/src/common/models/enum"
@@ -15,19 +16,17 @@ import (
 var log = logger.GetLogger()
 
 type AggregatorExecutor struct {
-	config             TaskConfig
-	aggregatorService  business.AggregatorService
-	processedDataQueue middleware.MessageMiddleware
+	config            *config.Config
+	aggregatorService business.AggregatorService
 }
 
 // TODO: Move to config
 const TRANSACTION_SEND_LIMIT = 1000
 
-func NewAggregatorExecutor(config TaskConfig, aggregatorService business.AggregatorService, processedDataQueue middleware.MessageMiddleware) worker.TaskExecutor {
+func NewAggregatorExecutor(config *config.Config, aggregatorService business.AggregatorService) worker.TaskExecutor {
 	return &AggregatorExecutor{
-		config:             config,
-		aggregatorService:  aggregatorService,
-		processedDataQueue: processedDataQueue,
+		config:            config,
+		aggregatorService: aggregatorService,
 	}
 }
 
@@ -63,6 +62,10 @@ func (ae *AggregatorExecutor) HandleTask4(payload []byte, clientID string) error
 
 func (ae *AggregatorExecutor) HandleFinishClient(clientID string) error {
 
+	processedDataQueue := middleware.GetProcessedDataExchange(ae.config.Address, clientID)
+
+	defer processedDataQueue.Close()
+
 	log.Debug("Finishing client: ", clientID)
 	for {
 		transactions, moreBatches := ae.aggregatorService.GetStoredTransactions(clientID, TRANSACTION_SEND_LIMIT)
@@ -72,11 +75,11 @@ func (ae *AggregatorExecutor) HandleFinishClient(clientID string) error {
 		transactionBatch := &raw.TransactionBatch{
 			Transactions: transactions,
 		}
-		if err := worker.SendDataToMiddleware(transactionBatch, enum.T1, clientID, ae.processedDataQueue); err != nil {
+		if err := worker.SendDataToMiddleware(transactionBatch, enum.T1, clientID, processedDataQueue); err != nil {
 			return fmt.Errorf("failed to send data to middleware: %v", err)
 		}
 	}
-	err := worker.SendDone(clientID, ae.processedDataQueue)
+	err := worker.SendDone(clientID, processedDataQueue)
 	if err != nil {
 		return fmt.Errorf("failed to send done message to middleware: %v", err)
 	}
@@ -88,11 +91,6 @@ func (ae *AggregatorExecutor) HandleFinishClient(clientID string) error {
 }
 
 func (ae *AggregatorExecutor) Close() error {
-
-	e := ae.processedDataQueue.Close()
-	if e != middleware.MessageMiddlewareSuccess {
-		return fmt.Errorf("failed to close processed data queue: %v", e)
-	}
 
 	return nil
 }

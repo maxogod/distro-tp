@@ -25,7 +25,6 @@ func InitServer(conf *config.Config) *Server {
 
 	// initiateOutputs
 	aggregatorInputQueue := middleware.GetAggregatorQueue(conf.Address)
-	processedDataOutputQueue := middleware.GetProcessedDataQueue(conf.Address)
 	finishExchange := middleware.GetFinishExchange(conf.Address, []string{string(enum.AggregatorWorker)})
 
 	// initiate internal components
@@ -34,9 +33,8 @@ func InitServer(conf *config.Config) *Server {
 	aggregatorService := business.NewAggregatorService(cacheService)
 
 	taskExecutor := task_executor.NewAggregatorExecutor(
-		conf.TaskConfig,
+		conf,
 		aggregatorService,
-		processedDataOutputQueue,
 	)
 
 	taskHandler := worker.NewTaskHandler(taskExecutor)
