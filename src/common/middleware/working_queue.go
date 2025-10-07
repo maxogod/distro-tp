@@ -55,7 +55,6 @@ func (mq *MessageMiddlewareQueue) StartConsuming(onMessageCallback onMessageCall
 	mq.consumerTag = consumerTag
 
 	// TODO: prefetch count and size (Qos)
-	mq.channel.Qos(1, 0, false)
 	consumeChannel, err := mq.channel.Consume(
 		mq.queueName, // queue
 		consumerTag,  // consumer
