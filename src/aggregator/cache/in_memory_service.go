@@ -76,7 +76,7 @@ func (c *InMemoryCache) ReadBatch(cacheReference string, amount int32) ([]*proto
 		return c.readUnorderedBatch(cacheReference, amount)
 	}
 
-	return nil, fmt.Errorf("no data available for cache reference: %s", cacheReference)
+	return nil, nil
 }
 
 // readSortedBatch pops `amount` items from the sorted heap (private)

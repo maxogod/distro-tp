@@ -7,6 +7,8 @@ import (
 	"github.com/maxogod/distro-tp/src/common/models/protocol"
 )
 
+const FINISH enum.TaskType = 0
+
 // Before creating a TaskHandler, a TaskExecutor is required to be implemented
 // for the specific tasks that the worker will handle via the TaskHandler.
 // Once created, it is passed to the TaskHandler constructor
@@ -57,6 +59,9 @@ func (th *taskHandler) HandleData(dataEnvelope *protocol.DataEnvelope) error {
 func (th *taskHandler) handleTask(taskType enum.TaskType, payload []byte, clientID string) error {
 	handler, exists := th.taskHandlers[taskType]
 	if !exists {
+		if taskType == FINISH {
+			return nil
+		}
 		return fmt.Errorf("unknown task type: %d", taskType)
 	}
 	return handler(payload, clientID)
@@ -67,5 +72,11 @@ func (th *taskHandler) HandleFinishClient(clientID string) error {
 }
 
 func (th *taskHandler) Close() error {
+
+	if err := th.taskExecutor.Close(); err != nil {
+		return err
+	}
+	log.Debug("TaskHandler closed successfully.")
+
 	return th.taskExecutor.Close()
 }

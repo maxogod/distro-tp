@@ -2,6 +2,7 @@ package main
 
 import (
 	"os"
+	"time"
 
 	"github.com/maxogod/distro-tp/src/common/logger"
 	"github.com/maxogod/distro-tp/src/filter/config"
@@ -16,7 +17,7 @@ func main() {
 	if len(os.Args) > 1 {
 		configPath = os.Args[1]
 	}
-	//time.Sleep(12 * time.Second)
+	time.Sleep(12 * time.Second)
 
 	conf, err := config.InitConfig(configPath)
 	if err != nil {

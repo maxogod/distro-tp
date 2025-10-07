@@ -104,16 +104,26 @@ func (th *messageHandler) GetReportData(data chan *protocol.DataEnvelope) {
 	th.processedDataQueueMiddleware.StartConsuming(func(msgs middleware.ConsumeChannel, d chan error) {
 		log.Debug("Started listening for processed data")
 		receiving := true
+
+		timer := time.NewTimer(RECEIVING_TIMEOUT)
+		defer timer.Stop()
+
 		for receiving {
 			select {
 			case msg := <-msgs:
+				// Reset timer
+				if !timer.Stop() {
+					<-timer.C
+				}
+				timer.Reset(RECEIVING_TIMEOUT)
+
 				envelope := &protocol.DataEnvelope{}
 				err := proto.Unmarshal(msg.Body, envelope)
 				if err != nil {
 					msg.Nack(false, false) // Discard corrupted messages
 					continue
 				} else if envelope.GetClientId() != th.clientID {
-					msg.Nack(false, true) // Requeue other clients messages
+					msg.Nack(false, true) // Requeue other clients' messages
 					continue
 				}
 
@@ -122,7 +132,7 @@ func (th *messageHandler) GetReportData(data chan *protocol.DataEnvelope) {
 				if envelope.GetIsDone() {
 					receiving = false
 				}
-			case <-time.After(RECEIVING_TIMEOUT):
+			case <-timer.C:
 				log.Warnln("Timeout waiting for processed data")
 				receiving = false
 			}

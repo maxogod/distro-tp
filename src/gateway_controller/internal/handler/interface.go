@@ -8,12 +8,12 @@ import (
 )
 
 const (
-	RECEIVING_TIMEOUT = 2 * time.Second
+	RECEIVING_TIMEOUT = 20 * time.Second
 )
 
 // MessageHandler interface defines methods for forwarding tasks to be processed by workers
 // and managing client interactions.
-// Messaging methods need the current cliendID to support multiclient environments.
+// Messaging methods need the current clientID to support multiclient environments.
 type MessageHandler interface {
 
 	// ForwardData sends a given data envelope to the corresponding worker layer to start processing it.

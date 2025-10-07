@@ -91,7 +91,7 @@ func (mh *messageHandler) Start() error {
 		mh.checkClient(clientID)
 
 		if err := mh.dataHandler.HandleData(dataEnvelope); err != nil {
-			log.Errorf("Failed to handle data batch: %v", err)
+			log.Warnf("Failed to handle data batch: %v", err)
 			return err
 		}
 	}
@@ -129,7 +129,14 @@ func (mh *messageHandler) Close() error {
 		}
 	}
 
-	mh.dataHandler.Close()
+	err := mh.dataHandler.Close()
+
+	if err != nil {
+		log.Errorf("Failed to close data handler: %v", err)
+		return err
+	}
+
+	log.Debug("MessageHandler closed successfully.")
 
 	return nil
 }
@@ -213,8 +220,6 @@ func (mh *messageHandler) checkClient(clientID string) {
 		return
 	}
 
-	log.Debugf("Checking client: %s", clientID)
-
 	if _, exists := mh.clientManager[clientID]; !exists {
 		mh.clientManager[clientID] = client{
 			finishUp: false,
@@ -228,7 +233,6 @@ func (mh *messageHandler) checkClient(clientID string) {
 	if client.finishUp {
 		// If the client is in finishing mode, reset the timer
 		if client.timer != nil {
-			log.Debugf("Resetting timer for client: %s", clientID)
 			client.timer.Stop()
 		}
 		client.timer = time.AfterFunc(CLIENT_TIMEOUT, func() {

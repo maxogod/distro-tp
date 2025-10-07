@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/maxogod/distro-tp/src/aggregator/business"
+	"github.com/maxogod/distro-tp/src/common/logger"
 	"github.com/maxogod/distro-tp/src/common/middleware"
 	"github.com/maxogod/distro-tp/src/common/models/enum"
 	"github.com/maxogod/distro-tp/src/common/models/raw"
@@ -11,12 +12,15 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
+var log = logger.GetLogger()
+
 type AggregatorExecutor struct {
 	config             TaskConfig
 	aggregatorService  business.AggregatorService
 	processedDataQueue middleware.MessageMiddleware
 }
 
+// TODO: Move to config
 const TRANSACTION_SEND_LIMIT = 1000
 
 func NewAggregatorExecutor(config TaskConfig, aggregatorService business.AggregatorService, processedDataQueue middleware.MessageMiddleware) worker.TaskExecutor {
@@ -59,16 +63,27 @@ func (ae *AggregatorExecutor) HandleTask4(payload []byte, clientID string) error
 
 func (ae *AggregatorExecutor) HandleFinishClient(clientID string) error {
 
-	for transactions, moreBatches := ae.aggregatorService.GetStoredTransactions(clientID, TRANSACTION_SEND_LIMIT); moreBatches; transactions, moreBatches = ae.aggregatorService.GetStoredTransactions(clientID, TRANSACTION_SEND_LIMIT) {
+	log.Debug("Finishing client: ", clientID)
+	for {
+		transactions, moreBatches := ae.aggregatorService.GetStoredTransactions(clientID, TRANSACTION_SEND_LIMIT)
+		if !moreBatches {
+			break
+		}
 		transactionBatch := &raw.TransactionBatch{
 			Transactions: transactions,
 		}
-
 		if err := worker.SendDataToMiddleware(transactionBatch, enum.T1, clientID, ae.processedDataQueue); err != nil {
 			return fmt.Errorf("failed to send data to middleware: %v", err)
 		}
 	}
-	return worker.SendDone(clientID, ae.processedDataQueue)
+	err := worker.SendDone(clientID, ae.processedDataQueue)
+	if err != nil {
+		return fmt.Errorf("failed to send done message to middleware: %v", err)
+	}
+
+	log.Debug("Client Finished: ", clientID)
+
+	return nil
 
 }
 
