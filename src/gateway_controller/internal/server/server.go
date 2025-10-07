@@ -6,9 +6,7 @@ import (
 	"syscall"
 
 	"github.com/maxogod/distro-tp/src/common/logger"
-	"github.com/maxogod/distro-tp/src/gateway_controller/business"
 	"github.com/maxogod/distro-tp/src/gateway_controller/config"
-	"github.com/maxogod/distro-tp/src/gateway_controller/internal/handler"
 	"github.com/maxogod/distro-tp/src/gateway_controller/internal/network"
 	"github.com/maxogod/distro-tp/src/gateway_controller/internal/sessions/manager"
 )
@@ -18,8 +16,6 @@ var log = logger.GetLogger()
 type Server struct {
 	config            *config.Config
 	running           bool
-	workerService     *business.GatewayControllerService
-	taskHandler       handler.Handler
 	connectionManager network.ConnectionManager
 	clientManager     manager.ClientManager
 }
@@ -28,9 +24,8 @@ func NewServer(conf *config.Config) *Server {
 	return &Server{
 		config:            conf,
 		running:           true,
-		taskHandler:       handler.NewTaskHandler(business.NewControllerService(), conf.GatewayAddress),
 		connectionManager: network.NewConnectionManager(conf.Port),
-		clientManager:     manager.NewClientManager(),
+		clientManager:     manager.NewClientManager(conf),
 	}
 }
 
@@ -53,7 +48,7 @@ func (s *Server) Run() error {
 			break
 		}
 
-		clientSession := s.clientManager.AddClient(clientConnection, s.taskHandler)
+		clientSession := s.clientManager.AddClient(clientConnection)
 
 		go clientSession.ProcessRequest()
 	}
@@ -74,7 +69,6 @@ func (s *Server) setupGracefulShutdown() {
 
 func (s *Server) Shutdown() {
 	s.running = false
-	s.taskHandler.Close()
 	s.clientManager.Close()
 	s.connectionManager.Close()
 	log.Infof("action: shutdown | result: success")

@@ -2,7 +2,6 @@ package manager
 
 import (
 	"github.com/maxogod/distro-tp/src/common/network"
-	"github.com/maxogod/distro-tp/src/gateway_controller/internal/handler"
 	"github.com/maxogod/distro-tp/src/gateway_controller/internal/sessions/clients"
 )
 
@@ -11,7 +10,7 @@ type ClientManager interface {
 	// AddClient creates and registers a new client session.
 	// It takes a network connection and a task handler as parameters.
 	// It returns the created client session.
-	AddClient(conn network.ConnectionInterface, taskHandler handler.Handler) clients.ClientSession
+	AddClient(conn network.ConnectionInterface) clients.ClientSession
 
 	// RemoveClient removes a client session by its ID.
 	RemoveClient(id string)

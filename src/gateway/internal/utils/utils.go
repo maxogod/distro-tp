@@ -34,7 +34,7 @@ func TransactionBatchFromList(list []*raw.Transaction) []byte {
 
 func TransactionItemsFromRecord(record []string) *raw.TransactionItem {
 	return &raw.TransactionItem{
-		ItemId:    int64(common_utils.ParseIntOrDefault(record[1])),
+		ItemId:    record[1],
 		Quantity:  int32(common_utils.ParseIntOrDefault(record[2])),
 		Subtotal:  common_utils.ParseFloatOrDefault(record[4]),
 		CreatedAt: record[5],

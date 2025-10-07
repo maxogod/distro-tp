@@ -3,23 +3,27 @@ package manager
 import (
 	"github.com/google/uuid"
 	"github.com/maxogod/distro-tp/src/common/network"
+	"github.com/maxogod/distro-tp/src/gateway_controller/config"
 	"github.com/maxogod/distro-tp/src/gateway_controller/internal/handler"
 	"github.com/maxogod/distro-tp/src/gateway_controller/internal/sessions/clients"
 )
 
 type clientManager struct {
 	clients map[string]clients.ClientSession
+	config  *config.Config
 }
 
-func NewClientManager() ClientManager {
+func NewClientManager(conf *config.Config) ClientManager {
 	return &clientManager{
 		clients: make(map[string]clients.ClientSession),
+		config:  conf,
 	}
 }
 
-func (cm *clientManager) AddClient(connection network.ConnectionInterface, taskHandler handler.Handler) clients.ClientSession {
+func (cm *clientManager) AddClient(connection network.ConnectionInterface) clients.ClientSession {
 	id := uuid.New().String()
-	session := clients.NewClientSession(id, connection, taskHandler)
+	messageHandler := handler.NewMessageHandler(cm.config.MiddlewareAddress, id)
+	session := clients.NewClientSession(id, connection, messageHandler)
 	cm.clients[id] = session
 	return session
 }

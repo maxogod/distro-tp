@@ -14,15 +14,15 @@ var log = logger.GetLogger()
 type clientSession struct {
 	Id               string
 	clientConnection network.ConnectionInterface
-	taskHandler      handler.Handler
+	messageHandler   handler.MessageHandler
 	running          bool
 }
 
-func NewClientSession(id string, conn network.ConnectionInterface, taskHandler handler.Handler) ClientSession {
+func NewClientSession(id string, conn network.ConnectionInterface, messageHandler handler.MessageHandler) ClientSession {
 	return &clientSession{
 		Id:               id,
 		clientConnection: conn,
-		taskHandler:      taskHandler,
+		messageHandler:   messageHandler,
 		running:          true,
 	}
 }
@@ -43,16 +43,16 @@ func (cs *clientSession) ProcessRequest() error {
 		request.ClientId = cs.Id
 
 		if request.GetIsRef() {
-			cs.taskHandler.ForwardReferenceData(request, cs.Id)
+			cs.messageHandler.ForwardReferenceData(request)
 		} else if request.GetIsDone() {
 			processData = false
 		} else {
-			cs.taskHandler.ForwardData(request, cs.Id)
+			cs.messageHandler.ForwardData(request)
 		}
 	}
 
 	log.Debugln("All data received from client, sending done signal to task handler")
-	err := cs.taskHandler.SendDone(enum.AggregatorWorker, cs.Id)
+	err := cs.messageHandler.SendDone(enum.AggregatorWorker)
 	if err != nil {
 		return err
 	}
@@ -60,7 +60,7 @@ func (cs *clientSession) ProcessRequest() error {
 	log.Debugln("Starting to send report data to client")
 	cs.processResponse()
 
-	err = cs.taskHandler.SendDone(enum.JoinerWorker, cs.Id)
+	err = cs.messageHandler.SendDone(enum.JoinerWorker)
 	if err != nil {
 		return err
 	}
@@ -79,7 +79,7 @@ func (cs *clientSession) Close() {
 
 func (cs *clientSession) processResponse() {
 	data := make(chan *protocol.DataEnvelope)
-	go cs.taskHandler.GetReportData(data, cs.Id)
+	go cs.messageHandler.GetReportData(data)
 
 	// Read and send until channel is closed
 	for batch := range data {
