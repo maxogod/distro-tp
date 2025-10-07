@@ -64,6 +64,20 @@ services:
     depends_on:
       - gateway_controller
 
+  gateway1:
+    container_name: gateway1
+    entrypoint: ["/app/app", "t1"]
+    build:
+      dockerfile: ./src/gateway/Dockerfile
+    image: gateway:latest
+    networks:
+      - tp_net
+    volumes:
+      - ./.data:/app/.data
+      - ./.output1:/app/.output
+    depends_on:
+      - gateway_controller
+
 networks:
   tp_net:
     ipam:

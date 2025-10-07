@@ -32,7 +32,7 @@ func (cs *clientSession) IsFinished() bool {
 }
 
 func (cs *clientSession) ProcessRequest() error {
-	log.Debugln("Starting to process client requests")
+	log.Debugf("Starting to process client request for: %s", cs.Id)
 
 	processData := true
 	for processData {
