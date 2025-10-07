@@ -18,7 +18,7 @@ const CLIENT_TIMEOUT = 10 * time.Second
 
 // when having to handle / finish clients, there is a bool to indicate if
 // the client is in finishing mode, and a timer to count down to when it should execute the
-// FinishClient function
+// finishClient function
 type client struct {
 	finishUp bool
 	timer    *time.Timer
@@ -34,11 +34,12 @@ type messageHandler struct {
 	finisherQueue middleware.MessageMiddleware
 
 	// internals
-	dataHandler     DataHandler
-	inputChannel    chan *protocol.DataEnvelope
-	finisherChannel chan *protocol.DataEnvelope
-	clientManager   map[string]client
-	isRunning       bool //GLT
+	dataHandler         DataHandler
+	inputChannel        chan *protocol.DataEnvelope
+	finisherChannel     chan *protocol.DataEnvelope
+	handleFinishChannel chan string
+	clientManager       map[string]client
+	isRunning           bool //GLT
 }
 
 func NewMessageHandler(
@@ -48,11 +49,12 @@ func NewMessageHandler(
 ) MessageHandler {
 
 	mh := &messageHandler{
-		dataHandler:     dataHandler,
-		inputQueues:     inputQueues,
-		inputChannel:    make(chan *protocol.DataEnvelope),
-		finisherChannel: make(chan *protocol.DataEnvelope),
-		isRunning:       true,
+		dataHandler:         dataHandler,
+		inputQueues:         inputQueues,
+		inputChannel:        make(chan *protocol.DataEnvelope),
+		finisherChannel:     make(chan *protocol.DataEnvelope),
+		handleFinishChannel: make(chan string),
+		isRunning:           true,
 	}
 
 	// if this requires a finisher queue,
@@ -109,28 +111,27 @@ func (mh *messageHandler) Start() error {
 				mh.clientManager[clientID] = client{
 					finishUp: true,
 					timer: time.AfterFunc(CLIENT_TIMEOUT, func() {
-						mh.FinishClient(clientID)
+						mh.finishClient(clientID)
 					}),
 				}
 			} else {
 				log.Warnf("Received finish message for unknown client: %s", clientID)
 			}
-
+		case finishedClientID := <-mh.handleFinishChannel:
+			log.Debugf("Reaping client: %s", finishedClientID)
+			err := mh.dataHandler.HandleFinishClient(finishedClientID)
+			if err != nil {
+				log.Warnf("Failed to finish client %s: %v", finishedClientID, err)
+			}
+			delete(mh.clientManager, finishedClientID)
 		}
 	}
 	return nil
 }
 
-// Give to Client Manager
-func (mh *messageHandler) FinishClient(clientID string) error {
-
-	log.Debugf("Finishing client: %s", clientID)
-
-	if err := mh.dataHandler.HandleFinishClient(clientID); err != nil {
-		log.Errorf("Failed to finish client %s: %v", clientID, err)
-		return err
-	}
-	delete(mh.clientManager, clientID)
+// To avoid race conditions, this function should only be called from within the messageHandler's main loop
+func (mh *messageHandler) finishClient(clientID string) error {
+	mh.handleFinishChannel <- clientID
 	return nil
 }
 
@@ -225,7 +226,7 @@ func (mh *messageHandler) checkClient(clientID string) {
 		}
 		client.timer = time.AfterFunc(CLIENT_TIMEOUT, func() {
 			log.Debugf("Timer expired for client: %s", clientID)
-			mh.FinishClient(clientID)
+			mh.finishClient(clientID)
 		})
 		mh.clientManager[clientID] = client
 	}
