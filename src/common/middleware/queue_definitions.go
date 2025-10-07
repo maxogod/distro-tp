@@ -56,9 +56,9 @@ func GetAggregatorQueue(url string) MessageMiddleware {
 
 // GetProcessedDataQueue retrieves the middleware that the controller pops from to send the data back to the user.
 // Filters in case of task 1 and aggregators in case of the other tasks will be the producers.
-func GetProcessedDataQueue(url string) MessageMiddleware {
+func GetProcessedDataExchange(url, clientID string) MessageMiddleware {
 	return retryMiddlewareCreation(MIDDLEWARE_CONNECTION_RETRIES, WAIT_INTERVAL, func() (MessageMiddleware, error) {
-		return NewQueueMiddleware(url, "processed_data")
+		return NewExchangeMiddleware(url, "finish_exchange", "direct", []string{clientID})
 	})
 }
 

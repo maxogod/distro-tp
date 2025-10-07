@@ -21,9 +21,9 @@ type messageHandler struct {
 	joinerRefExchange      middleware.MessageMiddleware
 
 	// Node connections middleware
-	joinerFinishExchange         middleware.MessageMiddleware
-	aggregatorFinishExchange     middleware.MessageMiddleware
-	processedDataQueueMiddleware middleware.MessageMiddleware
+	joinerFinishExchange            middleware.MessageMiddleware
+	aggregatorFinishExchange        middleware.MessageMiddleware
+	processedDataExchangeMiddleware middleware.MessageMiddleware
 }
 
 func NewMessageHandler(middlewareUrl, clientID string) MessageHandler {
@@ -33,9 +33,9 @@ func NewMessageHandler(middlewareUrl, clientID string) MessageHandler {
 		filtersQueueMiddleware: middleware.GetFilterQueue(middlewareUrl),
 		joinerRefExchange:      middleware.GetRefDataExchange(middlewareUrl),
 
-		joinerFinishExchange:         middleware.GetFinishExchange(middlewareUrl, []string{string(enum.JoinerWorker)}),
-		aggregatorFinishExchange:     middleware.GetFinishExchange(middlewareUrl, []string{string(enum.AggregatorWorker)}),
-		processedDataQueueMiddleware: middleware.GetProcessedDataQueue(middlewareUrl),
+		joinerFinishExchange:            middleware.GetFinishExchange(middlewareUrl, []string{string(enum.JoinerWorker)}),
+		aggregatorFinishExchange:        middleware.GetFinishExchange(middlewareUrl, []string{string(enum.AggregatorWorker)}),
+		processedDataExchangeMiddleware: middleware.GetProcessedDataExchange(middlewareUrl, clientID),
 	}
 }
 
@@ -98,10 +98,10 @@ func (th *messageHandler) SendDone(worker enum.WorkerType) error {
 }
 
 func (th *messageHandler) GetReportData(data chan *protocol.DataEnvelope) {
-	defer th.processedDataQueueMiddleware.StopConsuming()
+	defer th.processedDataExchangeMiddleware.StopConsuming()
 
 	done := make(chan bool)
-	th.processedDataQueueMiddleware.StartConsuming(func(msgs middleware.ConsumeChannel, d chan error) {
+	th.processedDataExchangeMiddleware.StartConsuming(func(msgs middleware.ConsumeChannel, d chan error) {
 		log.Debug("Started listening for processed data")
 		receiving := true
 
@@ -123,6 +123,7 @@ func (th *messageHandler) GetReportData(data chan *protocol.DataEnvelope) {
 					msg.Nack(false, false) // Discard corrupted messages
 					continue
 				} else if envelope.GetClientId() != th.clientID {
+					log.Debugf("Wrong id: %s vs %s", envelope.GetClientId(), th.clientID)
 					msg.Nack(false, true) // Requeue other clients' messages
 					continue
 				}
@@ -149,5 +150,5 @@ func (th *messageHandler) Close() {
 	th.joinerRefExchange.Close()
 	th.joinerFinishExchange.Close()
 	th.aggregatorFinishExchange.Close()
-	th.processedDataQueueMiddleware.Close()
+	th.processedDataExchangeMiddleware.Close()
 }

@@ -18,7 +18,7 @@ const CLIENT_TIMEOUT = 10 * time.Second
 
 // when having to handle / finish clients, there is a bool to indicate if
 // the client is in finishing mode, and a timer to count down to when it should execute the
-// FinishClient function
+// finishClient function
 type client struct {
 	finishUp bool
 	timer    *time.Timer
@@ -34,10 +34,12 @@ type messageHandler struct {
 	finisherQueue middleware.MessageMiddleware
 
 	// internals
-	dataHandler    DataHandler
-	monitorChannel chan *protocol.DataEnvelope
-	clientManager  map[string]client
-	isRunning      bool //GLT
+	dataHandler         DataHandler
+	inputChannel        chan *protocol.DataEnvelope
+	finisherChannel     chan *protocol.DataEnvelope
+	handleFinishChannel chan string
+	clientManager       map[string]client
+	isRunning           bool //GLT
 }
 
 func NewMessageHandler(
@@ -47,10 +49,12 @@ func NewMessageHandler(
 ) MessageHandler {
 
 	mh := &messageHandler{
-		dataHandler:    dataHandler,
-		inputQueues:    inputQueues,
-		monitorChannel: make(chan *protocol.DataEnvelope),
-		isRunning:      true,
+		dataHandler:         dataHandler,
+		inputQueues:         inputQueues,
+		inputChannel:        make(chan *protocol.DataEnvelope),
+		finisherChannel:     make(chan *protocol.DataEnvelope),
+		handleFinishChannel: make(chan string),
+		isRunning:           true,
 	}
 
 	// if this requires a finisher queue,
@@ -59,9 +63,12 @@ func NewMessageHandler(
 	if finisherQueue != nil {
 		mh.finisherQueue = finisherQueue
 		mh.clientManager = make(map[string]client)
-		if err := mh.setupFinishListener(); err != nil {
-			log.Errorf("Failed to set up finish listener: %v", err)
-		}
+		log.Debug("Finisher queue consuming.")
+		go func() {
+			if err := mh.consumeFromQueue(mh.finisherQueue, mh.finisherChannel); err != nil {
+				log.Errorf("Failed to consume from finisher queue: %v", err)
+			}
+		}()
 	}
 
 	return mh
@@ -73,47 +80,65 @@ func (mh *messageHandler) Start() error {
 	log.Debug("Starting MessageHandler...")
 	for _, queue := range mh.inputQueues {
 		go func(q middleware.MessageMiddleware) {
-			if err := mh.consumeFromQueue(q, mh.monitorChannel); err != nil {
+			if err := mh.consumeFromQueue(q, mh.inputChannel); err != nil {
 				log.Errorf("Failed to consume from queue: %v", err)
 			}
 		}(queue)
 	}
 
-	log.Debugf("All input queues are now consuming.")
+	log.Debug("All input queues are now consuming.")
 
 	// GLT! (Geodude Likes This)
 	for mh.isRunning {
 
-		dataEnvelope := <-mh.monitorChannel
+		select {
+		case dataEnvelope := <-mh.inputChannel:
 
-		clientID := dataEnvelope.GetClientId()
+			clientID := dataEnvelope.GetClientId()
 
-		mh.checkClient(clientID)
+			mh.checkClient(clientID)
 
-		if err := mh.dataHandler.HandleData(dataEnvelope); err != nil {
-			log.Warnf("Failed to handle data batch: %v", err)
-			return err
+			if err := mh.dataHandler.HandleData(dataEnvelope); err != nil {
+				log.Warnf("Failed to handle data batch: %v", err)
+				return err
+			}
+
+		case finishEnvelope := <-mh.finisherChannel:
+			clientID := finishEnvelope.GetClientId()
+			log.Debugf("Received finish message for client: %s", clientID)
+
+			if _, exists := mh.clientManager[clientID]; exists {
+				mh.clientManager[clientID] = client{
+					finishUp: true,
+					timer: time.AfterFunc(CLIENT_TIMEOUT, func() {
+						mh.finishClient(clientID)
+					}),
+				}
+			} else {
+				log.Warnf("Received finish message for unknown client: %s", clientID)
+			}
+		case finishedClientID := <-mh.handleFinishChannel:
+			log.Debugf("Reaping client: %s", finishedClientID)
+			err := mh.dataHandler.HandleFinishClient(finishedClientID)
+			if err != nil {
+				log.Warnf("Failed to finish client %s: %v", finishedClientID, err)
+			}
+			delete(mh.clientManager, finishedClientID)
 		}
 	}
 	return nil
 }
 
-func (mh *messageHandler) FinishClient(clientID string) error {
-
-	log.Debugf("Finishing client: %s", clientID)
-
-	if err := mh.dataHandler.HandleFinishClient(clientID); err != nil {
-		log.Errorf("Failed to finish client %s: %v", clientID, err)
-		return err
-	}
-	delete(mh.clientManager, clientID)
+// To avoid race conditions, this function should only be called from within the messageHandler's main loop
+func (mh *messageHandler) finishClient(clientID string) error {
+	mh.handleFinishChannel <- clientID
 	return nil
 }
 
 // Shuts down all connections and stops all consumption
 func (mh *messageHandler) Close() error {
 	mh.isRunning = false
-	close(mh.monitorChannel)
+	close(mh.inputChannel)
 
 	for _, queue := range mh.inputQueues {
 		queue.StopConsuming()
@@ -178,49 +203,13 @@ func (mh *messageHandler) consumeFromQueue(inputQueue middleware.MessageMiddlewa
 	return nil
 }
 
-func (mh *messageHandler) setupFinishListener() error {
-
-	finisherChannel := make(chan *protocol.DataEnvelope)
-
-	go func() {
-		if err := mh.consumeFromQueue(mh.finisherQueue, finisherChannel); err != nil {
-			log.Errorf("Failed to consume from finisher queue: %v", err)
-		}
-	}()
-
-	go func() {
-		for mh.isRunning {
-			dataEnvelope := <-finisherChannel
-			clientID := dataEnvelope.GetClientId()
-			if clientID == "" {
-				log.Warn("Received finish message with empty client ID")
-				continue
-			}
-
-			log.Debugf("Received finish message for client: %s", clientID)
-
-			if _, exists := mh.clientManager[clientID]; exists {
-				mh.clientManager[clientID] = client{
-					finishUp: true,
-					timer: time.AfterFunc(CLIENT_TIMEOUT, func() {
-						mh.FinishClient(clientID)
-					}),
-				}
-			} else {
-				log.Warnf("Received finish message for unknown client: %s", clientID)
-			}
-		}
-	}()
-
-	return nil
-}
-
 func (mh *messageHandler) checkClient(clientID string) {
 	if clientID == "" || mh.finisherQueue == nil || mh.clientManager == nil {
 		return
 	}
 
 	if _, exists := mh.clientManager[clientID]; !exists {
+		log.Debugf("New client detected: %s", clientID)
 		mh.clientManager[clientID] = client{
 			finishUp: false,
 			timer:    nil,
@@ -237,7 +226,7 @@ func (mh *messageHandler) checkClient(clientID string) {
 		}
 		client.timer = time.AfterFunc(CLIENT_TIMEOUT, func() {
 			log.Debugf("Timer expired for client: %s", clientID)
-			mh.FinishClient(clientID)
+			mh.finishClient(clientID)
 		})
 		mh.clientManager[clientID] = client
 	}

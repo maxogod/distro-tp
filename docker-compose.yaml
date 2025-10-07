@@ -38,6 +38,18 @@ services:
     depends_on:
       - rabbitmq
 
+  filter2:
+    container_name: filter2
+    build:
+      dockerfile: ./src/filter/Dockerfile
+    image: filter2:latest
+    networks:
+      - tp_net
+    volumes:
+      - ./src/filter/config.yaml:/config.yaml
+    depends_on:
+      - rabbitmq
+
   aggregator:
     container_name: aggregator
     build:
@@ -61,6 +73,34 @@ services:
     volumes:
       - ./.data:/app/.data
       - ./.output:/app/.output
+    depends_on:
+      - gateway_controller
+
+  gateway1:
+    container_name: gateway1
+    entrypoint: ["/app/app", "t1"]
+    build:
+      dockerfile: ./src/gateway/Dockerfile
+    image: gateway:latest
+    networks:
+      - tp_net
+    volumes:
+      - ./.data:/app/.data
+      - ./.output1:/app/.output
+    depends_on:
+      - gateway_controller
+
+  gateway2:
+    container_name: gateway2
+    entrypoint: ["/app/app", "t1"]
+    build:
+      dockerfile: ./src/gateway/Dockerfile
+    image: gateway:latest
+    networks:
+      - tp_net
+    volumes:
+      - ./.data:/app/.data
+      - ./.output2:/app/.output
     depends_on:
       - gateway_controller
 

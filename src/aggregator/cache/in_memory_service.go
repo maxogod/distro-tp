@@ -13,6 +13,9 @@ type storage struct {
 	index        int
 }
 
+// This CacheService implementation provides fast in-memory storage of data.
+// It supports both sorted and unsorted data storage using a min-heap and a FIFO queue respectively.
+// Note: This implementation is not reliable since data is lost if the service restarts.
 type InMemoryCache struct {
 	memoryStorage map[string]storage
 }
