@@ -35,8 +35,6 @@ func (cs *clientSession) ProcessRequest() error {
 	log.Debugln("Starting to process client requests")
 
 	processData := true
-	var taskType enum.TaskType
-
 	for processData {
 		request, err := cs.getRequest()
 		if err != nil {
@@ -45,32 +43,29 @@ func (cs *clientSession) ProcessRequest() error {
 		request.ClientId = cs.Id
 
 		if request.GetIsRef() {
-			cs.taskHandler.HandleReferenceData(request, cs.Id)
+			cs.taskHandler.ForwardReferenceData(request, cs.Id)
 		} else if request.GetIsDone() {
-			taskType = enum.TaskType(request.GetTaskType())
 			processData = false
 		} else {
-			cs.taskHandler.HandleTask(taskType, request)
+			cs.taskHandler.ForwardData(request, cs.Id)
 		}
 	}
 
 	log.Debugln("All data received from client, sending done signal to task handler")
-	err := cs.taskHandler.SendDone(taskType, cs.Id)
+	err := cs.taskHandler.SendDone(enum.AggregatorWorker, cs.Id)
 	if err != nil {
 		return err
 	}
 
 	log.Debugln("Starting to send report data to client")
-	err = cs.processResponse()
+	cs.processResponse()
+
+	err = cs.taskHandler.SendDone(enum.JoinerWorker, cs.Id)
 	if err != nil {
 		return err
 	}
 
-	// TODO: tell joiners to remove persisted data
-
 	log.Debugf("All report data sent to client %s, closing session", cs.Id)
-	cs.taskHandler.Reset()
-
 	cs.running = false
 
 	return nil
@@ -82,30 +77,19 @@ func (cs *clientSession) Close() {
 
 // --- PRIVATE METHODS ---
 
-func (cs *clientSession) processResponse() error {
-	data := make(chan []byte)
-	disconnect := make(chan bool)
-	isDone := false
-	for cs.clientConnection.IsConnected() && !isDone {
-		go cs.taskHandler.GetReportData(data, disconnect)
+func (cs *clientSession) processResponse() {
+	data := make(chan *protocol.DataEnvelope)
+	go cs.taskHandler.GetReportData(data, cs.Id)
 
-		for batch := range data {
-			dataBatch := &protocol.DataEnvelope{}
-			err := proto.Unmarshal(batch, dataBatch)
-			if err != nil || err == nil && dataBatch.GetClientId() != cs.Id {
-				continue
-			}
-
-			cs.clientConnection.SendData(batch)
-
-			if dataBatch.GetIsDone() {
-				log.Debugln("Received done signal from task handler")
-				isDone = true
-			}
+	// Read and send until channel is closed
+	for batch := range data {
+		dataBytes, err := proto.Marshal(batch)
+		if err != nil {
+			log.Errorf("Error marshaling data to send to client: %v", err)
+			continue
 		}
+		cs.clientConnection.SendData(dataBytes)
 	}
-	disconnect <- true
-	return nil
 }
 
 func (cs *clientSession) getRequest() (*protocol.DataEnvelope, error) {

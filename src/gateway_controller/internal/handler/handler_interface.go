@@ -1,32 +1,36 @@
 package handler
 
 import (
+	"time"
+
 	"github.com/maxogod/distro-tp/src/common/models/enum"
 	"github.com/maxogod/distro-tp/src/common/models/protocol"
 )
 
-// Handler interface defines methods for processing tasks and managing client interactions.
+const (
+	RECEIVING_TIMEOUT = 2 * time.Second
+)
+
+// Handler interface defines methods for forwarding tasks to be processed by workers
+// and managing client interactions.
+// Messaging methods need the current cliendID to support multiclient environments.
 type Handler interface {
 
-	// HandleTask processes a given task type with the provided data batch.
-	// It sends the data to the corresponding workers.
-	HandleTask(taskType enum.TaskType, dataBatch *protocol.DataEnvelope) error
+	// ForwardData sends a given data envelope to the corresponding worker layer to start processing it.
+	ForwardData(dataBatch *protocol.DataEnvelope, clientID string) error
 
-	// HandleReferenceData processes reference data sent by a client.
-	// It sends the data to the joiner workers.
-	HandleReferenceData(dataBatch *protocol.DataEnvelope, clientID string) error
+	// ForwardReferenceData sends a given reference data envelope to the corresponding worker layer to
+	// use it for data merging.
+	ForwardReferenceData(dataBatch *protocol.DataEnvelope, clientID string) error
 
-	// SendDone notifies that the client has finished sending data for a specific task type.
-	// It sends a done signal to the corresponding workers.
-	SendDone(taskType enum.TaskType, currentClientID string) error
+	// SendDone notifies the
+	SendDone(worker enum.WorkerType, clientID string) error
 
-	// GetReportData retrieves report data from workers and sends it to the provided channel.
-	// It also listens for a disconnect signal to stop the operation (e.g. when Done is received).
-	GetReportData(data chan []byte, disconnect chan bool)
-
-	// Reset clears the internal state of the handler, preparing it for a new session.
-	Reset()
+	// GetReportData generates data envelopes received from workers into the provided channel.
+	// Ignoring any messages that do not match the given clientID.
+	GetReportData(data chan *protocol.DataEnvelope, clientID string)
 
 	// Close releases any resources held by the handler.
+	// e.g. middleware queues or exchanges instantiation.
 	Close()
 }
