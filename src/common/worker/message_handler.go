@@ -91,7 +91,8 @@ func (mh *messageHandler) Start() error {
 		mh.checkClient(clientID)
 
 		if err := mh.dataHandler.HandleData(dataEnvelope); err != nil {
-			log.Errorf("Failed to handle data batch: %v", err)
+			log.Warnf("Failed to handle data batch: %v", err)
+			return err
 		}
 	}
 	return nil
@@ -127,6 +128,15 @@ func (mh *messageHandler) Close() error {
 			log.Errorf("Failed to close finisher queue: %d", int(e))
 		}
 	}
+
+	err := mh.dataHandler.Close()
+
+	if err != nil {
+		log.Errorf("Failed to close data handler: %v", err)
+		return err
+	}
+
+	log.Debug("MessageHandler closed successfully.")
 
 	return nil
 }
@@ -210,8 +220,6 @@ func (mh *messageHandler) checkClient(clientID string) {
 		return
 	}
 
-	log.Debugf("Checking client: %s", clientID)
-
 	if _, exists := mh.clientManager[clientID]; !exists {
 		mh.clientManager[clientID] = client{
 			finishUp: false,
@@ -225,7 +233,6 @@ func (mh *messageHandler) checkClient(clientID string) {
 	if client.finishUp {
 		// If the client is in finishing mode, reset the timer
 		if client.timer != nil {
-			log.Debugf("Resetting timer for client: %s", clientID)
 			client.timer.Stop()
 		}
 		client.timer = time.AfterFunc(CLIENT_TIMEOUT, func() {
@@ -248,6 +255,26 @@ func SendDataToMiddleware(data proto.Message, taskType enum.TaskType, clientID s
 	}
 
 	if e := outputQueue.Send(envelope); e != middleware.MessageMiddlewareSuccess {
+		return fmt.Errorf("failed to send message to output queue: %d", int(e))
+	}
+
+	return nil
+}
+
+func SendDone(clientID string, outputQueue middleware.MessageMiddleware) error {
+
+	dataEnvelope := &protocol.DataEnvelope{
+		ClientId: clientID,
+		IsDone:   true,
+	}
+
+	data, err := proto.Marshal(dataEnvelope)
+
+	if err != nil {
+		return fmt.Errorf("failed to serialize done message: %v", err)
+	}
+
+	if e := outputQueue.Send(data); e != middleware.MessageMiddlewareSuccess {
 		return fmt.Errorf("failed to send message to output queue: %d", int(e))
 	}
 

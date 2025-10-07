@@ -7,16 +7,18 @@ import (
 	"github.com/maxogod/distro-tp/src/common/models/protocol"
 )
 
+const FINISH enum.TaskType = 0
+
 // Before creating a TaskHandler, a TaskExecutor is required to be implemented
 // for the specific tasks that the worker will handle via the TaskHandler.
 // Once created, it is passed to the TaskHandler constructor
 type TaskExecutor interface {
-	HandleTask1(payload []byte) error
-	HandleTask2(payload []byte) error
-	HandleTask2_1(payload []byte) error
-	HandleTask2_2(payload []byte) error
-	HandleTask3(payload []byte) error
-	HandleTask4(payload []byte) error
+	HandleTask1(payload []byte, clientID string) error
+	HandleTask2(payload []byte, clientID string) error
+	HandleTask2_1(payload []byte, clientID string) error
+	HandleTask2_2(payload []byte, clientID string) error
+	HandleTask3(payload []byte, clientID string) error
+	HandleTask4(payload []byte, clientID string) error
 	HandleFinishClient(clientID string) error
 	Close() error
 }
@@ -25,7 +27,7 @@ type TaskExecutor interface {
 // This is not required for every worker, but highly recommended to use it
 // You only create this struct and pass it to the MessageHandler
 type taskHandler struct {
-	taskHandlers map[enum.TaskType]func([]byte) error
+	taskHandlers map[enum.TaskType]func([]byte, string) error
 	taskExecutor TaskExecutor
 }
 
@@ -35,7 +37,7 @@ func NewTaskHandler(
 		taskExecutor: taskExecutor,
 	}
 
-	th.taskHandlers = map[enum.TaskType]func([]byte) error{
+	th.taskHandlers = map[enum.TaskType]func([]byte, string) error{
 		enum.T1:   th.taskExecutor.HandleTask1,
 		enum.T2:   th.taskExecutor.HandleTask2,
 		enum.T2_1: th.taskExecutor.HandleTask2_1,
@@ -50,15 +52,19 @@ func NewTaskHandler(
 func (th *taskHandler) HandleData(dataEnvelope *protocol.DataEnvelope) error {
 	taskType := enum.TaskType(dataEnvelope.GetTaskType())
 	payload := dataEnvelope.GetPayload()
-	return th.handleTask(taskType, payload)
+	clientID := dataEnvelope.GetClientId()
+	return th.handleTask(taskType, payload, clientID)
 }
 
-func (th *taskHandler) handleTask(taskType enum.TaskType, payload []byte) error {
+func (th *taskHandler) handleTask(taskType enum.TaskType, payload []byte, clientID string) error {
 	handler, exists := th.taskHandlers[taskType]
 	if !exists {
+		if taskType == FINISH {
+			return nil
+		}
 		return fmt.Errorf("unknown task type: %d", taskType)
 	}
-	return handler(payload)
+	return handler(payload, clientID)
 }
 
 func (th *taskHandler) HandleFinishClient(clientID string) error {
@@ -66,5 +72,11 @@ func (th *taskHandler) HandleFinishClient(clientID string) error {
 }
 
 func (th *taskHandler) Close() error {
+
+	if err := th.taskExecutor.Close(); err != nil {
+		return err
+	}
+	log.Debug("TaskHandler closed successfully.")
+
 	return th.taskExecutor.Close()
 }

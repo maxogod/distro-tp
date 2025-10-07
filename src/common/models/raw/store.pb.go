@@ -23,8 +23,8 @@ const (
 
 type Store struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	ItemId        string                 `protobuf:"bytes,1,opt,name=item_id,json=itemId,proto3" json:"item_id,omitempty"`
-	ItemName      string                 `protobuf:"bytes,2,opt,name=item_name,json=itemName,proto3" json:"item_name,omitempty"`
+	StoreId       string                 `protobuf:"bytes,1,opt,name=store_id,json=storeId,proto3" json:"store_id,omitempty"`
+	StoreName     string                 `protobuf:"bytes,2,opt,name=store_name,json=storeName,proto3" json:"store_name,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -59,16 +59,16 @@ func (*Store) Descriptor() ([]byte, []int) {
 	return file_raw_store_proto_rawDescGZIP(), []int{0}
 }
 
-func (x *Store) GetItemId() string {
+func (x *Store) GetStoreId() string {
 	if x != nil {
-		return x.ItemId
+		return x.StoreId
 	}
 	return ""
 }
 
-func (x *Store) GetItemName() string {
+func (x *Store) GetStoreName() string {
 	if x != nil {
-		return x.ItemName
+		return x.StoreName
 	}
 	return ""
 }
@@ -121,10 +121,11 @@ var File_raw_store_proto protoreflect.FileDescriptor
 
 const file_raw_store_proto_rawDesc = "" +
 	"\n" +
-	"\x0fraw/store.proto\x12\x03raw\"=\n" +
-	"\x05Store\x12\x17\n" +
-	"\aitem_id\x18\x01 \x01(\tR\x06itemId\x12\x1b\n" +
-	"\titem_name\x18\x02 \x01(\tR\bitemName\"0\n" +
+	"\x0fraw/store.proto\x12\x03raw\"A\n" +
+	"\x05Store\x12\x19\n" +
+	"\bstore_id\x18\x01 \x01(\tR\astoreId\x12\x1d\n" +
+	"\n" +
+	"store_name\x18\x02 \x01(\tR\tstoreName\"0\n" +
 	"\n" +
 	"StoreBatch\x12\"\n" +
 	"\x06stores\x18\x01 \x03(\v2\n" +

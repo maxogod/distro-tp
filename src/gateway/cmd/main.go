@@ -12,10 +12,7 @@ import (
 var log = logger.GetLogger()
 
 func main() {
-
 	time.Sleep(14 * time.Second) // wait for rabbitmq to be ready
-
-	log.Debugln("initializing")
 
 	if len(os.Args) < 2 {
 		log.Fatalln("no arguments provided")
@@ -26,10 +23,11 @@ func main() {
 		log.Fatalln("failed to initialize config:", err)
 	}
 
+	log.Debugln("Starting client")
 	c := client.NewClient(conf)
 	if err := c.Start(os.Args[1]); err != nil {
 		log.Fatalln("Client error:", err)
 	}
 
-	log.Debugln("Finish Blah")
+	log.Debugln("Pikachu finished successfully!")
 }

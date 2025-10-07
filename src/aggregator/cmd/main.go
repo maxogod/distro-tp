@@ -12,26 +12,23 @@ import (
 var log = logger.GetLogger()
 
 func main() {
+
+	var configPath string
+	if len(os.Args) > 1 {
+		configPath = os.Args[1]
+	}
 	time.Sleep(12 * time.Second)
 
-	conf, err := config.InitConfig()
+	conf, err := config.InitConfig(configPath)
 	if err != nil {
 		log.Fatalf("%s", err)
 	}
 
-	if err = os.MkdirAll(conf.StorePath, 0755); err != nil {
-		log.Errorf("failed to create output directory: %v", err)
-		return
-	}
-
 	log.Debug(conf.String())
 
-	aggServer := server.InitServer(conf)
+	server := server.InitServer(conf)
 
-	err = aggServer.Run()
-	if err != nil {
-		return
-	}
-	log.Debug("Squirtle thanks you for using the Filter Worker!")
+	server.Run()
+	log.Debug("Dugtrio thanks you for using the Aggregator Worker!")
 
 }

@@ -6,37 +6,30 @@ import (
 	"syscall"
 
 	"github.com/maxogod/distro-tp/src/common/logger"
-	"github.com/maxogod/distro-tp/src/gateway_controller/business"
 	"github.com/maxogod/distro-tp/src/gateway_controller/config"
-	"github.com/maxogod/distro-tp/src/gateway_controller/internal/handler"
 	"github.com/maxogod/distro-tp/src/gateway_controller/internal/network"
-	"github.com/maxogod/distro-tp/src/gateway_controller/internal/session"
+	"github.com/maxogod/distro-tp/src/gateway_controller/internal/sessions/manager"
 )
 
 var log = logger.GetLogger()
 
 type Server struct {
 	config            *config.Config
-	isRunning         bool
-	workerService     *business.GatewayControllerService
-	taskHandler       handler.Handler
-	connectionManager *network.ConnectionManager
-	clientManager     *session.ClientManager
+	running           bool
+	connectionManager network.ConnectionManager
+	clientManager     manager.ClientManager
 }
 
-func InitServer(conf *config.Config) *Server {
+func NewServer(conf *config.Config) *Server {
 	return &Server{
 		config:            conf,
-		isRunning:         true,
-		taskHandler:       handler.NewTaskHandler(business.NewControllerService(), conf.GatewayAddress),
+		running:           true,
 		connectionManager: network.NewConnectionManager(conf.Port),
-		clientManager:     session.NewClientManager(),
+		clientManager:     manager.NewClientManager(conf),
 	}
 }
 
 func (s *Server) Run() error {
-	log.Info("Starting Basic Worker server...")
-
 	s.setupGracefulShutdown()
 	defer s.Shutdown()
 
@@ -46,34 +39,24 @@ func (s *Server) Run() error {
 		return err
 	}
 
-	for s.isRunning {
+	for s.running {
+		s.clientManager.ReapStaleClients()
+
 		clientConnection, err := s.connectionManager.AcceptConnection()
 		if err != nil {
 			log.Errorf("Failed to accept connection: %v", err)
-			return err
+			break
 		}
 
-		clientSession := s.clientManager.AddClient(clientConnection, s.taskHandler)
+		clientSession := s.clientManager.AddClient(clientConnection)
 
-		err = clientSession.ProcessRequest()
-		if err != nil {
-			log.Errorf("Error handling client request: %v", err)
-			return err
-		}
-
-		clientSession.Close()
-
-		s.clientManager.RemoveClient(clientSession.Id)
-
-		log.Debug("Ready to accept new connections")
+		go clientSession.ProcessRequest()
 	}
 
-	log.Info("Server shutdown complete")
 	return nil
 }
 
 func (s *Server) setupGracefulShutdown() {
-	// This is a graceful non-blocking setup to shut down the process in case
 	sigChannel := make(chan os.Signal, 1)
 	signal.Notify(sigChannel, syscall.SIGTERM, syscall.SIGINT)
 
@@ -85,8 +68,7 @@ func (s *Server) setupGracefulShutdown() {
 }
 
 func (s *Server) Shutdown() {
-	s.isRunning = false
-	s.taskHandler.Close()
+	s.running = false
 	s.clientManager.Close()
 	s.connectionManager.Close()
 	log.Infof("action: shutdown | result: success")

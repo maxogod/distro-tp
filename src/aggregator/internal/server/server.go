@@ -1,95 +1,69 @@
 package server
 
 import (
-	"fmt"
 	"os"
 	"os/signal"
 	"syscall"
 
 	"github.com/maxogod/distro-tp/src/aggregator/business"
+	"github.com/maxogod/distro-tp/src/aggregator/cache"
 	"github.com/maxogod/distro-tp/src/aggregator/config"
-	"github.com/maxogod/distro-tp/src/aggregator/internal/handler"
+	"github.com/maxogod/distro-tp/src/aggregator/internal/task_executor"
 	"github.com/maxogod/distro-tp/src/common/logger"
-	"github.com/maxogod/distro-tp/src/common/models/data_batch"
+	"github.com/maxogod/distro-tp/src/common/middleware"
+	"github.com/maxogod/distro-tp/src/common/models/enum"
+	"github.com/maxogod/distro-tp/src/common/worker"
 )
 
 var log = logger.GetLogger()
 
 type Server struct {
-	config         *config.Config
-	isRunning      bool
-	messageHandler *handler.MessageHandler
-	taskHandler    *handler.TaskHandler
+	messageHandler worker.MessageHandler
 }
 
 func InitServer(conf *config.Config) *Server {
 
-	aggregatorService := business.NewAggregatorService()
+	// initiateOutputs
+	aggregatorInputQueue := middleware.GetAggregatorQueue(conf.Address)
+	processedDataOutputQueue := middleware.GetProcessedDataQueue(conf.Address)
+	finishExchange := middleware.GetFinishExchange(conf.Address, []string{string(enum.AggregatorWorker)})
 
-	messageHandler := handler.NewMessageHandler(
-		conf.Address,
-		conf.StorePath,
-		conf.BatchSize,
+	// initiate internal components
+	cacheService := cache.NewInMemoryCache()
+
+	aggregatorService := business.NewAggregatorService(cacheService)
+
+	taskExecutor := task_executor.NewAggregatorExecutor(
+		conf.TaskConfig,
 		aggregatorService,
+		processedDataOutputQueue,
+	)
+
+	taskHandler := worker.NewTaskHandler(taskExecutor)
+
+	messageHandler := worker.NewMessageHandler(
+		taskHandler,
+		[]middleware.MessageMiddleware{aggregatorInputQueue},
+		finishExchange,
 	)
 
 	return &Server{
-		config:         conf,
-		isRunning:      true,
 		messageHandler: messageHandler,
-		taskHandler:    handler.NewTaskHandler(conf.StorePath),
 	}
 }
 
 func (s *Server) Run() error {
-	log.Info("Starting Agregator server...")
-
+	log.Info("Starting aggregator server...")
 	s.setupGracefulShutdown()
 
-	e := s.messageHandler.AnnounceToController()
+	// This is a blocking call, it will run until an error occurs or
+	// the Close() method is called via a signal
+	e := s.messageHandler.Start()
 	if e != nil {
-		log.Errorf("Failed to announce to controller: %v", e)
-		return fmt.Errorf("failed to announce to controller: %v", e)
+		log.Errorf("Error starting message handler: %v", e)
+		s.Shutdown()
+		return e
 	}
-
-	for s.isRunning {
-		doneTaskType, e := s.messageHandler.Start(func(payload *data_batch.DataBatch) error {
-			return s.taskHandler.HandleTask(payload)
-		})
-
-		if e != nil {
-			log.Errorf("Failed to start consuming: %d", e)
-			s.Shutdown()
-			return fmt.Errorf("failed to start consuming: %d", e)
-		}
-
-		if !s.isRunning {
-			// Hot-fix to avoid
-			// sending done message twice in case of shutdown signal
-			break
-		}
-
-		log.Debug("All data received, sending processed data to controller")
-		err := s.messageHandler.SendAllData(doneTaskType, s.taskHandler)
-		if err != nil {
-			return err
-		}
-
-		err = s.messageHandler.SendDone()
-		log.Debug("Sent done message to controller")
-
-		if err != nil {
-			log.Errorf("Failed to send done message: %v", err)
-			s.Shutdown()
-			return fmt.Errorf("failed to send done message: %v", err)
-		}
-
-		err = s.taskHandler.ResetStore()
-		if err != nil {
-			return err
-		}
-	}
-
 	return nil
 }
 
@@ -100,17 +74,17 @@ func (s *Server) setupGracefulShutdown() {
 
 	go func() {
 		<-sigChannel
-		log.Infof("Shutdown Signal received, shutting down...")
+		log.Debugf("Shutdown Signal received, shutting down...")
 		s.Shutdown()
 	}()
 }
 
 func (s *Server) Shutdown() {
-	log.Debug("Shutting down Filter Worker server...")
-	s.isRunning = false
+	log.Debug("Shutting down aggregator Worker server...")
 	err := s.messageHandler.Close()
 	if err != nil {
 		log.Errorf("Error closing message handler: %v", err)
 	}
-	log.Debug("Filter Worker server shut down successfully.")
+
+	log.Debug("aggregator Worker server shut down successfully.")
 }

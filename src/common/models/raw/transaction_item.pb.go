@@ -23,7 +23,7 @@ const (
 
 type TransactionItem struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	ItemId        int64                  `protobuf:"varint,1,opt,name=item_id,json=itemId,proto3" json:"item_id,omitempty"`
+	ItemId        string                 `protobuf:"bytes,1,opt,name=item_id,json=itemId,proto3" json:"item_id,omitempty"`
 	Quantity      int32                  `protobuf:"varint,2,opt,name=quantity,proto3" json:"quantity,omitempty"`
 	Subtotal      float64                `protobuf:"fixed64,3,opt,name=subtotal,proto3" json:"subtotal,omitempty"`
 	CreatedAt     string                 `protobuf:"bytes,4,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
@@ -61,11 +61,11 @@ func (*TransactionItem) Descriptor() ([]byte, []int) {
 	return file_raw_transaction_item_proto_rawDescGZIP(), []int{0}
 }
 
-func (x *TransactionItem) GetItemId() int64 {
+func (x *TransactionItem) GetItemId() string {
 	if x != nil {
 		return x.ItemId
 	}
-	return 0
+	return ""
 }
 
 func (x *TransactionItem) GetQuantity() int32 {
@@ -139,7 +139,7 @@ const file_raw_transaction_item_proto_rawDesc = "" +
 	"\n" +
 	"\x1araw/transaction_item.proto\x12\x03raw\"\x81\x01\n" +
 	"\x0fTransactionItem\x12\x17\n" +
-	"\aitem_id\x18\x01 \x01(\x03R\x06itemId\x12\x1a\n" +
+	"\aitem_id\x18\x01 \x01(\tR\x06itemId\x12\x1a\n" +
 	"\bquantity\x18\x02 \x01(\x05R\bquantity\x12\x1a\n" +
 	"\bsubtotal\x18\x03 \x01(\x01R\bsubtotal\x12\x1d\n" +
 	"\n" +

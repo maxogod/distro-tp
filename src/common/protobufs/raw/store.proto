@@ -5,8 +5,8 @@ package raw;
 option go_package = "./raw";
 
 message Store {
-  string item_id = 1;
-  string item_name = 2;
+  string store_id = 1;
+  string store_name = 2;
 }
 
 message StoreBatch {

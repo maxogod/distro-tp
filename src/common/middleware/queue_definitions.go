@@ -7,7 +7,7 @@ import (
 const MIDDLEWARE_CONNECTION_RETRIES = 10
 const WAIT_INTERVAL = 1 * time.Second
 
-/* --- Worker Queues --- */
+/* --- Worker Middlewares --- */
 
 // GetFilterQueue retrieves the middleware that the controller uses to put work on the filter queues
 func GetFilterQueue(url string) MessageMiddleware {
@@ -19,34 +19,36 @@ func GetFilterQueue(url string) MessageMiddleware {
 // GetGroupByQueue retrieves the middleware that the controller uses to put work on the group by queues
 func GetGroupByQueue(url string) MessageMiddleware {
 	return retryMiddlewareCreation(MIDDLEWARE_CONNECTION_RETRIES, WAIT_INTERVAL, func() (MessageMiddleware, error) {
-		return NewQueueMiddleware(url, "group_by")
+		return NewQueueMiddleware(url, "groupby")
 	})
 }
 
+// GetReducerQueue retrieves the middleware that the controller uses to put work on the reducer queues
 func GetReducerQueue(url string) MessageMiddleware {
 	return retryMiddlewareCreation(MIDDLEWARE_CONNECTION_RETRIES, WAIT_INTERVAL, func() (MessageMiddleware, error) {
 		return NewQueueMiddleware(url, "reducer")
 	})
 }
 
+// GetJoinerQueue retrieves the middleware that the controller uses to put work on the joiner queues
 func GetJoinerQueue(url string) MessageMiddleware {
 	return retryMiddlewareCreation(MIDDLEWARE_CONNECTION_RETRIES, WAIT_INTERVAL, func() (MessageMiddleware, error) {
 		return NewQueueMiddleware(url, "joiner")
 	})
 }
 
-func GetAggregatorQueue(url string) MessageMiddleware {
+// GetRefDataExchange retrieves the middleware for the given exchange
+// to send or receive as fanout for joiners.
+func GetRefDataExchange(url string) MessageMiddleware {
 	return retryMiddlewareCreation(MIDDLEWARE_CONNECTION_RETRIES, WAIT_INTERVAL, func() (MessageMiddleware, error) {
-		return NewQueueMiddleware(url, "aggregator")
+		return NewExchangeMiddleware(url, "ref_data_exchange", "fanout", []string{})
 	})
 }
 
-// GetDataExchange retrieves the middleware used to send/receive data batches with the corresponding routing keys
-// and to send a worker-type level broadcast for the DONE message.
-// TODO: deprecated
-func GetDataExchange(url string, subscriptionTopics []string) MessageMiddleware {
+// GetAggregatorQueue retrieves the middleware that the controller uses to put work on the aggregator queues
+func GetAggregatorQueue(url string) MessageMiddleware {
 	return retryMiddlewareCreation(MIDDLEWARE_CONNECTION_RETRIES, WAIT_INTERVAL, func() (MessageMiddleware, error) {
-		return NewExchangeMiddleware(url, "data_exchange", "direct", subscriptionTopics)
+		return NewQueueMiddleware(url, "aggregator")
 	})
 }
 
@@ -62,119 +64,12 @@ func GetProcessedDataQueue(url string) MessageMiddleware {
 
 /* --- Node tracking for Gateway Controller --- */
 
-// GetNodeConnectionsQueue retrieves the middleware to be used by workers to tell
-// controller they connected or they finished
-func GetNodeConnectionsQueue(url string) MessageMiddleware {
-	return retryMiddlewareCreation(MIDDLEWARE_CONNECTION_RETRIES, WAIT_INTERVAL, func() (MessageMiddleware, error) {
-		return NewQueueMiddleware(url, "node_connections")
-	})
-}
-
 // GetFinishExchange retrieves the middleware for the given exchange
 // to send or receive with a specific topic pass the topics parameter.
-// Possible topics: filter, groupby, reducer, joiner, aggregator
-// TODO: deprecated
-func GetFinishExchange(url string) MessageMiddleware {
+// Possible topics: joiner, aggregator
+func GetFinishExchange(url string, topic []string) MessageMiddleware {
 	return retryMiddlewareCreation(MIDDLEWARE_CONNECTION_RETRIES, WAIT_INTERVAL, func() (MessageMiddleware, error) {
-		return NewExchangeMiddleware(url, "data_exchange", "direct", []string{})
-	})
-}
-
-/* --- Reference Data Queues --- */
-
-// GetMenuItemsQueue retrieves the middleware used by controller to send menu_items reference data.
-// TODO: deprecated
-func GetMenuItemsQueue(url string) MessageMiddleware {
-	return retryMiddlewareCreation(MIDDLEWARE_CONNECTION_RETRIES, WAIT_INTERVAL, func() (MessageMiddleware, error) {
-		return NewQueueMiddleware(url, "menu_items")
-	})
-}
-
-// GetStoresQueue retrieves the middleware used by controller to send stores reference data.
-// TODO: deprecated
-func GetStoresQueue(url string) MessageMiddleware {
-	return retryMiddlewareCreation(MIDDLEWARE_CONNECTION_RETRIES, WAIT_INTERVAL, func() (MessageMiddleware, error) {
-		return NewQueueMiddleware(url, "stores")
-	})
-}
-
-// GetUsersQueue retrieves the middleware used by controller to send users reference data.
-// TODO: deprecated
-func GetUsersQueue(url string) MessageMiddleware {
-	return retryMiddlewareCreation(MIDDLEWARE_CONNECTION_RETRIES, WAIT_INTERVAL, func() (MessageMiddleware, error) {
-		return NewQueueMiddleware(url, "users")
-	})
-}
-
-// GetMostProfitsTransactionsQueue retrieves the middleware used by controller to send most profits transactions.
-// TODO: deprecated
-func GetMostProfitsTransactionsQueue(url string) MessageMiddleware {
-	return retryMiddlewareCreation(MIDDLEWARE_CONNECTION_RETRIES, WAIT_INTERVAL, func() (MessageMiddleware, error) {
-		return NewQueueMiddleware(url, "transaction_sum")
-	})
-}
-
-// GetBestSellingTransactionsQueue retrieves the middleware used by controller to send best selling transactions.
-// TODO: deprecated
-func GetBestSellingTransactionsQueue(url string) MessageMiddleware {
-	return retryMiddlewareCreation(MIDDLEWARE_CONNECTION_RETRIES, WAIT_INTERVAL, func() (MessageMiddleware, error) {
-		return NewQueueMiddleware(url, "transaction_counted")
-	})
-}
-
-// GetStoresTPVQueue retrieves the middleware used by controller to send store TPV data.
-// TODO: deprecated
-func GetStoresTPVQueue(url string) MessageMiddleware {
-	return retryMiddlewareCreation(MIDDLEWARE_CONNECTION_RETRIES, WAIT_INTERVAL, func() (MessageMiddleware, error) {
-		return NewQueueMiddleware(url, "store_tpv")
-	})
-}
-
-// GetUserTransactionsQueue retrieves the middleware used by controller to send user transactions.
-// TODO: deprecated
-func GetUserTransactionsQueue(url string) MessageMiddleware {
-	return retryMiddlewareCreation(MIDDLEWARE_CONNECTION_RETRIES, WAIT_INTERVAL, func() (MessageMiddleware, error) {
-		return NewQueueMiddleware(url, "user_transactions")
-	})
-}
-
-// GetJoinedMostProfitsTransactionsQueue retrieves the middleware used by controller to send joined most profits transactions.
-// TODO: deprecated
-func GetJoinedMostProfitsTransactionsQueue(url string) MessageMiddleware {
-	return retryMiddlewareCreation(MIDDLEWARE_CONNECTION_RETRIES, WAIT_INTERVAL, func() (MessageMiddleware, error) {
-		return NewQueueMiddleware(url, "joined_most_profits_transactions")
-	})
-}
-
-// GetJoinedBestSellingTransactionsQueue retrieves the middleware used by controller to send joined best selling transactions.
-// TODO: deprecated
-func GetJoinedBestSellingTransactionsQueue(url string) MessageMiddleware {
-	return retryMiddlewareCreation(MIDDLEWARE_CONNECTION_RETRIES, WAIT_INTERVAL, func() (MessageMiddleware, error) {
-		return NewQueueMiddleware(url, "joined_best_selling_transactions")
-	})
-}
-
-// GetJoinedStoresTPVQueue retrieves the middleware used by controller to send joined store TPV data.
-// TODO: deprecated
-func GetJoinedStoresTPVQueue(url string) MessageMiddleware {
-	return retryMiddlewareCreation(MIDDLEWARE_CONNECTION_RETRIES, WAIT_INTERVAL, func() (MessageMiddleware, error) {
-		return NewQueueMiddleware(url, "joined_stores_tpv")
-	})
-}
-
-// GetJoinedUserTransactionsQueue retrieves the middleware used by controller to send joined user transactions.
-// TODO: deprecated
-func GetJoinedUserTransactionsQueue(url string) MessageMiddleware {
-	return retryMiddlewareCreation(MIDDLEWARE_CONNECTION_RETRIES, WAIT_INTERVAL, func() (MessageMiddleware, error) {
-		return NewQueueMiddleware(url, "joined_user_transactions")
-	})
-}
-
-// GetFilteredTransactionsQueue retrieves the middleware used by controller to send filtered transactions.
-// TODO: deprecated
-func GetFilteredTransactionsQueue(url string) MessageMiddleware {
-	return retryMiddlewareCreation(MIDDLEWARE_CONNECTION_RETRIES, WAIT_INTERVAL, func() (MessageMiddleware, error) {
-		return NewQueueMiddleware(url, "filtered_transactions")
+		return NewExchangeMiddleware(url, "finish_exchange", "direct", topic)
 	})
 }
 
