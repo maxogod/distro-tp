@@ -29,3 +29,5 @@ if $all_match; then
 else
     echo "Row counts differ between files."
 fi
+
+rm -f .output*/task1_output.csv
