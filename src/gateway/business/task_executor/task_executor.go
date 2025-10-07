@@ -311,25 +311,28 @@ func receiveAndSaveResults(
 	fs := file_service.NewFileService[string](batchSize)
 
 	batchesCh := make(chan string)
-	go fs.SaveCsvAsBatches(path, batchesCh, header)
 
-	for {
-		res, err := conn.ReceiveData()
-		if err != nil {
-			log.Errorf("failed to receive response from server: %v", err)
-			return err
+	go func() {
+		for {
+			res, err := conn.ReceiveData()
+			if err != nil {
+				log.Errorf("failed to receive response from server: %v", err)
+				return
+			}
+			dataBatch := &protocol.DataEnvelope{}
+			if err := proto.Unmarshal(res, dataBatch); err != nil {
+				log.Errorf("failed to unmarshal response from server: %v", err)
+				return
+			} else if dataBatch.GetIsDone() {
+				close(batchesCh)
+				break // No more batches
+			}
+
+			generateStringObject(dataBatch, batchesCh)
 		}
-		dataBatch := &protocol.DataEnvelope{}
-		if err := proto.Unmarshal(res, dataBatch); err != nil {
-			log.Errorf("failed to unmarshal response from server: %v", err)
-			return err
-		} else if dataBatch.IsDone {
-			break // No more batches
-		}
+	}()
 
-		generateStringObject(dataBatch, batchesCh)
-	}
-
+	fs.SaveCsvAsBatches(path, batchesCh, header)
 	log.Debug("Finished saving data")
 
 	return nil
