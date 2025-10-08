@@ -58,7 +58,6 @@ func (fe *GroupByExecutor) HandleTask3(payload []byte, clientID string) error {
 	if err != nil {
 		return err
 	}
-
 	//==========================
 	// TODO: APPLY BUSINESS LOGIC HERE
 	//==========================
