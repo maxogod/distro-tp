@@ -40,6 +40,7 @@ func (t *taskExecutor) Task1() error {
 		enum.T1,
 		transactionsDir,
 		t.batchSize,
+		false,
 		utils.TransactionFromRecord,
 		utils.TransactionBatchFromList,
 	)
@@ -79,6 +80,7 @@ func (t *taskExecutor) Task2() error {
 		enum.T2,
 		menuItemsDir,
 		t.batchSize,
+		true,
 		utils.MenuItemFromRecord,
 		utils.MenuItemBatchFromList,
 	)
@@ -93,6 +95,7 @@ func (t *taskExecutor) Task2() error {
 		enum.T2,
 		transactionsItemsDir,
 		t.batchSize,
+		false,
 		utils.TransactionItemsFromRecord,
 		utils.TransactionItemsBatchFromList,
 	)
@@ -145,6 +148,7 @@ func (t *taskExecutor) Task3() error {
 		enum.T3,
 		storesDir,
 		t.batchSize,
+		true,
 		utils.StoreFromRecord,
 		utils.StoreBatchFromList,
 	)
@@ -159,6 +163,7 @@ func (t *taskExecutor) Task3() error {
 		enum.T3,
 		transactionsDir,
 		t.batchSize,
+		false,
 		utils.TransactionFromRecord,
 		utils.TransactionBatchFromList,
 	)
@@ -194,6 +199,7 @@ func (t *taskExecutor) Task4() error {
 		enum.T4,
 		usersDir,
 		t.batchSize,
+		true,
 		utils.UserFromRecord,
 		utils.UserBatchFromList,
 	)
@@ -208,6 +214,7 @@ func (t *taskExecutor) Task4() error {
 		enum.T4,
 		storesDir,
 		t.batchSize,
+		true,
 		utils.StoreFromRecord,
 		utils.StoreBatchFromList,
 	)
@@ -222,6 +229,7 @@ func (t *taskExecutor) Task4() error {
 		enum.T4,
 		transactionsDir,
 		t.batchSize,
+		false,
 		utils.TransactionFromRecord,
 		utils.TransactionBatchFromList,
 	)
@@ -257,6 +265,7 @@ func readAndSendData[T any](
 	taskType enum.TaskType,
 	dataDir string,
 	batchSize int,
+	isRef bool,
 	fromRecordFunc func([]string) T,
 	makeBatchFunc func([]T) []byte,
 ) error {
@@ -277,6 +286,7 @@ func readAndSendData[T any](
 				TaskType: int32(taskType),
 				Payload:  makeBatchFunc(batch),
 				IsDone:   false,
+				IsRef:    isRef,
 			})
 			if err != nil {
 				continue
@@ -289,6 +299,7 @@ func readAndSendData[T any](
 	donePayload, err := proto.Marshal(&protocol.DataEnvelope{
 		TaskType: int32(taskType),
 		IsDone:   true,
+		IsRef:    isRef,
 	})
 	if err != nil {
 		return err
