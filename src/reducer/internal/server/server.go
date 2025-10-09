@@ -22,22 +22,26 @@ type Server struct {
 func InitServer(conf *config.Config) *Server {
 
 	// initiateOutputs
-	groupByInputQueue := middleware.GetGroupByQueue(conf.Address)
-	reducerOutputQueue := middleware.GetReducerQueue(conf.Address)
+	reducerInputQueue := middleware.GetReducerQueue(conf.Address)
+	// TODO: change this to joiner queue
+	// until we have a joiner, we will use the aggregator queue as output
+	// since the joiner only rewrites the ID value, this is fine
+	// for testing purposes
+	joinerOutputQueue := middleware.GetAggregatorQueue(conf.Address)
 
 	// initiate internal components
-	service := business.NewGroupByService()
+	service := business.NewReducerService()
 
-	taskExecutor := task_executor.NewGroupByExecutor(
+	taskExecutor := task_executor.NewReducerExecutor(
 		service,
-		reducerOutputQueue,
+		joinerOutputQueue,
 	)
 
 	taskHandler := worker.NewTaskHandler(taskExecutor)
 
 	messageHandler := worker.NewMessageHandler(
 		taskHandler,
-		[]middleware.MessageMiddleware{groupByInputQueue},
+		[]middleware.MessageMiddleware{reducerInputQueue},
 		nil,
 	)
 

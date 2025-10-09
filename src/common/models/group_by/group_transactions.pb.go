@@ -28,7 +28,7 @@ type GroupTransactions struct {
 	StoreId       string                 `protobuf:"bytes,2,opt,name=store_id,json=storeId,proto3" json:"store_id,omitempty"`
 	UserId        string                 `protobuf:"bytes,3,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
 	Semester      string                 `protobuf:"bytes,4,opt,name=semester,proto3" json:"semester,omitempty"`
-	Transactions  *raw.TransactionBatch  `protobuf:"bytes,5,opt,name=transactions,proto3" json:"transactions,omitempty"`
+	Transactions  []*raw.Transaction     `protobuf:"bytes,5,rep,name=transactions,proto3" json:"transactions,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -91,7 +91,7 @@ func (x *GroupTransactions) GetSemester() string {
 	return ""
 }
 
-func (x *GroupTransactions) GetTransactions() *raw.TransactionBatch {
+func (x *GroupTransactions) GetTransactions() []*raw.Transaction {
 	if x != nil {
 		return x.Transactions
 	}
@@ -102,13 +102,13 @@ var File_group_by_group_transactions_proto protoreflect.FileDescriptor
 
 const file_group_by_group_transactions_proto_rawDesc = "" +
 	"\n" +
-	"!group_by/group_transactions.proto\x12\bgroup_by\x1a\x15raw/transaction.proto\"\xc5\x01\n" +
+	"!group_by/group_transactions.proto\x12\bgroup_by\x1a\x15raw/transaction.proto\"\xc0\x01\n" +
 	"\x11GroupTransactions\x12%\n" +
 	"\x0etransaction_id\x18\x01 \x01(\tR\rtransactionId\x12\x19\n" +
 	"\bstore_id\x18\x02 \x01(\tR\astoreId\x12\x17\n" +
 	"\auser_id\x18\x03 \x01(\tR\x06userId\x12\x1a\n" +
-	"\bsemester\x18\x04 \x01(\tR\bsemester\x129\n" +
-	"\ftransactions\x18\x05 \x01(\v2\x15.raw.TransactionBatchR\ftransactionsB\fZ\n" +
+	"\bsemester\x18\x04 \x01(\tR\bsemester\x124\n" +
+	"\ftransactions\x18\x05 \x03(\v2\x10.raw.TransactionR\ftransactionsB\fZ\n" +
 	"./group_byb\x06proto3"
 
 var (
@@ -125,11 +125,11 @@ func file_group_by_group_transactions_proto_rawDescGZIP() []byte {
 
 var file_group_by_group_transactions_proto_msgTypes = make([]protoimpl.MessageInfo, 1)
 var file_group_by_group_transactions_proto_goTypes = []any{
-	(*GroupTransactions)(nil),    // 0: group_by.GroupTransactions
-	(*raw.TransactionBatch)(nil), // 1: raw.TransactionBatch
+	(*GroupTransactions)(nil), // 0: group_by.GroupTransactions
+	(*raw.Transaction)(nil),   // 1: raw.Transaction
 }
 var file_group_by_group_transactions_proto_depIdxs = []int32{
-	1, // 0: group_by.GroupTransactions.transactions:type_name -> raw.TransactionBatch
+	1, // 0: group_by.GroupTransactions.transactions:type_name -> raw.Transaction
 	1, // [1:1] is the sub-list for method output_type
 	1, // [1:1] is the sub-list for method input_type
 	1, // [1:1] is the sub-list for extension type_name

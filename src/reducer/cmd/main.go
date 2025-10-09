@@ -27,6 +27,6 @@ func main() {
 	server := server.InitServer(conf)
 
 	server.Run()
-	log.Debug("Togepi thanks you for using the Group_By Worker!")
+	log.Debug("Dratini thanks you for using the Reducer Worker!")
 
 }

@@ -9,5 +9,5 @@ import "raw/transaction_item.proto";
 message GroupTransactionItems {
   string item_id = 1;
   string year_month = 2;
-  raw.TransactionItemsBatch items = 3;
+  repeated raw.TransactionItem transaction_items = 3;
 }

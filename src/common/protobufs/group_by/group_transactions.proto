@@ -11,5 +11,5 @@ message GroupTransactions {
   string store_id = 2;
   string user_id = 3;
   string semester = 4;
-  raw.TransactionBatch transactions = 5;
+  repeated raw.Transaction transactions = 5;
 }

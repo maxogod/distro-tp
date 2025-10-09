@@ -12,11 +12,11 @@ import (
 )
 
 type GroupByExecutor struct {
-	service      business.GroupByService
+	service      business.ReducerService
 	reducerQueue middleware.MessageMiddleware
 }
 
-func NewGroupByExecutor(filterService business.GroupByService, reducerQueue middleware.MessageMiddleware) worker.TaskExecutor {
+func NewReducerExecutor(filterService business.ReducerService, reducerQueue middleware.MessageMiddleware) worker.TaskExecutor {
 	return &GroupByExecutor{
 		service:      filterService,
 		reducerQueue: reducerQueue,
@@ -80,13 +80,13 @@ func (fe *GroupByExecutor) Close() error {
 }
 
 func (fe *GroupByExecutor) HandleTask2_1(payload []byte, clientID string) error {
-	panic("The group by worker does not implement Task 2.1")
+	panic("The reducer worker does not implement Task 2.1")
 }
 
 func (fe *GroupByExecutor) HandleTask2_2(payload []byte, clientID string) error {
-	panic("The group by worker does not implement Task 2.2")
+	panic("The reducer worker does not implement Task 2.2")
 }
 
 func (fe *GroupByExecutor) HandleFinishClient(clientID string) error {
-	panic("The group by worker does not require client finishing handling")
+	panic("The reducer worker does not require client finishing handling")
 }
