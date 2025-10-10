@@ -7,5 +7,6 @@ option go_package = "./reduced";
 message CountedUserTransactions {
   string store_id = 1;
   string user_id = 2;
-  int32 transaction_quantity = 3;
+  string birthdate = 3;
+  int32 transaction_quantity = 4;
 }
