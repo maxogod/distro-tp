@@ -34,7 +34,7 @@ func (fe *GroupExecutor) HandleTask2(payload []byte, clientID string) error {
 
 	// This output is sent to both T2.1 and T2.2
 	// So we iterate over the map and send each grouped data to both queues
-	// This will increase the traffic
+	// This will increase the traffic twice as much as any other task
 	for _, group := range groupedData {
 		err := worker.SendDataToMiddleware(group, enum.T2_1, clientID, fe.reducerQueue)
 		if err != nil {

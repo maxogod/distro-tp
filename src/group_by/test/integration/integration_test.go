@@ -28,10 +28,10 @@ func TestGroupByTask2(t *testing.T) {
 
 	url := "amqp://guest:guest@localhost:5672/"
 
-	groupByQueue := middleware.GetGroupByQueue(url)
+	groupByInputQueue := middleware.GetGroupByQueue(url)
 	reducerOutputQueue := middleware.GetReducerQueue(url)
 
-	defer groupByQueue.Close()
+	defer groupByInputQueue.Close()
 	defer reducerOutputQueue.Close()
 
 	serializedTransactions, _ := proto.Marshal(&integration.MockTransactionsItemsBatch)
@@ -44,7 +44,7 @@ func TestGroupByTask2(t *testing.T) {
 
 	serializedDataEnvelope, _ := proto.Marshal(&dataEnvelope)
 
-	groupByQueue.Send(serializedDataEnvelope)
+	groupByInputQueue.Send(serializedDataEnvelope)
 
 	go func() {
 		startGroupByMock()
