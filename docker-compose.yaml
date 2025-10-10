@@ -85,6 +85,19 @@ services:
       rabbitmq:
         condition: service_healthy
 
+  reducer:
+    container_name: reducer
+    build:
+      dockerfile: ./src/reducer/Dockerfile
+    image: reducer:latest
+    networks:
+      - tp_net
+    volumes:
+      - ./src/reducer/config.yaml:/config.yaml
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+
   aggregator:
     container_name: aggregator
     build:
