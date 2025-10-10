@@ -9,6 +9,7 @@ import (
 	"github.com/maxogod/distro-tp/src/common/middleware"
 	"github.com/maxogod/distro-tp/src/common/models/enum"
 	"github.com/maxogod/distro-tp/src/common/models/raw"
+	"github.com/maxogod/distro-tp/src/common/models/reduced"
 	"github.com/maxogod/distro-tp/src/common/worker"
 	"google.golang.org/protobuf/proto"
 )
@@ -42,22 +43,51 @@ func (ae *AggregatorExecutor) HandleTask1(payload []byte, clientID string) error
 }
 
 func (ae *AggregatorExecutor) HandleTask2_1(payload []byte, clientID string) error {
-	// TODO: implement later
-	return nil
+	reducedData := &reduced.TotalProfitBySubtotal{}
+	err := proto.Unmarshal(payload, reducedData)
+	if err != nil {
+		return err
+	}
+	// TODO: consider using batch insert in the future
+	reducedDataArray := []*reduced.TotalProfitBySubtotal{reducedData}
+
+	return ae.aggregatorService.StoreTotalProfitBySubtotal(clientID, reducedDataArray)
 }
 
 func (ae *AggregatorExecutor) HandleTask2_2(payload []byte, clientID string) error {
-	return nil
+	reducedData := &reduced.TotalSoldByQuantity{}
+	err := proto.Unmarshal(payload, reducedData)
+	if err != nil {
+		return err
+	}
+	// TODO: consider using batch insert in the future
+	reducedDataArray := []*reduced.TotalSoldByQuantity{reducedData}
+
+	return ae.aggregatorService.StoreTotalSoldByQuantity(clientID, reducedDataArray)
 }
 
 func (ae *AggregatorExecutor) HandleTask3(payload []byte, clientID string) error {
-	// TODO: implement later
-	return nil
+	reducedData := &reduced.TotalPaymentValue{}
+	err := proto.Unmarshal(payload, reducedData)
+	if err != nil {
+		return err
+	}
+	// TODO: consider using batch insert in the future
+	reducedDataArray := []*reduced.TotalPaymentValue{reducedData}
+
+	return ae.aggregatorService.StoreTotalPaymentValue(clientID, reducedDataArray)
 }
 
 func (ae *AggregatorExecutor) HandleTask4(payload []byte, clientID string) error {
-	// TODO: implement later
-	return nil
+	countedData := &reduced.CountedUserTransactions{}
+	err := proto.Unmarshal(payload, countedData)
+	if err != nil {
+		return err
+	}
+	// TODO: consider using batch insert in the future
+	countedDataArray := []*reduced.CountedUserTransactions{countedData}
+
+	return ae.aggregatorService.StoreCountedUserTransactions(clientID, countedDataArray)
 }
 
 func (ae *AggregatorExecutor) HandleFinishClient(clientID string) error {
@@ -67,6 +97,24 @@ func (ae *AggregatorExecutor) HandleFinishClient(clientID string) error {
 	defer processedDataQueue.Close()
 
 	log.Debug("Finishing client: ", clientID)
+	// ==================
+	err := ae.sendAllTotalPaymentValue(clientID, processedDataQueue)
+	if err != nil {
+		return fmt.Errorf("failed to send all total payment values: %v", err)
+	}
+	// ==================
+
+	err = worker.SendDone(clientID, processedDataQueue)
+	if err != nil {
+		return fmt.Errorf("failed to send done message to middleware: %v", err)
+	}
+
+	log.Debug("Client Finished: ", clientID)
+
+	return nil
+}
+
+func (ae *AggregatorExecutor) sendAllTransactions(clientID string, processedDataQueue middleware.MessageMiddleware) error {
 	for {
 		transactions, moreBatches := ae.aggregatorService.GetStoredTransactions(clientID, TRANSACTION_SEND_LIMIT)
 		if !moreBatches {
@@ -79,20 +127,28 @@ func (ae *AggregatorExecutor) HandleFinishClient(clientID string) error {
 			return fmt.Errorf("failed to send data to middleware: %v", err)
 		}
 	}
-	err := worker.SendDone(clientID, processedDataQueue)
-	if err != nil {
-		return fmt.Errorf("failed to send done message to middleware: %v", err)
-	}
-
-	log.Debug("Client Finished: ", clientID)
-
 	return nil
+}
 
+func (ae *AggregatorExecutor) sendAllTotalPaymentValue(clientID string, processedDataQueue middleware.MessageMiddleware) error {
+	for {
+		totalPaymentValueBatch, moreBatches := ae.aggregatorService.GetStoredTotalPaymentValue(clientID, TRANSACTION_SEND_LIMIT)
+		if !moreBatches {
+			break
+		}
+
+		for _, totalPaymentValue := range totalPaymentValueBatch {
+			log.Debugf("Sending TotalPaymentValue: ClientID=%s, TotalPaymentValue=%v", clientID, totalPaymentValue)
+			if err := worker.SendDataToMiddleware(totalPaymentValue, enum.T1, clientID, processedDataQueue); err != nil {
+				return fmt.Errorf("failed to send data to middleware: %v", err)
+			}
+		}
+	}
+	return nil
 }
 
 func (ae *AggregatorExecutor) Close() error {
-
-	return nil
+	return ae.aggregatorService.Close()
 }
 
 func (ae *AggregatorExecutor) HandleTask2(payload []byte, clientID string) error {
