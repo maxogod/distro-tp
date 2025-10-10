@@ -104,9 +104,11 @@ func (th *messageHandler) GetReportData(data chan *protocol.DataEnvelope) {
 	th.processedDataExchangeMiddleware.StartConsuming(func(msgs middleware.ConsumeChannel, d chan error) {
 		log.Debug("Started listening for processed data")
 		receiving := true
+		firstMessageReceived := false // To track if aggregator has started sending data
 
 		timer := time.NewTimer(RECEIVING_TIMEOUT)
 		defer timer.Stop()
+		defer close(data)
 
 		for receiving {
 			select {
@@ -119,12 +121,8 @@ func (th *messageHandler) GetReportData(data chan *protocol.DataEnvelope) {
 
 				envelope := &protocol.DataEnvelope{}
 				err := proto.Unmarshal(msg.Body, envelope)
-				if err != nil {
-					msg.Nack(false, false) // Discard corrupted messages
-					continue
-				} else if envelope.GetClientId() != th.clientID {
-					log.Debugf("Wrong id: %s vs %s", envelope.GetClientId(), th.clientID)
-					msg.Nack(false, true) // Requeue other clients' messages
+				if err != nil || envelope.GetClientId() != th.clientID {
+					msg.Nack(false, false) // Discard unwanted messages
 					continue
 				}
 
@@ -132,14 +130,19 @@ func (th *messageHandler) GetReportData(data chan *protocol.DataEnvelope) {
 				msg.Ack(false)
 				if envelope.GetIsDone() {
 					receiving = false
+				} else if !firstMessageReceived {
+					firstMessageReceived = true
 				}
 			case <-timer.C:
-				log.Warnln("Timeout waiting for processed data")
-				receiving = false
+				// Only stop receiving if at least one message was received before
+				if firstMessageReceived {
+					log.Warnln("Timeout waiting for processed data")
+					receiving = false
+				}
+				timer.Reset(RECEIVING_TIMEOUT)
 			}
 		}
 		log.Debug("Finished listening for processed data")
-		close(data)
 		done <- true
 	})
 	<-done

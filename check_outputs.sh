@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Find all files matching .output*/task1_output.csv
-files=(.output*/task1_output.csv)
+files=(.output*/*)
 data=(.data/transactions/*)
 
 # Check if any files were found

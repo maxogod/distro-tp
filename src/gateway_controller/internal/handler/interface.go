@@ -8,7 +8,7 @@ import (
 )
 
 const (
-	RECEIVING_TIMEOUT = 20 * time.Second
+	RECEIVING_TIMEOUT = 5 * time.Second
 )
 
 // MessageHandler interface defines methods for forwarding tasks to be processed by workers
