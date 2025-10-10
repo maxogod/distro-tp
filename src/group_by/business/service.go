@@ -5,14 +5,14 @@ import (
 	"github.com/maxogod/distro-tp/src/common/models/raw"
 )
 
-type GroupService struct{}
+type groupService struct{}
 
 func NewGroupService() GroupService {
-	return GroupService{}
+	return &groupService{}
 }
 
 // This is T2
-func (gs *GroupService) GroupItemsByYearMonthAndItem(items []*raw.TransactionItem) map[string]*group_by.GroupTransactionItems {
+func (gs *groupService) GroupItemsByYearMonthAndItem(items []*raw.TransactionItem) map[string]*group_by.GroupTransactionItems {
 
 	result := make(map[string]*group_by.GroupTransactionItems)
 
@@ -39,7 +39,7 @@ func (gs *GroupService) GroupItemsByYearMonthAndItem(items []*raw.TransactionIte
 }
 
 // This is T3
-func (gs *GroupService) GroupTransactionsByStoreAndSemester(transactions []*raw.Transaction) map[string]*group_by.GroupTransactions {
+func (gs *groupService) GroupTransactionsByStoreAndSemester(transactions []*raw.Transaction) map[string]*group_by.GroupTransactions {
 
 	result := make(map[string]*group_by.GroupTransactions)
 
@@ -76,7 +76,7 @@ func (gs *GroupService) GroupTransactionsByStoreAndSemester(transactions []*raw.
 }
 
 // This is T4
-func (gs *GroupService) GroupTransactionsByStoreAndUser(transactions []*raw.Transaction) map[string]*group_by.GroupTransactions {
+func (gs *groupService) GroupTransactionsByStoreAndUser(transactions []*raw.Transaction) map[string]*group_by.GroupTransactions {
 
 	result := make(map[string]*group_by.GroupTransactions)
 

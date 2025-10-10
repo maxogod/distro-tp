@@ -5,15 +5,15 @@ import (
 	"github.com/maxogod/distro-tp/src/common/models/reduced"
 )
 
-type ReducerService struct{}
+type reducerService struct{}
 
 // TODO: Review to insted process batces of grouped data, instead of single grouped data
 func NewReducerService() ReducerService {
-	return ReducerService{}
+	return &reducerService{}
 }
 
 // This is T2_1
-func (rs *ReducerService) SumTotalProfitBySubtotal(groupedData *group_by.GroupTransactionItems) *reduced.TotalProfitBySubtotal {
+func (rs *reducerService) SumTotalProfitBySubtotal(groupedData *group_by.GroupTransactionItems) *reduced.TotalProfitBySubtotal {
 
 	var result reduced.TotalProfitBySubtotal
 
@@ -31,7 +31,7 @@ func (rs *ReducerService) SumTotalProfitBySubtotal(groupedData *group_by.GroupTr
 }
 
 // This is T2_2
-func (rs *ReducerService) SumTotalSoldByQuantity(groupedData *group_by.GroupTransactionItems) *reduced.TotalSoldByQuantity {
+func (rs *reducerService) SumTotalSoldByQuantity(groupedData *group_by.GroupTransactionItems) *reduced.TotalSoldByQuantity {
 	var result reduced.TotalSoldByQuantity
 
 	result.ItemId = groupedData.ItemId
@@ -49,7 +49,7 @@ func (rs *ReducerService) SumTotalSoldByQuantity(groupedData *group_by.GroupTran
 }
 
 // This is T3
-func (rs *ReducerService) SumTotalPaymentValue(groupedData *group_by.GroupTransactions) *reduced.TotalPaymentValue {
+func (rs *reducerService) SumTotalPaymentValue(groupedData *group_by.GroupTransactions) *reduced.TotalPaymentValue {
 
 	var result reduced.TotalPaymentValue
 
@@ -65,7 +65,7 @@ func (rs *ReducerService) SumTotalPaymentValue(groupedData *group_by.GroupTransa
 }
 
 // This is T4
-func (rs *ReducerService) CountUserTransactions(groupedData *group_by.GroupTransactions) *reduced.CountedUserTransactions {
+func (rs *reducerService) CountUserTransactions(groupedData *group_by.GroupTransactions) *reduced.CountedUserTransactions {
 
 	var result reduced.CountedUserTransactions
 
