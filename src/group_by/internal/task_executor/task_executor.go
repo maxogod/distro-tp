@@ -46,8 +46,7 @@ func (fe *GroupExecutor) HandleTask2(payload []byte, clientID string) error {
 		}
 
 	}
-
-	return worker.SendDataToMiddleware(transactionBatch, enum.T3, clientID, fe.reducerQueue)
+	return nil
 }
 
 func (fe *GroupExecutor) HandleTask3(payload []byte, clientID string) error {
