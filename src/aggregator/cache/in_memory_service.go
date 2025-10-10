@@ -8,7 +8,7 @@ import (
 )
 
 type storage struct {
-	sortedData   *messageHeap
+	sortedData   heap.Interface
 	unsortedData []*proto.Message
 	index        int
 }
@@ -31,10 +31,7 @@ func (c *InMemoryCache) StoreSortedBatch(cacheReference string, data []*proto.Me
 
 	if !exists {
 		// first time this reference is seen, create its heap with sort function
-		h := &messageHeap{
-			data:         []*proto.Message{},
-			sortFunction: sortFn,
-		}
+		h := NewMessageHeap(sortFn)
 		heap.Init(h)
 		storageData = storage{sortedData: h}
 	}
@@ -107,10 +104,7 @@ func (c *InMemoryCache) readUnorderedBatch(cacheReference string, amount int32) 
 	}
 
 	start := storageData.index
-	end := start + int(amount)
-	if end > len(storageData.unsortedData) {
-		end = len(storageData.unsortedData)
-	}
+	end := min(start+int(amount), len(storageData.unsortedData))
 
 	results := storageData.unsortedData[start:end]
 	storageData.index = end
