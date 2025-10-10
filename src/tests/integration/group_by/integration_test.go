@@ -1,4 +1,4 @@
-package integration_test
+package group_by_test
 
 import (
 	"testing"
@@ -8,21 +8,10 @@ import (
 	"github.com/maxogod/distro-tp/src/common/models/group_by"
 	"github.com/maxogod/distro-tp/src/common/models/protocol"
 	"github.com/maxogod/distro-tp/src/common/utils"
-	"github.com/maxogod/distro-tp/src/group_by/config"
-	"github.com/maxogod/distro-tp/src/group_by/internal/server"
-	"github.com/maxogod/distro-tp/src/group_by/test/integration"
+	"github.com/maxogod/distro-tp/src/group_by/group_by_mock"
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/protobuf/proto"
 )
-
-func startGroupByMock() {
-	conf, err := config.InitConfig("./config_test.yaml")
-	if err != nil {
-		panic(err)
-	}
-	server := server.InitServer(conf)
-	server.Run()
-}
 
 func TestGroupByTask2(t *testing.T) {
 
@@ -34,7 +23,7 @@ func TestGroupByTask2(t *testing.T) {
 	defer groupByInputQueue.Close()
 	defer reducerOutputQueue.Close()
 
-	serializedTransactions, _ := proto.Marshal(&integration.MockTransactionsItemsBatch)
+	serializedTransactions, _ := proto.Marshal(&MockTransactionsItemsBatch)
 
 	dataEnvelope := protocol.DataEnvelope{
 		ClientId: "test-client",
@@ -47,7 +36,7 @@ func TestGroupByTask2(t *testing.T) {
 	groupByInputQueue.Send(serializedDataEnvelope)
 
 	go func() {
-		startGroupByMock()
+		group_by_mock.StartGroupByMock("./config_test.yaml")
 	}()
 
 	done := make(chan bool, 1)
@@ -80,7 +69,7 @@ func TestGroupByTask2(t *testing.T) {
 			key := groupData.ItemId + "@" + groupData.YearMonth
 
 			t.Logf("Key: %s", key)
-			expectedGroupData, exists := integration.MockItemsOutputT2[key]
+			expectedGroupData, exists := MockItemsOutputT2[key]
 			assert.True(t, exists)
 			assert.Equal(t, len(expectedGroupData), len(groupData.TransactionItems))
 

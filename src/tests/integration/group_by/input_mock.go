@@ -1,4 +1,4 @@
-package integration
+package group_by_test
 
 import (
 	"github.com/maxogod/distro-tp/src/common/models/raw"
