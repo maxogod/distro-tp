@@ -126,12 +126,3 @@ var MockItemsOutputT2 = map[string][]*raw.TransactionItem{
 		},
 	},
 }
-
-// /home/sev/Desktop/Facultad/sist_distro/tp1/src/group_by/test/integration/integration_test.go:70: Key: item3@2025-07
-// /home/sev/Desktop/Facultad/sist_distro/tp1/src/group_by/test/integration/integration_test.go:70: Key: item3@2025-07
-// /home/sev/Desktop/Facultad/sist_distro/tp1/src/group_by/test/integration/integration_test.go:70: Key: item1@2025-07
-// /home/sev/Desktop/Facultad/sist_distro/tp1/src/group_by/test/integration/integration_test.go:70: Key: item1@2025-07
-// /home/sev/Desktop/Facultad/sist_distro/tp1/src/group_by/test/integration/integration_test.go:70: Key: item1@2025-08
-// /home/sev/Desktop/Facultad/sist_distro/tp1/src/group_by/test/integration/integration_test.go:70: Key: item1@2025-08
-// /home/sev/Desktop/Facultad/sist_distro/tp1/src/group_by/test/integration/integration_test.go:70: Key:
-//     item3i@"2025-07@
