@@ -45,7 +45,6 @@ func (fe *GroupByExecutor) HandleTask2_2(payload []byte, clientID string) error 
 	reducedItems := fe.service.SumTotalSoldByQuantity(groupedItems)
 
 	return worker.SendDataToMiddleware(reducedItems, enum.T2_2, clientID, fe.outputQueue)
-
 }
 
 func (fe *GroupByExecutor) HandleTask3(payload []byte, clientID string) error {

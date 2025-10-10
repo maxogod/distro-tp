@@ -1,4 +1,4 @@
-package group_by_mock
+package mock
 
 import (
 	"github.com/maxogod/distro-tp/src/group_by/config"

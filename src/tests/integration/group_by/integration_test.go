@@ -8,7 +8,7 @@ import (
 	"github.com/maxogod/distro-tp/src/common/models/group_by"
 	"github.com/maxogod/distro-tp/src/common/models/protocol"
 	"github.com/maxogod/distro-tp/src/common/utils"
-	"github.com/maxogod/distro-tp/src/group_by/group_by_mock"
+	"github.com/maxogod/distro-tp/src/group_by/mock"
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/protobuf/proto"
 )
@@ -36,7 +36,7 @@ func TestGroupByTask2(t *testing.T) {
 	groupByInputQueue.Send(serializedDataEnvelope)
 
 	go func() {
-		group_by_mock.StartGroupByMock("./config_test.yaml")
+		mock.StartGroupByMock("./config_test.yaml")
 	}()
 
 	done := make(chan bool, 1)

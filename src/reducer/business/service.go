@@ -54,7 +54,7 @@ func (rs *reducerService) SumTotalPaymentValue(groupedData *group_by.GroupTransa
 	var result reduced.TotalPaymentValue
 
 	result.StoreId = groupedData.GetStoreId()
-	result.Semester = groupedData.GetUserId()
+	result.Semester = groupedData.GetSemester()
 	var finalAmount float64 = 0
 	for _, item := range groupedData.GetTransactions() {
 		finalAmount += item.FinalAmount
