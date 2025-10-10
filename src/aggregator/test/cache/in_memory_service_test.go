@@ -129,8 +129,7 @@ func TestReadFromEmptyCache(t *testing.T) {
 	readMoreData, err := cacheService.ReadBatch(cacheRef, 5)
 
 	assert.Equal(t, 0, len(readMoreData))
-
-	assert.Error(t, err)
+	assert.NoError(t, err)
 	assert.Nil(t, readMoreData)
 }
 

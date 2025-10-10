@@ -2,6 +2,7 @@
 
 # Find all files matching .output*/task1_output.csv
 files=(.output*/task1_output.csv)
+data=(.data/transactions/*)
 
 # Check if any files were found
 if [ ${#files[@]} -eq 0 ]; then
@@ -30,4 +31,10 @@ else
     echo "Row counts differ between files."
 fi
 
-rm -f .output*/task1_output.csv
+total_count=0
+for datafile in "${data[@]}"; do
+    count=$(wc -l < "$datafile")
+    total_count=$((total_count + count))
+done
+total_count=$((total_count - $(ls -l ${data[@]} | wc -l) + 1))
+echo "Total rows in .data/transactions/*: $total_count"
