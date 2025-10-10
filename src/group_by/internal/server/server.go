@@ -26,9 +26,9 @@ func InitServer(conf *config.Config) *Server {
 	reducerOutputQueue := middleware.GetReducerQueue(conf.Address)
 
 	// initiate internal components
-	service := business.NewGroupByService()
+	service := business.NewGroupService()
 
-	taskExecutor := task_executor.NewGroupByExecutor(
+	taskExecutor := task_executor.NewGroupExecutor(
 		service,
 		reducerOutputQueue,
 	)
