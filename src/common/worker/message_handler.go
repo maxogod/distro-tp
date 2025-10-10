@@ -115,7 +115,12 @@ func (mh *messageHandler) Start() error {
 					}),
 				}
 			} else {
-				log.Warnf("Received finish message for unknown client: %s", clientID)
+				log.Debugf("New client detected before finishing: %s", clientID)
+				mh.clientManager[clientID] = client{
+					finishUp: true, // we wait for the first message to receive before starting the timer
+					timer:    nil,
+				}
+
 			}
 		case finishedClientID := <-mh.handleFinishChannel:
 			log.Debugf("Reaping client: %s", finishedClientID)

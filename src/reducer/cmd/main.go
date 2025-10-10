@@ -4,8 +4,8 @@ import (
 	"os"
 
 	"github.com/maxogod/distro-tp/src/common/logger"
-	"github.com/maxogod/distro-tp/src/filter/config"
-	"github.com/maxogod/distro-tp/src/filter/internal/server"
+	"github.com/maxogod/distro-tp/src/reducer/config"
+	"github.com/maxogod/distro-tp/src/reducer/internal/server"
 )
 
 var log = logger.GetLogger()
@@ -27,6 +27,6 @@ func main() {
 	server := server.InitServer(conf)
 
 	server.Run()
-	log.Debug("Squirtle thanks you for using the Filter Worker!")
+	log.Debug("Dratini thanks you for using the Reducer Worker!")
 
 }

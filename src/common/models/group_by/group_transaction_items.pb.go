@@ -23,12 +23,12 @@ const (
 )
 
 type GroupTransactionItems struct {
-	state         protoimpl.MessageState     `protogen:"open.v1"`
-	ItemId        string                     `protobuf:"bytes,1,opt,name=item_id,json=itemId,proto3" json:"item_id,omitempty"`
-	YearMonth     string                     `protobuf:"bytes,2,opt,name=year_month,json=yearMonth,proto3" json:"year_month,omitempty"`
-	Items         *raw.TransactionItemsBatch `protobuf:"bytes,3,opt,name=items,proto3" json:"items,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state            protoimpl.MessageState `protogen:"open.v1"`
+	ItemId           string                 `protobuf:"bytes,1,opt,name=item_id,json=itemId,proto3" json:"item_id,omitempty"`
+	YearMonth        string                 `protobuf:"bytes,2,opt,name=year_month,json=yearMonth,proto3" json:"year_month,omitempty"`
+	TransactionItems []*raw.TransactionItem `protobuf:"bytes,3,rep,name=transaction_items,json=transactionItems,proto3" json:"transaction_items,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
 }
 
 func (x *GroupTransactionItems) Reset() {
@@ -75,9 +75,9 @@ func (x *GroupTransactionItems) GetYearMonth() string {
 	return ""
 }
 
-func (x *GroupTransactionItems) GetItems() *raw.TransactionItemsBatch {
+func (x *GroupTransactionItems) GetTransactionItems() []*raw.TransactionItem {
 	if x != nil {
-		return x.Items
+		return x.TransactionItems
 	}
 	return nil
 }
@@ -86,12 +86,12 @@ var File_group_by_group_transaction_items_proto protoreflect.FileDescriptor
 
 const file_group_by_group_transaction_items_proto_rawDesc = "" +
 	"\n" +
-	"&group_by/group_transaction_items.proto\x12\bgroup_by\x1a\x1araw/transaction_item.proto\"\x81\x01\n" +
+	"&group_by/group_transaction_items.proto\x12\bgroup_by\x1a\x1araw/transaction_item.proto\"\x92\x01\n" +
 	"\x15GroupTransactionItems\x12\x17\n" +
 	"\aitem_id\x18\x01 \x01(\tR\x06itemId\x12\x1d\n" +
 	"\n" +
-	"year_month\x18\x02 \x01(\tR\tyearMonth\x120\n" +
-	"\x05items\x18\x03 \x01(\v2\x1a.raw.TransactionItemsBatchR\x05itemsB\fZ\n" +
+	"year_month\x18\x02 \x01(\tR\tyearMonth\x12A\n" +
+	"\x11transaction_items\x18\x03 \x03(\v2\x14.raw.TransactionItemR\x10transactionItemsB\fZ\n" +
 	"./group_byb\x06proto3"
 
 var (
@@ -108,11 +108,11 @@ func file_group_by_group_transaction_items_proto_rawDescGZIP() []byte {
 
 var file_group_by_group_transaction_items_proto_msgTypes = make([]protoimpl.MessageInfo, 1)
 var file_group_by_group_transaction_items_proto_goTypes = []any{
-	(*GroupTransactionItems)(nil),     // 0: group_by.GroupTransactionItems
-	(*raw.TransactionItemsBatch)(nil), // 1: raw.TransactionItemsBatch
+	(*GroupTransactionItems)(nil), // 0: group_by.GroupTransactionItems
+	(*raw.TransactionItem)(nil),   // 1: raw.TransactionItem
 }
 var file_group_by_group_transaction_items_proto_depIdxs = []int32{
-	1, // 0: group_by.GroupTransactionItems.items:type_name -> raw.TransactionItemsBatch
+	1, // 0: group_by.GroupTransactionItems.transaction_items:type_name -> raw.TransactionItem
 	1, // [1:1] is the sub-list for method output_type
 	1, // [1:1] is the sub-list for method input_type
 	1, // [1:1] is the sub-list for extension type_name

@@ -9,6 +9,12 @@ services:
     ports:
       - '5670:5672'
       - '15670:15672'
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 10s
+      timeout: 10s
+      start_period: 15s
+      retries: 5
     networks:
       - tp_net
 
@@ -24,7 +30,8 @@ services:
     volumes:
       - ./src/gateway_controller/config.yaml:/config.yaml
     depends_on:
-      - rabbitmq
+      rabbitmq:
+        condition: service_healthy
 
   filter:
     container_name: filter
@@ -36,19 +43,47 @@ services:
     volumes:
       - ./src/filter/config.yaml:/config.yaml
     depends_on:
-      - rabbitmq
+      rabbitmq:
+        condition: service_healthy
 
   filter2:
     container_name: filter2
     build:
       dockerfile: ./src/filter/Dockerfile
-    image: filter2:latest
+    image: filter:latest
     networks:
       - tp_net
     volumes:
       - ./src/filter/config.yaml:/config.yaml
     depends_on:
-      - rabbitmq
+      rabbitmq:
+        condition: service_healthy
+
+  filter3:
+    container_name: filter3
+    build:
+      dockerfile: ./src/filter/Dockerfile
+    image: filter:latest
+    networks:
+      - tp_net
+    volumes:
+      - ./src/filter/config.yaml:/config.yaml
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+
+  group_by:
+    container_name: group_by
+    build:
+      dockerfile: ./src/group_by/Dockerfile
+    image: group_by:latest
+    networks:
+      - tp_net
+    volumes:
+      - ./src/group_by/config.yaml:/config.yaml
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
 
   aggregator:
     container_name: aggregator
@@ -60,7 +95,8 @@ services:
     volumes:
       - ./src/aggregator/config.yaml:/config.yaml
     depends_on:
-      - rabbitmq
+      rabbitmq:
+        condition: service_healthy
 
   gateway:
     container_name: gateway
@@ -76,33 +112,61 @@ services:
     depends_on:
       - gateway_controller
 
-  gateway1:
-    container_name: gateway1
-    entrypoint: ["/app/app", "t1"]
-    build:
-      dockerfile: ./src/gateway/Dockerfile
-    image: gateway:latest
-    networks:
-      - tp_net
-    volumes:
-      - ./.data:/app/.data
-      - ./.output1:/app/.output
-    depends_on:
-      - gateway_controller
+  # gateway1:
+  #   container_name: gateway1
+  #   entrypoint: ["/app/app", "t3"]
+  #   build:
+  #     dockerfile: ./src/gateway/Dockerfile
+  #   image: gateway:latest
+  #   networks:
+  #     - tp_net
+  #   volumes:
+  #     - ./.data:/app/.data
+  #     - ./.output1:/app/.output
+  #   depends_on:
+  #     - gateway_controller
 
-  gateway2:
-    container_name: gateway2
-    entrypoint: ["/app/app", "t1"]
-    build:
-      dockerfile: ./src/gateway/Dockerfile
-    image: gateway:latest
-    networks:
-      - tp_net
-    volumes:
-      - ./.data:/app/.data
-      - ./.output2:/app/.output
-    depends_on:
-      - gateway_controller
+  # gateway2:
+  #   container_name: gateway2
+  #   entrypoint: ["/app/app", "t3"]
+  #   build:
+  #     dockerfile: ./src/gateway/Dockerfile
+  #   image: gateway:latest
+  #   networks:
+  #     - tp_net
+  #   volumes:
+  #     - ./.data:/app/.data
+  #     - ./.output2:/app/.output
+  #   depends_on:
+  #     - gateway_controller
+
+  # gateway3:
+  #   container_name: gateway3
+  #   entrypoint: ["/app/app", "t3"]
+  #   build:
+  #     dockerfile: ./src/gateway/Dockerfile
+  #   image: gateway:latest
+  #   networks:
+  #     - tp_net
+  #   volumes:
+  #     - ./.data:/app/.data
+  #     - ./.output3:/app/.output
+  #   depends_on:
+  #     - gateway_controller
+
+  # gateway4:
+  #   container_name: gateway4
+  #   entrypoint: ["/app/app", "t3"]
+  #   build:
+  #     dockerfile: ./src/gateway/Dockerfile
+  #   image: gateway:latest
+  #   networks:
+  #     - tp_net
+  #   volumes:
+  #     - ./.data:/app/.data
+  #     - ./.output4:/app/.output
+  #   depends_on:
+  #     - gateway_controller
 
 networks:
   tp_net:

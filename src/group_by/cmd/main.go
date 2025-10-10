@@ -4,8 +4,8 @@ import (
 	"os"
 
 	"github.com/maxogod/distro-tp/src/common/logger"
-	"github.com/maxogod/distro-tp/src/filter/config"
-	"github.com/maxogod/distro-tp/src/filter/internal/server"
+	"github.com/maxogod/distro-tp/src/group_by/config"
+	"github.com/maxogod/distro-tp/src/group_by/internal/server"
 )
 
 var log = logger.GetLogger()
@@ -27,6 +27,6 @@ func main() {
 	server := server.InitServer(conf)
 
 	server.Run()
-	log.Debug("Squirtle thanks you for using the Filter Worker!")
+	log.Debug("Togepi thanks you for using the Group_By Worker!")
 
 }
