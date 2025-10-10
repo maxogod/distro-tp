@@ -138,7 +138,6 @@ func (ae *AggregatorExecutor) sendAllTotalPaymentValue(clientID string, processe
 		}
 
 		for _, totalPaymentValue := range totalPaymentValueBatch {
-			log.Debugf("Sending TotalPaymentValue: ClientID=%s, TotalPaymentValue=%v", clientID, totalPaymentValue)
 			if err := worker.SendDataToMiddleware(totalPaymentValue, enum.T1, clientID, processedDataQueue); err != nil {
 				return fmt.Errorf("failed to send data to middleware: %v", err)
 			}
