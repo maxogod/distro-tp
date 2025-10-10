@@ -44,6 +44,6 @@ func TopStoresByTPVToCsv(record *reduced.TotalPaymentValue) string {
 
 func TopUsersByPurchasesToCsv(record *reduced.CountedUserTransactions) string {
 	return record.StoreId + "," +
-		record.UserId + "," +
+		record.Birthdate + "," +
 		strconv.Itoa(int(record.TransactionQuantity)) + "\n"
 }
