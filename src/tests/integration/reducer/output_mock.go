@@ -21,3 +21,9 @@ var ReducedTransactionMock2_2 = reduced.TotalSoldByQuantity{
 	YearMonth: "2025-07",
 	Quantity:  4,
 }
+
+var ReducedTransactionMock4 = reduced.CountedUserTransactions{
+	StoreId:             "store3",
+	UserId:              "user1",
+	TransactionQuantity: 2,
+}

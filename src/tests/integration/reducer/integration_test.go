@@ -158,3 +158,49 @@ func TestReduceTask2_2(t *testing.T) {
 	<-done
 	assert.Equal(t, 0, int(e))
 }
+
+func TestReduceTask4(t *testing.T) {
+	url := "amqp://guest:guest@localhost:5672/"
+
+	reducerInputQueue := middleware.GetReducerQueue(url)
+	aggregatorOutputQueue := middleware.GetAggregatorQueue(url)
+
+	defer reducerInputQueue.Close()
+	defer aggregatorOutputQueue.Close()
+
+	serializedTransactions, _ := proto.Marshal(&GroupTransactionMock4)
+
+	dataEnvelope := protocol.DataEnvelope{
+		ClientId: "test-client",
+		TaskType: int32(enum.T4),
+		Payload:  serializedTransactions,
+	}
+
+	serializedDataEnvelope, _ := proto.Marshal(&dataEnvelope)
+
+	reducerInputQueue.Send(serializedDataEnvelope)
+
+	done := make(chan bool, 1)
+
+	e := aggregatorOutputQueue.StartConsuming(func(consumeChannel middleware.ConsumeChannel, d chan error) {
+		for msg := range consumeChannel {
+			msg.Ack(false)
+			dataBatch, _ := utils.GetDataEnvelope(msg.Body)
+			assert.True(t, enum.TaskType(dataBatch.TaskType) == enum.T4)
+
+			reducedData := &reduced.CountedUserTransactions{}
+			err := proto.Unmarshal(dataBatch.Payload, reducedData)
+
+			assert.Nil(t, err)
+
+			assert.Equal(t, ReducedTransactionMock4.GetUserId(), reducedData.GetUserId())
+			assert.Equal(t, ReducedTransactionMock4.GetStoreId(), reducedData.GetStoreId())
+			assert.Equal(t, ReducedTransactionMock4.GetTransactionQuantity(), reducedData.GetTransactionQuantity())
+
+			break
+		}
+		done <- true
+	})
+	<-done
+	assert.Equal(t, 0, int(e))
+}

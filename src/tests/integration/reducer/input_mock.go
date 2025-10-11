@@ -45,3 +45,24 @@ var GroupTransactionMock2 = group_by.GroupTransactionItems{
 		},
 	},
 }
+
+var GroupTransactionMock4 = group_by.GroupTransactions{
+	StoreId: "store3",
+	UserId:  "user1",
+	Transactions: []*raw.Transaction{
+		{
+			TransactionId: "tx4",
+			StoreId:       "store3",
+			UserId:        "user1",
+			FinalAmount:   200.0,
+			CreatedAt:     "2021-01-01 07:00:00",
+		},
+		{
+			TransactionId: "tx5",
+			StoreId:       "store3",
+			UserId:        "user1",
+			FinalAmount:   200.0,
+			CreatedAt:     "2021-03-10 10:15:00",
+		},
+	},
+}
