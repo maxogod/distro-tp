@@ -30,16 +30,26 @@ func NewInMemoryCache() CacheService {
 	}
 }
 
-func (c *InMemoryCache) StoreAggregatedData(cacheReference string, dataKey string, data *proto.Message) error {
+func (c *InMemoryCache) StoreAggregatedData(cacheReference string, dataKey string, data *proto.Message, joinFunction func(existing, new *proto.Message) (*proto.Message, error)) error {
 	storageData, exists := c.memoryStorage[cacheReference]
 	if !exists {
 		storageData = storage{
 			mappedData: make(map[string]*proto.Message),
 			index:      0,
 		}
-		c.memoryStorage[cacheReference] = storageData
 	}
-	storageData.mappedData[dataKey] = data
+
+	existing, exists := storageData.mappedData[dataKey]
+	if exists && joinFunction != nil { // If the key exists, use the join function to combine the data
+		joinedData, err := joinFunction(existing, data)
+		if err != nil {
+			return err
+		}
+		storageData.mappedData[dataKey] = joinedData
+	} else {
+		storageData.mappedData[dataKey] = data
+	}
+
 	c.memoryStorage[cacheReference] = storageData
 	return nil
 }
