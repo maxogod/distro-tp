@@ -34,9 +34,9 @@ func (m *MockDataHandler) Close() error {
 }
 
 func TestNewMessageHandler(t *testing.T) {
-
 	mockDataHandler := &MockDataHandler{}
 	inputMiddleware, _ := middleware.NewQueueMiddleware(url, "inputQueue")
+	defer inputMiddleware.Delete()
 
 	inputQueues := []middleware.MessageMiddleware{inputMiddleware}
 
@@ -49,6 +49,7 @@ func TestNewMessageHandler(t *testing.T) {
 func TestMessageHandlerStart(t *testing.T) {
 	mockDataHandler := &MockDataHandler{}
 	inputMiddleware, _ := middleware.NewQueueMiddleware(url, "inputQueue")
+	defer inputMiddleware.Delete()
 
 	sendMessage := &protocol.DataEnvelope{
 		TaskType: int32(1),
@@ -84,8 +85,9 @@ func TestMessageHandlerWithFinish(t *testing.T) {
 	mockDataHandler := &MockDataHandler{}
 
 	inputMiddleware, _ := middleware.NewQueueMiddleware(url, "inputQueue")
-
 	finisherQueue, _ := middleware.NewQueueMiddleware(url, "finisherQueue")
+	defer inputMiddleware.Delete()
+	defer finisherQueue.Delete()
 
 	sendMessage := &protocol.DataEnvelope{
 		ClientId: "client1",
@@ -130,6 +132,8 @@ func TestMessageHandlerWithMultipleInputQueues(t *testing.T) {
 	mockDataHandler := &MockDataHandler{}
 	inputMiddleware1, _ := middleware.NewQueueMiddleware(url, "inputQueue1")
 	inputMiddleware2, _ := middleware.NewQueueMiddleware(url, "inputQueue2")
+	defer inputMiddleware1.Delete()
+	defer inputMiddleware2.Delete()
 
 	sendMessage := &protocol.DataEnvelope{
 		TaskType: int32(1),

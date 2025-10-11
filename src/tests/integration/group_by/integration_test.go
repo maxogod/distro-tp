@@ -13,18 +13,38 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
+var url = "amqp://guest:guest@localhost:5672/"
+
 func TestMain(m *testing.M) {
 	go mock.StartGroupByMock("./config_test.yaml")
 	m.Run()
 }
 
-func TestGroupByTask2(t *testing.T) {
+// TestSequentialRun runs tests in sequence to
+// avoid consuming conflicts on the same queues.
+func TestSequentialRun(t *testing.T) {
+	tests := []func(t *testing.T){
+		groupByTask2,
+		groupByTask3,
+		groupByTask4,
+	}
 
-	url := "amqp://guest:guest@localhost:5672/"
+	// Run each test one by one
+	for _, test := range tests {
+		test(t)
+	}
 
+	groupbyOutputQueue := middleware.GetGroupByQueue(url)
+	reducerOutputQueue := middleware.GetReducerQueue(url)
+	groupbyOutputQueue.Delete()
+	reducerOutputQueue.Delete()
+}
+
+func groupByTask2(t *testing.T) {
 	groupByInputQueue := middleware.GetGroupByQueue(url)
 	reducerOutputQueue := middleware.GetReducerQueue(url)
-
+	defer groupByInputQueue.StopConsuming()
+	defer reducerOutputQueue.StopConsuming()
 	defer groupByInputQueue.Close()
 	defer reducerOutputQueue.Close()
 
@@ -84,13 +104,11 @@ func TestGroupByTask2(t *testing.T) {
 	assert.Equal(t, 0, int(e))
 }
 
-func TestGroupByTask3(t *testing.T) {
-
-	url := "amqp://guest:guest@localhost:5672/"
-
+func groupByTask3(t *testing.T) {
 	groupByInputQueue := middleware.GetGroupByQueue(url)
 	reducerOutputQueue := middleware.GetReducerQueue(url)
-
+	defer groupByInputQueue.StopConsuming()
+	defer reducerOutputQueue.StopConsuming()
 	defer groupByInputQueue.Close()
 	defer reducerOutputQueue.Close()
 
@@ -143,13 +161,11 @@ func TestGroupByTask3(t *testing.T) {
 	assert.Equal(t, 0, int(e))
 }
 
-func TestGroupByTask4(t *testing.T) {
-
-	url := "amqp://guest:guest@localhost:5672/"
-
+func groupByTask4(t *testing.T) {
 	groupByInputQueue := middleware.GetGroupByQueue(url)
 	reducerOutputQueue := middleware.GetReducerQueue(url)
-
+	defer groupByInputQueue.StopConsuming()
+	defer reducerOutputQueue.StopConsuming()
 	defer groupByInputQueue.Close()
 	defer reducerOutputQueue.Close()
 

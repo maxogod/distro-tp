@@ -13,18 +13,41 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
+var url = "amqp://guest:guest@localhost:5672/"
+
 func TestMain(m *testing.M) {
 	go mock.StartReducerMock("./config_test.yaml")
 	m.Run()
 }
 
-func TestReduceTask3(t *testing.T) {
+// TestSequentialRun runs tests in sequence to
+// avoid consuming conflicts on the same queues.
+func TestSequentialRun(t *testing.T) {
+	tests := []func(t *testing.T){
+		reduceTask2_1,
+		reduceTask2_2,
+		reduceTask3,
+		reduceTask4,
+	}
 
-	url := "amqp://guest:guest@localhost:5672/"
+	// Run each test one by one
+	for _, test := range tests {
+		test(t)
+	}
 
+	groupbyOutputQueue := middleware.GetGroupByQueue(url)
+	reducerOutputQueue := middleware.GetReducerQueue(url)
+	aggregatorOutputQueue := middleware.GetAggregatorQueue(url)
+	groupbyOutputQueue.Delete()
+	reducerOutputQueue.Delete()
+	aggregatorOutputQueue.Delete()
+}
+
+func reduceTask3(t *testing.T) {
 	reducerInputQueue := middleware.GetReducerQueue(url)
 	aggregatorOutputQueue := middleware.GetAggregatorQueue(url)
-
+	defer reducerInputQueue.StopConsuming()
+	defer aggregatorOutputQueue.StopConsuming()
 	defer reducerInputQueue.Close()
 	defer aggregatorOutputQueue.Close()
 
@@ -65,13 +88,11 @@ func TestReduceTask3(t *testing.T) {
 	assert.Equal(t, 0, int(e))
 }
 
-func TestReduceTask2_1(t *testing.T) {
-
-	url := "amqp://guest:guest@localhost:5672/"
-
+func reduceTask2_1(t *testing.T) {
 	reducerInputQueue := middleware.GetReducerQueue(url)
 	aggregatorOutputQueue := middleware.GetAggregatorQueue(url)
-
+	defer reducerInputQueue.StopConsuming()
+	defer aggregatorOutputQueue.StopConsuming()
 	defer reducerInputQueue.Close()
 	defer aggregatorOutputQueue.Close()
 
@@ -112,13 +133,11 @@ func TestReduceTask2_1(t *testing.T) {
 	assert.Equal(t, 0, int(e))
 }
 
-func TestReduceTask2_2(t *testing.T) {
-
-	url := "amqp://guest:guest@localhost:5672/"
-
+func reduceTask2_2(t *testing.T) {
 	reducerInputQueue := middleware.GetReducerQueue(url)
 	aggregatorOutputQueue := middleware.GetAggregatorQueue(url)
-
+	defer reducerInputQueue.StopConsuming()
+	defer aggregatorOutputQueue.StopConsuming()
 	defer reducerInputQueue.Close()
 	defer aggregatorOutputQueue.Close()
 
@@ -159,12 +178,11 @@ func TestReduceTask2_2(t *testing.T) {
 	assert.Equal(t, 0, int(e))
 }
 
-func TestReduceTask4(t *testing.T) {
-	url := "amqp://guest:guest@localhost:5672/"
-
+func reduceTask4(t *testing.T) {
 	reducerInputQueue := middleware.GetReducerQueue(url)
 	aggregatorOutputQueue := middleware.GetAggregatorQueue(url)
-
+	defer reducerInputQueue.StopConsuming()
+	defer aggregatorOutputQueue.StopConsuming()
 	defer reducerInputQueue.Close()
 	defer aggregatorOutputQueue.Close()
 
