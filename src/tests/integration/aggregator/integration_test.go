@@ -29,7 +29,6 @@ func TestSequentialRun(t *testing.T) {
 	for _, test := range tests {
 		test(t)
 	}
-
 	aggregatorOutputQueue := middleware.GetAggregatorQueue(url)
 	aggregatorOutputQueue.Delete()
 }
