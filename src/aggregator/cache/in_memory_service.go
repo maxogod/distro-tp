@@ -1,16 +1,20 @@
 package cache
 
 import (
-	"container/heap"
 	"fmt"
+	"sort"
 
 	"google.golang.org/protobuf/proto"
 )
 
+// This struct holds the data for each cache reference.
+// Aggregated data represents, data that must be acumulated or joined via an ID or reference
+// List data represents, data that can be used as it is without any extra transformations required
 type storage struct {
-	sortedData   heap.Interface
-	unsortedData []*proto.Message
-	index        int
+	mappedData map[string]*proto.Message
+	listData   []*proto.Message
+	sortedData []*proto.Message
+	index      int
 }
 
 // This CacheService implementation provides fast in-memory storage of data.
@@ -26,22 +30,16 @@ func NewInMemoryCache() CacheService {
 	}
 }
 
-func (c *InMemoryCache) StoreSortedBatch(cacheReference string, data []*proto.Message, sortFn func(a, b *proto.Message) bool) error {
+func (c *InMemoryCache) StoreAggregatedData(cacheReference string, dataKey string, data *proto.Message) error {
 	storageData, exists := c.memoryStorage[cacheReference]
-
 	if !exists {
-		// first time this reference is seen, create its heap with sort function
-		h := NewMessageHeap(sortFn)
-		heap.Init(h)
-		storageData = storage{sortedData: h}
+		storageData = storage{
+			mappedData: make(map[string]*proto.Message),
+			index:      0,
+		}
+		c.memoryStorage[cacheReference] = storageData
 	}
-
-	// Push data to the heap
-	for _, msg := range data {
-		heap.Push(storageData.sortedData, msg)
-	}
-
-	// Update the storage
+	storageData.mappedData[dataKey] = data
 	c.memoryStorage[cacheReference] = storageData
 	return nil
 }
@@ -51,13 +49,12 @@ func (c *InMemoryCache) StoreBatch(cacheReference string, data []*proto.Message)
 
 	if !exists {
 		storageData = storage{
-			unsortedData: []*proto.Message{},
-			index:        0,
+			listData: []*proto.Message{},
+			index:    0,
 		}
 	}
 
-	// Enqueue data
-	storageData.unsortedData = append(storageData.unsortedData, data...)
+	storageData.listData = append(storageData.listData, data...)
 
 	c.memoryStorage[cacheReference] = storageData
 	return nil
@@ -69,57 +66,62 @@ func (c *InMemoryCache) ReadBatch(cacheReference string, amount int32) ([]*proto
 		return nil, fmt.Errorf("no data found for cache reference: %s", cacheReference)
 	}
 
+	// This only occures when having aggregated data that was never sorted
+	// In this case we convert the map to a slice for easier reading
+	if storageData.sortedData == nil && storageData.mappedData != nil {
+		sortedData := make([]*proto.Message, 0, len(storageData.mappedData))
+		for _, msg := range storageData.mappedData {
+			sortedData = append(sortedData, msg)
+		}
+		storageData.sortedData = sortedData
+		c.memoryStorage[cacheReference] = storageData
+	}
+
 	// Decide which private method to call
-	if storageData.sortedData != nil && storageData.sortedData.Len() > 0 {
-		return c.readSortedBatch(cacheReference, amount)
-	} else if storageData.index < len(storageData.unsortedData) {
-		return c.readUnorderedBatch(cacheReference, amount)
+	if storageData.sortedData != nil {
+		return c.readBatch(cacheReference, amount, storageData.sortedData)
+	} else if storageData.listData != nil {
+		return c.readBatch(cacheReference, amount, storageData.listData)
 	}
 
 	return nil, nil
 }
 
-// readSortedBatch pops `amount` items from the sorted heap (private)
-func (c *InMemoryCache) readSortedBatch(cacheReference string, amount int32) ([]*proto.Message, error) {
+func (c *InMemoryCache) readBatch(cacheReference string, amount int32, data []*proto.Message) ([]*proto.Message, error) {
 	storageData, exists := c.memoryStorage[cacheReference]
-	if !exists || storageData.sortedData == nil || storageData.sortedData.Len() == 0 {
-		return nil, nil
-	}
-
-	results := make([]*proto.Message, 0, amount)
-	for i := int32(0); i < amount && storageData.sortedData.Len() > 0; i++ {
-		msg := heap.Pop(storageData.sortedData).(*proto.Message)
-		results = append(results, msg)
-	}
-
-	c.memoryStorage[cacheReference] = storageData
-	return results, nil
-}
-
-// readUnorderedBatch dequeues `amount` items from the FIFO queue (private)
-func (c *InMemoryCache) readUnorderedBatch(cacheReference string, amount int32) ([]*proto.Message, error) {
-	storageData, exists := c.memoryStorage[cacheReference]
-	if !exists || storageData.index >= len(storageData.unsortedData) {
+	if !exists || storageData.index >= len(data) {
 		return nil, nil
 	}
 
 	start := storageData.index
-	end := min(start+int(amount), len(storageData.unsortedData))
+	end := min(start+int(amount), len(data))
 
-	results := storageData.unsortedData[start:end]
+	results := data[start:end]
 	storageData.index = end
 
 	c.memoryStorage[cacheReference] = storageData
 	return results, nil
 }
 
-func (c *InMemoryCache) Remove(cacheReference string) error {
-	_, exists := c.memoryStorage[cacheReference]
-	if !exists {
+func (c *InMemoryCache) SortData(cacheReference string, sortFn func(a, b *proto.Message) bool) error {
+	storageData, exists := c.memoryStorage[cacheReference]
+	if !exists || storageData.mappedData == nil {
 		return fmt.Errorf("no data found for cache reference: %s", cacheReference)
 	}
-
-	delete(c.memoryStorage, cacheReference)
+	if len(storageData.mappedData) == 0 {
+		return fmt.Errorf("no data to sort for cache reference: %s", cacheReference)
+	}
+	// Collect values from mappedData into a slice
+	sortedData := make([]*proto.Message, 0, len(storageData.mappedData))
+	for _, msg := range storageData.mappedData {
+		sortedData = append(sortedData, msg)
+	}
+	// Sort the slice using the provided sort function
+	sort.Slice(sortedData, func(i, j int) bool {
+		return sortFn(sortedData[i], sortedData[j])
+	})
+	storageData.sortedData = sortedData
+	c.memoryStorage[cacheReference] = storageData
 	return nil
 }
 

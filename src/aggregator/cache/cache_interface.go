@@ -6,9 +6,9 @@ import "google.golang.org/protobuf/proto"
 // This allows the business logic to interact with different caching mechanisms
 // without being tightly coupled to a specific implementation.
 type CacheService interface {
-	StoreSortedBatch(cacheReference string, data []*proto.Message, sortFn func(a, b *proto.Message) bool) error
+	StoreAggregatedData(cacheReference string, dataKey string, data *proto.Message) error
 	StoreBatch(cacheReference string, data []*proto.Message) error
+	SortData(cacheReference string, sortFn func(a, b *proto.Message) bool) error
 	ReadBatch(cacheReference string, amount int32) ([]*proto.Message, error)
-	Remove(cacheReference string) error
 	Close() error
 }

@@ -47,13 +47,18 @@ func TestStoreAndSortTransactions(t *testing.T) {
 
 	// Define a sort function to sort by FinalAmount
 	sortFn := func(a, b *proto.Message) bool {
-		txA := (*a).(*raw.Transaction) // Cast back to *raw.Transaction
+		txA := (*a).(*raw.Transaction)
 		txB := (*b).(*raw.Transaction)
 		return txA.FinalAmount < txB.FinalAmount
 	}
 
 	// Store the transactions in the cache, sorted by FinalAmount
-	err := cacheService.StoreSortedBatch(cacheRef, protoTransactions, sortFn)
+	for _, tx := range protoTransactions {
+		err := cacheService.StoreAggregatedData(cacheRef, (*tx).(*raw.Transaction).TransactionId, tx)
+		assert.NoError(t, err)
+	}
+
+	err := cacheService.SortData(cacheRef, sortFn)
 	assert.NoError(t, err)
 
 	// Read back the sorted transactions
@@ -131,29 +136,4 @@ func TestReadFromEmptyCache(t *testing.T) {
 	assert.Equal(t, 0, len(readMoreData))
 	assert.NoError(t, err)
 	assert.Nil(t, readMoreData)
-}
-
-func TestRemoveCache(t *testing.T) {
-	cacheService := cache.NewInMemoryCache()
-
-	cacheRef := "transactionCacheToRemove"
-
-	protoTransactions := make([]*proto.Message, len(transactions))
-	for i, tx := range transactions {
-		msg := proto.Message(tx)
-		protoTransactions[i] = &msg
-	}
-
-	// i now have stored 3 transactions
-	err := cacheService.StoreBatch(cacheRef, protoTransactions)
-	assert.NoError(t, err)
-
-	// Remove the cache
-	err = cacheService.Remove(cacheRef)
-	assert.NoError(t, err)
-
-	// Attempt to read from the removed cache
-	readData, err := cacheService.ReadBatch(cacheRef, 5)
-	assert.Error(t, err)
-	assert.Nil(t, readData)
 }
