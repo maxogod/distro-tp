@@ -1,13 +1,10 @@
 package task_executor
 
 import (
-	"fmt"
-
 	"github.com/maxogod/distro-tp/src/aggregator/business"
 	"github.com/maxogod/distro-tp/src/aggregator/config"
 	"github.com/maxogod/distro-tp/src/common/logger"
 	"github.com/maxogod/distro-tp/src/common/middleware"
-	"github.com/maxogod/distro-tp/src/common/models/enum"
 	"github.com/maxogod/distro-tp/src/common/models/raw"
 	"github.com/maxogod/distro-tp/src/common/models/reduced"
 	"github.com/maxogod/distro-tp/src/common/worker"
@@ -19,6 +16,7 @@ var log = logger.GetLogger()
 type AggregatorExecutor struct {
 	config            *config.Config
 	aggregatorService business.AggregatorService
+	finishExecutor    FinishExecutor
 }
 
 // TODO: Move to config
@@ -28,6 +26,7 @@ func NewAggregatorExecutor(config *config.Config, aggregatorService business.Agg
 	return &AggregatorExecutor{
 		config:            config,
 		aggregatorService: aggregatorService,
+		finishExecutor:    NewFinishExecutor(aggregatorService),
 	}
 }
 
@@ -48,10 +47,8 @@ func (ae *AggregatorExecutor) HandleTask2_1(payload []byte, clientID string) err
 	if err != nil {
 		return err
 	}
-	// TODO: consider using batch insert in the future
-	reducedDataArray := []*reduced.TotalProfitBySubtotal{reducedData}
 
-	return ae.aggregatorService.StoreTotalProfitBySubtotal(clientID, reducedDataArray)
+	return ae.aggregatorService.StoreTotalProfitBySubtotal(clientID, reducedData)
 }
 
 func (ae *AggregatorExecutor) HandleTask2_2(payload []byte, clientID string) error {
@@ -60,10 +57,8 @@ func (ae *AggregatorExecutor) HandleTask2_2(payload []byte, clientID string) err
 	if err != nil {
 		return err
 	}
-	// TODO: consider using batch insert in the future
-	reducedDataArray := []*reduced.TotalSoldByQuantity{reducedData}
 
-	return ae.aggregatorService.StoreTotalSoldByQuantity(clientID, reducedDataArray)
+	return ae.aggregatorService.StoreTotalSoldByQuantity(clientID, reducedData)
 }
 
 func (ae *AggregatorExecutor) HandleTask3(payload []byte, clientID string) error {
@@ -72,10 +67,8 @@ func (ae *AggregatorExecutor) HandleTask3(payload []byte, clientID string) error
 	if err != nil {
 		return err
 	}
-	// TODO: consider using batch insert in the future
-	reducedDataArray := []*reduced.TotalPaymentValue{reducedData}
 
-	return ae.aggregatorService.StoreTotalPaymentValue(clientID, reducedDataArray)
+	return ae.aggregatorService.StoreTotalPaymentValue(clientID, reducedData)
 }
 
 func (ae *AggregatorExecutor) HandleTask4(payload []byte, clientID string) error {
@@ -84,10 +77,8 @@ func (ae *AggregatorExecutor) HandleTask4(payload []byte, clientID string) error
 	if err != nil {
 		return err
 	}
-	// TODO: consider using batch insert in the future
-	countedDataArray := []*reduced.CountedUserTransactions{countedData}
 
-	return ae.aggregatorService.StoreCountedUserTransactions(clientID, countedDataArray)
+	return ae.aggregatorService.StoreCountedUserTransactions(clientID, countedData)
 }
 
 func (ae *AggregatorExecutor) HandleFinishClient(clientID string) error {
@@ -98,51 +89,12 @@ func (ae *AggregatorExecutor) HandleFinishClient(clientID string) error {
 
 	log.Debug("Finishing client: ", clientID)
 	// ==================
-	err := ae.sendAllTotalPaymentValue(clientID, processedDataQueue)
-	if err != nil {
-		return fmt.Errorf("failed to send all total payment values: %v", err)
-	}
+	// use the finish exectutor to sort and send all data, 
+	// depending on the task type and client ID
 	// ==================
-
-	err = worker.SendDone(clientID, processedDataQueue)
-	if err != nil {
-		return fmt.Errorf("failed to send done message to middleware: %v", err)
-	}
 
 	log.Debug("Client Finished: ", clientID)
 
-	return nil
-}
-
-func (ae *AggregatorExecutor) sendAllTransactions(clientID string, processedDataQueue middleware.MessageMiddleware) error {
-	for {
-		transactions, moreBatches := ae.aggregatorService.GetStoredTransactions(clientID, TRANSACTION_SEND_LIMIT)
-		if !moreBatches {
-			break
-		}
-		transactionBatch := &raw.TransactionBatch{
-			Transactions: transactions,
-		}
-		if err := worker.SendDataToMiddleware(transactionBatch, enum.T1, clientID, processedDataQueue); err != nil {
-			return fmt.Errorf("failed to send data to middleware: %v", err)
-		}
-	}
-	return nil
-}
-
-func (ae *AggregatorExecutor) sendAllTotalPaymentValue(clientID string, processedDataQueue middleware.MessageMiddleware) error {
-	for {
-		totalPaymentValueBatch, moreBatches := ae.aggregatorService.GetStoredTotalPaymentValue(clientID, TRANSACTION_SEND_LIMIT)
-		if !moreBatches {
-			break
-		}
-
-		for _, totalPaymentValue := range totalPaymentValueBatch {
-			if err := worker.SendDataToMiddleware(totalPaymentValue, enum.T1, clientID, processedDataQueue); err != nil {
-				return fmt.Errorf("failed to send data to middleware: %v", err)
-			}
-		}
-	}
 	return nil
 }
 
