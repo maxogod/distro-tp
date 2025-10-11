@@ -25,7 +25,6 @@ type ReferenceEnvelope struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	ReferenceType int32                  `protobuf:"varint,1,opt,name=reference_type,json=referenceType,proto3" json:"reference_type,omitempty"`
 	Payload       []byte                 `protobuf:"bytes,2,opt,name=payload,proto3" json:"payload,omitempty"`
-	IsDone        bool                   `protobuf:"varint,3,opt,name=is_done,json=isDone,proto3" json:"is_done,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -74,22 +73,14 @@ func (x *ReferenceEnvelope) GetPayload() []byte {
 	return nil
 }
 
-func (x *ReferenceEnvelope) GetIsDone() bool {
-	if x != nil {
-		return x.IsDone
-	}
-	return false
-}
-
 var File_protocol_reference_envolope_proto protoreflect.FileDescriptor
 
 const file_protocol_reference_envolope_proto_rawDesc = "" +
 	"\n" +
-	"!protocol/reference_envolope.proto\x12\bprotocol\"m\n" +
+	"!protocol/reference_envolope.proto\x12\bprotocol\"T\n" +
 	"\x11ReferenceEnvelope\x12%\n" +
 	"\x0ereference_type\x18\x01 \x01(\x05R\rreferenceType\x12\x18\n" +
-	"\apayload\x18\x02 \x01(\fR\apayload\x12\x17\n" +
-	"\ais_done\x18\x03 \x01(\bR\x06isDoneB\fZ\n" +
+	"\apayload\x18\x02 \x01(\fR\apayloadB\fZ\n" +
 	"./protocolb\x06proto3"
 
 var (

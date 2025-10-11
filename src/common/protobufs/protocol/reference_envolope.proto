@@ -7,5 +7,4 @@ option go_package = "./protocol";
 message ReferenceEnvelope {
   int32 reference_type = 1;
   bytes payload = 2;
-  bool is_done = 3;
 }
