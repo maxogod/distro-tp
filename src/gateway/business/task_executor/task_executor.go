@@ -124,7 +124,7 @@ func (t *taskExecutor) Task2() error {
 	receiveAndSaveResults(
 		t.conn,
 		filepath.Join(t.outputPath, OUTPUT_FILE_T2_2),
-		utils.T2_1_RES_HEADER,
+		utils.T2_2_RES_HEADER,
 		t.batchSize,
 		func(dataBatch *protocol.DataEnvelope, ch chan string) {
 			data := &reduced.TotalProfitBySubtotal{}

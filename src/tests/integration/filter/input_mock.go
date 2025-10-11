@@ -1,4 +1,4 @@
-package integration
+package filter_test
 
 import (
 	"github.com/maxogod/distro-tp/src/common/models/raw"
@@ -6,39 +6,53 @@ import (
 
 var mockTransactions = []*raw.Transaction{
 	{
-		TransactionId: "tx1",
+		TransactionId: "1", // Good
 		StoreId:       "storeID",
 		UserId:        "userID",
 		FinalAmount:   150.0,
-		CreatedAt:     "2025-07-01 07:00:00",
+		CreatedAt:     "2025-07-01 06:01:00",
 	},
 	{
-		TransactionId: "tx2",
+		TransactionId: "2", // Too late
 		StoreId:       "storeID",
 		UserId:        "userID",
-		FinalAmount:   50.0,
-		CreatedAt:     "2024-05-15 08:20:00",
+		FinalAmount:   150.0,
+		CreatedAt:     "2024-05-15 23:01:00",
 	},
 	{
-		TransactionId: "tx3",
+		TransactionId: "3", // Too early
+		StoreId:       "storeID",
+		UserId:        "userID",
+		FinalAmount:   200.0,
+		CreatedAt:     "2024-07-01 05:59:00",
+	},
+	{
+		TransactionId: "4", // Too low amount
 		StoreId:       "storeID",
 		UserId:        "userID",
 		FinalAmount:   50.0,
 		CreatedAt:     "2024-05-15 15:20:00",
 	},
 	{
-		TransactionId: "tx4",
+		TransactionId: "5", // Too old
 		StoreId:       "storeID",
 		UserId:        "userID",
 		FinalAmount:   200.0,
-		CreatedAt:     "2021-07-01 07:00:00",
+		CreatedAt:     "2023-03-10 10:15:00",
 	},
 	{
-		TransactionId: "tx5",
+		TransactionId: "6", // Good
 		StoreId:       "storeID",
 		UserId:        "userID",
-		FinalAmount:   200.0,
-		CreatedAt:     "2021-03-10 10:15:00",
+		FinalAmount:   75.0,
+		CreatedAt:     "2025-07-01 06:00:00",
+	},
+	{
+		TransactionId: "7", // Good
+		StoreId:       "storeID",
+		UserId:        "userID",
+		FinalAmount:   100.0,
+		CreatedAt:     "2025-07-01 23:00:00",
 	},
 }
 
