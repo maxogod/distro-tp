@@ -14,8 +14,8 @@ import (
 var log = logger.GetLogger()
 
 // To differentiate between Task 2.1 and Task 2.2 results in the DB
-const T2_1_PREFIX = "T2_1_"
-const T2_2_PREFIX = "T2_2_"
+const T2_1_PREFIX = "T2_1@"
+const T2_2_PREFIX = "T2_2@"
 
 type AggregatorExecutor struct {
 	config            *config.Config
@@ -104,8 +104,9 @@ func (ae *AggregatorExecutor) HandleTask4(payload []byte, clientID string) error
 }
 
 func (ae *AggregatorExecutor) HandleFinishClient(clientID string) error {
-	log.Debug("Finishing client: ", clientID)
+	// TODO: IMPORTANT: HAVE  THE SORT AND SEND DATA BE IN A SEPERATE GO ROUTINE!
 	taskType, exists := ae.clientTasks[clientID]
+	log.Debugf("Finishing client: %s | task-type: %s", clientID, taskType)
 	if !exists {
 		log.Warn("Client ID never sent any data: ", clientID)
 		return nil

@@ -14,6 +14,7 @@ import (
 
 var log = logger.GetLogger()
 
+// TODO: move this to config
 const CLIENT_TIMEOUT = 10 * time.Second
 
 // when having to handle / finish clients, there is a bool to indicate if
