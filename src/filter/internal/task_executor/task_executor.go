@@ -51,9 +51,7 @@ func (fe *FilterExecutor) HandleTask2(payload []byte, clientID string) error {
 		return err
 	}
 
-	//==========================
-	// TODO: APPLY BUSINESS LOGIC HERE
-	//==========================
+	fe.filterService.FilterItemsByYear(transactionBatch)
 
 	return worker.SendDataToMiddleware(transactionBatch, enum.T2, clientID, fe.groupByQueue)
 }

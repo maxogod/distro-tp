@@ -17,6 +17,9 @@ type FilterService interface {
 	// FilterByYear filters a transaction or transaction_items batch based on the year.
 	FilterByYear(*raw.TransactionBatch) error
 
+	// FilterByYear filters a transaction or transaction_items batch based on the year.
+	FilterItemsByYear(*raw.TransactionItemsBatch) error
+
 	// FilterByTime filters a transaction_items batch based on the month.
 	FilterByTime(*raw.TransactionBatch) error
 

@@ -34,6 +34,23 @@ func (f *filterService) FilterByYear(batch *raw.TransactionBatch) error {
 	return nil
 }
 
+func (f *filterService) FilterItemsByYear(batch *raw.TransactionItemsBatch) error {
+	filtered := make([]*raw.TransactionItem, 0, len(batch.TransactionItems))
+	for _, tx := range batch.TransactionItems {
+		t, err := time.Parse(timeFormat, tx.CreatedAt)
+		if err != nil {
+			log.Warnf("Skipping transaction %s due to parse error: %v", tx.ItemId, err)
+			continue // skip invalid
+		}
+		year := t.Year()
+		if year >= MinYear && year <= MaxYear {
+			filtered = append(filtered, tx)
+		}
+	}
+	batch.TransactionItems = filtered
+	return nil
+}
+
 func (f *filterService) FilterByTime(batch *raw.TransactionBatch) error {
 	filtered := make([]*raw.Transaction, 0, len(batch.Transactions))
 	for _, tx := range batch.Transactions {

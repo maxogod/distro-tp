@@ -56,6 +56,41 @@ var mockTransactions = []*raw.Transaction{
 	},
 }
 
+var mockTransactionItems = []*raw.TransactionItem{
+	{
+		ItemId:    "1",
+		CreatedAt: "2025-07-01 06:01:00",
+	},
+	{
+		ItemId:    "2",
+		CreatedAt: "2024-05-15 23:01:00",
+	},
+	{
+		ItemId:    "3",
+		CreatedAt: "2024-07-01 05:59:00",
+	},
+	{
+		ItemId:    "4",
+		CreatedAt: "2024-05-15 15:20:00",
+	},
+	{
+		ItemId:    "5",
+		CreatedAt: "2025-07-01 06:00:00",
+	},
+	{
+		ItemId:    "6",
+		CreatedAt: "2025-07-01 23:00:00",
+	},
+	{
+		ItemId:    "7",
+		CreatedAt: "2023-03-10 10:15:00", // Too old
+	},
+}
+
 var MockTransactionsBatch = raw.TransactionBatch{
 	Transactions: mockTransactions,
+}
+
+var MockTransactionItemsBatch = raw.TransactionItemsBatch{
+	TransactionItems: mockTransactionItems,
 }
