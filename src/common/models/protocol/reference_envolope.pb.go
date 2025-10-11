@@ -21,28 +21,29 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
-type ReferenceEnvolope struct {
+type ReferenceEnvelope struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	ReferenceType int32                  `protobuf:"varint,1,opt,name=reference_type,json=referenceType,proto3" json:"reference_type,omitempty"`
 	Payload       []byte                 `protobuf:"bytes,2,opt,name=payload,proto3" json:"payload,omitempty"`
+	IsDone        bool                   `protobuf:"varint,3,opt,name=is_done,json=isDone,proto3" json:"is_done,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *ReferenceEnvolope) Reset() {
-	*x = ReferenceEnvolope{}
+func (x *ReferenceEnvelope) Reset() {
+	*x = ReferenceEnvelope{}
 	mi := &file_protocol_reference_envolope_proto_msgTypes[0]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *ReferenceEnvolope) String() string {
+func (x *ReferenceEnvelope) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*ReferenceEnvolope) ProtoMessage() {}
+func (*ReferenceEnvelope) ProtoMessage() {}
 
-func (x *ReferenceEnvolope) ProtoReflect() protoreflect.Message {
+func (x *ReferenceEnvelope) ProtoReflect() protoreflect.Message {
 	mi := &file_protocol_reference_envolope_proto_msgTypes[0]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -54,33 +55,41 @@ func (x *ReferenceEnvolope) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use ReferenceEnvolope.ProtoReflect.Descriptor instead.
-func (*ReferenceEnvolope) Descriptor() ([]byte, []int) {
+// Deprecated: Use ReferenceEnvelope.ProtoReflect.Descriptor instead.
+func (*ReferenceEnvelope) Descriptor() ([]byte, []int) {
 	return file_protocol_reference_envolope_proto_rawDescGZIP(), []int{0}
 }
 
-func (x *ReferenceEnvolope) GetReferenceType() int32 {
+func (x *ReferenceEnvelope) GetReferenceType() int32 {
 	if x != nil {
 		return x.ReferenceType
 	}
 	return 0
 }
 
-func (x *ReferenceEnvolope) GetPayload() []byte {
+func (x *ReferenceEnvelope) GetPayload() []byte {
 	if x != nil {
 		return x.Payload
 	}
 	return nil
 }
 
+func (x *ReferenceEnvelope) GetIsDone() bool {
+	if x != nil {
+		return x.IsDone
+	}
+	return false
+}
+
 var File_protocol_reference_envolope_proto protoreflect.FileDescriptor
 
 const file_protocol_reference_envolope_proto_rawDesc = "" +
 	"\n" +
-	"!protocol/reference_envolope.proto\x12\bprotocol\"T\n" +
-	"\x11ReferenceEnvolope\x12%\n" +
+	"!protocol/reference_envolope.proto\x12\bprotocol\"m\n" +
+	"\x11ReferenceEnvelope\x12%\n" +
 	"\x0ereference_type\x18\x01 \x01(\x05R\rreferenceType\x12\x18\n" +
-	"\apayload\x18\x02 \x01(\fR\apayloadB\fZ\n" +
+	"\apayload\x18\x02 \x01(\fR\apayload\x12\x17\n" +
+	"\ais_done\x18\x03 \x01(\bR\x06isDoneB\fZ\n" +
 	"./protocolb\x06proto3"
 
 var (
@@ -97,7 +106,7 @@ func file_protocol_reference_envolope_proto_rawDescGZIP() []byte {
 
 var file_protocol_reference_envolope_proto_msgTypes = make([]protoimpl.MessageInfo, 1)
 var file_protocol_reference_envolope_proto_goTypes = []any{
-	(*ReferenceEnvolope)(nil), // 0: protocol.ReferenceEnvolope
+	(*ReferenceEnvelope)(nil), // 0: protocol.ReferenceEnvelope
 }
 var file_protocol_reference_envolope_proto_depIdxs = []int32{
 	0, // [0:0] is the sub-list for method output_type

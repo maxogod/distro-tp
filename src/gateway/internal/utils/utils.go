@@ -67,7 +67,7 @@ func UserBatchFromList(list []*raw.User) []byte {
 	if err != nil {
 		data = []byte{}
 	}
-	envelope := &protocol.ReferenceEnvolope{
+	envelope := &protocol.ReferenceEnvelope{
 		ReferenceType: int32(enum.Users),
 		Payload:       data,
 	}
@@ -94,7 +94,7 @@ func MenuItemBatchFromList(list []*raw.MenuItem) []byte {
 	if err != nil {
 		data = []byte{}
 	}
-	envelope := &protocol.ReferenceEnvolope{
+	envelope := &protocol.ReferenceEnvelope{
 		ReferenceType: int32(enum.MenuItems),
 		Payload:       data,
 	}
@@ -121,7 +121,7 @@ func StoreBatchFromList(list []*raw.Store) []byte {
 	if err != nil {
 		data = []byte{}
 	}
-	envelope := &protocol.ReferenceEnvolope{
+	envelope := &protocol.ReferenceEnvelope{
 		ReferenceType: int32(enum.Stores),
 		Payload:       data,
 	}
