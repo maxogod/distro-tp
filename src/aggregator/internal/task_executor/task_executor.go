@@ -4,7 +4,7 @@ import (
 	"github.com/maxogod/distro-tp/src/aggregator/business"
 	"github.com/maxogod/distro-tp/src/aggregator/config"
 	"github.com/maxogod/distro-tp/src/common/logger"
-	"github.com/maxogod/distro-tp/src/common/middleware"
+	"github.com/maxogod/distro-tp/src/common/models/enum"
 	"github.com/maxogod/distro-tp/src/common/models/raw"
 	"github.com/maxogod/distro-tp/src/common/models/reduced"
 	"github.com/maxogod/distro-tp/src/common/worker"
@@ -26,7 +26,7 @@ func NewAggregatorExecutor(config *config.Config, aggregatorService business.Agg
 	return &AggregatorExecutor{
 		config:            config,
 		aggregatorService: aggregatorService,
-		finishExecutor:    NewFinishExecutor(aggregatorService),
+		finishExecutor:    NewFinishExecutor(config.Address, aggregatorService),
 	}
 }
 
@@ -81,17 +81,17 @@ func (ae *AggregatorExecutor) HandleTask4(payload []byte, clientID string) error
 	return ae.aggregatorService.StoreCountedUserTransactions(clientID, countedData)
 }
 
-func (ae *AggregatorExecutor) HandleFinishClient(clientID string) error {
-
-	processedDataQueue := middleware.GetProcessedDataExchange(ae.config.Address, clientID)
-
-	defer processedDataQueue.Close()
+func (ae *AggregatorExecutor) HandleFinishClient(clientID string, taskType int32) error {
 
 	log.Debug("Finishing client: ", clientID)
-	// ==================
-	// use the finish exectutor to sort and send all data, 
-	// depending on the task type and client ID
-	// ==================
+
+	task := enum.TaskType(taskType)
+
+	if task != enum.T1 {
+		ae.finishExecutor.SortTaskData(clientID, enum.TaskType(taskType))
+	}
+
+	ae.finishExecutor.SendAllData(clientID, enum.TaskType(taskType))
 
 	log.Debug("Client Finished: ", clientID)
 
