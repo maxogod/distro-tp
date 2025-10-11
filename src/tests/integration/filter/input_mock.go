@@ -85,6 +85,10 @@ var mockTransactionItems = []*raw.TransactionItem{
 		ItemId:    "7",
 		CreatedAt: "2023-03-10 10:15:00", // Too old
 	},
+	{
+		ItemId:    "8",
+		CreatedAt: "2026-03-10 10:15:00", // Too old
+	},
 }
 
 var MockTransactionsBatch = raw.TransactionBatch{
