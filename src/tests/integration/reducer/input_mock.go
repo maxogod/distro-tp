@@ -1,4 +1,4 @@
-package group_by_test
+package reducer_test
 
 import (
 	"github.com/maxogod/distro-tp/src/common/models/group_by"
@@ -27,23 +27,21 @@ var GroupTransactionMock1 = group_by.GroupTransactions{
 	},
 }
 
-var GroupTransactionMock2 = group_by.GroupTransactions{
-	StoreId:  "store2",
-	Semester: "2025-H1",
-	Transactions: []*raw.Transaction{
+var GroupTransactionMock2 = group_by.GroupTransactionItems{
+	ItemId:    "item1",
+	YearMonth: "2025-07",
+	TransactionItems: []*raw.TransactionItem{
 		{
-			TransactionId: "tx1",
-			StoreId:       "store2",
-			UserId:        "user1",
-			FinalAmount:   200.0,
-			CreatedAt:     "2025-07-01 07:00:00",
+			ItemId:    "item1",
+			Quantity:  2,
+			Subtotal:  200.0,
+			CreatedAt: "2025-07-01 07:00:00",
 		},
 		{
-			TransactionId: "tx2",
-			StoreId:       "store2",
-			UserId:        "user2",
-			FinalAmount:   200.0,
-			CreatedAt:     "2024-07-15 08:20:00",
+			ItemId:    "item1",
+			Quantity:  2,
+			Subtotal:  200.0,
+			CreatedAt: "2025-07-01 07:00:00",
 		},
 	},
 }
