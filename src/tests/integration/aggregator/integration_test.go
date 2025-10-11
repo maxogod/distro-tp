@@ -156,7 +156,10 @@ func t3AggregateMock(t *testing.T) {
 		for msg := range consumeChannel {
 			msg.Ack(false)
 			dataBatch, _ := utils.GetDataEnvelope(msg.Body)
+			// TODO: REVIEW THIS ASSERT !!!
+			// ==============================
 			assert.True(t, enum.TaskType(dataBatch.TaskType) == enum.T3)
+			// ==============================
 			tpvItem := &reduced.TotalPaymentValue{}
 			err := proto.Unmarshal(dataBatch.Payload, tpvItem)
 
