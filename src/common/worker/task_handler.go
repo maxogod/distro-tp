@@ -72,11 +72,5 @@ func (th *taskHandler) HandleFinishClient(clientID string) error {
 }
 
 func (th *taskHandler) Close() error {
-
-	if err := th.taskExecutor.Close(); err != nil {
-		return err
-	}
-	log.Debug("TaskHandler closed successfully.")
-
 	return th.taskExecutor.Close()
 }
