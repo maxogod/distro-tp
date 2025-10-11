@@ -20,17 +20,17 @@ type storage struct {
 // This CacheService implementation provides fast in-memory storage of data.
 // It supports both sorted and unsorted data storage using a min-heap and a FIFO queue respectively.
 // Note: This implementation is not reliable since data is lost if the service restarts.
-type InMemoryCache struct {
+type inMemoryCache struct {
 	memoryStorage map[string]storage
 }
 
 func NewInMemoryCache() CacheService {
-	return &InMemoryCache{
+	return &inMemoryCache{
 		memoryStorage: make(map[string]storage),
 	}
 }
 
-func (c *InMemoryCache) StoreAggregatedData(cacheReference string, dataKey string, data *proto.Message, joinFunction func(existing, new *proto.Message) (*proto.Message, error)) error {
+func (c *inMemoryCache) StoreAggregatedData(cacheReference string, dataKey string, data *proto.Message, joinFunction func(existing, new *proto.Message) (*proto.Message, error)) error {
 	storageData, exists := c.memoryStorage[cacheReference]
 	if !exists {
 		storageData = storage{
@@ -54,7 +54,7 @@ func (c *InMemoryCache) StoreAggregatedData(cacheReference string, dataKey strin
 	return nil
 }
 
-func (c *InMemoryCache) StoreBatch(cacheReference string, data []*proto.Message) error {
+func (c *inMemoryCache) StoreBatch(cacheReference string, data []*proto.Message) error {
 	storageData, exists := c.memoryStorage[cacheReference]
 
 	if !exists {
@@ -70,7 +70,7 @@ func (c *InMemoryCache) StoreBatch(cacheReference string, data []*proto.Message)
 	return nil
 }
 
-func (c *InMemoryCache) ReadBatch(cacheReference string, amount int32) ([]*proto.Message, error) {
+func (c *inMemoryCache) ReadBatch(cacheReference string, amount int32) ([]*proto.Message, error) {
 	storageData, exists := c.memoryStorage[cacheReference]
 	if !exists {
 		return nil, fmt.Errorf("no data found for cache reference: %s", cacheReference)
@@ -97,7 +97,7 @@ func (c *InMemoryCache) ReadBatch(cacheReference string, amount int32) ([]*proto
 	return nil, nil
 }
 
-func (c *InMemoryCache) readBatch(cacheReference string, amount int32, data []*proto.Message) ([]*proto.Message, error) {
+func (c *inMemoryCache) readBatch(cacheReference string, amount int32, data []*proto.Message) ([]*proto.Message, error) {
 	storageData, exists := c.memoryStorage[cacheReference]
 	if !exists || storageData.index >= len(data) {
 		return nil, nil
@@ -113,7 +113,7 @@ func (c *InMemoryCache) readBatch(cacheReference string, amount int32, data []*p
 	return results, nil
 }
 
-func (c *InMemoryCache) SortData(cacheReference string, sortFn func(a, b *proto.Message) bool) error {
+func (c *inMemoryCache) SortData(cacheReference string, sortFn func(a, b *proto.Message) bool) error {
 	storageData, exists := c.memoryStorage[cacheReference]
 	if !exists || storageData.mappedData == nil {
 		return fmt.Errorf("no data found for cache reference: %s", cacheReference)
@@ -135,7 +135,7 @@ func (c *InMemoryCache) SortData(cacheReference string, sortFn func(a, b *proto.
 	return nil
 }
 
-func (c *InMemoryCache) Close() error {
+func (c *inMemoryCache) Close() error {
 	c.memoryStorage = make(map[string]storage)
 	return nil
 }
