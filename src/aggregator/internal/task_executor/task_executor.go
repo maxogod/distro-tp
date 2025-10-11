@@ -17,6 +17,7 @@ type AggregatorExecutor struct {
 	config            *config.Config
 	aggregatorService business.AggregatorService
 	finishExecutor    FinishExecutor
+	clientTasks       map[string]enum.TaskType
 }
 
 // TODO: Move to config
@@ -27,6 +28,7 @@ func NewAggregatorExecutor(config *config.Config, aggregatorService business.Agg
 		config:            config,
 		aggregatorService: aggregatorService,
 		finishExecutor:    NewFinishExecutor(config.Address, aggregatorService),
+		clientTasks:       make(map[string]enum.TaskType),
 	}
 }
 
@@ -38,6 +40,8 @@ func (ae *AggregatorExecutor) HandleTask1(payload []byte, clientID string) error
 		return err
 	}
 
+	ae.clientTasks[clientID] = enum.T1
+
 	return ae.aggregatorService.StoreTransactions(clientID, transactionBatch.Transactions)
 }
 
@@ -47,6 +51,8 @@ func (ae *AggregatorExecutor) HandleTask2_1(payload []byte, clientID string) err
 	if err != nil {
 		return err
 	}
+
+	ae.clientTasks[clientID] = enum.T2
 
 	return ae.aggregatorService.StoreTotalProfitBySubtotal(clientID, reducedData)
 }
@@ -58,6 +64,8 @@ func (ae *AggregatorExecutor) HandleTask2_2(payload []byte, clientID string) err
 		return err
 	}
 
+	ae.clientTasks[clientID] = enum.T2
+
 	return ae.aggregatorService.StoreTotalSoldByQuantity(clientID, reducedData)
 }
 
@@ -67,6 +75,8 @@ func (ae *AggregatorExecutor) HandleTask3(payload []byte, clientID string) error
 	if err != nil {
 		return err
 	}
+
+	ae.clientTasks[clientID] = enum.T3
 
 	return ae.aggregatorService.StoreTotalPaymentValue(clientID, reducedData)
 }
@@ -78,12 +88,20 @@ func (ae *AggregatorExecutor) HandleTask4(payload []byte, clientID string) error
 		return err
 	}
 
+	ae.clientTasks[clientID] = enum.T4
+
 	return ae.aggregatorService.StoreCountedUserTransactions(clientID, countedData)
 }
 
-func (ae *AggregatorExecutor) HandleFinishClient(clientID string, taskType int32) error {
+func (ae *AggregatorExecutor) HandleFinishClient(clientID string) error {
 
 	log.Debug("Finishing client: ", clientID)
+
+	taskType, exists := ae.clientTasks[clientID]
+	if !exists {
+		log.Warn("Client ID never sent any data: ", clientID)
+		return nil
+	}
 
 	task := enum.TaskType(taskType)
 
@@ -94,6 +112,8 @@ func (ae *AggregatorExecutor) HandleFinishClient(clientID string, taskType int32
 	ae.finishExecutor.SendAllData(clientID, enum.TaskType(taskType))
 
 	log.Debug("Client Finished: ", clientID)
+
+	delete(ae.clientTasks, clientID)
 
 	return nil
 }
