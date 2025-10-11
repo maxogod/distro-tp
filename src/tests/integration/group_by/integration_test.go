@@ -13,6 +13,11 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
+func TestMain(m *testing.M) {
+	go mock.StartGroupByMock("./config_test.yaml")
+	m.Run()
+}
+
 func TestGroupByTask2(t *testing.T) {
 
 	url := "amqp://guest:guest@localhost:5672/"
@@ -34,10 +39,6 @@ func TestGroupByTask2(t *testing.T) {
 	serializedDataEnvelope, _ := proto.Marshal(&dataEnvelope)
 
 	groupByInputQueue.Send(serializedDataEnvelope)
-
-	go func() {
-		mock.StartGroupByMock("./config_test.yaml")
-	}()
 
 	done := make(chan bool, 1)
 
@@ -74,6 +75,65 @@ func TestGroupByTask2(t *testing.T) {
 			assert.Equal(t, len(expectedGroupData), len(groupData.TransactionItems))
 
 			if T2_1_counter+T2_2_counter == 6 {
+				break
+			}
+		}
+		done <- true
+	})
+	<-done
+	assert.Equal(t, 0, int(e))
+}
+
+func TestGroupByTask3(t *testing.T) {
+
+	url := "amqp://guest:guest@localhost:5672/"
+
+	groupByInputQueue := middleware.GetGroupByQueue(url)
+	reducerOutputQueue := middleware.GetReducerQueue(url)
+
+	defer groupByInputQueue.Close()
+	defer reducerOutputQueue.Close()
+
+	serializedTransactions, _ := proto.Marshal(&MockTransactionsBatch)
+
+	dataEnvelope := protocol.DataEnvelope{
+		ClientId: "test-client",
+		TaskType: int32(enum.T3),
+		Payload:  serializedTransactions,
+	}
+
+	serializedDataEnvelope, _ := proto.Marshal(&dataEnvelope)
+
+	groupByInputQueue.Send(serializedDataEnvelope)
+
+	done := make(chan bool, 1)
+
+	groups := make(map[string]struct{})
+
+	e := reducerOutputQueue.StartConsuming(func(consumeChannel middleware.ConsumeChannel, d chan error) {
+		for msg := range consumeChannel {
+			msg.Ack(false)
+			dataBatch, _ := utils.GetDataEnvelope(msg.Body)
+			assert.True(t, enum.TaskType(dataBatch.TaskType) == enum.T3)
+
+			groupData := &group_by.GroupTransactions{}
+			err := proto.Unmarshal(dataBatch.Payload, groupData)
+
+			assert.Nil(t, err)
+
+			key := groupData.StoreId + "@" + groupData.Semester
+
+			_, exists := groups[key]
+			if !exists {
+				groups[key] = struct{}{}
+			}
+
+			t.Logf("Key: %s", key)
+			expectedGroupData, exists := MockTransactionsOutputT3[key]
+			assert.True(t, exists)
+			assert.Equal(t, len(expectedGroupData), len(groupData.Transactions))
+
+			if len(groups) == 3 {
 				break
 			}
 		}

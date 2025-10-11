@@ -11,6 +11,8 @@ var MockTransactionsOutputT3 = map[string][]*raw.Transaction{
 			FinalAmount:   150.0,
 			CreatedAt:     "2025-07-01 07:00:00",
 		},
+	},
+	"store1@2024-H2": {
 		{
 			TransactionId: "tx2",
 			StoreId:       "store1",
