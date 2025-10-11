@@ -165,11 +165,17 @@ func (je *joinerExecutor) HandleTask4(payload []byte, clientID string) error {
 
 func (je *joinerExecutor) HandleFinishClient(clientID string) error {
 	log.Debug("Finishing client: ", clientID)
-	return nil
+
+	return je.joinerService.DeleteClientRefData(clientID)
 }
 
 func (je *joinerExecutor) Close() error {
-	return je.joinerService.Close()
+	err := je.joinerService.Close()
+	je.aggregatorQueue.Close()
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func (je *joinerExecutor) HandleTask1(payload []byte, clientID string) error {
