@@ -136,5 +136,5 @@ func (ae *AggregatorExecutor) Close() error {
 }
 
 func (ae *AggregatorExecutor) HandleTask2(payload []byte, clientID string) error {
-	panic("The filter does not implement Task 2")
+	panic("The aggregator does not implement Task 2")
 }
