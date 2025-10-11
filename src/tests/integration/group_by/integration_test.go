@@ -133,7 +133,66 @@ func TestGroupByTask3(t *testing.T) {
 			assert.True(t, exists)
 			assert.Equal(t, len(expectedGroupData), len(groupData.Transactions))
 
-			if len(groups) == 3 {
+			if len(groups) == 4 {
+				break
+			}
+		}
+		done <- true
+	})
+	<-done
+	assert.Equal(t, 0, int(e))
+}
+
+func TestGroupByTask4(t *testing.T) {
+
+	url := "amqp://guest:guest@localhost:5672/"
+
+	groupByInputQueue := middleware.GetGroupByQueue(url)
+	reducerOutputQueue := middleware.GetReducerQueue(url)
+
+	defer groupByInputQueue.Close()
+	defer reducerOutputQueue.Close()
+
+	serializedTransactions, _ := proto.Marshal(&MockTransactionsBatch)
+
+	dataEnvelope := protocol.DataEnvelope{
+		ClientId: "test-client",
+		TaskType: int32(enum.T4),
+		Payload:  serializedTransactions,
+	}
+
+	serializedDataEnvelope, _ := proto.Marshal(&dataEnvelope)
+
+	groupByInputQueue.Send(serializedDataEnvelope)
+
+	done := make(chan bool, 1)
+
+	groups := make(map[string]struct{})
+
+	e := reducerOutputQueue.StartConsuming(func(consumeChannel middleware.ConsumeChannel, d chan error) {
+		for msg := range consumeChannel {
+			msg.Ack(false)
+			dataBatch, _ := utils.GetDataEnvelope(msg.Body)
+			assert.True(t, enum.TaskType(dataBatch.TaskType) == enum.T4)
+
+			groupData := &group_by.GroupTransactions{}
+			err := proto.Unmarshal(dataBatch.Payload, groupData)
+
+			assert.Nil(t, err)
+
+			key := groupData.StoreId + "@" + groupData.UserId
+
+			_, exists := groups[key]
+			if !exists {
+				groups[key] = struct{}{}
+			}
+
+			t.Logf("Key: %s", key)
+			expectedGroupData, exists := MockTransactionsOutputT4[key]
+			assert.True(t, exists)
+			assert.Equal(t, len(expectedGroupData), len(groupData.Transactions))
+
+			if len(groups) == 4 {
 				break
 			}
 		}
