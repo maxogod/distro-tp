@@ -110,13 +110,13 @@ func (t *taskExecutor) Task2() error {
 		utils.T2_1_RES_HEADER,
 		t.batchSize,
 		func(dataBatch *protocol.DataEnvelope, ch chan string) {
-			data := &reduced.TotalSoldByQuantity{}
+			data := &reduced.TotalProfitBySubtotal{}
 			if err := proto.Unmarshal(dataBatch.Payload, data); err != nil {
 				log.Errorf("failed to unmarshal transaction items batch from server: %v", err)
 				return
 			}
 
-			line := utils.BestSellingItemsToCsv(data)
+			line := utils.MostProfitableItemsToCsv(data)
 			ch <- line
 		},
 	)
@@ -127,13 +127,13 @@ func (t *taskExecutor) Task2() error {
 		utils.T2_2_RES_HEADER,
 		t.batchSize,
 		func(dataBatch *protocol.DataEnvelope, ch chan string) {
-			data := &reduced.TotalProfitBySubtotal{}
+			data := &reduced.TotalSoldByQuantity{}
 			if err := proto.Unmarshal(dataBatch.Payload, data); err != nil {
 				log.Errorf("failed to unmarshal transaction items batch from server: %v", err)
 				return
 			}
 
-			line := utils.MostProfitableItemsToCsv(data)
+			line := utils.BestSellingItemsToCsv(data)
 			ch <- line
 		},
 	)
