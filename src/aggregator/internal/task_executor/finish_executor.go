@@ -78,6 +78,11 @@ func (fe *finishExecutor) sortTask4(clientID string) error {
 		if txA.GetStoreId() != txB.GetStoreId() {
 			return txA.GetStoreId() < txB.GetStoreId()
 		}
+
+		if txA.GetTransactionQuantity() == txB.GetTransactionQuantity() {
+			// If storeIDs and TransactionQuantity are the same, compare by userID (ascending)
+			return txA.GetUserId() < txB.GetUserId()
+		}
 		// If storeIDs are the same, compare by TransactionQuantity (descending)
 		return txA.GetTransactionQuantity() > txB.GetTransactionQuantity()
 	}
@@ -230,11 +235,16 @@ func (fe *finishExecutor) finishTask4(clientID string) error {
 	}
 	for storeID, quantityMap := range topUsersPerStore {
 		for _, list := range quantityMap { // This always has TOP_N amount of items
+
 			for _, user := range list {
 				if err := worker.SendDataToMiddleware(user, enum.T4, clientID, processedDataQueue); err != nil {
 					return fmt.Errorf("failed to send data for store %s: %v", storeID, err)
 				}
 			}
+
+
+
+
 		}
 	}
 
