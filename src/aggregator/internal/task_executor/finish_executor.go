@@ -251,14 +251,14 @@ func (fe *finishExecutor) finishTask4(clientID string) error {
 			orderedList = append(orderedList, quantityMap[quantity]...)
 		}
 
+		amountToSend := min(len(orderedList), MAX_AMOUNT_TO_SEND)
+
 		// Step 3: Send the ordered list to the middleware
-		for _, user := range orderedList[:MAX_AMOUNT_TO_SEND] {
+		for _, user := range orderedList[:amountToSend] {
 			if err := worker.SendDataToMiddleware(user, enum.T4, clientID, processedDataQueue); err != nil {
 				return fmt.Errorf("failed to send data for store %s: %v", user.GetStoreId(), err)
 			}
 		}
-
 	}
-
 	return worker.SendDone(clientID, enum.T4, processedDataQueue)
 }
