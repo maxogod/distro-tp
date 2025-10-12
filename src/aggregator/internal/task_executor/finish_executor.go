@@ -236,13 +236,13 @@ func (fe *finishExecutor) finishTask4(clientID string) error {
 	}
 	for _, quantityMap := range topUsersPerStore {
 
-		// Step 1: Sort the keys (quantities) in ascending order
+		// Step 1: Sort the keys (quantities) in descending order
 		sortedQuantities := make([]int32, 0, len(quantityMap))
 		for quantity := range quantityMap {
 			sortedQuantities = append(sortedQuantities, quantity)
 		}
 		sort.Slice(sortedQuantities, func(i, j int) bool {
-			return sortedQuantities[i] < sortedQuantities[j]
+			return sortedQuantities[i] > sortedQuantities[j]
 		})
 
 		// Step 2: Flatten the lists in the order of sorted keys
