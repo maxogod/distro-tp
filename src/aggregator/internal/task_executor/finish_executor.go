@@ -224,11 +224,6 @@ func (fe *finishExecutor) finishTask4(clientID string) error {
 			}
 			// Check if the quantity exists in the second hashmap
 			if _, exists := topUsersPerStore[storeID][quantity]; !exists {
-				// If the quantity does not exist, check if there are already 3 unique quantities
-				if len(topUsersPerStore[storeID]) >= TOP_N {
-					// Skip adding this quantity since we already have the top 3 unique quantities
-					continue
-				}
 				topUsersPerStore[storeID][quantity] = []*reduced.CountedUserTransactions{}
 			}
 			topUsersPerStore[storeID][quantity] = append(topUsersPerStore[storeID][quantity], countedUser)
