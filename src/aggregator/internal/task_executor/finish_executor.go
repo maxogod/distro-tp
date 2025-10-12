@@ -17,6 +17,7 @@ import (
 // TODO: Move to config
 const TRANSACTION_SEND_LIMIT = 1000
 const TOP_N = 3
+const MAX_AMOUNT_TO_SEND = 35
 
 type finishExecutor struct {
 	address           string
@@ -233,19 +234,30 @@ func (fe *finishExecutor) finishTask4(clientID string) error {
 			topUsersPerStore[storeID][quantity] = append(topUsersPerStore[storeID][quantity], countedUser)
 		}
 	}
-	for storeID, quantityMap := range topUsersPerStore {
-		for _, list := range quantityMap { // This always has TOP_N amount of items
+	for _, quantityMap := range topUsersPerStore {
 
-			for _, user := range list {
-				if err := worker.SendDataToMiddleware(user, enum.T4, clientID, processedDataQueue); err != nil {
-					return fmt.Errorf("failed to send data for store %s: %v", storeID, err)
-				}
-			}
-
-
-
-
+		// Step 1: Sort the keys (quantities) in ascending order
+		sortedQuantities := make([]int32, 0, len(quantityMap))
+		for quantity := range quantityMap {
+			sortedQuantities = append(sortedQuantities, quantity)
 		}
+		sort.Slice(sortedQuantities, func(i, j int) bool {
+			return sortedQuantities[i] < sortedQuantities[j]
+		})
+
+		// Step 2: Flatten the lists in the order of sorted keys
+		var orderedList []*reduced.CountedUserTransactions
+		for _, quantity := range sortedQuantities {
+			orderedList = append(orderedList, quantityMap[quantity]...)
+		}
+
+		// Step 3: Send the ordered list to the middleware
+		for _, user := range orderedList[:MAX_AMOUNT_TO_SEND] {
+			if err := worker.SendDataToMiddleware(user, enum.T4, clientID, processedDataQueue); err != nil {
+				return fmt.Errorf("failed to send data for store %s: %v", user.GetStoreId(), err)
+			}
+		}
+
 	}
 
 	return worker.SendDone(clientID, enum.T4, processedDataQueue)
