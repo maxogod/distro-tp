@@ -31,11 +31,6 @@ func NewFinishExecutor(address string, aggregatorService business.AggregatorServ
 		aggregatorService: aggregatorService,
 	}
 
-	fe.sortExecutors = map[enum.TaskType]func(clientID string) error{
-		enum.T3: fe.sortTask3,
-		enum.T4: fe.sortTask4,
-	}
-
 	fe.finishExecutors = map[enum.TaskType]func(clientID string) error{
 		enum.T1:   fe.finishTask1,
 		enum.T2_1: fe.finishTask2_1,
@@ -44,14 +39,6 @@ func NewFinishExecutor(address string, aggregatorService business.AggregatorServ
 		enum.T4:   fe.finishTask4,
 	}
 	return &fe
-}
-
-func (fe *finishExecutor) SortTaskData(clientID string, taskType enum.TaskType) error {
-	sortFunc, ok := fe.sortExecutors[taskType]
-	if !ok {
-		return fmt.Errorf("no sort executor found for task type: %v", taskType)
-	}
-	return sortFunc(clientID)
 }
 
 func (fe *finishExecutor) SendAllData(clientID string, taskType enum.TaskType) error {
@@ -87,6 +74,11 @@ func (fe *finishExecutor) sortTask4(clientID string) error {
 	sortFn := func(a, b *proto.Message) bool {
 		txA := (*a).(*reduced.CountedUserTransactions)
 		txB := (*b).(*reduced.CountedUserTransactions)
+		// First, compare by storeID (ascending)
+		if txA.GetStoreId() != txB.GetStoreId() {
+			return txA.GetStoreId() < txB.GetStoreId()
+		}
+		// If storeIDs are the same, compare by TransactionQuantity (descending)
 		return txA.GetTransactionQuantity() > txB.GetTransactionQuantity()
 	}
 	return fe.aggregatorService.SortData(clientID, sortFn)
@@ -183,6 +175,8 @@ func (fe *finishExecutor) finishTask2_2(clientID string) error {
 
 func (fe *finishExecutor) finishTask3(clientID string) error {
 
+	fe.sortTask3(clientID)
+
 	processedDataQueue := middleware.GetProcessedDataExchange(fe.address, clientID)
 	defer processedDataQueue.Close()
 	for {
@@ -200,14 +194,49 @@ func (fe *finishExecutor) finishTask3(clientID string) error {
 	return worker.SendDone(clientID, enum.T3, processedDataQueue)
 }
 
+// Task 4: For each store, find the top 3 users with the most transactions
+// In case of having more than 3 users with the same number of transactions, include them all
+// To handle this, we use a map of storeID to another map of transactionQuantity to a list of users
+// But before adding items to the map, we first sort them to ensure that we process higher quantities first
 func (fe *finishExecutor) finishTask4(clientID string) error {
+
+	fe.sortTask4(clientID)
+	topUsersPerStore := make(map[string]map[int32][]*reduced.CountedUserTransactions)
 	processedDataQueue := middleware.GetProcessedDataExchange(fe.address, clientID)
 	defer processedDataQueue.Close()
-	countedTransactions, _ := fe.aggregatorService.GetStoredCountedUserTransactions(clientID, TOP_N)
-	for _, countedData := range countedTransactions {
-		if err := worker.SendDataToMiddleware(countedData, enum.T4, clientID, processedDataQueue); err != nil {
-			return fmt.Errorf("failed to send data to middleware: %v", err)
+	for {
+		countUserTransactions, moreBatches := fe.aggregatorService.GetStoredCountedUserTransactions(clientID, TRANSACTION_SEND_LIMIT)
+		if !moreBatches {
+			break
+		}
+		for _, countedUser := range countUserTransactions {
+			storeID := countedUser.GetStoreId()
+			quantity := countedUser.GetTransactionQuantity()
+
+			if _, exists := topUsersPerStore[storeID]; !exists {
+				topUsersPerStore[storeID] = make(map[int32][]*reduced.CountedUserTransactions)
+			}
+			// Check if the quantity exists in the second hashmap
+			if _, exists := topUsersPerStore[storeID][quantity]; !exists {
+				// If the quantity does not exist, check if there are already 3 unique quantities
+				if len(topUsersPerStore[storeID]) >= TOP_N {
+					// Skip adding this quantity since we already have the top 3 unique quantities
+					continue
+				}
+				topUsersPerStore[storeID][quantity] = []*reduced.CountedUserTransactions{}
+			}
+			topUsersPerStore[storeID][quantity] = append(topUsersPerStore[storeID][quantity], countedUser)
 		}
 	}
+	for storeID, quantityMap := range topUsersPerStore {
+		for _, list := range quantityMap { // This always has TOP_N amount of items
+			for _, user := range list {
+				if err := worker.SendDataToMiddleware(user, enum.T4, clientID, processedDataQueue); err != nil {
+					return fmt.Errorf("failed to send data for store %s: %v", storeID, err)
+				}
+			}
+		}
+	}
+
 	return worker.SendDone(clientID, enum.T4, processedDataQueue)
 }

@@ -109,9 +109,6 @@ func (ae *AggregatorExecutor) HandleFinishClient(clientID string) error {
 		return nil
 	}
 	task := enum.TaskType(taskType)
-	if task != enum.T1 {
-		ae.finishExecutor.SortTaskData(clientID, enum.TaskType(taskType))
-	}
 	if task == enum.T2 {
 		err := ae.finishExecutor.SendAllData(clientID, enum.T2_1)
 		if err != nil {
@@ -127,7 +124,7 @@ func (ae *AggregatorExecutor) HandleFinishClient(clientID string) error {
 	}
 	ae.finishExecutor.SendAllData(clientID, enum.TaskType(taskType))
 	log.Debug("Client Finished: ", clientID)
-	delete(ae.clientTasks, clientID)
+	//delete(ae.clientTasks, clientID)
 	return nil
 }
 

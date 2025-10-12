@@ -109,48 +109,42 @@ var MockTPV = []*reduced.TotalPaymentValue{
 	},
 }
 
-var MockUsers = []*reduced.CountedUserTransactions{
+var MockUsersDupQuantities = []*reduced.CountedUserTransactions{
 	{
 		StoreId:             "1",
 		UserId:              "user1",
 		Birthdate:           "2000-01-01",
-		TransactionQuantity: 10,
-	},
-	{
-		StoreId:             "1",
-		UserId:              "user2",
-		Birthdate:           "2000-01-01",
-		TransactionQuantity: 20,
-	},
-	{
-		StoreId:             "2",
-		UserId:              "user3",
-		Birthdate:           "2000-02-02",
-		TransactionQuantity: 30,
+		TransactionQuantity: 50,
 	},
 	{
 		StoreId:             "1",
 		UserId:              "user1",
 		Birthdate:           "2000-01-01",
-		TransactionQuantity: 10,
+		TransactionQuantity: 50,
 	},
 	{
 		StoreId:             "1",
 		UserId:              "user2",
 		Birthdate:           "2000-01-01",
-		TransactionQuantity: 20,
+		TransactionQuantity: 50,
 	},
 	{
-		StoreId:             "2",
+		StoreId:             "1",
+		UserId:              "user2",
+		Birthdate:           "2000-01-01",
+		TransactionQuantity: 50,
+	},
+	{
+		StoreId:             "1",
 		UserId:              "user3",
-		Birthdate:           "2000-02-02",
-		TransactionQuantity: 30,
+		Birthdate:           "2000-01-01",
+		TransactionQuantity: 200,
 	},
 	{
 		StoreId:             "1",
 		UserId:              "user4",
 		Birthdate:           "2000-01-01",
-		TransactionQuantity: 10,
+		TransactionQuantity: 50,
 	},
 	{
 		StoreId:             "1",
@@ -159,9 +153,15 @@ var MockUsers = []*reduced.CountedUserTransactions{
 		TransactionQuantity: 10,
 	},
 	{
-		StoreId:             "2",
+		StoreId:             "1",
 		UserId:              "user6",
-		Birthdate:           "2000-02-02",
+		Birthdate:           "2000-01-01",
+		TransactionQuantity: 1,
+	},
+	{
+		StoreId:             "2",
+		UserId:              "user1",
+		Birthdate:           "2000-01-01",
 		TransactionQuantity: 10,
 	},
 }

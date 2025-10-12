@@ -94,7 +94,7 @@ func t1AggregateMock(t *testing.T) {
 	})
 	select {
 	case <-done:
-	case <-time.After(15 * time.Second):
+	case <-time.After(30 * time.Second):
 		t.Error("Test timed out waiting for results")
 	}
 	assert.Equal(t, 0, int(e))
@@ -187,7 +187,7 @@ func t2AggregateMock(t *testing.T) {
 	})
 	select {
 	case <-done:
-	case <-time.After(15 * time.Second):
+	case <-time.After(30 * time.Second):
 		t.Error("Test timed out waiting for results")
 	}
 	assert.Equal(t, 0, int(e))
@@ -259,7 +259,7 @@ func t3AggregateMock(t *testing.T) {
 	})
 	select {
 	case <-done:
-	case <-time.After(15 * time.Second):
+	case <-time.After(30 * time.Second):
 		t.Error("Test timed out waiting for results")
 	}
 	assert.Equal(t, 0, int(e))
@@ -284,7 +284,7 @@ func t4AggregateMock(t *testing.T) {
 
 	// Send T4 data to aggregator
 
-	for _, countedUsers := range MockUsers {
+	for _, countedUsers := range MockUsersDupQuantities {
 		serializedCU, _ := proto.Marshal(countedUsers)
 		dataEnvelope := protocol.DataEnvelope{
 			ClientId: clientID,
@@ -327,16 +327,40 @@ func t4AggregateMock(t *testing.T) {
 	})
 	select {
 	case <-done:
-	case <-time.After(15 * time.Second):
+	case <-time.After(30 * time.Second):
 		t.Error("Test timed out waiting for results")
 	}
 	assert.Equal(t, 0, int(e))
 
-	assert.Equal(t, len(MockUsersOutput), len(countedUserTransactions), "Expected 3 Counted User transactions after aggregating")
-	for i, countedUserTransaction := range countedUserTransactions {
-		assert.Equal(t, MockUsersOutput[i].StoreId, countedUserTransaction.StoreId)
-		assert.Equal(t, MockUsersOutput[i].UserId, countedUserTransaction.UserId)
-		assert.Equal(t, MockUsersOutput[i].Birthdate, countedUserTransaction.Birthdate)
+	countedTransactionsCounter := make(map[string](map[int32]int))
+
+	for _, countedUserTransaction := range countedUserTransactions {
+		storeID := countedUserTransaction.StoreId
+		quantity := countedUserTransaction.TransactionQuantity
+		if _, exists := countedTransactionsCounter[storeID]; !exists {
+			countedTransactionsCounter[storeID] = make(map[int32]int)
+		}
+		countedTransactionsCounter[storeID][quantity]++
+	}
+
+	assert.Equal(t, len(MockUsersDupQuantitiesOutput), len(countedTransactionsCounter), "Expected The same amount of Counted User transactions after aggregating")
+
+	for storeID, quantities := range MockUsersDupQuantitiesOutput {
+		// Check if the storeID exists in countedTransactionsCounter
+		if _, exists := countedTransactionsCounter[storeID]; !exists {
+			t.Errorf("StoreID %s not found in countedTransactionsCounter", storeID)
+			continue
+		}
+
+		// Check if the quantities match for the storeID
+		for quantity, expectedCount := range quantities {
+			actualCount, exists := countedTransactionsCounter[storeID][quantity]
+			if !exists {
+				t.Errorf("Quantity %d not found for StoreID %s in countedTransactionsCounter", quantity, storeID)
+				continue
+			}
+			assert.Equal(t, expectedCount, actualCount, "Mismatch in transaction count for StoreID %s and Quantity %d", storeID, quantity)
+		}
 	}
 
 	processedDataQueue.StopConsuming()

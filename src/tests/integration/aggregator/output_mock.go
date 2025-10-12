@@ -22,24 +22,47 @@ var MockTpvOutput = []*reduced.TotalPaymentValue{
 	},
 }
 
-var MockUsersOutput = []*reduced.CountedUserTransactions{
-	{
-		StoreId:             "2",
-		UserId:              "user3",
-		Birthdate:           "2000-02-02",
-		TransactionQuantity: 60,
+// var MockUsersDupQuantitiesOutput = []*reduced.CountedUserTransactions{
+// 	{
+// 		StoreId:             "1",
+// 		UserId:              "user3",
+// 		Birthdate:           "2000-01-01",
+// 		TransactionQuantity: 200,
+// 	},
+// 	{
+// 		StoreId:             "1",
+// 		UserId:              "user1",
+// 		Birthdate:           "2000-01-01",
+// 		TransactionQuantity: 100,
+// 	},
+// 	{
+// 		StoreId:             "1",
+// 		UserId:              "user2",
+// 		Birthdate:           "2000-01-01",
+// 		TransactionQuantity: 100,
+// 	},
+// 	{
+// 		StoreId:             "1",
+// 		UserId:              "user4",
+// 		Birthdate:           "2000-01-01",
+// 		TransactionQuantity: 50,
+// 	},
+// 	{
+// 		StoreId:             "2",
+// 		UserId:              "user1",
+// 		Birthdate:           "2000-01-01",
+// 		TransactionQuantity: 10,
+// 	},
+// }
+
+var MockUsersDupQuantitiesOutput = map[string](map[int32]int){
+	"1": {
+		200: 1,
+		100: 2,
+		50:  1,
 	},
-	{
-		StoreId:             "1",
-		UserId:              "user2",
-		Birthdate:           "2000-01-01",
-		TransactionQuantity: 40,
-	},
-	{
-		StoreId:             "1",
-		UserId:              "user1",
-		Birthdate:           "2000-01-01",
-		TransactionQuantity: 20,
+	"2": {
+		10: 1,
 	},
 }
 
