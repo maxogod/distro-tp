@@ -113,12 +113,14 @@ func (ae *AggregatorExecutor) HandleFinishClient(clientID string) error {
 		ae.finishExecutor.SortTaskData(clientID, enum.TaskType(taskType))
 	}
 	if task == enum.T2 {
-		clientID2_1 := T2_1_PREFIX + clientID
-		clientID2_2 := T2_2_PREFIX + clientID
-		ae.finishExecutor.SortTaskData(clientID2_1, enum.T2_1)
-		ae.finishExecutor.SortTaskData(clientID2_2, enum.T2_2)
-		ae.finishExecutor.SendAllData(clientID2_1, enum.T2_1)
-		ae.finishExecutor.SendAllData(clientID2_2, enum.T2_2)
+		err := ae.finishExecutor.SendAllData(clientID, enum.T2_1)
+		if err != nil {
+			log.Debug("Failed to send all data for client: ", clientID, " | error: ", err)
+		}
+		err = ae.finishExecutor.SendAllData(clientID, enum.T2_2)
+		if err != nil {
+			log.Debug("Failed to send all data for client: ", clientID, " | error: ", err)
+		}
 		log.Debug("Client Finished: ", clientID)
 		delete(ae.clientTasks, clientID)
 		return nil

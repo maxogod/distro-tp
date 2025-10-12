@@ -33,56 +33,46 @@ var MockTransactionsBatch = raw.TransactionBatch{
 var MockTotalProfit = []*reduced.TotalProfitBySubtotal{
 	{
 		ItemId:    "item1",
-		YearMonth: "2025-07",
+		YearMonth: "2025-01",
 		Subtotal:  100.0,
 	},
 	{
 		ItemId:    "item1",
-		YearMonth: "2025-07",
+		YearMonth: "2025-01",
 		Subtotal:  100.0,
-	},
-	{
-		ItemId:    "item1",
-		YearMonth: "2024-07",
-		Subtotal:  150.0,
 	},
 	{
 		ItemId:    "item2",
-		YearMonth: "2025-07",
-		Subtotal:  199.0,
+		YearMonth: "2024-12",
+		Subtotal:  100.0,
 	},
 	{
-		ItemId:    "item3",
-		YearMonth: "2024-07", // TOP 1 2024-07
-		Subtotal:  199.0,
+		ItemId:    "item1",
+		YearMonth: "2024-06",
+		Subtotal:  100.0,
 	},
 }
 
 var MockTotalSales = []*reduced.TotalSoldByQuantity{
 	{
 		ItemId:    "item1",
-		YearMonth: "2025-07",
+		YearMonth: "2025-01",
 		Quantity:  100.0,
 	},
 	{
 		ItemId:    "item1",
-		YearMonth: "2025-07", // TOP 1 2025-07
+		YearMonth: "2025-01",
 		Quantity:  100.0,
-	},
-	{
-		ItemId:    "item1",
-		YearMonth: "2024-07",
-		Quantity:  150.0,
 	},
 	{
 		ItemId:    "item2",
-		YearMonth: "2025-07",
-		Quantity:  199.0,
+		YearMonth: "2024-12",
+		Quantity:  100.0,
 	},
 	{
-		ItemId:    "item3",
-		YearMonth: "2024-07", // TOP 1 2024-07
-		Quantity:  199.0,
+		ItemId:    "item1",
+		YearMonth: "2024-06",
+		Quantity:  100.0,
 	},
 }
 

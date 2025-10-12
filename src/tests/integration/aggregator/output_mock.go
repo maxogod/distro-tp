@@ -42,3 +42,39 @@ var MockUsersOutput = []*reduced.CountedUserTransactions{
 		TransactionQuantity: 20,
 	},
 }
+
+var MockTotalProfitOutput = []*reduced.TotalProfitBySubtotal{
+	{
+		ItemId:    "item1",
+		YearMonth: "2024-06",
+		Subtotal:  100.0,
+	},
+	{
+		ItemId:    "item2",
+		YearMonth: "2024-12",
+		Subtotal:  100.0,
+	},
+	{
+		ItemId:    "item1",
+		YearMonth: "2025-01",
+		Subtotal:  200.0,
+	},
+}
+
+var MockTotalQuantityOutput = []*reduced.TotalSoldByQuantity{
+	{
+		ItemId:    "item1",
+		YearMonth: "2024-06",
+		Quantity:  100.0,
+	},
+	{
+		ItemId:    "item2",
+		YearMonth: "2024-12",
+		Quantity:  100.0,
+	},
+	{
+		ItemId:    "item1",
+		YearMonth: "2025-01",
+		Quantity:  200.0,
+	},
+}
