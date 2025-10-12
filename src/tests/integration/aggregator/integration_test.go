@@ -38,8 +38,10 @@ func TestSequentialRun(t *testing.T) {
 	}
 	finishExchange := middleware.GetFinishExchange(url, []string{string(enum.AggregatorWorker)})
 	aggregatorInputQueue := middleware.GetAggregatorQueue(url)
+	processedDataQueue := middleware.GetProcessedDataExchange(url, "none")
 	finishExchange.Delete()
 	aggregatorInputQueue.Delete()
+	processedDataQueue.Delete()
 }
 
 func t1AggregateMock(t *testing.T) {
@@ -92,7 +94,7 @@ func t1AggregateMock(t *testing.T) {
 	})
 	select {
 	case <-done:
-	case <-time.After(30 * time.Second):
+	case <-time.After(15 * time.Second):
 		t.Error("Test timed out waiting for results")
 	}
 	assert.Equal(t, 0, int(e))
@@ -185,7 +187,7 @@ func t2AggregateMock(t *testing.T) {
 	})
 	select {
 	case <-done:
-	case <-time.After(30 * time.Second):
+	case <-time.After(15 * time.Second):
 		t.Error("Test timed out waiting for results")
 	}
 	assert.Equal(t, 0, int(e))
@@ -257,7 +259,7 @@ func t3AggregateMock(t *testing.T) {
 	})
 	select {
 	case <-done:
-	case <-time.After(30 * time.Second):
+	case <-time.After(15 * time.Second):
 		t.Error("Test timed out waiting for results")
 	}
 	assert.Equal(t, 0, int(e))
@@ -325,7 +327,7 @@ func t4AggregateMock(t *testing.T) {
 	})
 	select {
 	case <-done:
-	case <-time.After(30 * time.Second):
+	case <-time.After(15 * time.Second):
 		t.Error("Test timed out waiting for results")
 	}
 	assert.Equal(t, 0, int(e))
