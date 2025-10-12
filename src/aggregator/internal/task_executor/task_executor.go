@@ -24,9 +24,6 @@ type AggregatorExecutor struct {
 	clientTasks       map[string]enum.TaskType
 }
 
-// TODO: Move to config
-const TRANSACTION_SEND_LIMIT = 1000
-
 func NewAggregatorExecutor(config *config.Config, aggregatorService business.AggregatorService) worker.TaskExecutor {
 	return &AggregatorExecutor{
 		config:            config,
@@ -106,7 +103,7 @@ func (ae *AggregatorExecutor) HandleTask4(payload []byte, clientID string) error
 func (ae *AggregatorExecutor) HandleFinishClient(clientID string) error {
 	// TODO: IMPORTANT: HAVE  THE SORT AND SEND DATA BE IN A SEPERATE GO ROUTINE!
 	taskType, exists := ae.clientTasks[clientID]
-	log.Debugf("Finishing client: %s | task-type: %s", clientID, taskType)
+	log.Debugf("Finishing client: %s | task-type: %d", clientID, taskType)
 	if !exists {
 		log.Warn("Client ID never sent any data: ", clientID)
 		return nil

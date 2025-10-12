@@ -1,6 +1,8 @@
 package utils
 
 import (
+	"fmt"
+
 	"github.com/maxogod/distro-tp/src/common/models/protocol"
 	"google.golang.org/protobuf/proto"
 )
@@ -31,4 +33,14 @@ func CreateSerializedEnvelope(data proto.Message, taskType int32, clientID strin
 	}
 
 	return proto.Marshal(dataEnvelope)
+}
+
+func ParseSemester(semester string) (int, int) {
+	var year int
+	var half int
+
+	// Parse the year and half-year
+	fmt.Sscanf(semester, "%d-H%d", &year, &half)
+
+	return year, half
 }

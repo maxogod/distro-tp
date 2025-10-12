@@ -8,9 +8,14 @@ import (
 	"github.com/maxogod/distro-tp/src/common/models/enum"
 	"github.com/maxogod/distro-tp/src/common/models/raw"
 	"github.com/maxogod/distro-tp/src/common/models/reduced"
+	"github.com/maxogod/distro-tp/src/common/utils"
 	"github.com/maxogod/distro-tp/src/common/worker"
 	"google.golang.org/protobuf/proto"
 )
+
+// TODO: Move to config
+const TRANSACTION_SEND_LIMIT = 1000
+const TOP_N = 3
 
 type finishExecutor struct {
 	address           string
@@ -26,10 +31,8 @@ func NewFinishExecutor(address string, aggregatorService business.AggregatorServ
 	}
 
 	fe.sortExecutors = map[enum.TaskType]func(clientID string) error{
-		enum.T2_1: fe.sortTask2_1,
-		enum.T2_2: fe.sortTask2_2,
-		enum.T3:   fe.sortTask3,
-		enum.T4:   fe.sortTask4,
+		enum.T3: fe.sortTask3,
+		enum.T4: fe.sortTask4,
 	}
 
 	fe.finishExecutors = map[enum.TaskType]func(clientID string) error{
@@ -68,21 +71,23 @@ func (fe *finishExecutor) sortTask2_1(clientID string) error {
 	return fe.aggregatorService.SortData(clientID, sortFn)
 }
 
-func (fe *finishExecutor) sortTask2_2(clientID string) error {
-	sortFn := func(a, b *proto.Message) bool {
-		txA := (*a).(*reduced.TotalSoldByQuantity)
-		txB := (*b).(*reduced.TotalSoldByQuantity)
-		return txA.GetQuantity() > txB.GetQuantity()
-	}
-	return fe.aggregatorService.SortData(clientID, sortFn)
-}
-
 func (fe *finishExecutor) sortTask3(clientID string) error {
 	sortFn := func(a, b *proto.Message) bool {
 		txA := (*a).(*reduced.TotalPaymentValue)
 		txB := (*b).(*reduced.TotalPaymentValue)
-		return txA.GetFinalAmount() > txB.GetFinalAmount()
+
+		yearA, halfA := utils.ParseSemester(txA.GetSemester())
+		yearB, halfB := utils.ParseSemester(txB.GetSemester())
+
+		// Compare by year first, then by half-year
+		if yearA != yearB {
+			// Older years come first
+			return yearA < yearB
+		}
+		// H1 comes before H2
+		return halfA < halfB
 	}
+
 	return fe.aggregatorService.SortData(clientID, sortFn)
 }
 
@@ -115,17 +120,24 @@ func (fe *finishExecutor) finishTask1(clientID string) error {
 
 func (fe *finishExecutor) finishTask2_1(clientID string) error {
 	processedDataQueue := middleware.GetProcessedDataExchange(fe.address, clientID)
+	bestMonthMap := make(map[string]*reduced.TotalProfitBySubtotal)
 	defer processedDataQueue.Close()
 	for {
-		tpvDataBatch, moreBatches := fe.aggregatorService.GetStoredTotalProfitBySubtotal(clientID, TRANSACTION_SEND_LIMIT)
+		tpsDataBatch, moreBatches := fe.aggregatorService.GetStoredTotalProfitBySubtotal(clientID, TRANSACTION_SEND_LIMIT)
 		if !moreBatches {
 			break
 		}
+		for _, tpsData := range tpsDataBatch {
+			yearMonth := tpsData.GetYearMonth()
 
-		for _, tpvData := range tpvDataBatch {
-			if err := worker.SendDataToMiddleware(tpvData, enum.T1, clientID, processedDataQueue); err != nil {
-				return fmt.Errorf("failed to send data to middleware: %v", err)
+			if existing, exists := bestMonthMap[yearMonth]; !exists || tpsData.GetSubtotal() > existing.GetSubtotal() {
+				bestMonthMap[yearMonth] = tpsData
 			}
+		}
+	}
+	for _, bestMonth := range bestMonthMap {
+		if err := worker.SendDataToMiddleware(bestMonth, enum.T1, clientID, processedDataQueue); err != nil {
+			return fmt.Errorf("failed to send data to middleware: %v", err)
 		}
 	}
 	return worker.SendDone(clientID, processedDataQueue)
@@ -133,17 +145,24 @@ func (fe *finishExecutor) finishTask2_1(clientID string) error {
 
 func (fe *finishExecutor) finishTask2_2(clientID string) error {
 	processedDataQueue := middleware.GetProcessedDataExchange(fe.address, clientID)
+	bestMonthMap := make(map[string]*reduced.TotalSoldByQuantity)
 	defer processedDataQueue.Close()
 	for {
-		tpvDataBatch, moreBatches := fe.aggregatorService.GetStoredTotalSoldByQuantity(clientID, TRANSACTION_SEND_LIMIT)
+		tpqDataBatch, moreBatches := fe.aggregatorService.GetStoredTotalSoldByQuantity(clientID, TRANSACTION_SEND_LIMIT)
 		if !moreBatches {
 			break
 		}
+		for _, tpsData := range tpqDataBatch {
+			yearMonth := tpsData.GetYearMonth()
 
-		for _, tpvData := range tpvDataBatch {
-			if err := worker.SendDataToMiddleware(tpvData, enum.T1, clientID, processedDataQueue); err != nil {
-				return fmt.Errorf("failed to send data to middleware: %v", err)
+			if existing, exists := bestMonthMap[yearMonth]; !exists || tpsData.GetQuantity() > existing.GetQuantity() {
+				bestMonthMap[yearMonth] = tpsData
 			}
+		}
+	}
+	for _, bestMonth := range bestMonthMap {
+		if err := worker.SendDataToMiddleware(bestMonth, enum.T1, clientID, processedDataQueue); err != nil {
+			return fmt.Errorf("failed to send data to middleware: %v", err)
 		}
 	}
 	return worker.SendDone(clientID, processedDataQueue)
@@ -171,16 +190,10 @@ func (fe *finishExecutor) finishTask3(clientID string) error {
 func (fe *finishExecutor) finishTask4(clientID string) error {
 	processedDataQueue := middleware.GetProcessedDataExchange(fe.address, clientID)
 	defer processedDataQueue.Close()
-	for {
-		countedTransactions, moreBatches := fe.aggregatorService.GetStoredCountedUserTransactions(clientID, TRANSACTION_SEND_LIMIT)
-		if !moreBatches {
-			break
-		}
-
-		for _, countedData := range countedTransactions {
-			if err := worker.SendDataToMiddleware(countedData, enum.T1, clientID, processedDataQueue); err != nil {
-				return fmt.Errorf("failed to send data to middleware: %v", err)
-			}
+	countedTransactions, _ := fe.aggregatorService.GetStoredCountedUserTransactions(clientID, TOP_N)
+	for _, countedData := range countedTransactions {
+		if err := worker.SendDataToMiddleware(countedData, enum.T1, clientID, processedDataQueue); err != nil {
+			return fmt.Errorf("failed to send data to middleware: %v", err)
 		}
 	}
 	return worker.SendDone(clientID, processedDataQueue)

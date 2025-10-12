@@ -26,8 +26,7 @@ func TestMain(m *testing.M) {
 func TestSequentialRun(t *testing.T) {
 	tests := []func(t *testing.T){
 		t1AggregateMock,
-		t2_1AggregateMock,
-		t2_2AggregateMock,
+		t2AggregateMock,
 		t3AggregateMock,
 		t4AggregateMock,
 	}
@@ -36,10 +35,10 @@ func TestSequentialRun(t *testing.T) {
 	for _, test := range tests {
 		test(t)
 	}
-	// finishExchange := middleware.GetFinishExchange(url, []string{string(enum.AggregatorWorker)})
-	// aggregatorInputQueue := middleware.GetAggregatorQueue(url)
-	// finishExchange.Delete()
-	// aggregatorInputQueue.Delete()
+	finishExchange := middleware.GetFinishExchange(url, []string{string(enum.AggregatorWorker)})
+	aggregatorInputQueue := middleware.GetAggregatorQueue(url)
+	finishExchange.Delete()
+	aggregatorInputQueue.Delete()
 }
 
 func t1AggregateMock(t *testing.T) {
@@ -48,12 +47,7 @@ func t1AggregateMock(t *testing.T) {
 	clientID := "test-client-1"
 	processedDataQueue := middleware.GetProcessedDataExchange(url, clientID)
 
-	// defer aggregatorInputQueue.StopConsuming()
-	// defer finishExchange.StopConsuming()
-	// defer processedDataQueue.StopConsuming()
-	// defer aggregatorInputQueue.Close()
-	// defer finishExchange.Close()
-	// defer processedDataQueue.Close()
+	defer processedDataQueue.Close()
 
 	// Send T1 data to aggregator
 	serializedTransactions, _ := proto.Marshal(&MockTransactionsBatch)
@@ -82,7 +76,10 @@ func t1AggregateMock(t *testing.T) {
 		for msg := range consumeChannel {
 			msg.Ack(false)
 			dataBatch, _ := utils.GetDataEnvelope(msg.Body)
-			assert.True(t, enum.TaskType(dataBatch.TaskType) == enum.T1)
+
+			if dataBatch.IsDone {
+				break
+			}
 
 			transactionBatch := &raw.TransactionBatch{}
 			err := proto.Unmarshal(dataBatch.Payload, transactionBatch)
@@ -91,26 +88,20 @@ func t1AggregateMock(t *testing.T) {
 
 			transactions = append(transactions, transactionBatch.Transactions...)
 
-			if len(transactions) == len(MockTransactionsBatch.GetTransactions()) {
-				break
-			}
-
 		}
 		done <- true
 	})
 	<-done
 	assert.Equal(t, 0, int(e))
 
-	assert.Equal(t, 3, len(transactions), "Expected 3 transactions after filtering")
+	assert.Equal(t, 3, len(transactions), "Expected 3 transactions after aggregating")
 	assert.Equal(t, MockTransactionsBatch.GetTransactions()[0].TransactionId, transactions[0].TransactionId)
 	assert.Equal(t, MockTransactionsBatch.GetTransactions()[1].TransactionId, transactions[1].TransactionId)
 	assert.Equal(t, MockTransactionsBatch.GetTransactions()[2].TransactionId, transactions[2].TransactionId)
 }
 
-func t2_1AggregateMock(t *testing.T) {
-}
+func t2AggregateMock(t *testing.T) {
 
-func t2_2AggregateMock(t *testing.T) {
 }
 
 func t3AggregateMock(t *testing.T) {
@@ -119,14 +110,9 @@ func t3AggregateMock(t *testing.T) {
 	clientID := "test-client-3"
 	processedDataQueue := middleware.GetProcessedDataExchange(url, clientID)
 
-	// defer aggregatorInputQueue.StopConsuming()
-	// defer finishExchange.StopConsuming()
-	// defer processedDataQueue.StopConsuming()
-	// defer aggregatorInputQueue.Close()
-	// defer finishExchange.Close()
-	// defer processedDataQueue.Close()
+	defer processedDataQueue.Close()
 
-	// Send T1 data to aggregator
+	// Send T3 data to aggregator
 
 	for _, tpv := range MockTPV {
 		serializedTPV, _ := proto.Marshal(tpv)
@@ -156,20 +142,13 @@ func t3AggregateMock(t *testing.T) {
 		for msg := range consumeChannel {
 			msg.Ack(false)
 			dataBatch, _ := utils.GetDataEnvelope(msg.Body)
-			// TODO: REVIEW THIS ASSERT !!!
-			// ==============================
-			assert.True(t, enum.TaskType(dataBatch.TaskType) == enum.T3)
-			// ==============================
-			tpvItem := &reduced.TotalPaymentValue{}
-			err := proto.Unmarshal(dataBatch.Payload, tpvItem)
-
-			assert.Nil(t, err)
-
-			tpvItems = append(tpvItems, tpvItem)
-
-			if len(tpvItems) == len(MockTpvOutput) {
+			if dataBatch.IsDone {
 				break
 			}
+			tpvItem := &reduced.TotalPaymentValue{}
+			err := proto.Unmarshal(dataBatch.Payload, tpvItem)
+			assert.Nil(t, err)
+			tpvItems = append(tpvItems, tpvItem)
 
 		}
 		done <- true
@@ -177,7 +156,7 @@ func t3AggregateMock(t *testing.T) {
 	<-done
 	assert.Equal(t, 0, int(e))
 
-	assert.Equal(t, len(MockTpvOutput), len(tpvItems), "Expected 2 TPV items after filtering")
+	assert.Equal(t, len(MockTpvOutput), len(tpvItems), "Expected 2 TPV items after aggregating")
 	for i, tpv := range tpvItems {
 		assert.Equal(t, MockTpvOutput[i].StoreId, tpv.StoreId)
 		assert.Equal(t, MockTpvOutput[i].Semester, tpv.Semester)
@@ -186,4 +165,63 @@ func t3AggregateMock(t *testing.T) {
 }
 
 func t4AggregateMock(t *testing.T) {
+	aggregatorInputQueue := middleware.GetAggregatorQueue(url)
+	finishExchange := middleware.GetFinishExchange(url, []string{string(enum.AggregatorWorker)})
+	clientID := "test-client-4"
+	processedDataQueue := middleware.GetProcessedDataExchange(url, clientID)
+
+	defer processedDataQueue.Close()
+
+	// Send T4 data to aggregator
+
+	for _, countedUsers := range MockUsers {
+		serializedCU, _ := proto.Marshal(countedUsers)
+		dataEnvelope := protocol.DataEnvelope{
+			ClientId: clientID,
+			TaskType: int32(enum.T4),
+			Payload:  serializedCU,
+		}
+		serializedDataEnvelope, _ := proto.Marshal(&dataEnvelope)
+
+		aggregatorInputQueue.Send(serializedDataEnvelope)
+	}
+
+	// Send done message to aggregator
+	doneMessage := &protocol.DataEnvelope{
+		ClientId: clientID,
+		IsDone:   true,
+	}
+	doneBytes, _ := proto.Marshal(doneMessage)
+	err := finishExchange.Send(doneBytes)
+	assert.Equal(t, err, middleware.MessageMiddlewareSuccess)
+
+	countedUserTransactions := []*reduced.CountedUserTransactions{}
+	done := make(chan bool, 1)
+	// each message should contain the grouped items
+	e := processedDataQueue.StartConsuming(func(consumeChannel middleware.ConsumeChannel, d chan error) {
+		for msg := range consumeChannel {
+			msg.Ack(false)
+			dataBatch, _ := utils.GetDataEnvelope(msg.Body)
+			if dataBatch.IsDone {
+				break
+			}
+			countedUserTransaction := &reduced.CountedUserTransactions{}
+			err := proto.Unmarshal(dataBatch.Payload, countedUserTransaction)
+
+			assert.Nil(t, err)
+
+			countedUserTransactions = append(countedUserTransactions, countedUserTransaction)
+
+		}
+		done <- true
+	})
+	<-done
+	assert.Equal(t, 0, int(e))
+
+	assert.Equal(t, len(MockUsersOutput), len(countedUserTransactions), "Expected 3 Counted User transactions after aggregating")
+	for i, countedUserTransaction := range countedUserTransactions {
+		assert.Equal(t, MockUsersOutput[i].StoreId, countedUserTransaction.StoreId)
+		assert.Equal(t, MockUsersOutput[i].UserId, countedUserTransaction.UserId)
+		assert.Equal(t, MockUsersOutput[i].Birthdate, countedUserTransaction.Birthdate)
+	}
 }

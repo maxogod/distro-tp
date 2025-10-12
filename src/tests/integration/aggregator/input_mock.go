@@ -38,7 +38,7 @@ var MockTotalProfit = []*reduced.TotalProfitBySubtotal{
 	},
 	{
 		ItemId:    "item1",
-		YearMonth: "2025-07", // TOP 1 2025-07
+		YearMonth: "2025-07",
 		Subtotal:  100.0,
 	},
 	{
@@ -89,28 +89,33 @@ var MockTotalSales = []*reduced.TotalSoldByQuantity{
 var MockTPV = []*reduced.TotalPaymentValue{
 	{
 		StoreId:     "1",
-		Semester:    "2025-H2",
+		Semester:    "2024-H1",
+		FinalAmount: 100.0,
+	},
+	{
+		StoreId:     "2",
+		Semester:    "2025-H1",
+		FinalAmount: 50.0,
+	},
+	{
+		StoreId:     "2",
+		Semester:    "2025-H1",
+		FinalAmount: 50.0,
+	},
+	{
+		StoreId:     "1",
+		Semester:    "2024-H2",
 		FinalAmount: 100.0,
 	},
 	{
 		StoreId:     "1",
-		Semester:    "2025-H2",
+		Semester:    "2024-H1",
 		FinalAmount: 100.0,
 	},
 	{
-		StoreId:     "2",
-		Semester:    "2025-H1",
-		FinalAmount: 50.0,
-	},
-	{
-		StoreId:     "2",
-		Semester:    "2025-H1",
-		FinalAmount: 50.0,
-	},
-	{
-		StoreId:     "3",
-		Semester:    "2025-H1",
-		FinalAmount: 10.0,
+		StoreId:     "1",
+		Semester:    "2024-H2",
+		FinalAmount: 100.0,
 	},
 }
 
@@ -119,30 +124,54 @@ var MockUsers = []*reduced.CountedUserTransactions{
 		StoreId:             "1",
 		UserId:              "user1",
 		Birthdate:           "2000-01-01",
-		TransactionQuantity: 100,
-	},
-	{
-		StoreId:             "1",
-		UserId:              "user1",
-		Birthdate:           "2000-01-01", // TOP 1 user1@store1
-		TransactionQuantity: 100,
-	},
-	{
-		StoreId:             "2",
-		UserId:              "user1",
-		Birthdate:           "2000-02-02",
-		TransactionQuantity: 100,
+		TransactionQuantity: 10,
 	},
 	{
 		StoreId:             "1",
 		UserId:              "user2",
-		Birthdate:           "2000-02-02",
-		TransactionQuantity: 199,
+		Birthdate:           "2000-01-01",
+		TransactionQuantity: 20,
 	},
 	{
 		StoreId:             "2",
 		UserId:              "user3",
-		Birthdate:           "2000-02-02", // TOP 1 user3@store2
-		TransactionQuantity: 199,
+		Birthdate:           "2000-02-02",
+		TransactionQuantity: 30,
+	},
+	{
+		StoreId:             "1",
+		UserId:              "user1",
+		Birthdate:           "2000-01-01",
+		TransactionQuantity: 10,
+	},
+	{
+		StoreId:             "1",
+		UserId:              "user2",
+		Birthdate:           "2000-01-01",
+		TransactionQuantity: 20,
+	},
+	{
+		StoreId:             "2",
+		UserId:              "user3",
+		Birthdate:           "2000-02-02",
+		TransactionQuantity: 30,
+	},
+	{
+		StoreId:             "1",
+		UserId:              "user4",
+		Birthdate:           "2000-01-01",
+		TransactionQuantity: 10,
+	},
+	{
+		StoreId:             "1",
+		UserId:              "user5",
+		Birthdate:           "2000-01-01",
+		TransactionQuantity: 10,
+	},
+	{
+		StoreId:             "2",
+		UserId:              "user6",
+		Birthdate:           "2000-02-02",
+		TransactionQuantity: 10,
 	},
 }
