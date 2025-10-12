@@ -9,7 +9,7 @@ const (
 
 	OUTPUT_FILE_T1   = "task1_output.csv"
 	OUTPUT_FILE_T2_1 = "task2_1_output.csv"
-	OUTPUT_FILE_T2_2 = "task2_1_output.csv"
+	OUTPUT_FILE_T2_2 = "task2_2_output.csv"
 	OUTPUT_FILE_T3   = "task3_output.csv"
 	OUTPUT_FILE_T4   = "task4_output.csv"
 )
