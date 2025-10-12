@@ -70,6 +70,7 @@ func (rs *reducerService) CountUserTransactions(groupedData *group_by.GroupTrans
 	var result reduced.CountedUserTransactions
 
 	result.UserId = groupedData.GetUserId()
+	result.Birthdate = groupedData.GetUserId()
 	result.StoreId = groupedData.GetStoreId()
 	result.TransactionQuantity = int32(len(groupedData.GetTransactions()))
 

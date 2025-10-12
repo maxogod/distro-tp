@@ -80,3 +80,14 @@ func (f *filterService) FilterByFinalAmount(batch *raw.TransactionBatch) error {
 	batch.Transactions = filtered
 	return nil
 }
+
+func (f *filterService) FilterNullUserIDs(batch *raw.TransactionBatch) error {
+	filtered := make([]*raw.Transaction, 0, len(batch.Transactions))
+	for _, tx := range batch.Transactions {
+		if tx.UserId != "" {
+			filtered = append(filtered, tx)
+		}
+	}
+	batch.Transactions = filtered
+	return nil
+}

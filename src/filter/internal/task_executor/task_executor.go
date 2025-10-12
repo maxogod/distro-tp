@@ -76,6 +76,9 @@ func (fe *FilterExecutor) HandleTask4(payload []byte, clientID string) error {
 		return err
 	}
 
+	fe.filterService.FilterByYear(transactionBatch)
+	fe.filterService.FilterNullUserIDs(transactionBatch)
+
 	return worker.SendDataToMiddleware(transactionBatch, enum.T4, clientID, fe.groupByQueue)
 }
 

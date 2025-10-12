@@ -25,4 +25,7 @@ type FilterService interface {
 
 	// FilterByFinalAmount filters a transaction batch based on the final amount.
 	FilterByFinalAmount(*raw.TransactionBatch) error
+
+	// FilterNullUserIDs filters a transaction batch to remove entries with null user IDs.
+	FilterNullUserIDs(*raw.TransactionBatch) error
 }

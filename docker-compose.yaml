@@ -152,7 +152,7 @@ services:
 
   gateway:
     container_name: gateway
-    entrypoint: ["/app/app", "t2"]
+    entrypoint: ["/app/app", "t4"]
     build:
       dockerfile: ./src/gateway/Dockerfile
     image: gateway:latest
