@@ -117,6 +117,7 @@ func (t *taskExecutor) Task2() error {
 			}
 
 			line := utils.MostProfitableItemsToCsv(data)
+			log.Debugf("Received line: %s", line)
 			ch <- line
 		},
 	)

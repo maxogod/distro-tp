@@ -128,7 +128,7 @@ func (th *messageHandler) GetReportData(data chan *protocol.DataEnvelope) {
 
 				data <- envelope
 				msg.Ack(false)
-				if envelope.GetIsDone() {
+				if envelope.GetIsDone() && enum.TaskType(envelope.GetTaskType()) != enum.T2_1 {
 					receiving = false
 				} else if !firstMessageReceived {
 					firstMessageReceived = true

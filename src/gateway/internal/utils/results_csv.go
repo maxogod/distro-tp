@@ -1,7 +1,7 @@
 package utils
 
 import (
-	"strconv"
+	"fmt"
 
 	"github.com/maxogod/distro-tp/src/common/models/raw"
 	"github.com/maxogod/distro-tp/src/common/models/reduced"
@@ -17,33 +17,26 @@ const (
 
 // TODO: new proto to match the appropiate name of the fields
 func TransactionToCsv(record *raw.Transaction) string {
-	return record.TransactionId + "," +
-		record.StoreId + "," +
-		record.UserId + "," +
-		strconv.Itoa(int(record.FinalAmount)) + "," +
-		record.CreatedAt + "\n"
+	csvStr := fmt.Sprintf("%s,%s,%s,%.2f,%s\n", record.TransactionId, record.StoreId, record.UserId, record.FinalAmount, record.CreatedAt)
+	return csvStr
 }
 
 func BestSellingItemsToCsv(record *reduced.TotalSoldByQuantity) string {
-	return record.YearMonth + "," +
-		record.ItemId + "," +
-		strconv.Itoa(int(record.Quantity)) + "\n"
+	csvStr := fmt.Sprintf("%s,%s,%d\n", record.YearMonth, record.ItemId, record.Quantity)
+	return csvStr
 }
 
 func MostProfitableItemsToCsv(record *reduced.TotalProfitBySubtotal) string {
-	return record.YearMonth + "," +
-		record.ItemId + "," +
-		strconv.Itoa(int(record.Subtotal)) + "\n"
+	csvStr := fmt.Sprintf("%s,%s,%.2f\n", record.YearMonth, record.ItemId, record.Subtotal)
+	return csvStr
 }
 
 func TopStoresByTPVToCsv(record *reduced.TotalPaymentValue) string {
-	return record.Semester + "," +
-		record.StoreId + "," +
-		strconv.Itoa(int(record.FinalAmount)) + "\n"
+	csvStr := fmt.Sprintf("%s,%s,%.2f\n", record.Semester, record.StoreId, record.FinalAmount)
+	return csvStr
 }
 
 func TopUsersByPurchasesToCsv(record *reduced.CountedUserTransactions) string {
-	return record.StoreId + "," +
-		record.Birthdate + "," +
-		strconv.Itoa(int(record.TransactionQuantity)) + "\n"
+	csvStr := fmt.Sprintf("%s,%s,%d\n", record.StoreId, record.Birthdate, record.TransactionQuantity)
+	return csvStr
 }

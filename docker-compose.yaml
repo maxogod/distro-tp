@@ -85,8 +85,47 @@ services:
       rabbitmq:
         condition: service_healthy
 
+  group_by1:
+    container_name: group_by1
+    build:
+      dockerfile: ./src/group_by/Dockerfile
+    image: group_by:latest
+    networks:
+      - tp_net
+    volumes:
+      - ./src/group_by/config.yaml:/config.yaml
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+
+  group_by2:
+    container_name: group_by2
+    build:
+      dockerfile: ./src/group_by/Dockerfile
+    image: group_by:latest
+    networks:
+      - tp_net
+    volumes:
+      - ./src/group_by/config.yaml:/config.yaml
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+
   reducer:
     container_name: reducer
+    build:
+      dockerfile: ./src/reducer/Dockerfile
+    image: reducer:latest
+    networks:
+      - tp_net
+    volumes:
+      - ./src/reducer/config.yaml:/config.yaml
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+
+  reducer1:
+    container_name: reducer1
     build:
       dockerfile: ./src/reducer/Dockerfile
     image: reducer:latest
@@ -113,7 +152,7 @@ services:
 
   gateway:
     container_name: gateway
-    entrypoint: ["/app/app", "t3"]
+    entrypoint: ["/app/app", "t4"]
     build:
       dockerfile: ./src/gateway/Dockerfile
     image: gateway:latest

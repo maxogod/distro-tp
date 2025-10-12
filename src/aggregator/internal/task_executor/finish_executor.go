@@ -139,7 +139,7 @@ func (fe *finishExecutor) finishTask2_1(clientID string) error {
 	// Send the data in sorted order
 	for _, yearMonth := range sortedKeys {
 		bestMonth := bestMonthMap[yearMonth]
-		if err := worker.SendDataToMiddleware(bestMonth, enum.T1, clientID, processedDataQueue); err != nil {
+		if err := worker.SendDataToMiddleware(bestMonth, enum.T2_1, clientID, processedDataQueue); err != nil {
 			return fmt.Errorf("failed to send data to middleware: %v", err)
 		}
 	}
@@ -174,7 +174,7 @@ func (fe *finishExecutor) finishTask2_2(clientID string) error {
 	// Send the data in sorted order
 	for _, yearMonth := range sortedKeys {
 		bestMonth := bestMonthMap[yearMonth]
-		if err := worker.SendDataToMiddleware(bestMonth, enum.T1, clientID, processedDataQueue); err != nil {
+		if err := worker.SendDataToMiddleware(bestMonth, enum.T2_2, clientID, processedDataQueue); err != nil {
 			return fmt.Errorf("failed to send data to middleware: %v", err)
 		}
 	}
@@ -192,7 +192,7 @@ func (fe *finishExecutor) finishTask3(clientID string) error {
 		}
 
 		for _, tpvData := range tpvDataBatch {
-			if err := worker.SendDataToMiddleware(tpvData, enum.T1, clientID, processedDataQueue); err != nil {
+			if err := worker.SendDataToMiddleware(tpvData, enum.T3, clientID, processedDataQueue); err != nil {
 				return fmt.Errorf("failed to send data to middleware: %v", err)
 			}
 		}
@@ -205,7 +205,7 @@ func (fe *finishExecutor) finishTask4(clientID string) error {
 	defer processedDataQueue.Close()
 	countedTransactions, _ := fe.aggregatorService.GetStoredCountedUserTransactions(clientID, TOP_N)
 	for _, countedData := range countedTransactions {
-		if err := worker.SendDataToMiddleware(countedData, enum.T1, clientID, processedDataQueue); err != nil {
+		if err := worker.SendDataToMiddleware(countedData, enum.T4, clientID, processedDataQueue); err != nil {
 			return fmt.Errorf("failed to send data to middleware: %v", err)
 		}
 	}

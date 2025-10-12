@@ -62,7 +62,6 @@ func (fe *FilterExecutor) HandleTask3(payload []byte, clientID string) error {
 	if err != nil {
 		return err
 	}
-	log.Debugf("Received %d transactions for Task 3 from client %s", len(transactionBatch.Transactions), clientID)
 
 	fe.filterService.FilterByYear(transactionBatch)
 	fe.filterService.FilterByTime(transactionBatch)
@@ -76,7 +75,6 @@ func (fe *FilterExecutor) HandleTask4(payload []byte, clientID string) error {
 	if err != nil {
 		return err
 	}
-	log.Infof("Received %d transactions for Task 4 from client %s", len(transactionBatch.Transactions), clientID)
 
 	return worker.SendDataToMiddleware(transactionBatch, enum.T4, clientID, fe.groupByQueue)
 }
