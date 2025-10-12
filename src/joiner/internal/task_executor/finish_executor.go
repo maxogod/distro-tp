@@ -90,7 +90,7 @@ func (fe *finishExecutor) finishTask1(clientID string) error {
 			return fmt.Errorf("failed to send data to middleware: %v", err)
 		}
 	}
-	return worker.SendDone(clientID, processedDataQueue)
+	return worker.SendDone(clientID, enum.T1, processedDataQueue)
 }
 
 func (fe *finishExecutor) finishTask2(clientID string) error {
@@ -114,7 +114,7 @@ func (fe *finishExecutor) finishTask3(clientID string) error {
 			}
 		}
 	}
-	return worker.SendDone(clientID, processedDataQueue)
+	return worker.SendDone(clientID, enum.T3, processedDataQueue)
 }
 
 func (fe *finishExecutor) finishTask4(clientID string) error {

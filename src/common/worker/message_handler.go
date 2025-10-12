@@ -256,10 +256,10 @@ func SendDataToMiddleware(data proto.Message, taskType enum.TaskType, clientID s
 	return nil
 }
 
-func SendDone(clientID string, outputQueue middleware.MessageMiddleware) error {
-
+func SendDone(clientID string, taskType enum.TaskType, outputQueue middleware.MessageMiddleware) error {
 	dataEnvelope := &protocol.DataEnvelope{
 		ClientId: clientID,
+		TaskType: int32(taskType),
 		IsDone:   true,
 	}
 
