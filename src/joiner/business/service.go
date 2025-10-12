@@ -24,14 +24,43 @@ func NewJoinerService(cacheService cache.CacheService) JoinerService {
 /* --- Store raw reference data --- */
 
 func (js *joinerService) StoreMenuItems(clientID string, items []*raw.MenuItem) error {
+	cacheRef := clientID + SEPERATOR + "menu_items"
+
+	for _, item := range items {
+		err := js.cacheService.StoreRefData(cacheRef, item)
+		if err != nil {
+			log.Errorf("Failed to store menu item %s for client %s: %v", item.ItemId, clientID, err)
+			return err
+		}
+	}
 	return nil
 }
 
 func (js *joinerService) StoreStores(clientID string, items []*raw.Store) error {
+	cacheRef := clientID + SEPERATOR + "store"
+	for _, item := range items {
+		err := js.cacheService.StoreRefData(cacheRef, item)
+		if err != nil {
+			log.Errorf("Failed to store store %s for client %s: %v", item.StoreId, clientID, err)
+			return err
+		}
+	}
 	return nil
 }
 
 func (js *joinerService) StoreUsers(clientID string, items []*raw.User) error {
+	cacheRef := clientID + SEPERATOR + "user"
+	for _, item := range items {
+		err := js.cacheService.StoreRefData(cacheRef, item)
+		if err != nil {
+			log.Errorf("Failed to store user %s for client %s: %v", item.UserId, clientID, err)
+			return err
+		}
+	}
+	return nil
+}
+
+func (js *joinerService) FinishStoringRefData(clientID string) error {
 	return nil
 }
 
