@@ -43,7 +43,10 @@ func (je *joinerExecutor) HandleTask2_1(payload []byte, clientID string) error {
 	}
 
 	if dataEnvelope.GetIsRef() {
-		return je.handleRefData(dataEnvelope, clientID)
+		if !dataEnvelope.GetIsDone() {
+			return je.handleRefData(dataEnvelope, clientID)
+		}
+		return je.joinerService.FinishStoringRefData(clientID)
 	}
 
 	reducedData := &reduced.TotalProfitBySubtotal{}
@@ -75,7 +78,11 @@ func (je *joinerExecutor) HandleTask2_2(payload []byte, clientID string) error {
 	}
 
 	if dataEnvelope.GetIsRef() {
-		return je.handleRefData(dataEnvelope, clientID)
+		if !dataEnvelope.GetIsDone() {
+			return je.handleRefData(dataEnvelope, clientID)
+
+		}
+		return je.joinerService.FinishStoringRefData(clientID)
 	}
 
 	reducedData := &reduced.TotalSoldByQuantity{}
@@ -107,7 +114,10 @@ func (je *joinerExecutor) HandleTask3(payload []byte, clientID string) error {
 	}
 
 	if dataEnvelope.GetIsRef() {
-		return je.handleRefData(dataEnvelope, clientID)
+		if !dataEnvelope.GetIsDone() {
+			return je.handleRefData(dataEnvelope, clientID)
+		}
+		return je.joinerService.FinishStoringRefData(clientID)
 	}
 
 	reducedData := &reduced.TotalPaymentValue{}
@@ -139,7 +149,14 @@ func (je *joinerExecutor) HandleTask4(payload []byte, clientID string) error {
 	}
 
 	if dataEnvelope.GetIsRef() {
-		return je.handleRefData(dataEnvelope, clientID)
+		if !dataEnvelope.GetIsDone() {
+			return je.handleRefData(dataEnvelope, clientID)
+		}
+		ref := &protocol.ReferenceEnvelope{}
+		err := proto.Unmarshal(dataEnvelope.GetPayload(), ref)
+		if err == nil && enum.ReferenceType(ref.GetReferenceType()) == enum.Stores { // Stores is receiver after Users
+			return je.joinerService.FinishStoringRefData(clientID)
+		}
 	}
 
 	countedData := &reduced.CountedUserTransactions{}

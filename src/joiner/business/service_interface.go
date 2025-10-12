@@ -17,6 +17,9 @@ type JoinerService interface {
 	// StoreUsers stores users in the cache service.
 	StoreUsers(clientID string, items []*raw.User) error
 
+	// FinishStoringRefData marks the completion of reference data storage for a client.
+	FinishStoringRefData(clientID string) error
+
 	/* --- Get joined data --- */
 
 	// GetJoinedTransactions retrieves joined transactions from the cache service.

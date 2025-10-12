@@ -27,20 +27,24 @@ func NewInMemoryCache() CacheService {
 	}
 }
 
-func (c *inMemoryCache) StoreRefData(cacheReference string, data *proto.Message) error {
+func (c *inMemoryCache) StoreRefData(cacheReference string, data proto.Message) error {
 	return nil
 }
 
-func (c *inMemoryCache) ReadRefData(cacheReference string, amount int32) ([]*proto.Message, error) {
+func (c *inMemoryCache) ReadRefData(cacheReference string, amount int32) ([]proto.Message, error) {
 	return nil, nil
 }
 
-func (c *inMemoryCache) StoreBatch(cacheReference string, data []*proto.Message) error {
+func (c *inMemoryCache) StoreBatch(cacheReference string, data []proto.Message) error {
 	return nil
 }
 
-func (c *inMemoryCache) ReadBatch(cacheReference string, amount int32) ([]*proto.Message, error) {
+func (c *inMemoryCache) ReadBatch(cacheReference string, amount int32) ([]proto.Message, error) {
 	return nil, nil
+}
+
+func (c *inMemoryCache) RemoveRefData(cacheReference string) error {
+	return nil
 }
 
 func (c *inMemoryCache) Close() error {
