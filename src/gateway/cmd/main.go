@@ -14,6 +14,7 @@ var log = logger.GetLogger()
 func main() {
 	time.Sleep(14 * time.Second) // wait for rabbitmq to be ready
 
+	before := time.Now()
 	if len(os.Args) < 2 {
 		log.Fatalln("no arguments provided")
 	}
@@ -28,6 +29,7 @@ func main() {
 	if err := c.Start(os.Args[1]); err != nil {
 		log.Fatalln("Client error:", err)
 	}
+	after := time.Now()
 
-	log.Debugln("Pikachu finished successfully!")
+	log.Debugf("Pikachu finished successfully in %s\n", after.Sub(before).String())
 }
