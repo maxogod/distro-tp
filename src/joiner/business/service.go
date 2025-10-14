@@ -19,12 +19,14 @@ const STORE = "store"
 const USER = "user"
 
 type joinerService struct {
-	cacheService cache.CacheService
+	cacheService   cache.CacheService
+	fullRefClients map[string]bool // Used as a set
 }
 
 func NewJoinerService(cacheService cache.CacheService) JoinerService {
 	return &joinerService{
-		cacheService: cacheService,
+		cacheService:   cacheService,
+		fullRefClients: make(map[string]bool),
 	}
 }
 
@@ -32,9 +34,8 @@ func NewJoinerService(cacheService cache.CacheService) JoinerService {
 
 func storeRefData[T proto.Message](clientID string, items []T, getRefID func(T) string, cacheService cache.CacheService) error {
 	for _, item := range items {
-		protoItem := utils.ToProtoMessage(item)
 		referenceID := getRefID(item)
-		err := cacheService.StoreRefData(clientID, referenceID, protoItem)
+		err := cacheService.StoreRefData(clientID, referenceID, item)
 		if err != nil {
 			log.Errorf("Failed to store ref data %s for client %s: %v", referenceID, clientID, err)
 			return err
@@ -63,17 +64,21 @@ func (js *joinerService) StoreUsers(clientID string, items []*raw.User) error {
 }
 
 func (js *joinerService) FinishStoringRefData(clientID string) error {
+	js.fullRefClients[clientID] = true
 	return nil
 }
 
 /* --- Get joined data --- */
 
-// This is T2_1
 func (js *joinerService) JoinTotalProfitBySubtotal(profit *reduced.TotalProfitBySubtotal, clientID string) []*reduced.TotalProfitBySubtotal {
-
 	referenceID := profit.GetItemId() + SEPERATOR + MENU_ITEM
-	protoRef, hasRef, err := js.cacheService.GetRefData(clientID, referenceID)
+	_, exists := js.fullRefClients[clientID]
+	if !exists {
+		js.cacheService.BufferUnreferencedData(clientID, referenceID, profit)
+		return nil
+	}
 
+	protoRef, hasRef, err := js.cacheService.GetRefData(clientID, referenceID)
 	if err != nil {
 		log.Errorf("Error retrieving reference data %s for client %s: %v", referenceID, clientID, err)
 		return nil
@@ -81,13 +86,13 @@ func (js *joinerService) JoinTotalProfitBySubtotal(profit *reduced.TotalProfitBy
 	if !hasRef {
 		log.Debugf("Reference for %s not found for client %s | Buffering until found", referenceID, clientID)
 		clientID = "T2_1" + clientID
-		js.cacheService.BufferUnreferencedData(clientID, referenceID, utils.ToProtoMessage(profit))
+		js.cacheService.BufferUnreferencedData(clientID, referenceID, profit)
 		return nil
 	}
 
 	joinedData := make([]*reduced.TotalProfitBySubtotal, 0)
 
-	menuItem := utils.FromProtoMessage[*raw.MenuItem](protoRef)
+	menuItem := utils.CastProtoMessage[*raw.MenuItem](protoRef)
 
 	profit.ItemId = menuItem.GetItemName()
 	joinedData = append(joinedData, profit)
@@ -98,12 +103,10 @@ func (js *joinerService) JoinTotalProfitBySubtotal(profit *reduced.TotalProfitBy
 	return joinedData
 }
 
-// This is T2_2
 func (js *joinerService) JoinTotalSoldByQuantity(sales *reduced.TotalSoldByQuantity, clientID string) []*reduced.TotalSoldByQuantity {
 	return nil
 }
 
-// This is T3
 func (js *joinerService) JoinTotalPaymentValue(tpv *reduced.TotalPaymentValue, clientID string) []*reduced.TotalPaymentValue {
 	return nil
 }
@@ -126,8 +129,8 @@ func (js *joinerService) Close() error {
 /* --- Cleanup Helper Functions --- */
 
 func (js *joinerService) cleanupUnreferencedProfit(clientID, referenceID string, joinedData *[]*reduced.TotalProfitBySubtotal) {
-	js.cacheService.IterateUnreferencedData(clientID, referenceID, func(bufferedProto *proto.Message) bool {
-		bufferedProfit := utils.FromProtoMessage[*reduced.TotalProfitBySubtotal](bufferedProto)
+	js.cacheService.IterateUnreferencedData(clientID, referenceID, func(bufferedProto proto.Message) bool {
+		bufferedProfit := utils.CastProtoMessage[*reduced.TotalProfitBySubtotal](bufferedProto)
 		refID := bufferedProfit.GetItemId() + SEPERATOR + MENU_ITEM
 
 		protoRef, hasRef, err := js.cacheService.GetRefData(clientID, refID)
@@ -138,7 +141,7 @@ func (js *joinerService) cleanupUnreferencedProfit(clientID, referenceID string,
 		if !hasRef {
 			return false
 		}
-		menuItem := utils.FromProtoMessage[*raw.MenuItem](protoRef)
+		menuItem := utils.CastProtoMessage[*raw.MenuItem](protoRef)
 		bufferedProfit.ItemId = menuItem.GetItemName()
 		*joinedData = append(*joinedData, bufferedProfit)
 		return true

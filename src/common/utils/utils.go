@@ -53,3 +53,7 @@ func ToProtoMessage[T proto.Message](data T) *proto.Message {
 func FromProtoMessage[T proto.Message](msg *proto.Message) T {
 	return (*msg).(T)
 }
+
+func CastProtoMessage[T proto.Message](msg proto.Message) T {
+	return msg.(T)
+}
