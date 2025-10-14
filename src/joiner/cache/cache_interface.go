@@ -16,7 +16,7 @@ type CacheService interface {
 	GetRefData(clientID string, referenceID string) (proto.Message, error)
 
 	// BufferUnreferencedData buffers data that does not have an associated reference ID yet.
-	BufferUnreferencedData(clientID string, referenceID string, data proto.Message) error
+	BufferUnreferencedData(clientID string, bufferID string, data proto.Message) error
 
 	// IterateUnreferencedData iterates over unreferenced data for a given clientID and referenceID,
 	// applying the provided removal function to each item.

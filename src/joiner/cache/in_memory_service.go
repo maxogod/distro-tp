@@ -24,6 +24,8 @@ func NewInMemoryCache() CacheService {
 	}
 }
 
+/* --- REFERENCE DATA --- */
+
 func (c *inMemoryCache) StoreRefData(clientID string, referenceID string, data proto.Message) error {
 	if _, exists := c.memoryStorage[clientID]; !exists {
 		c.memoryStorage[clientID] = storage{
@@ -45,17 +47,14 @@ func (c *inMemoryCache) GetRefData(clientID string, referenceID string) (proto.M
 	}
 	data, refExists := clientStorage.referenceData[referenceID]
 	if !refExists {
-		return nil, nil
+		return nil, fmt.Errorf("referenceID '%s' does not exist for clientID '%s'", referenceID, clientID)
 	}
 	return data, nil
 }
 
-func (c *inMemoryCache) RemoveRefData(clientID string) {
-	delete(c.memoryStorage, clientID)
-}
+/* --- BUFFERED DATA BATCHES --- */
 
-func (c *inMemoryCache) BufferUnreferencedData(clientID string, referenceID string, data proto.Message) error {
-
+func (c *inMemoryCache) BufferUnreferencedData(clientID string, bufferID string, data proto.Message) error {
 	if _, exists := c.memoryStorage[clientID]; !exists {
 		c.memoryStorage[clientID] = storage{
 			referenceData:    make(map[string]proto.Message),
@@ -63,7 +62,7 @@ func (c *inMemoryCache) BufferUnreferencedData(clientID string, referenceID stri
 		}
 	}
 	clientStorage := c.memoryStorage[clientID]
-	clientStorage.unreferencedData[referenceID] = append(clientStorage.unreferencedData[referenceID], data)
+	clientStorage.unreferencedData[bufferID] = append(clientStorage.unreferencedData[bufferID], data)
 	c.memoryStorage[clientID] = clientStorage
 	return nil
 }
@@ -73,8 +72,8 @@ func (c *inMemoryCache) IterateUnreferencedData(clientID string, bufferID string
 	if !clientExists {
 		return fmt.Errorf("clientID '%s' does not exist", clientID)
 	}
-	data, refExists := clientStorage.unreferencedData[bufferID]
-	if !refExists || len(data) == 0 {
+	data, buffExists := clientStorage.unreferencedData[bufferID]
+	if !buffExists || len(data) == 0 {
 		return nil
 	}
 
@@ -91,6 +90,12 @@ func (c *inMemoryCache) IterateUnreferencedData(clientID string, bufferID string
 	return nil
 }
 
+/* --- RELEASE RESOURCES --- */
+
+func (c *inMemoryCache) RemoveRefData(clientID string) {
+	delete(c.memoryStorage, clientID)
+}
+
 func (c *inMemoryCache) Close() error {
-	return nil
+	return nil // No resources to clean up in in-memory cache
 }
