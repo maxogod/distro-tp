@@ -16,11 +16,15 @@ const MENU_ITEM = "menu_item"
 const STORE = "store"
 const USER = "user"
 
-// TODO:
+// TODO: [1]
 // This implementation only works asusming that all of the reference data is sent before all of the reduced data.
 // If this is not the case, we would need to implement a more complex buffering mechanism.
 // One possible approach is to buffer reduced data and only once the finish message is received,
 // we can start processing the buffered data for that client.
+
+// TODO: [2]
+// This code is almost 300 lines long, and a lot of it is repetitive.
+// Apply DRY principle to reduce code duplication.
 type joinerService struct {
 	cacheService   cache.CacheService
 	fullRefClients map[string]bool // Used as a set
