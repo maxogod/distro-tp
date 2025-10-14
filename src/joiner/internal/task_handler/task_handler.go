@@ -11,16 +11,16 @@ import (
 
 const FINISH enum.TaskType = 0
 
-// taskHandler is responsible for handling incoming tasks and delegating them to the appropriate task executor methods.
+// joinerHandler is responsible for handling incoming tasks and delegating them to the appropriate task executor methods.
 // Used only in Joiner worker because of special needed handling.
-type taskHandler struct {
+type joinerHandler struct {
 	taskHandlers map[enum.TaskType]func([]byte, string) error
 	taskExecutor worker.TaskExecutor
 }
 
-func NewTaskHandler(
+func NewjoinerHandler(
 	taskExecutor worker.TaskExecutor) worker.DataHandler {
-	th := &taskHandler{
+	th := &joinerHandler{
 		taskExecutor: taskExecutor,
 	}
 
@@ -36,7 +36,7 @@ func NewTaskHandler(
 	return th
 }
 
-func (th *taskHandler) HandleData(dataEnvelope *protocol.DataEnvelope) error {
+func (th *joinerHandler) HandleData(dataEnvelope *protocol.DataEnvelope) error {
 	taskType := enum.TaskType(dataEnvelope.GetTaskType())
 	envelopePayload, err := proto.Marshal(dataEnvelope)
 	if err != nil {
@@ -46,7 +46,7 @@ func (th *taskHandler) HandleData(dataEnvelope *protocol.DataEnvelope) error {
 	return th.handleTask(taskType, envelopePayload, clientID)
 }
 
-func (th *taskHandler) handleTask(taskType enum.TaskType, payload []byte, clientID string) error {
+func (th *joinerHandler) handleTask(taskType enum.TaskType, payload []byte, clientID string) error {
 	handler, exists := th.taskHandlers[taskType]
 	if !exists {
 		if taskType == FINISH {
@@ -57,10 +57,10 @@ func (th *taskHandler) handleTask(taskType enum.TaskType, payload []byte, client
 	return handler(payload, clientID)
 }
 
-func (th *taskHandler) HandleFinishClient(clientID string) error {
+func (th *joinerHandler) HandleFinishClient(clientID string) error {
 	return th.taskExecutor.HandleFinishClient(clientID)
 }
 
-func (th *taskHandler) Close() error {
+func (th *joinerHandler) Close() error {
 	return th.taskExecutor.Close()
 }
