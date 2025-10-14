@@ -8,7 +8,7 @@ var mockTransactions = []*raw.Transaction{
 	{
 		TransactionId: "1", // Good
 		StoreId:       "storeID",
-		UserId:        "userID",
+		UserId:        "", // Missing userID for t4
 		FinalAmount:   150.0,
 		CreatedAt:     "2025-07-01 06:01:00",
 	},

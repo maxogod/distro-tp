@@ -11,9 +11,9 @@ import (
 // Aggregated data represents, data that must be acumulated or joined via an ID or reference
 // List data represents, data that can be used as it is without any extra transformations required
 type storage struct {
-	mappedData map[string]*proto.Message
-	listData   []*proto.Message
-	sortedData []*proto.Message
+	mappedData map[string]proto.Message
+	listData   []proto.Message
+	sortedData []proto.Message
 	index      int
 }
 
@@ -30,11 +30,11 @@ func NewInMemoryCache() CacheService {
 	}
 }
 
-func (c *inMemoryCache) StoreAggregatedData(cacheReference string, dataKey string, data *proto.Message, joinFunction func(existing, new *proto.Message) (*proto.Message, error)) error {
+func (c *inMemoryCache) StoreAggregatedData(cacheReference string, dataKey string, data proto.Message, joinFunction func(existing, new proto.Message) (proto.Message, error)) error {
 	storageData, exists := c.memoryStorage[cacheReference]
 	if !exists {
 		storageData = storage{
-			mappedData: make(map[string]*proto.Message),
+			mappedData: make(map[string]proto.Message),
 			index:      0,
 		}
 	}
@@ -54,12 +54,12 @@ func (c *inMemoryCache) StoreAggregatedData(cacheReference string, dataKey strin
 	return nil
 }
 
-func (c *inMemoryCache) StoreBatch(cacheReference string, data []*proto.Message) error {
+func (c *inMemoryCache) StoreBatch(cacheReference string, data []proto.Message) error {
 	storageData, exists := c.memoryStorage[cacheReference]
 
 	if !exists {
 		storageData = storage{
-			listData: []*proto.Message{},
+			listData: []proto.Message{},
 			index:    0,
 		}
 	}
@@ -70,7 +70,7 @@ func (c *inMemoryCache) StoreBatch(cacheReference string, data []*proto.Message)
 	return nil
 }
 
-func (c *inMemoryCache) ReadBatch(cacheReference string, amount int32) ([]*proto.Message, error) {
+func (c *inMemoryCache) ReadBatch(cacheReference string, amount int32) ([]proto.Message, error) {
 	storageData, exists := c.memoryStorage[cacheReference]
 	if !exists {
 		return nil, fmt.Errorf("no data found for cache reference: %s", cacheReference)
@@ -79,7 +79,7 @@ func (c *inMemoryCache) ReadBatch(cacheReference string, amount int32) ([]*proto
 	// This only occures when having aggregated data that was never sorted
 	// In this case we convert the map to a slice for easier reading
 	if storageData.sortedData == nil && storageData.mappedData != nil {
-		sortedData := make([]*proto.Message, 0, len(storageData.mappedData))
+		sortedData := make([]proto.Message, 0, len(storageData.mappedData))
 		for _, msg := range storageData.mappedData {
 			sortedData = append(sortedData, msg)
 		}
@@ -97,7 +97,7 @@ func (c *inMemoryCache) ReadBatch(cacheReference string, amount int32) ([]*proto
 	return nil, nil
 }
 
-func (c *inMemoryCache) readBatch(cacheReference string, amount int32, data []*proto.Message) ([]*proto.Message, error) {
+func (c *inMemoryCache) readBatch(cacheReference string, amount int32, data []proto.Message) ([]proto.Message, error) {
 	storageData, exists := c.memoryStorage[cacheReference]
 	if !exists || storageData.index >= len(data) {
 		return nil, nil
@@ -113,7 +113,7 @@ func (c *inMemoryCache) readBatch(cacheReference string, amount int32, data []*p
 	return results, nil
 }
 
-func (c *inMemoryCache) SortData(cacheReference string, sortFn func(a, b *proto.Message) bool) error {
+func (c *inMemoryCache) SortData(cacheReference string, sortFn func(a, b proto.Message) bool) error {
 	storageData, exists := c.memoryStorage[cacheReference]
 	if !exists || storageData.mappedData == nil {
 		return fmt.Errorf("no data found for cache reference: %s", cacheReference)
@@ -122,7 +122,7 @@ func (c *inMemoryCache) SortData(cacheReference string, sortFn func(a, b *proto.
 		return fmt.Errorf("no data to sort for cache reference: %s", cacheReference)
 	}
 	// Collect values from mappedData into a slice
-	sortedData := make([]*proto.Message, 0, len(storageData.mappedData))
+	sortedData := make([]proto.Message, 0, len(storageData.mappedData))
 	for _, msg := range storageData.mappedData {
 		sortedData = append(sortedData, msg)
 	}

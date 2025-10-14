@@ -45,15 +45,12 @@ func ParseSemester(semester string) (int, int) {
 	return year, half
 }
 
-func ToProtoMessage[T proto.Message](data T) *proto.Message {
-	msg := proto.Message(data)
-	return &msg
-}
-
-func FromProtoMessage[T proto.Message](msg *proto.Message) T {
-	return (*msg).(T)
-}
-
+// CastProtoMessage is a generic function to cast a proto.Message to a specific type T.
+// It panics if the cast is not possible, so it should be used when the type is guaranteed.
 func CastProtoMessage[T proto.Message](msg proto.Message) T {
-	return msg.(T)
+	casted, ok := msg.(T)
+	if !ok {
+		panic(fmt.Sprintf("failed to cast proto.Message to the desired type: %T", msg))
+	}
+	return casted
 }

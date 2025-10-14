@@ -52,9 +52,9 @@ func (fe *finishExecutor) SendAllData(clientID string, taskType enum.TaskType) e
 }
 
 func (fe *finishExecutor) sortTask3(clientID string) error {
-	sortFn := func(a, b *proto.Message) bool {
-		txA := (*a).(*reduced.TotalPaymentValue)
-		txB := (*b).(*reduced.TotalPaymentValue)
+	sortFn := func(a, b proto.Message) bool {
+		txA := utils.CastProtoMessage[*reduced.TotalPaymentValue](a)
+		txB := utils.CastProtoMessage[*reduced.TotalPaymentValue](b)
 
 		yearA, halfA := utils.ParseSemester(txA.GetSemester())
 		yearB, halfB := utils.ParseSemester(txB.GetSemester())
@@ -72,9 +72,9 @@ func (fe *finishExecutor) sortTask3(clientID string) error {
 }
 
 func (fe *finishExecutor) sortTask4(clientID string) error {
-	sortFn := func(a, b *proto.Message) bool {
-		txA := (*a).(*reduced.CountedUserTransactions)
-		txB := (*b).(*reduced.CountedUserTransactions)
+	sortFn := func(a, b proto.Message) bool {
+		txA := utils.CastProtoMessage[*reduced.CountedUserTransactions](a)
+		txB := utils.CastProtoMessage[*reduced.CountedUserTransactions](b)
 		// First, compare by storeID (ascending)
 		if txA.GetStoreId() != txB.GetStoreId() {
 			return txA.GetStoreId() < txB.GetStoreId()

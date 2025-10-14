@@ -232,12 +232,10 @@ func t4FilterMock(t *testing.T) {
 		t.Error("Test timed out waiting for results")
 	}
 	assert.Equal(t, 0, int(e))
-	assert.Equal(t, 7, len(res.Transactions), "Expected 7 transactions after filtering")
-	assert.Equal(t, "1", res.Transactions[0].TransactionId)
-	assert.Equal(t, "2", res.Transactions[1].TransactionId)
-	assert.Equal(t, "3", res.Transactions[2].TransactionId)
-	assert.Equal(t, "4", res.Transactions[3].TransactionId)
-	assert.Equal(t, "5", res.Transactions[4].TransactionId)
-	assert.Equal(t, "6", res.Transactions[5].TransactionId)
-	assert.Equal(t, "7", res.Transactions[6].TransactionId)
+	assert.Equal(t, 5, len(res.Transactions), "Expected 5 transactions after filtering")
+	assert.Equal(t, "2", res.Transactions[0].TransactionId)
+	assert.Equal(t, "3", res.Transactions[1].TransactionId)
+	assert.Equal(t, "4", res.Transactions[2].TransactionId)
+	assert.Equal(t, "6", res.Transactions[3].TransactionId)
+	assert.Equal(t, "7", res.Transactions[4].TransactionId)
 }

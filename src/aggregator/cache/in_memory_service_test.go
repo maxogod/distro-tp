@@ -6,6 +6,7 @@ import (
 	"github.com/maxogod/distro-tp/src/aggregator/cache"
 	"github.com/maxogod/distro-tp/src/common/models/raw"
 	"github.com/maxogod/distro-tp/src/common/models/reduced"
+	"github.com/maxogod/distro-tp/src/common/utils"
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/protobuf/proto"
 )
@@ -67,23 +68,22 @@ func TestStoreAndSortTransactions(t *testing.T) {
 
 	cacheRef := "transactionCache"
 
-	// Convert []*raw.Transaction to []*proto.Message
-	protoTransactions := make([]*proto.Message, len(transactions))
+	// Convert []*raw.Transaction to []proto.Message
+	protoTransactions := make([]proto.Message, len(transactions))
 	for i, tx := range transactions {
-		msg := proto.Message(tx)
-		protoTransactions[i] = &msg
+		protoTransactions[i] = tx
 	}
 
 	// Define a sort function to sort by FinalAmount
-	sortFn := func(a, b *proto.Message) bool {
-		txA := (*a).(*raw.Transaction)
-		txB := (*b).(*raw.Transaction)
+	sortFn := func(a, b proto.Message) bool {
+		txA := utils.CastProtoMessage[*raw.Transaction](a)
+		txB := utils.CastProtoMessage[*raw.Transaction](b)
 		return txA.FinalAmount < txB.FinalAmount
 	}
 
 	// Store the transactions in the cache, sorted by FinalAmount
 	for _, tx := range protoTransactions {
-		err := cacheService.StoreAggregatedData(cacheRef, (*tx).(*raw.Transaction).TransactionId, tx, nil)
+		err := cacheService.StoreAggregatedData(cacheRef, utils.CastProtoMessage[*raw.Transaction](tx).TransactionId, tx, nil)
 		assert.NoError(t, err)
 	}
 
@@ -96,9 +96,9 @@ func TestStoreAndSortTransactions(t *testing.T) {
 	assert.Equal(t, 3, len(readData))
 
 	// Verify the order is by FinalAmount
-	assert.Equal(t, "1", (*readData[0]).(*raw.Transaction).TransactionId) // 100.0
-	assert.Equal(t, "3", (*readData[1]).(*raw.Transaction).TransactionId) // 150.0
-	assert.Equal(t, "2", (*readData[2]).(*raw.Transaction).TransactionId) // 200.0
+	assert.Equal(t, "1", utils.CastProtoMessage[*raw.Transaction](readData[0]).TransactionId) // 100.0
+	assert.Equal(t, "3", utils.CastProtoMessage[*raw.Transaction](readData[1]).TransactionId) // 150.0
+	assert.Equal(t, "2", utils.CastProtoMessage[*raw.Transaction](readData[2]).TransactionId) // 200.0
 }
 
 func TestStoreAndReadUnsortedTransactions(t *testing.T) {
@@ -106,11 +106,10 @@ func TestStoreAndReadUnsortedTransactions(t *testing.T) {
 
 	cacheRef := "transactionCache"
 
-	// Convert []*raw.Transaction to []*proto.Message
-	protoTransactions := make([]*proto.Message, len(transactions))
+	// Convert []*raw.Transaction to []proto.Message
+	protoTransactions := make([]proto.Message, len(transactions))
 	for i, tx := range transactions {
-		msg := proto.Message(tx)
-		protoTransactions[i] = &msg
+		protoTransactions[i] = tx
 	}
 
 	// Store the transactions in the cache, sorted by FinalAmount
@@ -123,9 +122,9 @@ func TestStoreAndReadUnsortedTransactions(t *testing.T) {
 	assert.Equal(t, 3, len(readData))
 
 	// Verify the order is by FinalAmount
-	assert.Equal(t, "1", (*readData[0]).(*raw.Transaction).TransactionId)
-	assert.Equal(t, "2", (*readData[1]).(*raw.Transaction).TransactionId)
-	assert.Equal(t, "3", (*readData[2]).(*raw.Transaction).TransactionId)
+	assert.Equal(t, "1", utils.CastProtoMessage[*raw.Transaction](readData[0]).TransactionId)
+	assert.Equal(t, "2", utils.CastProtoMessage[*raw.Transaction](readData[1]).TransactionId)
+	assert.Equal(t, "3", utils.CastProtoMessage[*raw.Transaction](readData[2]).TransactionId)
 }
 
 func TestReadFromNonExistingCache(t *testing.T) {
@@ -144,10 +143,9 @@ func TestReadFromEmptyCache(t *testing.T) {
 
 	cacheRef := "emptyCache"
 
-	protoTransactions := make([]*proto.Message, len(transactions))
+	protoTransactions := make([]proto.Message, len(transactions))
 	for i, tx := range transactions {
-		msg := proto.Message(tx)
-		protoTransactions[i] = &msg
+		protoTransactions[i] = tx
 	}
 
 	// i now have stored 3 transactions
@@ -172,31 +170,31 @@ func TestAggregateTPV(t *testing.T) {
 
 	cacheRef := "transactionCache"
 
-	// Convert []*raw.Transaction to []*proto.Message
-	protoTPV := make([]*proto.Message, len(tpvData))
+	// Convert []*raw.Transaction to []proto.Message
+	protoTPV := make([]proto.Message, len(tpvData))
 	for i, tx := range tpvData {
-		msg := proto.Message(tx)
-		protoTPV[i] = &msg
+		protoTPV[i] = tx
 	}
 
-	joinFn := func(existing, new *proto.Message) (*proto.Message, error) {
-		existingTPV := (*existing).(*reduced.TotalPaymentValue)
-		newTPV := (*new).(*reduced.TotalPaymentValue)
+	joinFn := func(existing, new proto.Message) (proto.Message, error) {
+		existingTPV := utils.CastProtoMessage[*reduced.TotalPaymentValue](existing)
+		newTPV := utils.CastProtoMessage[*reduced.TotalPaymentValue](new)
 		// Aggregate the FinalAmount
 		existingTPV.FinalAmount += newTPV.FinalAmount
 		return existing, nil
 	}
 
 	// Define a sort function to sort by FinalAmount
-	sortFn := func(a, b *proto.Message) bool {
-		txA := (*a).(*reduced.TotalPaymentValue)
-		txB := (*b).(*reduced.TotalPaymentValue)
+	sortFn := func(a, b proto.Message) bool {
+		txA := utils.CastProtoMessage[*reduced.TotalPaymentValue](a)
+		txB := utils.CastProtoMessage[*reduced.TotalPaymentValue](b)
 		return txA.FinalAmount > txB.FinalAmount
 	}
 
 	// Store the transactions in the cache, sorted by FinalAmount
 	for _, tx := range protoTPV {
-		keyID := (*tx).(*reduced.TotalPaymentValue).StoreId + "@" + (*tx).(*reduced.TotalPaymentValue).Semester
+		tpv := utils.CastProtoMessage[*reduced.TotalPaymentValue](tx)
+		keyID := tpv.StoreId + "@" + tpv.Semester
 		err := cacheService.StoreAggregatedData(cacheRef, keyID, tx, joinFn)
 		assert.NoError(t, err)
 	}
@@ -212,7 +210,7 @@ func TestAggregateTPV(t *testing.T) {
 	// Convert readData back into TPV data
 	tpvResults := make([]*reduced.TotalPaymentValue, len(readData))
 	for i, msg := range readData {
-		tx, ok := (*msg).(*reduced.TotalPaymentValue)
+		tx, ok := msg.(*reduced.TotalPaymentValue)
 		assert.True(t, ok)
 		tpvResults[i] = tx
 	}
