@@ -20,7 +20,6 @@ var log = logger.GetLogger()
 type joinerExecutor struct {
 	config          *config.Config
 	joinerService   business.JoinerService
-	finishExecutor  FinishExecutor
 	aggregatorQueue middleware.MessageMiddleware
 }
 
@@ -30,7 +29,6 @@ func NewJoinerExecutor(config *config.Config,
 	return &joinerExecutor{
 		config:          config,
 		joinerService:   joinerService,
-		finishExecutor:  NewFinishExecutor(config.Address, joinerService),
 		aggregatorQueue: aggregatorQueue,
 	}
 }
@@ -55,8 +53,8 @@ func (je *joinerExecutor) HandleTask2_1(payload []byte, clientID string) error {
 		return err
 	}
 
-	joinedData, hasData := je.joinerService.GetStoredTotalProfitBySubtotal(reducedData, clientID, SEND_LIMIT)
-	if !hasData {
+	joinedData := je.joinerService.JoinTotalProfitBySubtotal(reducedData, clientID)
+	if len(joinedData) == 0 {
 		return nil
 	}
 
@@ -91,8 +89,8 @@ func (je *joinerExecutor) HandleTask2_2(payload []byte, clientID string) error {
 		return err
 	}
 
-	joinedData, hasData := je.joinerService.GetStoredTotalSoldByQuantity(reducedData, clientID, SEND_LIMIT)
-	if !hasData {
+	joinedData := je.joinerService.JoinTotalSoldByQuantity(reducedData, clientID)
+	if len(joinedData) == 0 {
 		return nil
 	}
 
@@ -126,13 +124,13 @@ func (je *joinerExecutor) HandleTask3(payload []byte, clientID string) error {
 		return err
 	}
 
-	tpvs, hasData := je.joinerService.GetStoredTotalPaymentValue(reducedData, clientID, SEND_LIMIT)
-	if !hasData {
+	joinedData := je.joinerService.JoinTotalPaymentValue(reducedData, clientID)
+	if len(joinedData) == 0 {
 		return nil
 	}
 
-	for _, tpv := range tpvs {
-		err = worker.SendDataToMiddleware(tpv, enum.T3, clientID, je.aggregatorQueue)
+	for _, jd := range joinedData {
+		err = worker.SendDataToMiddleware(jd, enum.T3, clientID, je.aggregatorQueue)
 		if err != nil {
 			return err
 		}
@@ -154,9 +152,10 @@ func (je *joinerExecutor) HandleTask4(payload []byte, clientID string) error {
 		}
 		ref := &protocol.ReferenceEnvelope{}
 		err := proto.Unmarshal(dataEnvelope.GetPayload(), ref)
-		if err == nil && enum.ReferenceType(ref.GetReferenceType()) == enum.Stores { // Stores is receiver after Users
+		if err == nil && enum.ReferenceType(ref.GetReferenceType()) == enum.Stores { // Stores is received after Users
 			return je.joinerService.FinishStoringRefData(clientID)
 		}
+		return nil
 	}
 
 	countedData := &reduced.CountedUserTransactions{}
@@ -165,8 +164,8 @@ func (je *joinerExecutor) HandleTask4(payload []byte, clientID string) error {
 		return err
 	}
 
-	joinedData, hasData := je.joinerService.GetStoredCountedUserTransactions(countedData, clientID, SEND_LIMIT)
-	if !hasData {
+	joinedData := je.joinerService.JoinCountedUserTransactions(countedData, clientID)
+	if len(joinedData) == 0 {
 		return nil
 	}
 
@@ -235,6 +234,7 @@ func (je *joinerExecutor) handleRefData(batch *protocol.DataEnvelope, clientID s
 		}
 		return je.joinerService.StoreShops(clientID, storeBatch.Stores)
 	default:
+		log.Errorf("Unknown reference type: %v", refData.GetReferenceType())
 		return nil
 	}
 }

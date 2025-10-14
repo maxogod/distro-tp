@@ -22,7 +22,7 @@ type Server struct {
 }
 
 func InitServer(conf *config.Config) *Server {
-	// initiateOutputs
+	// initiate middlewares
 	joinerInputQueue := middleware.GetJoinerQueue(conf.Address)
 	refDataExchange := middleware.GetRefDataExchange(conf.Address)
 	finishExchange := middleware.GetFinishExchange(conf.Address, []string{string(enum.JoinerWorker)})
