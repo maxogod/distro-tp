@@ -233,7 +233,7 @@ func (je *joinerExecutor) handleRefData(batch *protocol.DataEnvelope, clientID s
 		if err != nil {
 			return err
 		}
-		return je.joinerService.StoreStores(clientID, storeBatch.Stores)
+		return je.joinerService.StoreShops(clientID, storeBatch.Stores)
 	default:
 		return nil
 	}

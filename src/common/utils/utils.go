@@ -44,3 +44,12 @@ func ParseSemester(semester string) (int, int) {
 
 	return year, half
 }
+
+func ToProtoMessage[T proto.Message](data T) *proto.Message {
+	msg := proto.Message(data)
+	return &msg
+}
+
+func FromProtoMessage[T proto.Message](msg *proto.Message) T {
+	return (*msg).(T)
+}
