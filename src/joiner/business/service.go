@@ -96,14 +96,17 @@ func (js *joinerService) JoinTotalProfitBySubtotal(profit *reduced.TotalProfitBy
 }
 
 func (js *joinerService) JoinTotalSoldByQuantity(sales *reduced.TotalSoldByQuantity, clientID string) []*reduced.TotalSoldByQuantity {
+	// bufferID := "T2_2" + clientID
 	return nil
 }
 
 func (js *joinerService) JoinTotalPaymentValue(tpv *reduced.TotalPaymentValue, clientID string) []*reduced.TotalPaymentValue {
+	// bufferID := "T3" + clientID // even if its not necessary, keep the pattern
 	return nil
 }
 
 func (js *joinerService) JoinCountedUserTransactions(countedTransaction *reduced.CountedUserTransactions, clientID string) []*reduced.CountedUserTransactions {
+	// bufferID := "T4" + clientID // even if its not necessary, keep the pattern
 	return nil
 }
 
