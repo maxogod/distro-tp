@@ -6,14 +6,14 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-// This struct holds the data for each client.
+// storage holds the data for each client.
 // It contains a map of reference IDs to their corresponding data.
 type storage struct {
 	referenceData    map[string]proto.Message   // key is the ID or reference
 	unreferencedData map[string][]proto.Message // data without a reference
 }
 
-// This CacheService implementation provides fast in-memory storage of data.
+// inMemoryCache is a CacheService implementation provides fast in-memory storage of data.
 type inMemoryCache struct {
 	memoryStorage map[string]storage
 }
@@ -25,7 +25,6 @@ func NewInMemoryCache() CacheService {
 }
 
 func (c *inMemoryCache) StoreRefData(clientID string, referenceID string, data proto.Message) error {
-
 	if _, exists := c.memoryStorage[clientID]; !exists {
 		c.memoryStorage[clientID] = storage{
 			referenceData:    make(map[string]proto.Message),
@@ -39,16 +38,16 @@ func (c *inMemoryCache) StoreRefData(clientID string, referenceID string, data p
 	return nil
 }
 
-func (c *inMemoryCache) GetRefData(clientID string, referenceID string) (proto.Message, bool, error) {
+func (c *inMemoryCache) GetRefData(clientID string, referenceID string) (proto.Message, error) {
 	clientStorage, clientExists := c.memoryStorage[clientID]
 	if !clientExists {
-		return nil, false, fmt.Errorf("clientID '%s' does not exist", clientID)
+		return nil, fmt.Errorf("clientID '%s' does not exist", clientID)
 	}
 	data, refExists := clientStorage.referenceData[referenceID]
 	if !refExists {
-		return nil, false, nil
+		return nil, nil
 	}
-	return data, true, nil
+	return data, nil
 }
 
 func (c *inMemoryCache) RemoveRefData(clientID string) {

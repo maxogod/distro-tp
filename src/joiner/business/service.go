@@ -64,7 +64,7 @@ func (js *joinerService) StoreUsers(clientID string, items []*raw.User) error {
 }
 
 func (js *joinerService) FinishStoringRefData(clientID string) error {
-	js.fullRefClients[clientID] = true
+	js.fullRefClients[clientID] = true // All reference data was received for this client
 	return nil
 }
 
@@ -78,28 +78,22 @@ func (js *joinerService) JoinTotalProfitBySubtotal(profit *reduced.TotalProfitBy
 		return nil
 	}
 
-	protoRef, hasRef, err := js.cacheService.GetRefData(clientID, referenceID)
+	protoRef, err := js.cacheService.GetRefData(clientID, referenceID)
 	if err != nil {
 		log.Errorf("Error retrieving reference data %s for client %s: %v", referenceID, clientID, err)
-		return nil
-	}
-	if !hasRef {
-		log.Debugf("Reference for %s not found for client %s | Buffering until found", referenceID, clientID)
-		clientID = "T2_1" + clientID
-		js.cacheService.BufferUnreferencedData(clientID, referenceID, profit)
 		return nil
 	}
 
 	joinedData := make([]*reduced.TotalProfitBySubtotal, 0)
 
 	menuItem := utils.CastProtoMessage[*raw.MenuItem](protoRef)
-
 	profit.ItemId = menuItem.GetItemName()
 	joinedData = append(joinedData, profit)
-	// In case there are buffered profits waiting for this reference,
-	// we try to resolve them now
+
+	// In case there are buffered profits waiting for this reference, resolve them now
+	// TODO this is used to get from cache with that ID but we never inserted data with that ID (it wont exists in map)
 	clientID = "T2_1" + clientID
-	js.cleanupUnreferencedProfit(clientID, referenceID, &joinedData)
+	js.joinBufferedProfitData(clientID, referenceID, &joinedData)
 	return joinedData
 }
 
@@ -126,24 +120,27 @@ func (js *joinerService) Close() error {
 	return js.cacheService.Close()
 }
 
-/* --- Cleanup Helper Functions --- */
+/* --- Buffered data Helper Functions --- */
 
-func (js *joinerService) cleanupUnreferencedProfit(clientID, referenceID string, joinedData *[]*reduced.TotalProfitBySubtotal) {
+func (js *joinerService) joinBufferedProfitData(clientID, referenceID string, joinedData *[]*reduced.TotalProfitBySubtotal) {
+	// TODO why is referenceID ignored
 	js.cacheService.IterateUnreferencedData(clientID, referenceID, func(bufferedProto proto.Message) bool {
+		// TODO why is this referenceID ignored as well
+
+		// TODO how can we assure this type is the correct one?
 		bufferedProfit := utils.CastProtoMessage[*reduced.TotalProfitBySubtotal](bufferedProto)
 		refID := bufferedProfit.GetItemId() + SEPERATOR + MENU_ITEM
 
-		protoRef, hasRef, err := js.cacheService.GetRefData(clientID, refID)
+		protoRef, err := js.cacheService.GetRefData(clientID, refID)
 		if err != nil {
 			log.Errorf("Error retrieving reference data %s for client %s: %v", refID, clientID, err)
+			// TODO why return false, if this function is running it means the reference data must exist (done was already received)
 			return false
 		}
-		if !hasRef {
-			return false
-		}
+
 		menuItem := utils.CastProtoMessage[*raw.MenuItem](protoRef)
 		bufferedProfit.ItemId = menuItem.GetItemName()
 		*joinedData = append(*joinedData, bufferedProfit)
-		return true
+		return true // TODO no need to return true, as we want to remove all buffered data after reading it
 	})
 }

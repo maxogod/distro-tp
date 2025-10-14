@@ -12,8 +12,8 @@ type CacheService interface {
 	StoreRefData(clientID string, referenceID string, data proto.Message) error
 
 	// GetRefData retrieves the data associated with the given clientID and referenceID.
-	// It returns the data, a boolean indicating if the data was found, and an error if any different occurred.
-	GetRefData(clientID string, referenceID string) (proto.Message, bool, error)
+	// It returns the data, and an error.
+	GetRefData(clientID string, referenceID string) (proto.Message, error)
 
 	// BufferUnreferencedData buffers data that does not have an associated reference ID yet.
 	BufferUnreferencedData(clientID string, referenceID string, data proto.Message) error
