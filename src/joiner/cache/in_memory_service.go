@@ -68,12 +68,12 @@ func (c *inMemoryCache) BufferUnreferencedData(clientID string, referenceID stri
 	return nil
 }
 
-func (c *inMemoryCache) IterateUnreferencedData(clientID string, referenceID string, rmFn func(proto.Message) bool) error {
+func (c *inMemoryCache) IterateUnreferencedData(clientID string, bufferID string, rmFn func(proto.Message) bool) error {
 	clientStorage, clientExists := c.memoryStorage[clientID]
 	if !clientExists {
 		return fmt.Errorf("clientID '%s' does not exist", clientID)
 	}
-	data, refExists := clientStorage.unreferencedData[referenceID]
+	data, refExists := clientStorage.unreferencedData[bufferID]
 	if !refExists || len(data) == 0 {
 		return nil
 	}
@@ -85,7 +85,7 @@ func (c *inMemoryCache) IterateUnreferencedData(clientID string, referenceID str
 			kept = append(kept, item)
 		}
 	}
-	clientStorage.unreferencedData[referenceID] = kept
+	clientStorage.unreferencedData[bufferID] = kept
 	c.memoryStorage[clientID] = clientStorage
 
 	return nil

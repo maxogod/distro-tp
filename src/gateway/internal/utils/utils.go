@@ -55,7 +55,7 @@ func TransactionItemsBatchFromList(list []*raw.TransactionItem) []byte {
 
 func UserFromRecord(record []string) *raw.User {
 	return &raw.User{
-		UserId:    int32(common_utils.ParseIntOrDefault(record[0])),
+		UserId:    record[0],
 		Birthdate: record[2],
 	}
 }

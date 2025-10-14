@@ -1,8 +1,6 @@
 package business
 
 import (
-	"strconv"
-
 	"github.com/maxogod/distro-tp/src/common/logger"
 	"github.com/maxogod/distro-tp/src/common/models/raw"
 	"github.com/maxogod/distro-tp/src/common/models/reduced"
@@ -59,7 +57,7 @@ func (js *joinerService) StoreShops(clientID string, items []*raw.Store) error {
 
 func (js *joinerService) StoreUsers(clientID string, items []*raw.User) error {
 	return storeRefData(clientID, items, func(item *raw.User) string {
-		return strconv.Itoa(int(item.UserId)) + SEPERATOR + USER
+		return item.UserId + SEPERATOR + USER
 	}, js.cacheService)
 }
 
@@ -71,10 +69,12 @@ func (js *joinerService) FinishStoringRefData(clientID string) error {
 /* --- Get joined data --- */
 
 func (js *joinerService) JoinTotalProfitBySubtotal(profit *reduced.TotalProfitBySubtotal, clientID string) []*reduced.TotalProfitBySubtotal {
+	bufferID := "T2_1" + clientID
 	referenceID := profit.GetItemId() + SEPERATOR + MENU_ITEM
+
 	_, exists := js.fullRefClients[clientID]
 	if !exists {
-		js.cacheService.BufferUnreferencedData(clientID, referenceID, profit)
+		js.cacheService.BufferUnreferencedData(bufferID, referenceID, profit)
 		return nil
 	}
 
@@ -91,9 +91,7 @@ func (js *joinerService) JoinTotalProfitBySubtotal(profit *reduced.TotalProfitBy
 	joinedData = append(joinedData, profit)
 
 	// In case there are buffered profits waiting for this reference, resolve them now
-	// TODO this is used to get from cache with that ID but we never inserted data with that ID (it wont exists in map)
-	clientID = "T2_1" + clientID
-	js.joinBufferedProfitData(clientID, referenceID, &joinedData)
+	js.joinBufferedProfitData(clientID, bufferID, &joinedData)
 	return joinedData
 }
 
@@ -122,12 +120,8 @@ func (js *joinerService) Close() error {
 
 /* --- Buffered data Helper Functions --- */
 
-func (js *joinerService) joinBufferedProfitData(clientID, referenceID string, joinedData *[]*reduced.TotalProfitBySubtotal) {
-	// TODO why is referenceID ignored
-	js.cacheService.IterateUnreferencedData(clientID, referenceID, func(bufferedProto proto.Message) bool {
-		// TODO why is this referenceID ignored as well
-
-		// TODO how can we assure this type is the correct one?
+func (js *joinerService) joinBufferedProfitData(clientID, bufferID string, joinedData *[]*reduced.TotalProfitBySubtotal) {
+	js.cacheService.IterateUnreferencedData(clientID, bufferID, func(bufferedProto proto.Message) bool {
 		bufferedProfit := utils.CastProtoMessage[*reduced.TotalProfitBySubtotal](bufferedProto)
 		refID := bufferedProfit.GetItemId() + SEPERATOR + MENU_ITEM
 

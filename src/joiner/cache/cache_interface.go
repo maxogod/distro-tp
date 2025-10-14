@@ -21,7 +21,7 @@ type CacheService interface {
 	// IterateUnreferencedData iterates over unreferenced data for a given clientID and referenceID,
 	// applying the provided removal function to each item.
 	// This should be used when the reference ID becomes available to process and possibly remove the buffered data.
-	IterateUnreferencedData(clientID string, referenceID string, rmFn func(proto.Message) bool) error
+	IterateUnreferencedData(clientID string, bufferID string, rmFn func(proto.Message) bool) error
 
 	// RemoveRefData removes all reference data associated with the given clientID.
 	RemoveRefData(clientID string)
