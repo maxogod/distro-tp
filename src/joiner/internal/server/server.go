@@ -54,7 +54,7 @@ func InitServer(conf *config.Config) *Server {
 }
 
 func (s *Server) Run() error {
-	log.Info("Starting aggregator server...")
+	log.Info("Starting joiner server...")
 	s.setupGracefulShutdown()
 
 	// This is a blocking call, it will run until an error occurs or

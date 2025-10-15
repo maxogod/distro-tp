@@ -33,6 +33,26 @@ func NewJoinerExecutor(config *config.Config,
 	}
 }
 
+// HandleTask2 is exclusively for reference data
+func (je *joinerExecutor) HandleTask2(payload []byte, clientID string) error {
+	dataEnvelope := &protocol.DataEnvelope{}
+	err := proto.Unmarshal(payload, dataEnvelope)
+	if err != nil {
+		return err
+	}
+
+	if !dataEnvelope.GetIsRef() {
+		panic("Received a non-reference data envelope for Task 2, ignoring...")
+	}
+
+	if !dataEnvelope.GetIsDone() {
+		return je.handleRefData(dataEnvelope, clientID)
+	}
+	return je.joinerService.FinishStoringRefData(clientID)
+
+}
+
+// HandleTask2_1 is exclusively for reduced data
 func (je *joinerExecutor) HandleTask2_1(payload []byte, clientID string) error {
 	dataEnvelope := &protocol.DataEnvelope{}
 	err := proto.Unmarshal(payload, dataEnvelope)
@@ -41,14 +61,11 @@ func (je *joinerExecutor) HandleTask2_1(payload []byte, clientID string) error {
 	}
 
 	if dataEnvelope.GetIsRef() {
-		if !dataEnvelope.GetIsDone() {
-			return je.handleRefData(dataEnvelope, clientID)
-		}
-		return je.joinerService.FinishStoringRefData(clientID)
+		panic("The joiner only implements Task 2_1 for reduced data")
 	}
 
 	reducedData := &reduced.TotalProfitBySubtotal{}
-	err = proto.Unmarshal(payload, reducedData)
+	err = proto.Unmarshal(dataEnvelope.GetPayload(), reducedData)
 	if err != nil {
 		return err
 	}
@@ -68,6 +85,7 @@ func (je *joinerExecutor) HandleTask2_1(payload []byte, clientID string) error {
 	return nil
 }
 
+// HandleTask2_2 is exclusively for reduced data
 func (je *joinerExecutor) HandleTask2_2(payload []byte, clientID string) error {
 	dataEnvelope := &protocol.DataEnvelope{}
 	err := proto.Unmarshal(payload, dataEnvelope)
@@ -76,15 +94,11 @@ func (je *joinerExecutor) HandleTask2_2(payload []byte, clientID string) error {
 	}
 
 	if dataEnvelope.GetIsRef() {
-		if !dataEnvelope.GetIsDone() {
-			return je.handleRefData(dataEnvelope, clientID)
-
-		}
-		return je.joinerService.FinishStoringRefData(clientID)
+		panic("The joiner only implements Task 2_2 for reduced data")
 	}
 
 	reducedData := &reduced.TotalSoldByQuantity{}
-	err = proto.Unmarshal(payload, reducedData)
+	err = proto.Unmarshal(dataEnvelope.GetPayload(), reducedData)
 	if err != nil {
 		return err
 	}
@@ -119,7 +133,8 @@ func (je *joinerExecutor) HandleTask3(payload []byte, clientID string) error {
 	}
 
 	reducedData := &reduced.TotalPaymentValue{}
-	err = proto.Unmarshal(payload, reducedData)
+
+	err = proto.Unmarshal(dataEnvelope.GetPayload(), reducedData)
 	if err != nil {
 		return err
 	}
@@ -150,16 +165,11 @@ func (je *joinerExecutor) HandleTask4(payload []byte, clientID string) error {
 		if !dataEnvelope.GetIsDone() {
 			return je.handleRefData(dataEnvelope, clientID)
 		}
-		ref := &protocol.ReferenceEnvelope{}
-		err := proto.Unmarshal(dataEnvelope.GetPayload(), ref)
-		if err == nil && enum.ReferenceType(ref.GetReferenceType()) == enum.Stores { // Stores is received after Users
-			return je.joinerService.FinishStoringRefData(clientID)
-		}
-		return nil
+		return je.joinerService.FinishStoringRefData(clientID)
 	}
 
 	countedData := &reduced.CountedUserTransactions{}
-	err = proto.Unmarshal(payload, countedData)
+	err = proto.Unmarshal(dataEnvelope.GetPayload(), countedData)
 	if err != nil {
 		return err
 	}
@@ -196,10 +206,6 @@ func (je *joinerExecutor) Close() error {
 
 func (je *joinerExecutor) HandleTask1(payload []byte, clientID string) error {
 	panic("The joiner does not implement Task 1")
-}
-
-func (je *joinerExecutor) HandleTask2(payload []byte, clientID string) error {
-	panic("The joiner does not implement Task 2")
 }
 
 /* --- PRIVATE UTIL METHODS --- */

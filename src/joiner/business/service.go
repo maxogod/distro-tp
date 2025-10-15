@@ -71,6 +71,7 @@ func (js *joinerService) StoreUsers(clientID string, items []*raw.User) error {
 }
 
 func (js *joinerService) FinishStoringRefData(clientID string) error {
+	log.Debug("Received all reference data for client: ", clientID)
 	js.fullRefClients[clientID] = true // All reference data was received for this client
 	return nil
 }
@@ -79,12 +80,11 @@ func (js *joinerService) FinishStoringRefData(clientID string) error {
 
 // This is T2_1
 func (js *joinerService) JoinTotalProfitBySubtotal(profit *reduced.TotalProfitBySubtotal, clientID string) []*reduced.TotalProfitBySubtotal {
-	log.Info("Joining profit for itemId: ", profit.GetItemId())
 	bufferID := "T2_1" + SEPERATOR + clientID
 	referenceID := profit.GetItemId() + SEPERATOR + MENU_ITEM
+
 	_, allRefPresent := js.fullRefClients[clientID]
 	if !allRefPresent {
-		log.Info("Buffering unreferenced profit data for refID: ", bufferID)
 		js.cacheService.BufferUnreferencedData(clientID, bufferID, profit)
 		return nil
 	}
@@ -193,10 +193,8 @@ func (js *joinerService) Close() error {
 /* --- Buffered data Helper Functions --- */
 
 func (js *joinerService) joinBufferedProfitData(clientID, bufferID string, joinedData *[]*reduced.TotalProfitBySubtotal) {
-	log.Info("Joining buffered profit data for clientID: ", clientID)
 	js.cacheService.IterateUnreferencedData(clientID, bufferID, func(bufferedProto proto.Message) bool {
 		bufferedProfit := utils.CastProtoMessage[*reduced.TotalProfitBySubtotal](bufferedProto)
-		log.Info("Joining buffered profit data for itemId: ", bufferedProfit.GetItemId())
 		refID := bufferedProfit.GetItemId() + SEPERATOR + MENU_ITEM
 		protoRef, err := js.cacheService.GetRefData(clientID, refID)
 		if err != nil {
