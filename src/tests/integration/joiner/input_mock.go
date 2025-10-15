@@ -1,34 +1,54 @@
-package filter_test
+package joiner_test
 
 import (
 	"github.com/maxogod/distro-tp/src/common/models/raw"
 	"github.com/maxogod/distro-tp/src/common/models/reduced"
 )
 
-var MockTransactionsBatch = raw.TransactionBatch{
-	Transactions: []*raw.Transaction{
-		{
-			TransactionId: "1", // Good
-			StoreId:       "storeID",
-			UserId:        "userID",
-			FinalAmount:   150.0,
-			CreatedAt:     "2025-07-01 06:01:00",
-		},
-		{
-			TransactionId: "6", // Good
-			StoreId:       "storeID",
-			UserId:        "userID",
-			FinalAmount:   75.0,
-			CreatedAt:     "2025-07-01 06:00:00",
-		},
-		{
-			TransactionId: "7", // Good
-			StoreId:       "storeID",
-			UserId:        "userID",
-			FinalAmount:   100.0,
-			CreatedAt:     "2025-07-01 23:00:00",
-		},
-	}}
+var MockMenuItems = []*raw.MenuItem{
+	{
+		ItemId:   "item1",
+		ItemName: "Black Coffee",
+	},
+	{
+		ItemId:   "item2",
+		ItemName: "Latte",
+	},
+	{
+		ItemId:   "item3",
+		ItemName: "Flat White",
+	},
+}
+
+var MockStores = []*raw.Store{
+	{
+		StoreId:   "1",
+		StoreName: "Starbucks",
+	},
+	{
+		StoreId:   "2",
+		StoreName: "Dunkin' Donuts",
+	},
+	{
+		StoreId:   "3",
+		StoreName: "Hijos del Mar",
+	},
+}
+
+var MockUsers = []*raw.User{
+	{
+		UserId:    "user1",
+		Birthdate: "2000-08-10",
+	},
+	{
+		UserId:    "user2",
+		Birthdate: "2004-07-11",
+	},
+	{
+		UserId:    "user3",
+		Birthdate: "1905-01-01",
+	},
+}
 
 var MockTotalProfit = []*reduced.TotalProfitBySubtotal{
 	{
@@ -47,7 +67,7 @@ var MockTotalProfit = []*reduced.TotalProfitBySubtotal{
 		Subtotal:  100.0,
 	},
 	{
-		ItemId:    "item1",
+		ItemId:    "item3",
 		YearMonth: "2024-06",
 		Subtotal:  100.0,
 	},
@@ -70,7 +90,7 @@ var MockTotalSales = []*reduced.TotalSoldByQuantity{
 		Quantity:  100.0,
 	},
 	{
-		ItemId:    "item1",
+		ItemId:    "item3",
 		YearMonth: "2024-06",
 		Quantity:  100.0,
 	},
@@ -98,70 +118,31 @@ var MockTPV = []*reduced.TotalPaymentValue{
 		FinalAmount: 100.0,
 	},
 	{
-		StoreId:     "1",
+		StoreId:     "3",
 		Semester:    "2024-H1",
 		FinalAmount: 100.0,
 	},
 	{
-		StoreId:     "1",
+		StoreId:     "3",
 		Semester:    "2024-H2",
 		FinalAmount: 100.0,
 	},
 }
 
-var MockUsersDupQuantities = []*reduced.CountedUserTransactions{
+var MockCountedUserTransactions = []*reduced.CountedUserTransactions{
 	{
 		StoreId:             "1",
 		UserId:              "user1",
-		Birthdate:           "2000-01-01",
 		TransactionQuantity: 50,
-	},
-	{
-		StoreId:             "1",
-		UserId:              "user1",
-		Birthdate:           "2000-01-01",
-		TransactionQuantity: 50,
-	},
-	{
-		StoreId:             "1",
-		UserId:              "user2",
-		Birthdate:           "2000-01-01",
-		TransactionQuantity: 50,
-	},
-	{
-		StoreId:             "1",
-		UserId:              "user2",
-		Birthdate:           "2000-01-01",
-		TransactionQuantity: 50,
-	},
-	{
-		StoreId:             "1",
-		UserId:              "user3",
-		Birthdate:           "2000-01-01",
-		TransactionQuantity: 200,
-	},
-	{
-		StoreId:             "1",
-		UserId:              "user4",
-		Birthdate:           "2000-01-01",
-		TransactionQuantity: 50,
-	},
-	{
-		StoreId:             "1",
-		UserId:              "user5",
-		Birthdate:           "2000-01-01",
-		TransactionQuantity: 10,
-	},
-	{
-		StoreId:             "1",
-		UserId:              "user6",
-		Birthdate:           "2000-01-01",
-		TransactionQuantity: 1,
 	},
 	{
 		StoreId:             "2",
-		UserId:              "user1",
-		Birthdate:           "2000-01-01",
-		TransactionQuantity: 10,
+		UserId:              "user2",
+		TransactionQuantity: 50,
+	},
+	{
+		StoreId:             "3",
+		UserId:              "user3",
+		TransactionQuantity: 50,
 	},
 }
