@@ -23,11 +23,7 @@ func InitServer(conf *config.Config) *Server {
 
 	// initiateOutputs
 	reducerInputQueue := middleware.GetReducerQueue(conf.Address)
-	// TODO: change this to joiner queue
-	// until we have a joiner, we will use the aggregator queue as output
-	// since the joiner only rewrites the ID value, this is fine
-	// for testing purposes
-	joinerOutputQueue := middleware.GetAggregatorQueue(conf.Address)
+	joinerOutputQueue := middleware.GetJoinerQueue(conf.Address)
 
 	// initiate internal components
 	service := business.NewReducerService()
