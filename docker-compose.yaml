@@ -176,6 +176,19 @@ services:
       rabbitmq:
         condition: service_healthy
 
+  joiner:
+    container_name: joiner
+    build:
+      dockerfile: ./src/joiner/Dockerfile
+    image: joiner:latest
+    networks:
+      - tp_net
+    volumes:
+      - ./src/joiner/config.yaml:/config.yaml
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+
   gateway:
     container_name: gateway
     entrypoint: ["/app/app", "t1"]
