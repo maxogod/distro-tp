@@ -27,8 +27,8 @@ func TestMain(m *testing.M) {
 func TestSequentialRun(t *testing.T) {
 	tests := []func(t *testing.T){
 		t2JoinerMock,
-		//t3JoinerMock,
-		//t4JoinerMock,
+		t3JoinerMock,
+		t4JoinerMock,
 	}
 
 	// Run each test one by one
@@ -156,6 +156,215 @@ func t2JoinerMock(t *testing.T) {
 		assert.Equal(t, MockTotalSalesOutput[i].ItemId, tq.ItemId)
 		assert.Equal(t, MockTotalSalesOutput[i].YearMonth, tq.YearMonth)
 		assert.Equal(t, MockTotalSalesOutput[i].Quantity, tq.Quantity)
+	}
+
+	aggregatorOutputQueue.StopConsuming()
+	aggregatorOutputQueue.Close()
+	joinerInputQueue.Close()
+	finishExchange.Close()
+}
+
+func t3JoinerMock(t *testing.T) {
+	joinerInputQueue := middleware.GetJoinerQueue(url)
+	finishExchange := middleware.GetFinishExchange(url, []string{string(enum.JoinerWorker)})
+	clientID := "test-client-3"
+	aggregatorOutputQueue := middleware.GetAggregatorQueue(url)
+
+	// --- Send T3 related data references to joiner ---
+	storeBatch := &raw.StoreBatch{
+		Stores: MockStores,
+	}
+	serializedStores, _ := proto.Marshal(storeBatch)
+
+	referenceEnvelope := &protocol.ReferenceEnvelope{
+		Payload:       serializedStores,
+		ReferenceType: int32(enum.Stores),
+	}
+	referenceBytes, _ := proto.Marshal(referenceEnvelope)
+	referenceDataEnvelope := &protocol.DataEnvelope{
+		ClientId: clientID,
+		IsRef:    true,
+		TaskType: int32(enum.T3),
+		Payload:  referenceBytes,
+	}
+	referenceDataEnvelopeBytes, _ := proto.Marshal(referenceDataEnvelope)
+	e := joinerInputQueue.Send(referenceDataEnvelopeBytes)
+	assert.Equal(t, e, middleware.MessageMiddlewareSuccess)
+
+	doneReferenceDataEnvelope := &protocol.DataEnvelope{
+		ClientId: clientID,
+		IsRef:    true,
+		TaskType: int32(enum.T3),
+		IsDone:   true,
+	}
+	doneReferenceDataEnvelopeBytes, _ := proto.Marshal(doneReferenceDataEnvelope)
+	e = joinerInputQueue.Send(doneReferenceDataEnvelopeBytes)
+	assert.Equal(t, e, middleware.MessageMiddlewareSuccess)
+
+	// --- Send T3 data to joiner ---
+
+	for _, tpv := range MockTPV {
+		serializedTPV, _ := proto.Marshal(tpv)
+		dataEnvelope := protocol.DataEnvelope{
+			ClientId: clientID,
+			TaskType: int32(enum.T3),
+			Payload:  serializedTPV,
+		}
+		serializedDataEnvelope, _ := proto.Marshal(&dataEnvelope)
+		joinerInputQueue.Send(serializedDataEnvelope)
+	}
+
+	tpvItems := []*reduced.TotalPaymentValue{}
+
+	doneCounter := len(MockTpvOutput)
+
+	done := make(chan bool, 1)
+	e = aggregatorOutputQueue.StartConsuming(func(consumeChannel middleware.ConsumeChannel, d chan error) {
+		t.Log("Starting to consume messages for T3")
+		for msg := range consumeChannel {
+			msg.Ack(false)
+			dataBatch, _ := utils.GetDataEnvelope(msg.Body)
+
+			tpv := &reduced.TotalPaymentValue{}
+			err := proto.Unmarshal(dataBatch.Payload, tpv)
+			assert.Nil(t, err)
+			tpvItems = append(tpvItems, tpv)
+
+			doneCounter--
+			if doneCounter == 0 {
+				break
+			}
+		}
+		done <- true
+	})
+	select {
+	case <-done:
+	case <-time.After(30 * time.Second):
+		t.Error("Test timed out waiting for results")
+	}
+	assert.Equal(t, 0, int(e))
+	assert.Equal(t, len(MockTpvOutput), len(tpvItems), "Expected same amount of Total profit items after joining")
+
+	for i, tq := range tpvItems {
+		assert.Equal(t, MockTpvOutput[i].Semester, tq.Semester)
+		assert.Equal(t, MockTpvOutput[i].StoreId, tq.StoreId)
+		assert.Equal(t, MockTpvOutput[i].FinalAmount, tq.FinalAmount)
+	}
+
+	aggregatorOutputQueue.StopConsuming()
+	aggregatorOutputQueue.Close()
+	joinerInputQueue.Close()
+	finishExchange.Close()
+}
+
+func t4JoinerMock(t *testing.T) {
+	joinerInputQueue := middleware.GetJoinerQueue(url)
+	finishExchange := middleware.GetFinishExchange(url, []string{string(enum.JoinerWorker)})
+	clientID := "test-client-4"
+	aggregatorOutputQueue := middleware.GetAggregatorQueue(url)
+
+	// --- Send T4 related data references to joiner ---
+	// Send Stores:
+	storeBatch := &raw.StoreBatch{
+		Stores: MockStores,
+	}
+	serializedStores, _ := proto.Marshal(storeBatch)
+
+	referenceEnvelope := &protocol.ReferenceEnvelope{
+		Payload:       serializedStores,
+		ReferenceType: int32(enum.Stores),
+	}
+	referenceBytes, _ := proto.Marshal(referenceEnvelope)
+	referenceDataEnvelope := &protocol.DataEnvelope{
+		ClientId: clientID,
+		IsRef:    true,
+		TaskType: int32(enum.T4),
+		Payload:  referenceBytes,
+	}
+	referenceDataEnvelopeBytes, _ := proto.Marshal(referenceDataEnvelope)
+	e := joinerInputQueue.Send(referenceDataEnvelopeBytes)
+	assert.Equal(t, e, middleware.MessageMiddlewareSuccess)
+
+	// Send Users:
+	userBatch := &raw.UserBatch{
+		Users: MockUsers,
+	}
+	serializedUsers, _ := proto.Marshal(userBatch)
+
+	referenceEnvelope2 := &protocol.ReferenceEnvelope{
+		Payload:       serializedUsers,
+		ReferenceType: int32(enum.Users),
+	}
+	referenceBytes2, _ := proto.Marshal(referenceEnvelope2)
+	referenceDataEnvelope2 := &protocol.DataEnvelope{
+		ClientId: clientID,
+		IsRef:    true,
+		TaskType: int32(enum.T4),
+		Payload:  referenceBytes2,
+	}
+	referenceDataEnvelopeBytes2, _ := proto.Marshal(referenceDataEnvelope2)
+	e = joinerInputQueue.Send(referenceDataEnvelopeBytes2)
+	assert.Equal(t, e, middleware.MessageMiddlewareSuccess)
+
+	// Send Done ref
+	doneReferenceDataEnvelope := &protocol.DataEnvelope{
+		ClientId: clientID,
+		IsRef:    true,
+		TaskType: int32(enum.T4),
+		IsDone:   true,
+	}
+	doneReferenceDataEnvelopeBytes, _ := proto.Marshal(doneReferenceDataEnvelope)
+	e = joinerInputQueue.Send(doneReferenceDataEnvelopeBytes)
+	assert.Equal(t, e, middleware.MessageMiddlewareSuccess)
+
+	// --- Send T4 data to joiner ---
+
+	for _, ct := range MockCountedUserTransactions {
+		serializedCT, _ := proto.Marshal(ct)
+		dataEnvelope := protocol.DataEnvelope{
+			ClientId: clientID,
+			TaskType: int32(enum.T4),
+			Payload:  serializedCT,
+		}
+		serializedDataEnvelope, _ := proto.Marshal(&dataEnvelope)
+		joinerInputQueue.Send(serializedDataEnvelope)
+	}
+
+	countedTransactionItems := []*reduced.CountedUserTransactions{}
+
+	doneCounter := len(MockCountedUserTransactionsOutput)
+
+	done := make(chan bool, 1)
+	e = aggregatorOutputQueue.StartConsuming(func(consumeChannel middleware.ConsumeChannel, d chan error) {
+		t.Log("Starting to consume messages for T4")
+		for msg := range consumeChannel {
+			msg.Ack(false)
+			dataBatch, _ := utils.GetDataEnvelope(msg.Body)
+
+			ct := &reduced.CountedUserTransactions{}
+			err := proto.Unmarshal(dataBatch.Payload, ct)
+			assert.Nil(t, err)
+			countedTransactionItems = append(countedTransactionItems, ct)
+
+			doneCounter--
+			if doneCounter == 0 {
+				break
+			}
+		}
+		done <- true
+	})
+	select {
+	case <-done:
+	case <-time.After(30 * time.Second):
+		t.Error("Test timed out waiting for results")
+	}
+	assert.Equal(t, 0, int(e))
+	assert.Equal(t, len(MockCountedUserTransactionsOutput), len(countedTransactionItems), "Expected same amount of Total profit items after joining")
+
+	for i, tq := range countedTransactionItems {
+		assert.Equal(t, MockCountedUserTransactionsOutput[i].UserId, tq.UserId)
+		assert.Equal(t, MockCountedUserTransactionsOutput[i].Birthdate, tq.Birthdate)
+		assert.Equal(t, MockCountedUserTransactionsOutput[i].StoreId, tq.StoreId)
 	}
 
 	aggregatorOutputQueue.StopConsuming()
