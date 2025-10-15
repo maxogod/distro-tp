@@ -189,6 +189,19 @@ services:
       rabbitmq:
         condition: service_healthy
 
+  joiner2:
+    container_name: joiner2
+    build:
+      dockerfile: ./src/joiner/Dockerfile
+    image: joiner:latest
+    networks:
+      - tp_net
+    volumes:
+      - ./src/joiner/config.yaml:/config.yaml
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+
   gateway:
     container_name: gateway
     entrypoint: ["/app/app", "t1"]
@@ -231,19 +244,19 @@ services:
     depends_on:
       - gateway_controller
 
-  gateway3:
-    container_name: gateway3
-    entrypoint: ["/app/app", "t4"]
-    build:
-      dockerfile: ./src/gateway/Dockerfile
-    image: gateway:latest
-    networks:
-      - tp_net
-    volumes:
-      - ./.data:/app/.data
-      - ./.output3:/app/.output
-    depends_on:
-      - gateway_controller
+  # gateway3:
+  #   container_name: gateway3
+  #   entrypoint: ["/app/app", "t4"]
+  #   build:
+  #     dockerfile: ./src/gateway/Dockerfile
+  #   image: gateway:latest
+  #   networks:
+  #     - tp_net
+  #   volumes:
+  #     - ./.data:/app/.data
+  #     - ./.output3:/app/.output
+  #   depends_on:
+  #     - gateway_controller
 
 networks:
   tp_net:

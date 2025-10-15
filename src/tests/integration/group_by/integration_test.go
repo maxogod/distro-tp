@@ -41,17 +41,14 @@ func TestSequentialRun(t *testing.T) {
 }
 
 func groupByTask2(t *testing.T) {
+	t.Log("Starting Group By Task 2 test...")
 	groupByInputQueue := middleware.GetGroupByQueue(url)
 	reducerOutputQueue := middleware.GetReducerQueue(url)
-	defer groupByInputQueue.StopConsuming()
-	defer reducerOutputQueue.StopConsuming()
-	defer groupByInputQueue.Close()
-	defer reducerOutputQueue.Close()
 
 	serializedTransactions, _ := proto.Marshal(&MockTransactionsItemsBatch)
 
 	dataEnvelope := protocol.DataEnvelope{
-		ClientId: "test-client",
+		ClientId: "test-client-2",
 		TaskType: int32(enum.T2),
 		Payload:  serializedTransactions,
 	}
@@ -62,8 +59,8 @@ func groupByTask2(t *testing.T) {
 
 	done := make(chan bool, 1)
 
-	var T2_1_counter = 0
-	var T2_2_counter = 0
+	var T2_1_counter = len(MockItemsOutputT2)
+	var T2_2_counter = len(MockItemsOutputT2)
 
 	// I expect the group by worker to send 6 batches, 2 for each group
 	// since the worker sends them to 2 different task types (T2_1 and T2_2)
@@ -77,9 +74,9 @@ func groupByTask2(t *testing.T) {
 			dataBatch, _ := utils.GetDataEnvelope(msg.Body)
 			assert.True(t, enum.TaskType(dataBatch.TaskType) == enum.T2_1 || enum.TaskType(dataBatch.TaskType) == enum.T2_2)
 			if enum.TaskType(dataBatch.TaskType) == enum.T2_1 {
-				T2_1_counter++
+				T2_1_counter--
 			} else {
-				T2_2_counter++
+				T2_2_counter--
 			}
 
 			groupData := &group_by.GroupTransactionItems{}
@@ -94,7 +91,7 @@ func groupByTask2(t *testing.T) {
 			assert.True(t, exists)
 			assert.Equal(t, len(expectedGroupData), len(groupData.TransactionItems))
 
-			if T2_1_counter+T2_2_counter == 6 {
+			if T2_1_counter == 0 && T2_2_counter == 0 {
 				break
 			}
 		}
@@ -102,20 +99,21 @@ func groupByTask2(t *testing.T) {
 	})
 	<-done
 	assert.Equal(t, 0, int(e))
+
+	reducerOutputQueue.StopConsuming()
+	groupByInputQueue.Close()
+	reducerOutputQueue.Close()
 }
 
 func groupByTask3(t *testing.T) {
+	t.Log("Starting Group By Task 3 test...")
 	groupByInputQueue := middleware.GetGroupByQueue(url)
 	reducerOutputQueue := middleware.GetReducerQueue(url)
-	defer groupByInputQueue.StopConsuming()
-	defer reducerOutputQueue.StopConsuming()
-	defer groupByInputQueue.Close()
-	defer reducerOutputQueue.Close()
 
 	serializedTransactions, _ := proto.Marshal(&MockTransactionsBatch)
 
 	dataEnvelope := protocol.DataEnvelope{
-		ClientId: "test-client",
+		ClientId: "test-client-3",
 		TaskType: int32(enum.T3),
 		Payload:  serializedTransactions,
 	}
@@ -159,20 +157,21 @@ func groupByTask3(t *testing.T) {
 	})
 	<-done
 	assert.Equal(t, 0, int(e))
+
+	reducerOutputQueue.StopConsuming()
+	groupByInputQueue.Close()
+	reducerOutputQueue.Close()
 }
 
 func groupByTask4(t *testing.T) {
+	t.Log("Starting Group By Task 4 test...")
 	groupByInputQueue := middleware.GetGroupByQueue(url)
 	reducerOutputQueue := middleware.GetReducerQueue(url)
-	defer groupByInputQueue.StopConsuming()
-	defer reducerOutputQueue.StopConsuming()
-	defer groupByInputQueue.Close()
-	defer reducerOutputQueue.Close()
 
 	serializedTransactions, _ := proto.Marshal(&MockTransactionsBatch)
 
 	dataEnvelope := protocol.DataEnvelope{
-		ClientId: "test-client",
+		ClientId: "test-client-4",
 		TaskType: int32(enum.T4),
 		Payload:  serializedTransactions,
 	}
@@ -216,4 +215,8 @@ func groupByTask4(t *testing.T) {
 	})
 	<-done
 	assert.Equal(t, 0, int(e))
+
+	reducerOutputQueue.StopConsuming()
+	groupByInputQueue.Close()
+	reducerOutputQueue.Close()
 }
