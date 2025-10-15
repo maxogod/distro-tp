@@ -44,7 +44,7 @@ func storeRefData[T proto.Message](clientID string, items []T, getRefID func(T) 
 		referenceID := getRefID(item)
 		err := cacheService.StoreRefData(clientID, referenceID, item)
 		if err != nil {
-			log.Errorf("Failed to store ref data %s for client %s: %v", referenceID, clientID, err)
+			log.Debugf("Failed to store ref data %s for client %s: %v", referenceID, clientID, err)
 			return err
 		}
 	}
@@ -90,7 +90,7 @@ func (js *joinerService) JoinTotalProfitBySubtotal(profit *reduced.TotalProfitBy
 	}
 	protoRef, err := js.cacheService.GetRefData(clientID, referenceID)
 	if err != nil {
-		log.Errorf("Error retrieving reference data %s for client %s: %v", referenceID, clientID, err)
+		log.Debugf("Error retrieving reference data %s for client %s: %v", referenceID, clientID, err)
 		return nil
 	}
 	joinedData := make([]*reduced.TotalProfitBySubtotal, 0)
@@ -113,7 +113,7 @@ func (js *joinerService) JoinTotalSoldByQuantity(sales *reduced.TotalSoldByQuant
 	}
 	protoRef, err := js.cacheService.GetRefData(clientID, referenceID)
 	if err != nil {
-		log.Errorf("Error retrieving reference data %s for client %s: %v", referenceID, clientID, err)
+		log.Debugf("Error retrieving reference data %s for client %s: %v", referenceID, clientID, err)
 		return nil
 	}
 	joinedData := make([]*reduced.TotalSoldByQuantity, 0)
@@ -136,7 +136,7 @@ func (js *joinerService) JoinTotalPaymentValue(tpv *reduced.TotalPaymentValue, c
 	}
 	protoRef, err := js.cacheService.GetRefData(clientID, referenceID)
 	if err != nil {
-		log.Errorf("Error retrieving reference data %s for client %s: %v", referenceID, clientID, err)
+		log.Debugf("Error retrieving reference data %s for client %s: %v", referenceID, clientID, err)
 		return nil
 	}
 	joinedData := make([]*reduced.TotalPaymentValue, 0)
@@ -160,12 +160,12 @@ func (js *joinerService) JoinCountedUserTransactions(countedTransaction *reduced
 	}
 	storeProtoRef, err := js.cacheService.GetRefData(clientID, storeRefID)
 	if err != nil {
-		log.Errorf("Error retrieving reference data %s for client %s: %v", storeRefID, clientID, err)
+		log.Debugf("Error retrieving reference data %s for client %s: %v", storeRefID, clientID, err)
 		return nil
 	}
 	userProtoRef, err := js.cacheService.GetRefData(clientID, userRefID)
 	if err != nil {
-		log.Errorf("Error retrieving reference data %s for client %s: %v", userRefID, clientID, err)
+		log.Debugf("Error retrieving reference data %s for client %s: %v", userRefID, clientID, err)
 		return nil
 	}
 	joinedData := make([]*reduced.CountedUserTransactions, 0)
@@ -198,7 +198,7 @@ func (js *joinerService) joinBufferedProfitData(clientID, bufferID string, joine
 		refID := bufferedProfit.GetItemId() + SEPERATOR + MENU_ITEM
 		protoRef, err := js.cacheService.GetRefData(clientID, refID)
 		if err != nil {
-			log.Errorf("Error retrieving reference data %s for client %s: %v", refID, clientID, err)
+			log.Debugf("Error retrieving reference data %s for client %s: %v", refID, clientID, err)
 			// TODO why return false, if this function is running it means the reference data must exist (done was already received)
 			return false
 		}
@@ -215,7 +215,7 @@ func (js *joinerService) joinBufferedSalesData(clientID, bufferID string, joined
 		refID := bufferedSales.GetItemId() + SEPERATOR + MENU_ITEM
 		protoRef, err := js.cacheService.GetRefData(clientID, refID)
 		if err != nil {
-			log.Errorf("Error retrieving reference data %s for client %s: %v", refID, clientID, err)
+			log.Debugf("Error retrieving reference data %s for client %s: %v", refID, clientID, err)
 			// TODO why return false, if this function is running it means the reference data must exist (done was already received)
 			return false
 		}
@@ -232,7 +232,7 @@ func (js *joinerService) joinBufferedTPVData(clientID, bufferID string, joinedDa
 		refID := bufferedSales.GetStoreId() + SEPERATOR + STORE
 		protoRef, err := js.cacheService.GetRefData(clientID, refID)
 		if err != nil {
-			log.Errorf("Error retrieving reference data %s for client %s: %v", refID, clientID, err)
+			log.Debugf("Error retrieving reference data %s for client %s: %v", refID, clientID, err)
 			// TODO why return false, if this function is running it means the reference data must exist (done was already received)
 			return false
 		}
@@ -250,13 +250,13 @@ func (js *joinerService) joinBufferedCountedTransactionsData(clientID, bufferID 
 		userRefID := bufferedSales.GetUserId() + SEPERATOR + USER
 		storeProtoRef, err := js.cacheService.GetRefData(clientID, storeRefID)
 		if err != nil {
-			log.Errorf("Error retrieving reference data %s for client %s: %v", storeRefID, clientID, err)
+			log.Debugf("Error retrieving reference data %s for client %s: %v", storeRefID, clientID, err)
 			// TODO why return false, if this function is running it means the reference data must exist (done was already received)
 			return false
 		}
 		userProtoRef, err := js.cacheService.GetRefData(clientID, userRefID)
 		if err != nil {
-			log.Errorf("Error retrieving reference data %s for client %s: %v", userRefID, clientID, err)
+			log.Debugf("Error retrieving reference data %s for client %s: %v", userRefID, clientID, err)
 			// TODO why return false, if this function is running it means the reference data must exist (done was already received)
 			return false
 		}

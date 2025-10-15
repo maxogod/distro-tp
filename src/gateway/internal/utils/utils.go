@@ -1,6 +1,8 @@
 package utils
 
 import (
+	"strings"
+
 	"github.com/maxogod/distro-tp/src/common/models/enum"
 	"github.com/maxogod/distro-tp/src/common/models/protocol"
 	"github.com/maxogod/distro-tp/src/common/models/raw"
@@ -14,7 +16,7 @@ func TransactionFromRecord(record []string) *raw.Transaction {
 	return &raw.Transaction{
 		TransactionId: record[0],
 		StoreId:       record[1],
-		UserId:        record[4],
+		UserId:        strings.Split(record[4], ".")[0],
 		FinalAmount:   common_utils.ParseFloatOrDefault(record[7]),
 		CreatedAt:     record[8],
 	}
