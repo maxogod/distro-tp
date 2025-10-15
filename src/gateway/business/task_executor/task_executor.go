@@ -41,6 +41,7 @@ func (t *taskExecutor) Task1() error {
 		transactionsDir,
 		t.batchSize,
 		false,
+		true,
 		utils.TransactionFromRecord,
 		utils.TransactionBatchFromList,
 	)
@@ -81,6 +82,7 @@ func (t *taskExecutor) Task2() error {
 		menuItemsDir,
 		t.batchSize,
 		true,
+		true,
 		utils.MenuItemFromRecord,
 		utils.MenuItemBatchFromList,
 	)
@@ -96,6 +98,7 @@ func (t *taskExecutor) Task2() error {
 		transactionsItemsDir,
 		t.batchSize,
 		false,
+		true,
 		utils.TransactionItemsFromRecord,
 		utils.TransactionItemsBatchFromList,
 	)
@@ -149,6 +152,7 @@ func (t *taskExecutor) Task3() error {
 		storesDir,
 		t.batchSize,
 		true,
+		true,
 		utils.StoreFromRecord,
 		utils.StoreBatchFromList,
 	)
@@ -164,6 +168,7 @@ func (t *taskExecutor) Task3() error {
 		transactionsDir,
 		t.batchSize,
 		false,
+		true,
 		utils.TransactionFromRecord,
 		utils.TransactionBatchFromList,
 	)
@@ -200,6 +205,7 @@ func (t *taskExecutor) Task4() error {
 		usersDir,
 		t.batchSize,
 		true,
+		false, // Only send done once after all ref data is sent
 		utils.UserFromRecord,
 		utils.UserBatchFromList,
 	)
@@ -214,6 +220,7 @@ func (t *taskExecutor) Task4() error {
 		enum.T4,
 		storesDir,
 		t.batchSize,
+		true,
 		true,
 		utils.StoreFromRecord,
 		utils.StoreBatchFromList,
@@ -230,6 +237,7 @@ func (t *taskExecutor) Task4() error {
 		transactionsDir,
 		t.batchSize,
 		false,
+		true,
 		utils.TransactionFromRecord,
 		utils.TransactionBatchFromList,
 	)
@@ -266,6 +274,7 @@ func readAndSendData[T any](
 	dataDir string,
 	batchSize int,
 	isRef bool,
+	sendDone bool,
 	fromRecordFunc func([]string) T,
 	makeBatchFunc func([]T) []byte,
 ) error {
@@ -294,6 +303,10 @@ func readAndSendData[T any](
 
 			_ = conn.SendData(dataBatch)
 		}
+	}
+
+	if !sendDone {
+		return nil
 	}
 
 	donePayload, err := proto.Marshal(&protocol.DataEnvelope{
