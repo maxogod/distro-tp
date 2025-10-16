@@ -23,14 +23,16 @@ func main() {
 		log.Fatalln("failed to initialize config:", err)
 	}
 
-	log.Debugln("Starting client")
-	c, err := client.NewClient(conf)
-	if err != nil {
-		log.Fatalf("failed to create client: %v", err)
-	}
+	log.Debugf("Client will do tasks: %v", os.Args[1:])
+	for _, t := range os.Args[1:] {
+		c, err := client.NewClient(conf)
+		if err != nil {
+			log.Fatalf("failed to create client: %v", err)
+		}
 
-	if err := c.Start(os.Args[1]); err != nil {
-		log.Fatalln("Client error:", err)
+		if err := c.Start(t); err != nil {
+			log.Fatalln("Client error:", err)
+		}
 	}
 
 	after := time.Now()
