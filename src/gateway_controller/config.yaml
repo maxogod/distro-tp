@@ -1,4 +1,6 @@
 port: 8080
+healthcheck:
+  port: 8081
 middleware:
   address: "amqp://guest:guest@rabbitmq:5672/"
 log:

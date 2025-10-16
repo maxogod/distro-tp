@@ -1,12 +1,15 @@
 package server
 
 import (
+	"context"
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"github.com/maxogod/distro-tp/src/common/logger"
 	"github.com/maxogod/distro-tp/src/gateway_controller/config"
+	"github.com/maxogod/distro-tp/src/gateway_controller/internal/healthcheck"
 	"github.com/maxogod/distro-tp/src/gateway_controller/internal/network"
 	"github.com/maxogod/distro-tp/src/gateway_controller/internal/sessions/manager"
 )
@@ -18,6 +21,7 @@ type Server struct {
 	running           bool
 	connectionManager network.ConnectionManager
 	clientManager     manager.ClientManager
+	pingServer        healthcheck.PingServer // for service health checks
 }
 
 func NewServer(conf *config.Config) *Server {
@@ -26,6 +30,7 @@ func NewServer(conf *config.Config) *Server {
 		running:           true,
 		connectionManager: network.NewConnectionManager(conf.Port),
 		clientManager:     manager.NewClientManager(conf),
+		pingServer:        healthcheck.NewPingServer(int(conf.HealthCheckPort)), // for health check
 	}
 }
 
@@ -38,6 +43,8 @@ func (s *Server) Run() error {
 		log.Errorf("Failed to start listening: %v", err)
 		return err
 	}
+
+	go s.pingServer.Run() // Start health check server
 
 	for s.running {
 		s.clientManager.ReapStaleClients()
@@ -71,5 +78,10 @@ func (s *Server) Shutdown() {
 	s.running = false
 	s.clientManager.Close()
 	s.connectionManager.Close()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	s.pingServer.Shutdown(ctx)
+
 	log.Infof("action: shutdown | result: success")
 }
