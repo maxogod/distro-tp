@@ -1,7 +1,7 @@
 package main
 
 import (
-	"time"
+	"os"
 
 	"github.com/maxogod/distro-tp/src/common/logger"
 	"github.com/maxogod/distro-tp/src/group_by/config"
@@ -11,9 +11,13 @@ import (
 var log = logger.GetLogger()
 
 func main() {
-	time.Sleep(12 * time.Second)
 
-	conf, err := config.InitConfig()
+	var configPath string
+	if len(os.Args) > 1 {
+		configPath = os.Args[1]
+	}
+
+	conf, err := config.InitConfig(configPath)
 	if err != nil {
 		log.Fatalf("%s", err)
 	}
@@ -23,6 +27,6 @@ func main() {
 	server := server.InitServer(conf)
 
 	server.Run()
-	log.Debug("Bulbasaur thanks you for using the Group By Worker!")
+	log.Debug("Togepi thanks you for using the Group_By Worker!")
 
 }

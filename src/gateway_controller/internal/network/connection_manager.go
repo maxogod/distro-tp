@@ -7,19 +7,18 @@ import (
 	"github.com/maxogod/distro-tp/src/common/network"
 )
 
-type ConnectionManager struct {
+type connectionManager struct {
 	port     int32
 	listener net.Listener
 }
 
-// TODO: implement connection manager methods to server logic
-func NewConnectionManager(port int32) *ConnectionManager {
-	return &ConnectionManager{
+func NewConnectionManager(port int32) ConnectionManager {
+	return &connectionManager{
 		port: port,
 	}
 }
 
-func (cm *ConnectionManager) StartListening() error {
+func (cm *connectionManager) StartListening() error {
 	ln, err := net.Listen("tcp", fmt.Sprintf(":%d", cm.port))
 	if err != nil {
 		return err
@@ -30,15 +29,15 @@ func (cm *ConnectionManager) StartListening() error {
 	return nil
 }
 
-func (cm *ConnectionManager) AcceptConnection() (*network.ConnectionInterface, error) {
+func (cm *connectionManager) AcceptConnection() (network.ConnectionInterface, error) {
 	conn, err := cm.listener.Accept()
 	if err != nil {
 		return nil, err
 	}
-	return network.ConnectedClientInterface(conn), nil
+	return network.NewConnectionFromExistent(conn), nil
 }
 
-func (cm *ConnectionManager) Close() error {
+func (cm *connectionManager) Close() error {
 	if cm.listener != nil {
 		err := cm.listener.Close()
 		if err != nil {

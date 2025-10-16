@@ -9,4 +9,5 @@ const (
 
 type Client interface {
 	Start(task string) error
+	Shutdown()
 }

@@ -1,6 +1,10 @@
 package utils
 
 import (
+	"strings"
+
+	"github.com/maxogod/distro-tp/src/common/models/enum"
+	"github.com/maxogod/distro-tp/src/common/models/protocol"
 	"github.com/maxogod/distro-tp/src/common/models/raw"
 	common_utils "github.com/maxogod/distro-tp/src/common/utils"
 	"google.golang.org/protobuf/proto"
@@ -8,23 +12,19 @@ import (
 
 /* --- Transactions Data --- */
 
-func TransactionFromRecord(record []string) *raw.Transaction {
+func TransactionFromRecord(record []string) proto.Message {
 	return &raw.Transaction{
-		TransactionId:   record[0],
-		StoreId:         int64(common_utils.ParseIntOrDefault(record[1])),
-		PaymentMethod:   int32(common_utils.ParseIntOrDefault(record[2])),
-		VoucherId:       int64(common_utils.ParseIntOrDefault(record[3])),
-		UserId:          int64(common_utils.ParseIntOrDefault(record[4])),
-		OriginalAmount:  common_utils.ParseFloatOrDefault(record[5]),
-		DiscountApplied: common_utils.ParseFloatOrDefault(record[6]),
-		FinalAmount:     common_utils.ParseFloatOrDefault(record[7]),
-		CreatedAt:       record[8],
+		TransactionId: record[0],
+		StoreId:       record[1],
+		UserId:        strings.Split(record[4], ".")[0],
+		FinalAmount:   common_utils.ParseFloatOrDefault(record[7]),
+		CreatedAt:     record[8],
 	}
 }
 
-func TransactionBatchFromList(list []*raw.Transaction) []byte {
+func TransactionBatchFromList(list []proto.Message) []byte {
 	data, err := proto.Marshal(&raw.TransactionBatch{
-		Transactions: list,
+		Transactions: castFromProtoMessageList[*raw.Transaction](list),
 	})
 	if err != nil {
 		data = []byte{}
@@ -34,20 +34,18 @@ func TransactionBatchFromList(list []*raw.Transaction) []byte {
 
 /* --- Transaction Items Data --- */
 
-func TransactionItemsFromRecord(record []string) *raw.TransactionItems {
-	return &raw.TransactionItems{
-		TransactionId: record[0],
-		ItemId:        int64(common_utils.ParseIntOrDefault(record[1])),
-		Quantity:      int32(common_utils.ParseIntOrDefault(record[2])),
-		UnitPrice:     common_utils.ParseFloatOrDefault(record[3]),
-		Subtotal:      common_utils.ParseFloatOrDefault(record[4]),
-		CreatedAt:     record[5],
+func TransactionItemsFromRecord(record []string) proto.Message {
+	return &raw.TransactionItem{
+		ItemId:    record[1],
+		Quantity:  int32(common_utils.ParseIntOrDefault(record[2])),
+		Subtotal:  common_utils.ParseFloatOrDefault(record[4]),
+		CreatedAt: record[5],
 	}
 }
 
-func TransactionItemsBatchFromList(list []*raw.TransactionItems) []byte {
+func TransactionItemsBatchFromList(list []proto.Message) []byte {
 	data, err := proto.Marshal(&raw.TransactionItemsBatch{
-		TransactionItems: list,
+		TransactionItems: castFromProtoMessageList[*raw.TransactionItem](list),
 	})
 	if err != nil {
 		data = []byte{}
@@ -57,70 +55,89 @@ func TransactionItemsBatchFromList(list []*raw.TransactionItems) []byte {
 
 /* --- Users Data --- */
 
-func UserFromRecord(record []string) *raw.User {
+func UserFromRecord(record []string) proto.Message {
 	return &raw.User{
-		UserId:       int32(common_utils.ParseIntOrDefault(record[0])),
-		Gender:       record[1],
-		Birthdate:    record[2],
-		RegisteredAt: record[3],
+		UserId:    record[0],
+		Birthdate: record[2],
 	}
 }
 
-func UserBatchFromList(list []*raw.User) []byte {
+func UserBatchFromList(list []proto.Message) []byte {
 	data, err := proto.Marshal(&raw.UserBatch{
-		Users: list,
+		Users: castFromProtoMessageList[*raw.User](list),
 	})
 	if err != nil {
 		data = []byte{}
 	}
-	return data
+	envelope := &protocol.ReferenceEnvelope{
+		ReferenceType: int32(enum.Users),
+		Payload:       data,
+	}
+	envelopedData, err := proto.Marshal(envelope)
+	if err != nil {
+		envelopedData = []byte{}
+	}
+	return envelopedData
 }
 
 /* --- Menu Items Data --- */
 
-func MenuItemFromRecord(record []string) *raw.MenuItem {
+func MenuItemFromRecord(record []string) proto.Message {
 	return &raw.MenuItem{
-		ItemId:        int32(common_utils.ParseIntOrDefault(record[0])),
-		ItemName:      record[1],
-		Category:      record[2],
-		Price:         common_utils.ParseFloatOrDefault(record[3]),
-		IsSeasonal:    record[4] == "True",
-		AvailableFrom: record[5],
-		AvailableTo:   record[6],
+		ItemId:   record[0],
+		ItemName: record[1],
 	}
 }
 
-func MenuItemBatchFromList(list []*raw.MenuItem) []byte {
-	data, err := proto.Marshal(&raw.MenuItemBatch{
-		MenuItems: list,
+func MenuItemBatchFromList(list []proto.Message) []byte {
+	data, err := proto.Marshal(&raw.MenuItemsBatch{
+		MenuItems: castFromProtoMessageList[*raw.MenuItem](list),
 	})
 	if err != nil {
 		data = []byte{}
 	}
-	return data
+	envelope := &protocol.ReferenceEnvelope{
+		ReferenceType: int32(enum.MenuItems),
+		Payload:       data,
+	}
+	envelopedData, err := proto.Marshal(envelope)
+	if err != nil {
+		envelopedData = []byte{}
+	}
+	return envelopedData
 }
 
 /* --- Stores Data --- */
 
-func StoreFromRecord(record []string) *raw.Store {
+func StoreFromRecord(record []string) proto.Message {
 	return &raw.Store{
-		StoreId:    int32(common_utils.ParseIntOrDefault(record[0])),
-		StoreName:  record[1],
-		Street:     record[2],
-		PostalCode: int32(common_utils.ParseIntOrDefault(record[3])),
-		City:       record[4],
-		State:      record[5],
-		Latitude:   common_utils.ParseFloatOrDefault(record[6]),
-		Longitude:  common_utils.ParseFloatOrDefault(record[7]),
+		StoreId:   record[0],
+		StoreName: record[1],
 	}
 }
 
-func StoreBatchFromList(list []*raw.Store) []byte {
+func StoreBatchFromList(list []proto.Message) []byte {
 	data, err := proto.Marshal(&raw.StoreBatch{
-		Stores: list,
+		Stores: castFromProtoMessageList[*raw.Store](list),
 	})
 	if err != nil {
 		data = []byte{}
 	}
-	return data
+	envelope := &protocol.ReferenceEnvelope{
+		ReferenceType: int32(enum.Stores),
+		Payload:       data,
+	}
+	envelopedData, err := proto.Marshal(envelope)
+	if err != nil {
+		envelopedData = []byte{}
+	}
+	return envelopedData
+}
+
+func castFromProtoMessageList[T proto.Message](list []proto.Message) []T {
+	castedList := make([]T, len(list))
+	for i, item := range list {
+		castedList[i] = item.(T)
+	}
+	return castedList
 }

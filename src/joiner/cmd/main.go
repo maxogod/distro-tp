@@ -2,7 +2,6 @@ package main
 
 import (
 	"os"
-	"time"
 
 	"github.com/maxogod/distro-tp/src/common/logger"
 	"github.com/maxogod/distro-tp/src/joiner/config"
@@ -12,23 +11,22 @@ import (
 var log = logger.GetLogger()
 
 func main() {
-	time.Sleep(12 * time.Second)
 
-	conf, err := config.InitConfig()
+	var configPath string
+	if len(os.Args) > 1 {
+		configPath = os.Args[1]
+	}
+
+	conf, err := config.InitConfig(configPath)
 	if err != nil {
 		log.Fatalf("%s", err)
 	}
 
 	log.Debug(conf.String())
 
-	if err = os.MkdirAll(conf.StorePath, 0755); err != nil {
-		log.Errorf("failed to create output directory: %v", err)
-		return
-	}
-
 	server := server.InitServer(conf)
 
 	server.Run()
-	log.Debug("Charmander thanks you for using the Joiner!")
+	log.Debug("Dugtrio thanks you for using the Aggregator Worker!")
 
 }

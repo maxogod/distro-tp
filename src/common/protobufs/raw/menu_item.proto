@@ -1,0 +1,14 @@
+syntax = "proto3";
+
+package raw;
+
+option go_package = "./raw";
+
+message MenuItem {
+  string item_id = 1;
+  string item_name = 2;
+}
+
+message MenuItemsBatch {
+  repeated MenuItem menu_items = 1;
+}

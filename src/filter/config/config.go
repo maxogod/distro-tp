@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/maxogod/distro-tp/src/filter/internal/handler"
+	"github.com/maxogod/distro-tp/src/filter/internal/task_executor"
 	"github.com/pkg/errors"
 	"github.com/spf13/viper"
 )
@@ -12,7 +12,7 @@ import (
 type Config struct {
 	Address    string
 	LogLevel   string
-	TaskConfig handler.TaskConfig
+	TaskConfig task_executor.TaskConfig
 }
 
 func (c Config) String() string {
@@ -26,21 +26,26 @@ func (c Config) String() string {
 
 const CONFIG_FILE_PATH = "./config.yaml"
 
-func InitConfig() (*Config, error) {
+func InitConfig(configFilePath string) (*Config, error) {
 
 	v := viper.New()
 	v.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 	v.AutomaticEnv()
 
-	v.SetConfigFile(CONFIG_FILE_PATH)
+	configFile := CONFIG_FILE_PATH
+	if configFilePath != "" {
+		configFile = configFilePath
+	}
+
+	v.SetConfigFile(configFile)
 	if err := v.ReadInConfig(); err != nil {
-		return nil, errors.Wrapf(err, "failed to read config file %s", CONFIG_FILE_PATH)
+		return nil, errors.Wrapf(err, "failed to read config file %s", configFile)
 	}
 
 	config := &Config{
 		Address:  v.GetString("gateway.address"),
 		LogLevel: v.GetString("log.level"),
-		TaskConfig: handler.TaskConfig{
+		TaskConfig: task_executor.TaskConfig{
 			FilterYearFrom:       v.GetInt("filter.year.from"),
 			FilterYearTo:         v.GetInt("filter.year.to"),
 			BusinessHourFrom:     v.GetInt("filter.businessHours.from"),

@@ -8,8 +8,6 @@
 
 - [Entrega I: Diseño](./docs/diseño.pdf)
 - [Entrega II: Escalabilidad](./docs/escalabilidad.pdf)
+- [Entrega III: MUlticlient](./docs/multiclient.pdf)
 
-# Index
-
-- [Middleware](docs/middleware.md)
-- [Worker Base](docs/worker_base.md)
+Documentation in `./docs/`

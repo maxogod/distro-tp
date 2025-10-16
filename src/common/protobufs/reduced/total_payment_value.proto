@@ -1,0 +1,11 @@
+syntax = "proto3";
+
+package reduced;
+
+option go_package = "./reduced";
+
+message TotalPaymentValue {
+  string store_id = 1;
+  string semester = 2;
+  double final_amount = 3;
+}

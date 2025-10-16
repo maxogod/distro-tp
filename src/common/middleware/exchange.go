@@ -147,7 +147,6 @@ func (me *MessageMiddlewareExchange) Send(message []byte) MessageMiddlewareError
 		}
 	}
 
-
 	return MessageMiddlewareSuccess
 }
 

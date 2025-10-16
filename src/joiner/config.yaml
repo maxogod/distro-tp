@@ -2,5 +2,5 @@ gateway:
   address: "amqp://guest:guest@rabbitmq:5672/"
 log:
   level: "DEBUG"
-datasets:
-  path: "/datasets"
+persistence:
+  enabled: true

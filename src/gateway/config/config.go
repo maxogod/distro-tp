@@ -9,11 +9,12 @@ import (
 )
 
 type Config struct {
-	ServerHost string
-	ServerPort int
-	DataPath   string
-	OutputPath string
-	BatchSize  int
+	ServerHost        string
+	ServerPort        int
+	ConnectionRetries int
+	DataPath          string
+	OutputPath        string
+	BatchSize         int
 }
 
 func (c *Config) String() string {
@@ -33,11 +34,12 @@ func InitConfig() (*Config, error) {
 	}
 
 	config := &Config{
-		ServerHost: v.GetString("server.host"),
-		ServerPort: v.GetInt("server.port"),
-		DataPath:   v.GetString("data_path"),
-		OutputPath: v.GetString("output_path"),
-		BatchSize:  v.GetInt("batch_size"),
+		ServerHost:        v.GetString("server.host"),
+		ServerPort:        v.GetInt("server.port"),
+		ConnectionRetries: v.GetInt("server.connection_retries"),
+		DataPath:          v.GetString("data_path"),
+		OutputPath:        v.GetString("output_path"),
+		BatchSize:         v.GetInt("batch_size"),
 	}
 
 	fmt.Printf("Config loaded: %s\n", config.String())

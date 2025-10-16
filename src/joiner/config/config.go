@@ -9,37 +9,39 @@ import (
 )
 
 type Config struct {
-	Address   string
-	LogLevel  string
-	StorePath string
+	Address  string
+	LogLevel string
 }
 
 func (c Config) String() string {
 	return fmt.Sprintf(
-		"Address: %s | LogLevel: %s | StorePath: %s",
+		"Address: %s | LogLevel: %s",
 		c.Address,
 		c.LogLevel,
-		c.StorePath,
 	)
 }
 
 const CONFIG_FILE_PATH = "./config.yaml"
 
-func InitConfig() (*Config, error) {
+func InitConfig(configFilePath string) (*Config, error) {
 
 	v := viper.New()
 	v.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 	v.AutomaticEnv()
 
-	v.SetConfigFile(CONFIG_FILE_PATH)
+	configFile := CONFIG_FILE_PATH
+	if configFilePath != "" {
+		configFile = configFilePath
+	}
+
+	v.SetConfigFile(configFile)
 	if err := v.ReadInConfig(); err != nil {
-		return nil, errors.Wrapf(err, "failed to read config file %s", CONFIG_FILE_PATH)
+		return nil, errors.Wrapf(err, "failed to read config file %s", configFile)
 	}
 
 	config := &Config{
-		Address:   v.GetString("gateway.address"),
-		LogLevel:  v.GetString("log.level"),
-		StorePath: v.GetString("datasets.path"),
+		Address:  v.GetString("gateway.address"),
+		LogLevel: v.GetString("log.level"),
 	}
 
 	return config, nil

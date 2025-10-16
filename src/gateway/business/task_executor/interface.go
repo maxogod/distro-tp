@@ -6,6 +6,12 @@ const (
 	MenuItemsDirPath        = "/menu_items"
 	StoresDirPath           = "/stores"
 	UsersDirPath            = "/users"
+
+	OUTPUT_FILE_T1   = "t1.csv"
+	OUTPUT_FILE_T2_1 = "t2_1.csv"
+	OUTPUT_FILE_T2_2 = "t2_2.csv"
+	OUTPUT_FILE_T3   = "t3.csv"
+	OUTPUT_FILE_T4   = "t4.csv"
 )
 
 // TaskExecutor handles the execution of tasks by communicating with the server
@@ -26,4 +32,7 @@ type TaskExecutor interface {
 	// Task4 sends transactions, users and stores to the server and waits for the response containing
 	// the top 3 users with more transactions and writes them to the given output file.
 	Task4() error
+
+	// Close releases any resources held by the TaskExecutor.
+	Close()
 }

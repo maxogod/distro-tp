@@ -1,98 +1,70 @@
 package server
 
 import (
-	"fmt"
 	"os"
 	"os/signal"
 	"syscall"
 
 	"github.com/maxogod/distro-tp/src/common/logger"
+	"github.com/maxogod/distro-tp/src/common/middleware"
 	"github.com/maxogod/distro-tp/src/common/models/enum"
+	"github.com/maxogod/distro-tp/src/common/worker"
 	"github.com/maxogod/distro-tp/src/joiner/business"
 	"github.com/maxogod/distro-tp/src/joiner/cache"
 	"github.com/maxogod/distro-tp/src/joiner/config"
-	"github.com/maxogod/distro-tp/src/joiner/internal/handler"
+	"github.com/maxogod/distro-tp/src/joiner/internal/task_executor"
+	"github.com/maxogod/distro-tp/src/joiner/internal/task_handler"
 )
 
 var log = logger.GetLogger()
 
 type Server struct {
-	config           *config.Config
-	isRunning        bool
-	messageHandler   *handler.MessageHandler
-	taskHandler      *handler.TaskHandler
-	referenceHandler *handler.ReferenceHandler
-	refStore         *cache.ReferenceDatasetStore
+	messageHandler worker.MessageHandler
 }
 
 func InitServer(conf *config.Config) *Server {
+	// initiate middlewares
+	joinerInputQueue := middleware.GetJoinerQueue(conf.Address)
+	refDataExchange := middleware.GetRefDataExchange(conf.Address)
+	finishExchange := middleware.GetFinishExchange(conf.Address, []string{string(enum.JoinerWorker)})
+	aggregatorQueue := middleware.GetAggregatorQueue(conf.Address)
 
-	messageHandler := handler.NewMessageHandler(conf.Address)
-	refStore := cache.NewCacheStore(conf.StorePath)
-	joinerService := business.NewFilterService(refStore)
+	// initiate internal components
+	cacheService := cache.NewInMemoryCache()
+
+	joinerService := business.NewJoinerService(cacheService)
+
+	taskExecutor := task_executor.NewJoinerExecutor(
+		conf,
+		joinerService,
+		aggregatorQueue,
+	)
+
+	joinerHandler := task_handler.NewjoinerHandler(taskExecutor)
+
+	messageHandler := worker.NewMessageHandler(
+		joinerHandler,
+		[]middleware.MessageMiddleware{joinerInputQueue, refDataExchange},
+		finishExchange,
+	)
 
 	return &Server{
-		config:         conf,
-		isRunning:      true,
 		messageHandler: messageHandler,
-		refStore:       refStore,
-		taskHandler: handler.NewTaskHandler(
-			joinerService,
-			messageHandler),
-		referenceHandler: handler.NewReferenceHandler(
-			joinerService,
-			refStore),
 	}
 }
 
 func (s *Server) Run() error {
-	log.Info("Starting Filter server...")
-
+	log.Info("Starting joiner server...")
 	s.setupGracefulShutdown()
 
-	e := s.messageHandler.AnnounceToController()
+	// This is a blocking call, it will run until an error occurs or
+	// the Close() method is called via a signal
+	e := s.messageHandler.Start()
 	if e != nil {
-		log.Errorf("Failed to announce to controller: %v", e)
-		return fmt.Errorf("failed to announce to controller: %v", e)
+		log.Errorf("Error starting message handler: %v", e)
+		s.Shutdown()
+		return e
 	}
-
-	for s.isRunning {
-
-		e := s.messageHandler.Start(
-			func(payload []byte, taskType int32) error {
-				return s.taskHandler.HandleTask(enum.TaskType(taskType), payload)
-			},
-			func(payload []byte, refType int32) error { // TODO: replace with reference handler
-				return s.referenceHandler.HandleReference(enum.RefDatasetType(refType), payload)
-			},
-		)
-
-		if e != nil {
-			log.Errorf("Failed to start consuming: %d", e)
-			s.Shutdown()
-			return fmt.Errorf("failed to start consuming: %d", e)
-		}
-
-		if !s.isRunning {
-			// Hot-fix to avoid
-			// sending done message twice in case of shutdown signal
-			break
-		}
-
-		err := s.messageHandler.SendDone()
-
-		log.Debug("Sent done message to controller")
-
-		if err != nil {
-			log.Errorf("Failed to send done message: %v", err)
-			s.Shutdown()
-			return fmt.Errorf("failed to send done message: %v", err)
-		}
-
-		s.refStore.ResetStore()
-
-	}
-
 	return nil
 }
 
@@ -103,17 +75,17 @@ func (s *Server) setupGracefulShutdown() {
 
 	go func() {
 		<-sigChannel
-		log.Infof("Shutdown Signal received, shutting down...")
+		log.Debugf("Shutdown Signal received, shutting down...")
 		s.Shutdown()
 	}()
 }
 
 func (s *Server) Shutdown() {
-	log.Debug("Shutting down Filter Worker server...")
-	s.isRunning = false
+	log.Debug("Shutting down aggregator Worker server...")
 	err := s.messageHandler.Close()
 	if err != nil {
 		log.Errorf("Error closing message handler: %v", err)
 	}
-	log.Debug("Filter Worker server shut down successfully.")
+
+	log.Debug("aggregator Worker server shut down successfully.")
 }

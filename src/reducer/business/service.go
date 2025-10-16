@@ -1,95 +1,78 @@
 package business
 
 import (
-	"github.com/maxogod/distro-tp/src/common/models/raw"
+	"github.com/maxogod/distro-tp/src/common/models/group_by"
 	"github.com/maxogod/distro-tp/src/common/models/reduced"
 )
 
-type ReducerService struct{}
+type reducerService struct{}
 
-func NewReduceCountService() *ReducerService {
-	return &ReducerService{}
+// TODO: Review to insted process batces of grouped data, instead of single grouped data
+func NewReducerService() ReducerService {
+	return &reducerService{}
 }
 
-// This represents T2_1
-func (r *ReducerService) SumBestSellingProducts(items []*raw.TransactionItems) *reduced.BestSellingProducts {
+// This is T2_1
+func (rs *reducerService) SumTotalProfitBySubtotal(groupedData *group_by.GroupTransactionItems) *reduced.TotalProfitBySubtotal {
 
-	// Since i get this data from the group_by worker
-	// i can assume that the data in this batch is already grouped by item ID and year-month date
-	yearMonthDate := items[0].GetCreatedAt()
-	itemID := items[0].GetItemId()
+	var result reduced.TotalProfitBySubtotal
 
-	sellingQuantity := int64(0)
-	for _, item := range items {
-		sellingQuantity += int64(item.GetQuantity())
+	result.ItemId = groupedData.ItemId
+	result.YearMonth = groupedData.YearMonth
+
+	var totalProfit float64 = 0
+	for _, item := range groupedData.GetTransactionItems() {
+		totalProfit += item.Subtotal
 	}
 
-	mostProfitsProducts := &reduced.BestSellingProducts{
-		ItemId:             int32(itemID),
-		YearMonthCreatedAt: yearMonthDate,
-		SellingsQty:        sellingQuantity,
-	}
+	result.Subtotal = totalProfit
 
-	return mostProfitsProducts
+	return &result
 }
 
-// This represents T2_2
-func (r *ReducerService) SumMostProfitsProducts(items []*raw.TransactionItems) *reduced.MostProfitsProducts {
+// This is T2_2
+func (rs *reducerService) SumTotalSoldByQuantity(groupedData *group_by.GroupTransactionItems) *reduced.TotalSoldByQuantity {
+	var result reduced.TotalSoldByQuantity
 
-	// Since i get this data from the group_by worker
-	// i can assume that the data in this batch is already grouped by item ID and year-month date
-	yearMonthDate := items[0].GetCreatedAt()
-	itemID := items[0].GetItemId()
+	result.ItemId = groupedData.ItemId
+	result.YearMonth = groupedData.YearMonth
 
-	profitSum := float64(0)
-	for _, item := range items {
-		profitSum += float64(item.GetQuantity())
+	var totalSold int32 = 0
+	for _, item := range groupedData.GetTransactionItems() {
+		totalSold += item.Quantity
 	}
 
-	mostProfitsProducts := &reduced.MostProfitsProducts{
-		ItemId:             int32(itemID),
-		YearMonthCreatedAt: yearMonthDate,
-		ProfitSum:          profitSum,
-	}
+	result.Quantity = totalSold
 
-	return mostProfitsProducts
+	return &result
+
 }
 
-// This represents T3
-func (r *ReducerService) SumTPV(transactions []*raw.Transaction) *reduced.StoreTPV {
+// This is T3
+func (rs *reducerService) SumTotalPaymentValue(groupedData *group_by.GroupTransactions) *reduced.TotalPaymentValue {
 
-	// Since i get this data from the group_by worker
-	// i can assume that the data in this batch is already grouped by userId and storeId
-	storeId := transactions[0].GetStoreId()
-	yearSemester := transactions[0].GetCreatedAt()
+	var result reduced.TotalPaymentValue
 
-	finalAmount := int64(0)
-	for _, tx := range transactions {
-		finalAmount += int64(tx.GetFinalAmount())
+	result.StoreId = groupedData.GetStoreId()
+	result.Semester = groupedData.GetSemester()
+	var finalAmount float64 = 0
+	for _, item := range groupedData.GetTransactions() {
+		finalAmount += item.FinalAmount
 	}
+	result.FinalAmount = finalAmount
 
-	result := &reduced.StoreTPV{
-		StoreId:           int32(storeId),
-		YearHalfCreatedAt: yearSemester,
-		Tpv:               finalAmount,
-	}
-
-	return result
+	return &result
 }
 
-// This represents T4
-func (r *ReducerService) CountMostPurchasesByUser(transactions []*raw.Transaction) *reduced.MostPurchasesUser {
+// This is T4
+func (rs *reducerService) CountUserTransactions(groupedData *group_by.GroupTransactions) *reduced.CountedUserTransactions {
 
-	// Since i get this data from the group_by worker
-	// i can assume that the data in this batch is already grouped by userId and storeId
-	userId := transactions[0].GetUserId()
-	storeId := transactions[0].GetStoreId()
+	var result reduced.CountedUserTransactions
 
-	result := &reduced.MostPurchasesUser{
-		UserId:       int32(userId),
-		StoreId:      int32(storeId),
-		PurchasesQty: int32(len(transactions)),
-	}
+	result.UserId = groupedData.GetUserId()
+	result.Birthdate = groupedData.GetUserId()
+	result.StoreId = groupedData.GetStoreId()
+	result.TransactionQuantity = int32(len(groupedData.GetTransactions()))
 
-	return result
+	return &result
 }

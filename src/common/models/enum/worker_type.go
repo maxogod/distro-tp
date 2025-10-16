@@ -3,9 +3,9 @@ package enum
 type WorkerType string
 
 const (
-	Filter     WorkerType = "filter"
-	GroupBy    WorkerType = "groupby"
-	Reducer    WorkerType = "reducer"
-	Joiner     WorkerType = "joiner"
-	Aggregator WorkerType = "aggregator"
+	FilterWorker     WorkerType = "filter"
+	GroupbyWorker    WorkerType = "groupby"
+	ReducerWorker    WorkerType = "reducer"
+	JoinerWorker     WorkerType = "joiner"
+	AggregatorWorker WorkerType = "aggregator"
 )

@@ -1,80 +1,97 @@
 package business
 
 import (
-	"fmt"
-	"time"
-
-	"github.com/maxogod/distro-tp/src/common/logger"
+	"github.com/maxogod/distro-tp/src/common/models/group_by"
 	"github.com/maxogod/distro-tp/src/common/models/raw"
 )
 
-var log = logger.GetLogger()
+type groupService struct{}
 
-type GroupByService struct{}
-
-func NewGroupByService() *GroupByService {
-	return &GroupByService{}
+func NewGroupService() GroupService {
+	return &groupService{}
 }
 
-// This represents T2
-func (s *GroupByService) GroupItemsByYearMonthAndItem(transactions []*raw.TransactionItems) map[string][]*raw.TransactionItems {
-	result := make(map[string][]*raw.TransactionItems)
+// This is T2
+func (gs *groupService) GroupItemsByYearMonthAndItem(items []*raw.TransactionItem) map[string]*group_by.GroupTransactionItems {
 
-	for _, tx := range transactions {
-		createdAt := tx.GetCreatedAt()
-		itemID := tx.GetItemId()
-		t, err := time.Parse("2006-01-02 15:04:05", createdAt)
-		if err != nil {
-			log.Debugf("Failed to parse date %s: %v", createdAt, err)
-			continue
-		}
-		year_month := fmt.Sprintf("%04d-%02d", t.Year(), t.Month())
-		tx.CreatedAt = year_month // change createdAt to year-month format
-
-		key := fmt.Sprintf("%s-%d", year_month, itemID)
-		result[key] = append(result[key], tx)
-	}
-
-	return result
-}
-
-// This represents T3
-func (s *GroupByService) GroupItemsBySemesterAndStore(items []*raw.Transaction) map[string][]*raw.Transaction {
-	result := make(map[string][]*raw.Transaction)
+	result := make(map[string]*group_by.GroupTransactionItems)
 
 	for _, item := range items {
-		storeID := item.GetStoreId()
-		createdAt := item.GetCreatedAt()
-		t, err := time.Parse("2006-01-02 15:04:05", createdAt)
-		if err != nil {
-			log.Debugf("Failed to parse date %s: %v", createdAt, err)
-			continue
-		}
 
-		// Determine semester: H1 (Jan-Jun), H2 (Jul-Dec)
-		semester := "H1"
-		if t.Month() >= 7 {
+		// Since the CreatedAt is in the format "YYYY-MM-DD HH:MM:SS",
+		// we extract the "YYYY-MM" part and replace the CreatedAt field with it
+		item.CreatedAt = item.CreatedAt[:7]
+
+		key := item.CreatedAt + "@" + item.ItemId
+		if _, exists := result[key]; !exists {
+			result[key] = &group_by.GroupTransactionItems{
+				ItemId:           item.ItemId,
+				YearMonth:        item.CreatedAt,
+				TransactionItems: []*raw.TransactionItem{item},
+			}
+		} else {
+			result[key].TransactionItems = append(result[key].GetTransactionItems(), item)
+		}
+	}
+
+	return result
+
+}
+
+// This is T3
+func (gs *groupService) GroupTransactionsByStoreAndSemester(transactions []*raw.Transaction) map[string]*group_by.GroupTransactions {
+
+	result := make(map[string]*group_by.GroupTransactions)
+
+	for _, transaction := range transactions {
+
+		// Since the CreatedAt is in the format "YYYY-MM-DD HH:MM:SS",
+		// we extract the "YYYY-MM" part to determine the semester
+		// and replace the CreatedAt field with it
+		var semester string
+		month := transaction.CreatedAt[5:7]
+		year := transaction.CreatedAt[:4]
+
+		if month >= "01" && month <= "06" {
+			semester = "H1"
+		} else {
 			semester = "H2"
 		}
-		semesterDate := fmt.Sprintf("%04d-%s", t.Year(), semester)
-		item.CreatedAt = semesterDate // change createdAt to semester format
 
-		key := fmt.Sprintf("%s_%d", semesterDate, storeID)
-		result[key] = append(result[key], item)
+		transaction.CreatedAt = year + "-" + semester
+
+		key := transaction.CreatedAt + "@" + transaction.StoreId
+		if _, exists := result[key]; !exists {
+			result[key] = &group_by.GroupTransactions{
+				StoreId:      transaction.StoreId,
+				Semester:     transaction.CreatedAt,
+				Transactions: []*raw.Transaction{transaction},
+			}
+		} else {
+			result[key].Transactions = append(result[key].GetTransactions(), transaction)
+		}
 	}
 
 	return result
 }
 
-// This represents T4
-func (s *GroupByService) GroupTransactionByUserAndStore(transactions []*raw.Transaction) map[string][]*raw.Transaction {
-	result := make(map[string][]*raw.Transaction)
+// This is T4
+func (gs *groupService) GroupTransactionsByStoreAndUser(transactions []*raw.Transaction) map[string]*group_by.GroupTransactions {
 
-	for _, tx := range transactions {
-		userID := fmt.Sprintf("%d", tx.GetUserId())
-		storeID := tx.GetStoreId()
-		key := fmt.Sprintf("%s_%d", userID, storeID)
-		result[key] = append(result[key], tx)
+	result := make(map[string]*group_by.GroupTransactions)
+
+	for _, transaction := range transactions {
+
+		key := transaction.UserId + "@" + transaction.StoreId
+		if _, exists := result[key]; !exists {
+			result[key] = &group_by.GroupTransactions{
+				StoreId:      transaction.StoreId,
+				UserId:       transaction.UserId,
+				Transactions: []*raw.Transaction{transaction},
+			}
+		} else {
+			result[key].Transactions = append(result[key].GetTransactions(), transaction)
+		}
 	}
 
 	return result

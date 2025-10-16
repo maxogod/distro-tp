@@ -1,17 +1,27 @@
-FROM golang:1.24.6 AS builder
-
-# Create the full path to match your imports
-RUN mkdir -p /build/github.com/maxogod/distro-tp
-WORKDIR /build/github.com/maxogod/distro-tp
+# ** Download dependencies **
+FROM golang:1.24.6 AS deps
 
 COPY go.mod go.sum ./
+RUN go mod download
 
-# Copy worker_base to the correct location
-COPY src/group_by/ ./src/group_by/
+# ** Compile code **
+FROM golang:1.24.6 AS builder
+
+WORKDIR /app
+
+COPY go.sum go.mod ./
+COPY --from=deps /go/pkg/mod /go/pkg/mod
 COPY src/common/ ./src/common/
+COPY src/group_by/ ./src/group_by/
 
-RUN go build -o bin/group_by ./src/group_by/cmd
+RUN go build -v -o ./app ./src/group_by/cmd
 
-FROM busybox:latest
-COPY --from=builder /build/github.com/maxogod/distro-tp/bin/group_by /group_by
-ENTRYPOINT ["/group_by"]
+# ** Run binary **
+FROM busybox:latest AS runner
+
+WORKDIR /app
+
+COPY --from=builder /app/app ./app
+COPY --from=builder /app/src/group_by/config.yaml ./config.yaml
+
+ENTRYPOINT ["./app"]

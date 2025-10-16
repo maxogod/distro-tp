@@ -1,0 +1,12 @@
+syntax = "proto3";
+
+package reduced;
+
+option go_package = "./reduced";
+
+message CountedUserTransactions {
+  string store_id = 1;
+  string user_id = 2;
+  string birthdate = 3;
+  int32 transaction_quantity = 4;
+}
