@@ -2,6 +2,7 @@ package reducer_test
 
 import (
 	"testing"
+	"time"
 
 	"github.com/maxogod/distro-tp/src/common/middleware"
 	"github.com/maxogod/distro-tp/src/common/models/enum"
@@ -37,19 +38,19 @@ func TestSequentialRun(t *testing.T) {
 
 	groupbyOutputQueue := middleware.GetGroupByQueue(url)
 	reducerOutputQueue := middleware.GetReducerQueue(url)
-	aggregatorOutputQueue := middleware.GetAggregatorQueue(url)
+	joinerOutputQueue := middleware.GetJoinerQueue(url)
 	groupbyOutputQueue.Delete()
 	reducerOutputQueue.Delete()
-	aggregatorOutputQueue.Delete()
+	joinerOutputQueue.Delete()
 }
 
 func reduceTask3(t *testing.T) {
 	reducerInputQueue := middleware.GetReducerQueue(url)
-	aggregatorOutputQueue := middleware.GetAggregatorQueue(url)
+	joinerOutputQueue := middleware.GetJoinerQueue(url)
 	defer reducerInputQueue.StopConsuming()
-	defer aggregatorOutputQueue.StopConsuming()
+	defer joinerOutputQueue.StopConsuming()
 	defer reducerInputQueue.Close()
-	defer aggregatorOutputQueue.Close()
+	defer joinerOutputQueue.Close()
 
 	serializedTransactions, _ := proto.Marshal(&GroupTransactionMock1)
 
@@ -65,7 +66,7 @@ func reduceTask3(t *testing.T) {
 
 	done := make(chan bool, 1)
 
-	e := aggregatorOutputQueue.StartConsuming(func(consumeChannel middleware.ConsumeChannel, d chan error) {
+	e := joinerOutputQueue.StartConsuming(func(consumeChannel middleware.ConsumeChannel, d chan error) {
 		for msg := range consumeChannel {
 			msg.Ack(false)
 			dataBatch, _ := utils.GetDataEnvelope(msg.Body)
@@ -84,17 +85,21 @@ func reduceTask3(t *testing.T) {
 		}
 		done <- true
 	})
-	<-done
+	select {
+	case <-done:
+	case <-time.After(5 * time.Second):
+		t.Error("Test timed out waiting for results")
+	}
 	assert.Equal(t, 0, int(e))
 }
 
 func reduceTask2_1(t *testing.T) {
 	reducerInputQueue := middleware.GetReducerQueue(url)
-	aggregatorOutputQueue := middleware.GetAggregatorQueue(url)
+	joinerOutputQueue := middleware.GetJoinerQueue(url)
 	defer reducerInputQueue.StopConsuming()
-	defer aggregatorOutputQueue.StopConsuming()
+	defer joinerOutputQueue.StopConsuming()
 	defer reducerInputQueue.Close()
-	defer aggregatorOutputQueue.Close()
+	defer joinerOutputQueue.Close()
 
 	serializedTransactions, _ := proto.Marshal(&GroupTransactionMock2)
 
@@ -110,7 +115,7 @@ func reduceTask2_1(t *testing.T) {
 
 	done := make(chan bool, 1)
 
-	e := aggregatorOutputQueue.StartConsuming(func(consumeChannel middleware.ConsumeChannel, d chan error) {
+	e := joinerOutputQueue.StartConsuming(func(consumeChannel middleware.ConsumeChannel, d chan error) {
 		for msg := range consumeChannel {
 			msg.Ack(false)
 			dataBatch, _ := utils.GetDataEnvelope(msg.Body)
@@ -129,17 +134,21 @@ func reduceTask2_1(t *testing.T) {
 		}
 		done <- true
 	})
-	<-done
+	select {
+	case <-done:
+	case <-time.After(5 * time.Second):
+		t.Error("Test timed out waiting for results")
+	}
 	assert.Equal(t, 0, int(e))
 }
 
 func reduceTask2_2(t *testing.T) {
 	reducerInputQueue := middleware.GetReducerQueue(url)
-	aggregatorOutputQueue := middleware.GetAggregatorQueue(url)
+	joinerOutputQueue := middleware.GetJoinerQueue(url)
 	defer reducerInputQueue.StopConsuming()
-	defer aggregatorOutputQueue.StopConsuming()
+	defer joinerOutputQueue.StopConsuming()
 	defer reducerInputQueue.Close()
-	defer aggregatorOutputQueue.Close()
+	defer joinerOutputQueue.Close()
 
 	serializedTransactions, _ := proto.Marshal(&GroupTransactionMock2)
 
@@ -155,7 +164,7 @@ func reduceTask2_2(t *testing.T) {
 
 	done := make(chan bool, 1)
 
-	e := aggregatorOutputQueue.StartConsuming(func(consumeChannel middleware.ConsumeChannel, d chan error) {
+	e := joinerOutputQueue.StartConsuming(func(consumeChannel middleware.ConsumeChannel, d chan error) {
 		for msg := range consumeChannel {
 			msg.Ack(false)
 			dataBatch, _ := utils.GetDataEnvelope(msg.Body)
@@ -174,17 +183,21 @@ func reduceTask2_2(t *testing.T) {
 		}
 		done <- true
 	})
-	<-done
+	select {
+	case <-done:
+	case <-time.After(5 * time.Second):
+		t.Error("Test timed out waiting for results")
+	}
 	assert.Equal(t, 0, int(e))
 }
 
 func reduceTask4(t *testing.T) {
 	reducerInputQueue := middleware.GetReducerQueue(url)
-	aggregatorOutputQueue := middleware.GetAggregatorQueue(url)
+	joinerOutputQueue := middleware.GetJoinerQueue(url)
 	defer reducerInputQueue.StopConsuming()
-	defer aggregatorOutputQueue.StopConsuming()
+	defer joinerOutputQueue.StopConsuming()
 	defer reducerInputQueue.Close()
-	defer aggregatorOutputQueue.Close()
+	defer joinerOutputQueue.Close()
 
 	serializedTransactions, _ := proto.Marshal(&GroupTransactionMock4)
 
@@ -200,7 +213,7 @@ func reduceTask4(t *testing.T) {
 
 	done := make(chan bool, 1)
 
-	e := aggregatorOutputQueue.StartConsuming(func(consumeChannel middleware.ConsumeChannel, d chan error) {
+	e := joinerOutputQueue.StartConsuming(func(consumeChannel middleware.ConsumeChannel, d chan error) {
 		for msg := range consumeChannel {
 			msg.Ack(false)
 			dataBatch, _ := utils.GetDataEnvelope(msg.Body)
@@ -219,6 +232,10 @@ func reduceTask4(t *testing.T) {
 		}
 		done <- true
 	})
-	<-done
+	select {
+	case <-done:
+	case <-time.After(5 * time.Second):
+		t.Error("Test timed out waiting for results")
+	}
 	assert.Equal(t, 0, int(e))
 }
