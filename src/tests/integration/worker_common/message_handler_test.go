@@ -8,165 +8,68 @@ import (
 	"github.com/maxogod/distro-tp/src/common/models/protocol"
 	"github.com/maxogod/distro-tp/src/common/worker"
 	"github.com/stretchr/testify/assert"
-	"google.golang.org/protobuf/proto"
 )
 
 var url = "amqp://guest:guest@localhost:5672/"
 
-type MockDataHandler struct {
-	HandleDataCalled         bool
-	HandleFinishClientCalled bool
-}
+func TestSingleClientHandle(t *testing.T) {
+	t.Log("Running testSingleClientHandle")
 
-func (m *MockDataHandler) HandleData(dataEnvelope *protocol.DataEnvelope) error {
-
-	m.HandleDataCalled = true
-	return nil
-}
-
-func (m *MockDataHandler) HandleFinishClient(clientID string) error {
-	m.HandleFinishClientCalled = true
-	return nil
-}
-
-func (m *MockDataHandler) Close() error {
-	return nil
-}
-
-func TestNewMessageHandler(t *testing.T) {
-	mockDataHandler := &MockDataHandler{}
-	inputMiddleware, _ := middleware.NewQueueMiddleware(url, "inputQueue")
-	defer inputMiddleware.Delete()
-
-	inputQueues := []middleware.MessageMiddleware{inputMiddleware}
-
-	mh := worker.NewMessageHandler(mockDataHandler, inputQueues, nil)
-	if mh == nil {
-		t.Errorf("Expected MessageHandler to be created, got nil")
-	}
-}
-
-func TestMessageHandlerStart(t *testing.T) {
-	mockDataHandler := &MockDataHandler{}
-	inputMiddleware, _ := middleware.NewQueueMiddleware(url, "inputQueue")
-	defer inputMiddleware.Delete()
-
-	sendMessage := &protocol.DataEnvelope{
-		TaskType: int32(1),
-		Payload:  []byte("test payload"),
-	}
-	data, _ := proto.Marshal(sendMessage)
-	inputMiddleware.Send(data)
-
-	inputQueues := []middleware.MessageMiddleware{inputMiddleware}
-
-	mh := worker.NewMessageHandler(mockDataHandler, inputQueues, nil)
-	if mh == nil {
-		t.Errorf("Expected MessageHandler to be created, got nil")
-	}
-
-	go func() {
-		err := mh.Start()
-		if err != nil {
-			t.Errorf("MessageHandler.Start() returned an error: %v", err)
-		}
-	}()
-
-	// Wait for the message to be processed
-	time.Sleep(1 * time.Second)
-
-	// Clean up
-	assert.NoError(t, mh.Close())
-	// Check if HandleData was called
-	assert.True(t, mockDataHandler.HandleDataCalled, "Expected HandleData to be called")
-}
-
-func TestMessageHandlerWithFinish(t *testing.T) {
-	mockDataHandler := &MockDataHandler{}
-
-	inputMiddleware, _ := middleware.NewQueueMiddleware(url, "inputQueue")
-	finisherQueue, _ := middleware.NewQueueMiddleware(url, "finisherQueue")
-	defer inputMiddleware.Delete()
-	defer finisherQueue.Delete()
-
-	sendMessage := &protocol.DataEnvelope{
-		ClientId: "client1",
-		TaskType: int32(1),
-		Payload:  []byte("test payload"),
-	}
-	data, _ := proto.Marshal(sendMessage)
-	inputMiddleware.Send(data)
-
-	inputQueues := []middleware.MessageMiddleware{inputMiddleware}
-
-	mh := worker.NewMessageHandler(mockDataHandler, inputQueues, finisherQueue)
-
-	go func() {
-		err := mh.Start()
-		if err != nil {
-			t.Errorf("MessageHandler.Start() returned an error: %v", err)
-		}
-	}()
-
-	// Wait for the message to be processed
-	time.Sleep(1 * time.Second)
-
-	// Check if HandleData was called
-	assert.True(t, mockDataHandler.HandleDataCalled, "Expected HandleData to be called")
-
-	sendFinishMessage := &protocol.DataEnvelope{
-		ClientId: "client1",
-	}
-	finishData, _ := proto.Marshal(sendFinishMessage)
-	finisherQueue.Send(finishData)
-
-	// Wait for the finish message to be processed
-	for !mockDataHandler.HandleFinishClientCalled {
-		time.Sleep(1 * time.Second)
-	}
-	assert.True(t, mockDataHandler.HandleFinishClientCalled, "Expected HandleFinishClient to be eventually called")
-	assert.NoError(t, mh.Close())
-}
-
-func TestMessageHandlerWithMultipleInputQueues(t *testing.T) {
-	mockDataHandler := &MockDataHandler{}
+	mockDataExecutor := NewMockDataExecutor()
+	mockDataHandler := NewMockDataHandler(mockDataExecutor)
 	inputMiddleware1, _ := middleware.NewQueueMiddleware(url, "inputQueue1")
-	inputMiddleware2, _ := middleware.NewQueueMiddleware(url, "inputQueue2")
-	defer inputMiddleware1.Delete()
-	defer inputMiddleware2.Delete()
+	finishExchange := middleware.GetFinishExchange(url, []string{"testWorker"})
 
-	sendMessage := &protocol.DataEnvelope{
-		TaskType: int32(1),
-		Payload:  []byte("test payload"),
-	}
-	data, _ := proto.Marshal(sendMessage)
-	inputMiddleware1.Send(data)
-
-	inputQueues := []middleware.MessageMiddleware{inputMiddleware1, inputMiddleware2}
-
-	mh := worker.NewMessageHandler(mockDataHandler, inputQueues, nil)
-	if mh == nil {
+	messageHandler := worker.NewMessageHandler(mockDataHandler, []middleware.MessageMiddleware{inputMiddleware1}, finishExchange)
+	if messageHandler == nil {
 		t.Errorf("Expected MessageHandler to be created, got nil")
 	}
 
 	go func() {
-		err := mh.Start()
-		if err != nil {
-			t.Errorf("MessageHandler.Start() returned an error: %v", err)
+
+		e := messageHandler.Start()
+		if e != nil {
+			t.Log("Error starting message handler")
+			return
 		}
 	}()
 
-	// Wait for the message to be processed
-	time.Sleep(1 * time.Second)
-
-	assert.True(t, mockDataHandler.HandleDataCalled, "Expected HandleData to be called")
-	mockDataHandler.HandleDataCalled = false
-	assert.False(t, mockDataHandler.HandleDataCalled, "Expected HandleData to be reset")
-
-	// Send message to the second input queue
-	inputMiddleware2.Send(data)
+	sendMessage := &protocol.DataEnvelope{
+		ClientId: "client1",
+		TaskType: int32(1),
+		Payload:  []byte("test payload"),
+	}
+	SendToQueue(inputMiddleware1, sendMessage)
 
 	// Wait for the message to be processed
-	time.Sleep(1 * time.Second)
-	assert.True(t, mockDataHandler.HandleDataCalled, "Expected HandleData to be called for second input queue")
+	time.Sleep(100 * time.Millisecond)
+
+	// Check if HandleData was called
+	handledClient, exists := mockDataExecutor.ClientDataHandled["client1"]
+
+	assert.True(t, exists, "Expected HandleData to be called for client1")
+
+	assert.Equal(t, 1, len(handledClient), "Expected HandleData to be called once for client1")
+	assert.Equal(t, "test payload", string(handledClient[0].Payload), "Expected payload to match")
+	assert.Equal(t, "client1", handledClient[0].ClientId, "Expected ClientId to match")
+	assert.Equal(t, int32(1), handledClient[0].TaskType, "Expected TaskType to match")
+
+	// Finish up the client
+	sendDone := &protocol.DataEnvelope{
+		ClientId: "client1",
+		IsDone:   true,
+	}
+	SendToQueue(finishExchange, sendDone)
+
+	finishedClient, exists := mockDataExecutor.HandleFinishClientCalled["client1"]
+
+	t.Log("Waiting for HandleFinishClient to be called for client1")
+	hasFinished := <-finishedClient
+
+	assert.True(t, hasFinished, "Expected HandleFinishClient to be true for client1")
+
+	// Close the message handler
+	inputMiddleware1.Delete()
+	finishExchange.Delete()
+	messageHandler.Close()
 }
