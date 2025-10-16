@@ -15,6 +15,7 @@ func main() {
 	time.Sleep(14 * time.Second) // wait for rabbitmq to be ready
 
 	before := time.Now()
+
 	if len(os.Args) < 2 {
 		log.Fatalln("no arguments provided")
 	}
@@ -25,10 +26,15 @@ func main() {
 	}
 
 	log.Debugln("Starting client")
-	c := client.NewClient(conf)
+	c, err := client.NewClient(conf)
+	if err != nil {
+		log.Fatalf("failed to create client: %v", err)
+	}
+
 	if err := c.Start(os.Args[1]); err != nil {
 		log.Fatalln("Client error:", err)
 	}
+
 	after := time.Now()
 
 	log.Debugf("Pikachu finished successfully in %s\n", after.Sub(before).String())

@@ -22,6 +22,7 @@ type taskExecutor struct {
 	outputPath string
 	batchSize  int
 	conn       network.ConnectionInterface
+	fs         file_service.FileService
 }
 
 func NewTaskExecutor(dataPath, outputPath string, batchSize int, conn network.ConnectionInterface) TaskExecutor {
@@ -30,16 +31,15 @@ func NewTaskExecutor(dataPath, outputPath string, batchSize int, conn network.Co
 		outputPath: outputPath,
 		batchSize:  batchSize,
 		conn:       conn,
+		fs:         file_service.NewFileService(batchSize),
 	}
 }
 
 func (t *taskExecutor) Task1() error {
 	transactionsDir := t.dataPath + TransactionsDirPath
-	err := readAndSendData(
-		t.conn,
+	err := t.readAndSendData(
 		enum.T1,
 		transactionsDir,
-		t.batchSize,
 		false,
 		true,
 		utils.TransactionFromRecord,
@@ -52,11 +52,9 @@ func (t *taskExecutor) Task1() error {
 
 	log.Debug("All transactions data sent, waiting for results...")
 
-	receiveAndSaveResults(
-		t.conn,
+	t.receiveAndSaveResults(
 		filepath.Join(t.outputPath, OUTPUT_FILE_T1),
 		utils.T1_RES_HEADER,
-		t.batchSize,
 		func(dataBatch *protocol.DataEnvelope, ch chan string) {
 			transactionBatch := &raw.TransactionBatch{}
 			if err := proto.Unmarshal(dataBatch.Payload, transactionBatch); err != nil {
@@ -76,11 +74,9 @@ func (t *taskExecutor) Task1() error {
 
 func (t *taskExecutor) Task2() error {
 	menuItemsDir := t.dataPath + MenuItemsDirPath
-	err := readAndSendData(
-		t.conn,
+	err := t.readAndSendData(
 		enum.T2,
 		menuItemsDir,
-		t.batchSize,
 		true,
 		true,
 		utils.MenuItemFromRecord,
@@ -92,11 +88,9 @@ func (t *taskExecutor) Task2() error {
 	}
 
 	transactionsItemsDir := t.dataPath + TransactionItemsDirPath
-	err = readAndSendData(
-		t.conn,
+	err = t.readAndSendData(
 		enum.T2,
 		transactionsItemsDir,
-		t.batchSize,
 		false,
 		true,
 		utils.TransactionItemsFromRecord,
@@ -107,11 +101,9 @@ func (t *taskExecutor) Task2() error {
 		return err
 	}
 
-	receiveAndSaveResults(
-		t.conn,
+	t.receiveAndSaveResults(
 		filepath.Join(t.outputPath, OUTPUT_FILE_T2_1),
 		utils.T2_1_RES_HEADER,
-		t.batchSize,
 		func(dataBatch *protocol.DataEnvelope, ch chan string) {
 			data := &reduced.TotalProfitBySubtotal{}
 			if err := proto.Unmarshal(dataBatch.Payload, data); err != nil {
@@ -124,11 +116,9 @@ func (t *taskExecutor) Task2() error {
 		},
 	)
 
-	receiveAndSaveResults(
-		t.conn,
+	t.receiveAndSaveResults(
 		filepath.Join(t.outputPath, OUTPUT_FILE_T2_2),
 		utils.T2_2_RES_HEADER,
-		t.batchSize,
 		func(dataBatch *protocol.DataEnvelope, ch chan string) {
 			data := &reduced.TotalSoldByQuantity{}
 			if err := proto.Unmarshal(dataBatch.Payload, data); err != nil {
@@ -146,11 +136,9 @@ func (t *taskExecutor) Task2() error {
 
 func (t *taskExecutor) Task3() error {
 	storesDir := t.dataPath + StoresDirPath
-	err := readAndSendData(
-		t.conn,
+	err := t.readAndSendData(
 		enum.T3,
 		storesDir,
-		t.batchSize,
 		true,
 		true,
 		utils.StoreFromRecord,
@@ -162,11 +150,9 @@ func (t *taskExecutor) Task3() error {
 	}
 
 	transactionsDir := t.dataPath + TransactionsDirPath
-	err = readAndSendData(
-		t.conn,
+	err = t.readAndSendData(
 		enum.T3,
 		transactionsDir,
-		t.batchSize,
 		false,
 		true,
 		utils.TransactionFromRecord,
@@ -177,11 +163,9 @@ func (t *taskExecutor) Task3() error {
 		return err
 	}
 
-	receiveAndSaveResults(
-		t.conn,
+	t.receiveAndSaveResults(
 		filepath.Join(t.outputPath, OUTPUT_FILE_T3),
 		utils.T3_RES_HEADER,
-		t.batchSize,
 		func(dataBatch *protocol.DataEnvelope, ch chan string) {
 			data := &reduced.TotalPaymentValue{}
 			if err := proto.Unmarshal(dataBatch.Payload, data); err != nil {
@@ -199,11 +183,9 @@ func (t *taskExecutor) Task3() error {
 
 func (t *taskExecutor) Task4() error {
 	usersDir := t.dataPath + UsersDirPath
-	err := readAndSendData(
-		t.conn,
+	err := t.readAndSendData(
 		enum.T4,
 		usersDir,
-		t.batchSize,
 		true,
 		false, // Only send done once after all ref data is sent
 		utils.UserFromRecord,
@@ -215,11 +197,9 @@ func (t *taskExecutor) Task4() error {
 	}
 
 	storesDir := t.dataPath + StoresDirPath
-	err = readAndSendData(
-		t.conn,
+	err = t.readAndSendData(
 		enum.T4,
 		storesDir,
-		t.batchSize,
 		true,
 		true,
 		utils.StoreFromRecord,
@@ -231,11 +211,9 @@ func (t *taskExecutor) Task4() error {
 	}
 
 	transactionsDir := t.dataPath + TransactionsDirPath
-	err = readAndSendData(
-		t.conn,
+	err = t.readAndSendData(
 		enum.T4,
 		transactionsDir,
-		t.batchSize,
 		false,
 		true,
 		utils.TransactionFromRecord,
@@ -246,11 +224,9 @@ func (t *taskExecutor) Task4() error {
 		return err
 	}
 
-	receiveAndSaveResults(
-		t.conn,
+	t.receiveAndSaveResults(
 		filepath.Join(t.outputPath, OUTPUT_FILE_T4),
 		utils.T4_RES_HEADER,
-		t.batchSize,
 		func(dataBatch *protocol.DataEnvelope, ch chan string) {
 			data := &reduced.CountedUserTransactions{}
 			if err := proto.Unmarshal(dataBatch.Payload, data); err != nil {
@@ -268,18 +244,14 @@ func (t *taskExecutor) Task4() error {
 
 /* --- UTILS --- */
 
-func readAndSendData[T any](
-	conn network.ConnectionInterface,
+func (t taskExecutor) readAndSendData(
 	taskType enum.TaskType,
 	dataDir string,
-	batchSize int,
 	isRef bool,
 	sendDone bool,
-	fromRecordFunc func([]string) T,
-	makeBatchFunc func([]T) []byte,
+	fromRecordFunc func([]string) proto.Message,
+	makeBatchFunc func([]proto.Message) []byte,
 ) error {
-	fs := file_service.NewFileService[T](batchSize)
-
 	files, err := os.ReadDir(dataDir)
 	if err != nil {
 		log.Errorf("failed to read transactions directory: %v", err)
@@ -287,8 +259,8 @@ func readAndSendData[T any](
 	}
 
 	for _, file := range files {
-		ch := make(chan []T)
-		go fs.ReadAsBatches(filepath.Join(dataDir, file.Name()), ch, fromRecordFunc)
+		ch := make(chan []proto.Message)
+		go t.fs.ReadAsBatches(filepath.Join(dataDir, file.Name()), ch, fromRecordFunc)
 
 		for batch := range ch {
 			dataBatch, err := proto.Marshal(&protocol.DataEnvelope{
@@ -301,7 +273,9 @@ func readAndSendData[T any](
 				continue
 			}
 
-			_ = conn.SendData(dataBatch)
+			if err := t.conn.SendData(dataBatch); err != nil {
+				return err
+			}
 		}
 	}
 
@@ -318,29 +292,26 @@ func readAndSendData[T any](
 		return err
 	}
 
-	if err := conn.SendData(donePayload); err != nil {
+	if err := t.conn.SendData(donePayload); err != nil {
 		return err
 	}
 
 	return nil
 }
 
-func receiveAndSaveResults(
-	conn network.ConnectionInterface,
+func (t taskExecutor) receiveAndSaveResults(
 	path,
 	header string,
-	batchSize int,
 	generateStringObject func(*protocol.DataEnvelope, chan string),
 ) error {
-	fs := file_service.NewFileService[string](batchSize)
-
 	batchesCh := make(chan string)
 
 	go func() {
+		defer close(batchesCh)
 		for {
-			res, err := conn.ReceiveData()
+			res, err := t.conn.ReceiveData()
 			if err != nil {
-				log.Errorf("failed to receive response from server: %v", err)
+				log.Debugf("connection with server closed")
 				return
 			}
 			dataBatch := &protocol.DataEnvelope{}
@@ -348,7 +319,6 @@ func receiveAndSaveResults(
 				log.Errorf("failed to unmarshal response from server: %v", err)
 				return
 			} else if dataBatch.GetIsDone() {
-				close(batchesCh)
 				break // No more batches
 			}
 
@@ -356,8 +326,12 @@ func receiveAndSaveResults(
 		}
 	}()
 
-	fs.SaveCsvAsBatches(path, batchesCh, header)
+	t.fs.SaveCsvAsBatches(path, batchesCh, header)
 	log.Debug("Finished saving data")
 
 	return nil
+}
+
+func (t *taskExecutor) Close() {
+	t.fs.Close()
 }

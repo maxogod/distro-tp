@@ -32,4 +32,7 @@ type TaskExecutor interface {
 	// Task4 sends transactions, users and stores to the server and waits for the response containing
 	// the top 3 users with more transactions and writes them to the given output file.
 	Task4() error
+
+	// Close releases any resources held by the TaskExecutor.
+	Close()
 }

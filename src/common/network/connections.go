@@ -43,6 +43,9 @@ func (c *connectionInterface) IsConnected() bool {
 }
 
 func (c *connectionInterface) ReceiveData() ([]byte, error) {
+	if !c.IsConnected() {
+		return nil, io.EOF
+	}
 	// Read the length of the incoming message
 	header := make([]byte, HEADER_SIZE)
 	if err := c.readFull(header); err != nil {
@@ -58,6 +61,9 @@ func (c *connectionInterface) ReceiveData() ([]byte, error) {
 }
 
 func (c *connectionInterface) SendData(data []byte) error {
+	if !c.IsConnected() {
+		return io.EOF
+	}
 	lenBytes := make([]byte, HEADER_SIZE)
 	binary.BigEndian.PutUint32(lenBytes, uint32(len(data)))
 	payload := append(lenBytes, data...)
