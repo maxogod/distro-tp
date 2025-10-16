@@ -11,6 +11,7 @@ import (
 type Config struct {
 	MiddlewareAddress string
 	Port              int32
+	HealthCheckPort   int
 	LogLevel          string
 }
 
@@ -37,11 +38,13 @@ func InitConfig() (*Config, error) {
 	// Bind env vars to config keys
 	v.BindEnv("gateway.address", "GATEWAY_ADDRESS")
 	v.BindEnv("port", "PORT")
+	v.BindEnv("healthcheck.port", "HEALTHCHECK_PORT")
 	v.BindEnv("log.level", "LOG_LEVEL")
 
 	config := &Config{
 		MiddlewareAddress: v.GetString("middleware.address"),
 		Port:              int32(v.GetInt("port")),
+		HealthCheckPort:   v.GetInt("healthcheck.port"),
 		LogLevel:          v.GetString("log.level"),
 	}
 

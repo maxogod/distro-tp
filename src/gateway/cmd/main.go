@@ -12,8 +12,6 @@ import (
 var log = logger.GetLogger()
 
 func main() {
-	time.Sleep(14 * time.Second) // wait for rabbitmq to be ready
-
 	before := time.Now()
 
 	if len(os.Args) < 2 {

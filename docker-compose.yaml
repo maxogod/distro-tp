@@ -23,15 +23,22 @@ services:
     build:
       dockerfile: ./src/gateway_controller/Dockerfile
     image: gateway_controller:latest
-    networks:
-      - tp_net
     ports:
       - '8080:8080'
+      - '8081:8081'
     volumes:
       - ./src/gateway_controller/config.yaml:/config.yaml
     depends_on:
       rabbitmq:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8081/ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - tp_net
 
   filter:
     container_name: filter
@@ -214,7 +221,8 @@ services:
       - ./.data:/app/.data
       - ./.output1:/app/.output
     depends_on:
-      - gateway_controller
+      gateway_controller:
+        condition: service_healthy
 
   gateway2:
     container_name: gateway2
@@ -228,7 +236,8 @@ services:
       - ./.data:/app/.data
       - ./.output2:/app/.output
     depends_on:
-      - gateway_controller
+      gateway_controller:
+        condition: service_healthy
 
   gateway3:
     container_name: gateway3
@@ -242,7 +251,8 @@ services:
       - ./.data:/app/.data
       - ./.output3:/app/.output
     depends_on:
-      - gateway_controller
+      gateway_controller:
+        condition: service_healthy
 
   gateway4:
     container_name: gateway4

@@ -8,6 +8,7 @@ import (
 )
 
 const HEADER_SIZE = 4
+const WAIT_INTERVAL = 1 * time.Second
 
 type connectionInterface struct {
 	conn net.Conn
@@ -29,7 +30,7 @@ func (c *connectionInterface) Connect(serverAddr string, retries int) error {
 		if err == nil {
 			break
 		}
-		time.Sleep(1 * time.Second)
+		time.Sleep(WAIT_INTERVAL)
 	}
 	if err != nil {
 		return err
