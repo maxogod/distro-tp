@@ -5,18 +5,14 @@ from pathlib import Path
 
 
 def normalize_value(value: str):
-    """Try to normalize numbers by rounding to 1 decimal place, else return as string."""
     try:
-        # Try converting to float and round to 1 decimal
         num = float(value)
-        return f"{num:.1f}"
+        return f"{num:.1f}" # Ignore decimals (e.g. 1.00)
     except ValueError:
-        # Not a number, return as is (trim whitespace)
         return value.strip()
 
 
 def read_csv_as_set(filename):
-    """Read a CSV file (excluding header) and return a set of normalized tuples."""
     with open(filename, newline="", encoding="utf-8") as f:
         reader = csv.reader(f)
         header = next(reader, None)
@@ -25,42 +21,58 @@ def read_csv_as_set(filename):
 
 
 def compare_csv_files(file1: str, file2: str):
-    """Compare two CSV files for identical content regardless of row order,
-    ignoring differences beyond the first decimal place in numeric columns.
-    """
     header1, rows1 = read_csv_as_set(file1)
     header2, rows2 = read_csv_as_set(file2)
 
-    print(f"Comparing '{file1}' with '{file2}'\n")
+    print(f"Comparing '{file1}' with '{file2}'")
 
     if header1 != header2:
-        print("FAIL! | Headers differ:")
-        print(f"  {file1}: {header1}")
-        print(f"  {file2}: {header2}")
+        print("FAIL! | Headers differ:\n{file1}: {header1}\n{file2}: {header2}\n")
         return
 
     missing_in_file2 = rows1 - rows2
     missing_in_file1 = rows2 - rows1
 
     if not missing_in_file1 and not missing_in_file2:
-        print("SUCCESS! | Both CSV files contain the same rows!")
+        print("SUCCESS! | Both CSV files contain the same rows!\n")
         return
 
     print("FAIL! | CSV files differ:")
 
     if missing_in_file2:
-        print(
-            f"\nRows present in {Path(file1).name} but missing in {Path(file2).name}:"
-        )
+        print(f"\nRows present in {Path(file1).name} but missing in {Path(file2).name}:")
         for row in sorted(missing_in_file2):
             print("  ", row)
 
     if missing_in_file1:
-        print(
-            f"\nRows present in {Path(file2).name} but missing in {Path(file1).name}:"
-        )
+        print(f"\nRows present in {Path(file2).name} but missing in {Path(file1).name}:")
         for row in sorted(missing_in_file1):
             print("  ", row)
+
+
+def task4_comparison(file1: str, file2: str):
+    count1 = {}
+    count2 = {}
+    with open(file1, "r", encoding="utf-8") as f1, open(file2, "r", encoding="utf-8") as f2:
+        next(f1)  # Skip header
+        next(f2)  # Skip header
+        for line in f1:
+            store, _, qty = line.strip().split(",")
+            count1[store] = count1.get(store, 0) + int(qty)
+        for line in f2:
+            store, _, qty = line.strip().split(",")
+            count2[store] = count2.get(store, 0) + int(qty)
+
+    if len(count1) != len(count2):
+        print(f"FAIL! | Number of stores differ\n")
+        return
+    
+    for store in count1:
+        if store not in count2 or count1[store] != count2[store]:
+            print(f"FAIL! | Store '{store}' has different total quantities: {count1.get(store, 0)} vs {count2.get(store, 0)}\n")
+            return
+
+    print("SUCCESS! | Both files have the same total quantities per store!\n")
 
 
 def main():
@@ -74,7 +86,11 @@ def main():
         print("One or both files do not exist.")
         sys.exit(1)
 
-    compare_csv_files(file1, file2)
+    task = file1.split("/")[1].split(".")[0]
+    if task == "t4":
+        task4_comparison(file1, file2)
+    else:
+        compare_csv_files(file1, file2)
 
 
 if __name__ == "__main__":

@@ -7,11 +7,11 @@ const (
 	StoresDirPath           = "/stores"
 	UsersDirPath            = "/users"
 
-	OUTPUT_FILE_T1   = "task1_output.csv"
-	OUTPUT_FILE_T2_1 = "task2_1_output.csv"
-	OUTPUT_FILE_T2_2 = "task2_2_output.csv"
-	OUTPUT_FILE_T3   = "task3_output.csv"
-	OUTPUT_FILE_T4   = "task4_output.csv"
+	OUTPUT_FILE_T1   = "t1.csv"
+	OUTPUT_FILE_T2_1 = "t2_1.csv"
+	OUTPUT_FILE_T2_2 = "t2_2.csv"
+	OUTPUT_FILE_T3   = "t3.csv"
+	OUTPUT_FILE_T4   = "t4.csv"
 )
 
 // TaskExecutor handles the execution of tasks by communicating with the server
