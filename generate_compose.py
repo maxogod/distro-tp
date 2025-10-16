@@ -133,10 +133,10 @@ for svc in ["filter", "joiner", "reducer", "group_by"]:
 # Gateways
 # ==============================
 gw_count = service_counts.get("gateway", 0)
-for i in range(1, gw_count + 1):
+for i in range(gw_count):
     lines.append(
-        f"""  gateway{i}:
-    container_name: gateway{i}
+        f"""  gateway{i+1}:
+    container_name: gateway{i+1}
     entrypoint: ["/app/app", "t{(i % 4)+1}"]
     build:
       dockerfile: ./src/gateway/Dockerfile
@@ -145,13 +145,13 @@ for i in range(1, gw_count + 1):
       - tp_net
     volumes:
       - ./.data:/app/.data
-      - ./.output{i}:/app/.output
+      - ./.output{i+1}:/app/.output
     depends_on:
       gateway_controller:
         condition: service_healthy
         """
     )
-    print(f"Adding gateway{i}")
+    print(f"Adding gateway{i+1}")
 
 # ==============================
 # Networks
