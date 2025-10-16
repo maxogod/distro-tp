@@ -124,7 +124,7 @@ func (ae *AggregatorExecutor) HandleFinishClient(clientID string) error {
 	}
 	ae.finishExecutor.SendAllData(clientID, enum.TaskType(taskType))
 	log.Debug("Client Finished: ", clientID)
-	//delete(ae.clientTasks, clientID)
+	delete(ae.clientTasks, clientID)
 	return nil
 }
 

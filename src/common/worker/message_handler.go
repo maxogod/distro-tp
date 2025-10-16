@@ -15,7 +15,7 @@ import (
 var log = logger.GetLogger()
 
 // TODO: move this to config
-const CLIENT_TIMEOUT = 20 * time.Second
+const CLIENT_TIMEOUT = 30 * time.Second
 
 // when having to handle / finish clients, there is a bool to indicate if
 // the client is in finishing mode, and a timer to count down to when it should execute the
