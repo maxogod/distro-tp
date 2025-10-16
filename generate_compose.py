@@ -137,7 +137,7 @@ for i in range(1, gw_count + 1):
     lines.append(
         f"""  gateway{i}:
     container_name: gateway{i}
-    entrypoint: ["/app/app", "t{i}"]
+    entrypoint: ["/app/app", "t1"]
     build:
       dockerfile: ./src/gateway/Dockerfile
     image: gateway:latest

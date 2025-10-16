@@ -176,6 +176,7 @@ func (fe *GroupExecutor) HandleTask2_2(payload []byte, clientID string) error {
 	panic("The group by worker does not implement Task 2.2")
 }
 
+// TODO: handle this to remove the client after finishing
 func (fe *GroupExecutor) HandleFinishClient(clientID string) error {
 	panic("The group by worker does not require client finishing handling")
 }
