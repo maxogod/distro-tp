@@ -202,23 +202,9 @@ services:
       rabbitmq:
         condition: service_healthy
 
-  gateway:
-    container_name: gateway
-    entrypoint: ["/app/app", "t1"]
-    build:
-      dockerfile: ./src/gateway/Dockerfile
-    image: gateway:latest
-    networks:
-      - tp_net
-    volumes:
-      - ./.data:/app/.data
-      - ./.output:/app/.output
-    depends_on:
-      - gateway_controller
-
   gateway1:
     container_name: gateway1
-    entrypoint: ["/app/app", "t2"]
+    entrypoint: ["/app/app", "t1"]
     build:
       dockerfile: ./src/gateway/Dockerfile
     image: gateway:latest
@@ -232,7 +218,7 @@ services:
 
   gateway2:
     container_name: gateway2
-    entrypoint: ["/app/app", "t3"]
+    entrypoint: ["/app/app", "t2"]
     build:
       dockerfile: ./src/gateway/Dockerfile
     image: gateway:latest
@@ -244,8 +230,22 @@ services:
     depends_on:
       - gateway_controller
 
-  # gateway3:
-  #   container_name: gateway3
+  gateway3:
+    container_name: gateway3
+    entrypoint: ["/app/app", "t3"]
+    build:
+      dockerfile: ./src/gateway/Dockerfile
+    image: gateway:latest
+    networks:
+      - tp_net
+    volumes:
+      - ./.data:/app/.data
+      - ./.output3:/app/.output
+    depends_on:
+      - gateway_controller
+
+  # gateway4:
+  #   container_name: gateway4
   #   entrypoint: ["/app/app", "t4"]
   #   build:
   #     dockerfile: ./src/gateway/Dockerfile
@@ -254,7 +254,7 @@ services:
   #     - tp_net
   #   volumes:
   #     - ./.data:/app/.data
-  #     - ./.output3:/app/.output
+  #     - ./.output4:/app/.output
   #   depends_on:
   #     - gateway_controller
 
