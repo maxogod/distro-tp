@@ -15,7 +15,7 @@ import (
 
 var log = logger.GetLogger()
 
-const FLUSH_TIMEOUT = 500 * time.Millisecond
+const FLUSH_TIMEOUT = 300 * time.Millisecond
 
 type groupData struct {
 	data   []proto.Message
