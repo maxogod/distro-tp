@@ -1,8 +1,6 @@
 services:
-  filter: 2
-  joiner: 2
-  reducer: 2
-  group_by: 2
-  aggregator: 1
-  gateway: 1
-  gateway_controller: 1
+  - filter: 2
+  - joiner: 2
+  - reducer: 2
+  - group_by: 2
+  - gateway: 1

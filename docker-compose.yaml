@@ -7,8 +7,8 @@ services:
       dockerfile: Dockerfile
     image: rabbitmq:latest
     ports:
-      - '5670:5672'
-      - '15670:15672'
+      - "5670:5672"
+      - "15670:15672"
     healthcheck:
       test: ["CMD", "rabbitmq-diagnostics", "ping"]
       interval: 10s
@@ -24,8 +24,8 @@ services:
       dockerfile: ./src/gateway_controller/Dockerfile
     image: gateway_controller:latest
     ports:
-      - '8080:8080'
-      - '8081:8081'
+      - "8080:8080"
+      - "8081:8081"
     volumes:
       - ./src/gateway_controller/config.yaml:/config.yaml
     depends_on:
@@ -40,8 +40,21 @@ services:
     networks:
       - tp_net
 
-  filter:
-    container_name: filter
+  aggregator:
+    container_name: aggregator
+    build:
+      dockerfile: ./src/aggregator/Dockerfile
+    image: aggregator:latest
+    networks:
+      - tp_net
+    volumes:
+      - ./src/aggregator/config.yaml:/config.yaml
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+
+  filter1:
+    container_name: filter1
     build:
       dockerfile: ./src/filter/Dockerfile
     image: filter:latest
@@ -66,28 +79,54 @@ services:
       rabbitmq:
         condition: service_healthy
 
-  filter3:
-    container_name: filter3
+  joiner1:
+    container_name: joiner1
     build:
-      dockerfile: ./src/filter/Dockerfile
-    image: filter:latest
+      dockerfile: ./src/joiner/Dockerfile
+    image: joiner:latest
     networks:
       - tp_net
     volumes:
-      - ./src/filter/config.yaml:/config.yaml
+      - ./src/joiner/config.yaml:/config.yaml
     depends_on:
       rabbitmq:
         condition: service_healthy
 
-  group_by:
-    container_name: group_by
+  joiner2:
+    container_name: joiner2
     build:
-      dockerfile: ./src/group_by/Dockerfile
-    image: group_by:latest
+      dockerfile: ./src/joiner/Dockerfile
+    image: joiner:latest
     networks:
       - tp_net
     volumes:
-      - ./src/group_by/config.yaml:/config.yaml
+      - ./src/joiner/config.yaml:/config.yaml
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+
+  reducer1:
+    container_name: reducer1
+    build:
+      dockerfile: ./src/reducer/Dockerfile
+    image: reducer:latest
+    networks:
+      - tp_net
+    volumes:
+      - ./src/reducer/config.yaml:/config.yaml
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+
+  reducer2:
+    container_name: reducer2
+    build:
+      dockerfile: ./src/reducer/Dockerfile
+    image: reducer:latest
+    networks:
+      - tp_net
+    volumes:
+      - ./src/reducer/config.yaml:/config.yaml
     depends_on:
       rabbitmq:
         condition: service_healthy
@@ -118,72 +157,6 @@ services:
       rabbitmq:
         condition: service_healthy
 
-
-  reducer:
-    container_name: reducer
-    build:
-      dockerfile: ./src/reducer/Dockerfile
-    image: reducer:latest
-    networks:
-      - tp_net
-    volumes:
-      - ./src/reducer/config.yaml:/config.yaml
-    depends_on:
-      rabbitmq:
-        condition: service_healthy
-
-  reducer1:
-    container_name: reducer1
-    build:
-      dockerfile: ./src/reducer/Dockerfile
-    image: reducer:latest
-    networks:
-      - tp_net
-    volumes:
-      - ./src/reducer/config.yaml:/config.yaml
-    depends_on:
-      rabbitmq:
-        condition: service_healthy
-
-  aggregator:
-    container_name: aggregator
-    build:
-      dockerfile: ./src/aggregator/Dockerfile
-    image: aggregator:latest
-    networks:
-      - tp_net
-    volumes:
-      - ./src/aggregator/config.yaml:/config.yaml
-    depends_on:
-      rabbitmq:
-        condition: service_healthy
-
-  joiner:
-    container_name: joiner
-    build:
-      dockerfile: ./src/joiner/Dockerfile
-    image: joiner:latest
-    networks:
-      - tp_net
-    volumes:
-      - ./src/joiner/config.yaml:/config.yaml
-    depends_on:
-      rabbitmq:
-        condition: service_healthy
-
-  joiner2:
-    container_name: joiner2
-    build:
-      dockerfile: ./src/joiner/Dockerfile
-    image: joiner:latest
-    networks:
-      - tp_net
-    volumes:
-      - ./src/joiner/config.yaml:/config.yaml
-    depends_on:
-      rabbitmq:
-        condition: service_healthy
-
   gateway1:
     container_name: gateway1
     entrypoint: ["/app/app", "t1"]
@@ -199,52 +172,9 @@ services:
       gateway_controller:
         condition: service_healthy
 
-  gateway2:
-    container_name: gateway2
-    entrypoint: ["/app/app", "t2"]
-    build:
-      dockerfile: ./src/gateway/Dockerfile
-    image: gateway:latest
-    networks:
-      - tp_net
-    volumes:
-      - ./.data:/app/.data
-      - ./.output2:/app/.output
-    depends_on:
-      - gateway_controller
-
-  gateway3:
-    container_name: gateway3
-    entrypoint: ["/app/app", "t3"]
-    build:
-      dockerfile: ./src/gateway/Dockerfile
-    image: gateway:latest
-    networks:
-      - tp_net
-    volumes:
-      - ./.data:/app/.data
-      - ./.output3:/app/.output
-    depends_on:
-      - gateway_controller
-
-  gateway4:
-    container_name: gateway4
-    entrypoint: ["/app/app", "t4"]
-    build:
-      dockerfile: ./src/gateway/Dockerfile
-    image: gateway:latest
-    networks:
-      - tp_net
-    volumes:
-      - ./.data:/app/.data
-      - ./.output4:/app/.output
-    depends_on:
-      - gateway_controller
-
 networks:
   tp_net:
     ipam:
       driver: default
       config:
         - subnet: 172.25.125.0/24
-
