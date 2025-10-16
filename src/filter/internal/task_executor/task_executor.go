@@ -3,6 +3,7 @@ package task_executor
 import (
 	"fmt"
 
+	"github.com/maxogod/distro-tp/src/common/logger"
 	"github.com/maxogod/distro-tp/src/common/middleware"
 	"github.com/maxogod/distro-tp/src/common/models/enum"
 	"github.com/maxogod/distro-tp/src/common/models/raw"
@@ -10,6 +11,8 @@ import (
 	"github.com/maxogod/distro-tp/src/filter/business"
 	"google.golang.org/protobuf/proto"
 )
+
+var log = logger.GetLogger()
 
 type FilterExecutor struct {
 	config          TaskConfig
@@ -28,16 +31,15 @@ func NewFilterExecutor(config TaskConfig, filterService business.FilterService, 
 }
 
 func (fe *FilterExecutor) HandleTask1(payload []byte, clientID string) error {
-
 	transactionBatch := &raw.TransactionBatch{}
 	err := proto.Unmarshal(payload, transactionBatch)
 	if err != nil {
 		return err
 	}
 
-	//==========================
-	// TODO: APPLY BUSINESS LOGIC HERE
-	//==========================
+	fe.filterService.FilterByYear(transactionBatch)
+	fe.filterService.FilterByTime(transactionBatch)
+	fe.filterService.FilterByFinalAmount(transactionBatch)
 
 	return worker.SendDataToMiddleware(transactionBatch, enum.T1, clientID, fe.aggregatorQueue)
 }
@@ -49,11 +51,9 @@ func (fe *FilterExecutor) HandleTask2(payload []byte, clientID string) error {
 		return err
 	}
 
-	//==========================
-	// TODO: APPLY BUSINESS LOGIC HERE
-	//==========================
+	fe.filterService.FilterItemsByYear(transactionBatch)
 
-	return worker.SendDataToMiddleware(transactionBatch, enum.T3, clientID, fe.groupByQueue)
+	return worker.SendDataToMiddleware(transactionBatch, enum.T2, clientID, fe.groupByQueue)
 }
 
 func (fe *FilterExecutor) HandleTask3(payload []byte, clientID string) error {
@@ -63,20 +63,26 @@ func (fe *FilterExecutor) HandleTask3(payload []byte, clientID string) error {
 		return err
 	}
 
-	//==========================
-	// TODO: APPLY BUSINESS LOGIC HERE
-	//==========================
+	fe.filterService.FilterByYear(transactionBatch)
+	fe.filterService.FilterByTime(transactionBatch)
 
 	return worker.SendDataToMiddleware(transactionBatch, enum.T3, clientID, fe.groupByQueue)
 }
 
 func (fe *FilterExecutor) HandleTask4(payload []byte, clientID string) error {
-	// TODO: implement task 4 handling logic
-	return nil
+	transactionBatch := &raw.TransactionBatch{}
+	err := proto.Unmarshal(payload, transactionBatch)
+	if err != nil {
+		return err
+	}
+
+	fe.filterService.FilterByYear(transactionBatch)
+	fe.filterService.FilterNullUserIDs(transactionBatch)
+
+	return worker.SendDataToMiddleware(transactionBatch, enum.T4, clientID, fe.groupByQueue)
 }
 
 func (fe *FilterExecutor) Close() error {
-
 	e := fe.aggregatorQueue.Close()
 	if e != middleware.MessageMiddlewareSuccess {
 		return fmt.Errorf("failed to close aggregator queue: %v", e)

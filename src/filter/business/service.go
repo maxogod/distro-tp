@@ -3,63 +3,91 @@ package business
 import (
 	"time"
 
+	"github.com/maxogod/distro-tp/src/common/logger"
 	"github.com/maxogod/distro-tp/src/common/models/raw"
 )
 
-// Generic constraint that ensures
-// the type implements our required methods
-type TransactionCommon interface {
-	GetCreatedAt() string
-}
+var log = logger.GetLogger()
 
-type FilterService struct{}
+const timeFormat = "2006-01-02 15:04:05" // Example format
+
+type filterService struct{}
 
 func NewFilterService() FilterService {
-	return FilterService{}
+	return &filterService{}
 }
 
-func FilterByYearBetween[T TransactionCommon](from, to int, transactions []T) []T {
-
-	var filtered []T
-	for _, transaction := range transactions {
-
-		date, err := time.Parse("2006-01-02 15:04:05", transaction.GetCreatedAt())
+func (f *filterService) FilterByYear(batch *raw.TransactionBatch) error {
+	filtered := make([]*raw.Transaction, 0, len(batch.Transactions))
+	for _, tx := range batch.Transactions {
+		t, err := time.Parse(timeFormat, tx.CreatedAt)
 		if err != nil {
-			continue
+			log.Warnf("Skipping transaction %s due to parse error: %v", tx.TransactionId, err)
+			continue // skip invalid
 		}
-
-		year := date.Year()
-		if year >= from && year <= to {
-			filtered = append(filtered, transaction)
+		year := t.Year()
+		if year >= MinYear && year <= MaxYear {
+			filtered = append(filtered, tx)
 		}
 	}
-	return filtered
+	batch.Transactions = filtered
+	return nil
 }
 
-func FilterByHourBetween[T TransactionCommon](from, to int, transactions []T) []T {
-	var filtered []T
-	for _, transaction := range transactions {
-		date, err := time.Parse("2006-01-02 15:04:05", transaction.GetCreatedAt())
+func (f *filterService) FilterItemsByYear(batch *raw.TransactionItemsBatch) error {
+	filtered := make([]*raw.TransactionItem, 0, len(batch.TransactionItems))
+	for _, tx := range batch.TransactionItems {
+		t, err := time.Parse(timeFormat, tx.CreatedAt)
 		if err != nil {
-			continue
+			log.Warnf("Skipping transaction %s due to parse error: %v", tx.ItemId, err)
+			continue // skip invalid
 		}
-
-		// Extract hour and minute as decimal (e.g., 11:45 = 11.75)
-		timeDecimal := float64(date.Hour()) + float64(date.Minute())/60.0
-
-		if timeDecimal >= float64(from) && timeDecimal < float64(to+1) {
-			filtered = append(filtered, transaction)
+		year := t.Year()
+		if year >= MinYear && year <= MaxYear {
+			filtered = append(filtered, tx)
 		}
 	}
-	return filtered
+	batch.TransactionItems = filtered
+	return nil
 }
 
-func FilterByTotalAmountGreaterThan(totalAmount float64, transactions []*raw.Transaction) []*raw.Transaction {
-	var filtered []*raw.Transaction
-	for _, transaction := range transactions {
-		if transaction.GetFinalAmount() >= totalAmount {
-			filtered = append(filtered, transaction)
+func (f *filterService) FilterByTime(batch *raw.TransactionBatch) error {
+	filtered := make([]*raw.Transaction, 0, len(batch.Transactions))
+	for _, tx := range batch.Transactions {
+		t, err := time.Parse(timeFormat, tx.CreatedAt)
+		if err != nil {
+			continue // skip invalid
+		}
+		hour := t.Hour()
+		minute := t.Minute()
+
+		// Between Min and Max strictly
+		if (hour >= MinHour && hour < MaxHour) || (hour == MaxHour && minute == 0) {
+			filtered = append(filtered, tx)
 		}
 	}
-	return filtered
+	batch.Transactions = filtered
+	return nil
+}
+
+func (f *filterService) FilterByFinalAmount(batch *raw.TransactionBatch) error {
+	filtered := make([]*raw.Transaction, 0, len(batch.Transactions))
+	for _, tx := range batch.Transactions {
+		if tx.FinalAmount >= MinFinalAmount {
+			filtered = append(filtered, tx)
+		}
+	}
+	batch.Transactions = filtered
+	return nil
+}
+
+func (f *filterService) FilterNullUserIDs(batch *raw.TransactionBatch) error {
+	filtered := make([]*raw.Transaction, 0, len(batch.Transactions))
+	for _, tx := range batch.Transactions {
+		if tx.UserId != "" {
+			filtered = append(filtered, tx)
+		}
+	}
+	batch.Transactions = filtered
+	return nil
 }

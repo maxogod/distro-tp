@@ -1,7 +1,0 @@
-gateway:
-  address: "amqp://guest:guest@rabbitmq:5672/"
-log:
-  level: "DEBUG"
-datasets:
-  path: "/aggregated_data"
-  batch_size: 100

@@ -8,6 +8,7 @@ import (
 )
 
 const HEADER_SIZE = 4
+const WAIT_INTERVAL = 1 * time.Second
 
 type connectionInterface struct {
 	conn net.Conn
@@ -29,7 +30,7 @@ func (c *connectionInterface) Connect(serverAddr string, retries int) error {
 		if err == nil {
 			break
 		}
-		time.Sleep(1 * time.Second)
+		time.Sleep(WAIT_INTERVAL)
 	}
 	if err != nil {
 		return err
@@ -43,6 +44,9 @@ func (c *connectionInterface) IsConnected() bool {
 }
 
 func (c *connectionInterface) ReceiveData() ([]byte, error) {
+	if !c.IsConnected() {
+		return nil, io.EOF
+	}
 	// Read the length of the incoming message
 	header := make([]byte, HEADER_SIZE)
 	if err := c.readFull(header); err != nil {
@@ -58,6 +62,9 @@ func (c *connectionInterface) ReceiveData() ([]byte, error) {
 }
 
 func (c *connectionInterface) SendData(data []byte) error {
+	if !c.IsConnected() {
+		return io.EOF
+	}
 	lenBytes := make([]byte, HEADER_SIZE)
 	binary.BigEndian.PutUint32(lenBytes, uint32(len(data)))
 	payload := append(lenBytes, data...)

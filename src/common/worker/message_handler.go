@@ -14,7 +14,8 @@ import (
 
 var log = logger.GetLogger()
 
-const CLIENT_TIMEOUT = 10 * time.Second
+// TODO: move this to config
+const CLIENT_TIMEOUT = 30 * time.Second
 
 // when having to handle / finish clients, there is a bool to indicate if
 // the client is in finishing mode, and a timer to count down to when it should execute the
@@ -255,10 +256,10 @@ func SendDataToMiddleware(data proto.Message, taskType enum.TaskType, clientID s
 	return nil
 }
 
-func SendDone(clientID string, outputQueue middleware.MessageMiddleware) error {
-
+func SendDone(clientID string, taskType enum.TaskType, outputQueue middleware.MessageMiddleware) error {
 	dataEnvelope := &protocol.DataEnvelope{
 		ClientId: clientID,
+		TaskType: int32(taskType),
 		IsDone:   true,
 	}
 

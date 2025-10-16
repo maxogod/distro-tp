@@ -6,7 +6,7 @@ option go_package = "./raw";
 
 
 message User {
-    int32 user_id = 1;
+    string user_id = 1;
     string birthdate = 2;
 }
 

@@ -1,49 +1,42 @@
 package utils
 
 import (
-	"strconv"
+	"fmt"
 
 	"github.com/maxogod/distro-tp/src/common/models/raw"
 	"github.com/maxogod/distro-tp/src/common/models/reduced"
 )
 
 const (
-	T1_RES_HEADER   = "transaction_id,store_id,user_id,final_amount,created_at\n"
-	T2_1_RES_HEADER = "year_month_created,item_name,profit_sum\n"
-	T2_2_RES_HEADER = "year_month_created,item_name,sellings_qty\n"
+	T1_RES_HEADER   = "transaction_id,final_amount\n"
+	T2_1_RES_HEADER = "year_month_created_at,item_name,profit_sum\n"
+	T2_2_RES_HEADER = "year_month_created_at,item_name,sellings_qty\n"
 	T3_RES_HEADER   = "year_half_created_at,store_name,tpv\n"
-	T4_RES_HEADER   = "store_name,user_birthdate,purchases_qty\n"
+	T4_RES_HEADER   = "store_name,birthdate,purchases_qty\n"
 )
 
 // TODO: new proto to match the appropiate name of the fields
 func TransactionToCsv(record *raw.Transaction) string {
-	return record.TransactionId + "," +
-		record.StoreId + "," +
-		record.UserId + "," +
-		strconv.Itoa(int(record.FinalAmount)) + "," +
-		record.CreatedAt + "\n"
+	csvStr := fmt.Sprintf("%s,%.2f\n", record.TransactionId, record.FinalAmount)
+	return csvStr
 }
 
 func BestSellingItemsToCsv(record *reduced.TotalSoldByQuantity) string {
-	return record.YearMonth + "," +
-		record.ItemId + "," +
-		strconv.Itoa(int(record.Quantity)) + "\n"
+	csvStr := fmt.Sprintf("%s,%s,%d\n", record.YearMonth, record.ItemId, record.Quantity)
+	return csvStr
 }
 
 func MostProfitableItemsToCsv(record *reduced.TotalProfitBySubtotal) string {
-	return record.YearMonth + "," +
-		record.ItemId + "," +
-		strconv.Itoa(int(record.Subtotal)) + "\n"
+	csvStr := fmt.Sprintf("%s,%s,%.2f\n", record.YearMonth, record.ItemId, record.Subtotal)
+	return csvStr
 }
 
 func TopStoresByTPVToCsv(record *reduced.TotalPaymentValue) string {
-	return record.Semester + "," +
-		record.StoreId + "," +
-		strconv.Itoa(int(record.FinalAmount)) + "\n"
+	csvStr := fmt.Sprintf("%s,%s,%.2f\n", record.Semester, record.StoreId, record.FinalAmount)
+	return csvStr
 }
 
 func TopUsersByPurchasesToCsv(record *reduced.CountedUserTransactions) string {
-	return record.StoreId + "," +
-		record.UserId + "," +
-		strconv.Itoa(int(record.TransactionQuantity)) + "\n"
+	csvStr := fmt.Sprintf("%s,%s,%d\n", record.StoreId, record.Birthdate, record.TransactionQuantity)
+	return csvStr
 }
