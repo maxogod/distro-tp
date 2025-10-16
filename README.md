@@ -7,17 +7,7 @@
 | Maximo Utrera       | 109651  | mutrera@fi.uba.ar      |
 
 - [Entrega I: Diseño](./docs/diseño.pdf)
+- [Entrega II: Escalabilidad](./docs/escalabilidad.pdf)
+- [Entrega III: MUlticlient](./docs/multiclient.pdf)
 
-# Index
-
-## Gateway Client and Gateway Controller
-### Gateway Client
-### Gateway Controller
-
-
-## Common
-### [worker Common](docs/worker_common.md)
-### [Middleware](docs/middleware.md)
-
-## Workers
-## [Filter](docs/filter.md)
+Documentation in `./docs/`
