@@ -8,7 +8,7 @@ La comunicacion es bilateral con el *Gateway controller* y no se comunica con ni
 
 ```bash
 # Build the image
-docker build -t client -f ./src/gateway/Dockerfile .
+docker build -t client -f ./src/client/Dockerfile .
 
 # Run the container and mount the data directory
 docker run --rm -v $(pwd)/.data:/app/.data -it client:latest bash

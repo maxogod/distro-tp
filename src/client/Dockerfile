@@ -12,9 +12,9 @@ WORKDIR /app
 COPY go.sum go.mod ./
 COPY --from=deps /go/pkg/mod /go/pkg/mod
 COPY src/common/ ./src/common/
-COPY src/gateway/ ./src/gateway/
+COPY src/client/ ./src/client/
 
-RUN go build -v -o ./app ./src/gateway/cmd
+RUN go build -v -o ./app ./src/client/cmd
 
 # ** Run binary **
 FROM busybox:latest AS runner
@@ -22,6 +22,6 @@ FROM busybox:latest AS runner
 WORKDIR /app
 
 COPY --from=builder /app/app ./app
-COPY --from=builder /app/src/gateway/config.yaml ./config.yaml
+COPY --from=builder /app/src/client/config.yaml ./config.yaml
 
 ENTRYPOINT ["./app"]

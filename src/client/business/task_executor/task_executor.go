@@ -10,8 +10,8 @@ import (
 	"github.com/maxogod/distro-tp/src/common/models/raw"
 	"github.com/maxogod/distro-tp/src/common/models/reduced"
 	"github.com/maxogod/distro-tp/src/common/network"
-	"github.com/maxogod/distro-tp/src/gateway/business/file_service"
-	"github.com/maxogod/distro-tp/src/gateway/internal/utils"
+	"github.com/maxogod/distro-tp/src/client/business/file_service"
+	"github.com/maxogod/distro-tp/src/client/internal/utils"
 	"google.golang.org/protobuf/proto"
 )
 
