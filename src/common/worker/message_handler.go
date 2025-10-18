@@ -20,7 +20,7 @@ var log = logger.GetLogger()
 // to ack the message, call ackHandler(false)
 type message struct {
 	dataEnvelope *protocol.DataEnvelope
-	ackHandler   func(bool) error
+	ackHandler   func(bool, bool) error
 }
 
 // This struct is required when creating a worker that consumes
@@ -148,7 +148,7 @@ func (mh *messageHandler) consumeFromQueue(inputQueue middleware.MessageMiddlewa
 			}
 			newMessage := message{
 				dataEnvelope: dataBatch,
-				ackHandler:   msg.Ack,
+				ackHandler:   ackHandler(msg),
 			}
 
 			channelOutput <- newMessage
@@ -197,4 +197,13 @@ func SendDone(clientID string, taskType enum.TaskType, outputQueue middleware.Me
 	}
 
 	return nil
+}
+
+func ackHandler(msg middleware.MessageDelivery) func(bool, bool) error {
+	return func(ack, requeue bool) error {
+		if ack {
+			return msg.Ack(false)
+		}
+		return msg.Nack(false, requeue)
+	}
 }

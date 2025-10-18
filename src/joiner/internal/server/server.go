@@ -13,7 +13,6 @@ import (
 	"github.com/maxogod/distro-tp/src/joiner/cache"
 	"github.com/maxogod/distro-tp/src/joiner/config"
 	"github.com/maxogod/distro-tp/src/joiner/internal/task_executor"
-	"github.com/maxogod/distro-tp/src/joiner/internal/task_handler"
 )
 
 var log = logger.GetLogger()
@@ -40,10 +39,10 @@ func InitServer(conf *config.Config) *Server {
 		aggregatorQueue,
 	)
 
-	joinerHandler := task_handler.NewjoinerHandler(taskExecutor)
+	taskHandler := worker.NewTaskHandler(taskExecutor)
 
 	messageHandler := worker.NewMessageHandler(
-		joinerHandler,
+		taskHandler,
 		[]middleware.MessageMiddleware{joinerInputQueue, refDataExchange},
 		finishExchange,
 	)

@@ -34,154 +34,188 @@ func NewJoinerExecutor(config *config.Config,
 }
 
 // HandleTask2 is exclusively for reference data
-func (je *joinerExecutor) HandleTask2(payload []byte, clientID string) error {
-	dataEnvelope := &protocol.DataEnvelope{}
-	err := proto.Unmarshal(payload, dataEnvelope)
-	if err != nil {
-		return err
-	}
+func (je *joinerExecutor) HandleTask2(dataEnvelope *protocol.DataEnvelope, ackHandler func(bool, bool) error) error {
+	shouldAck := false
+	defer ackHandler(shouldAck, false)
+
+	clientID := dataEnvelope.GetClientId()
 
 	if !dataEnvelope.GetIsRef() {
 		panic("Received a non-reference data envelope for Task 2, ignoring...")
 	}
 
+	var err error
 	if !dataEnvelope.GetIsDone() {
-		return je.handleRefData(dataEnvelope, clientID)
+		err = je.handleRefData(dataEnvelope, clientID)
+	} else {
+		err = je.joinerService.FinishStoringRefData(clientID)
 	}
-	return je.joinerService.FinishStoringRefData(clientID)
 
-}
-
-// HandleTask2_1 is exclusively for reduced data
-func (je *joinerExecutor) HandleTask2_1(payload []byte, clientID string) error {
-	dataEnvelope := &protocol.DataEnvelope{}
-	err := proto.Unmarshal(payload, dataEnvelope)
 	if err != nil {
 		return err
 	}
+	shouldAck = true
+	return nil
+}
+
+// HandleTask2_1 is exclusively for reduced data
+func (je *joinerExecutor) HandleTask2_1(dataEnvelope *protocol.DataEnvelope, ackHandler func(bool, bool) error) error {
+	shouldAck := false
+	shouldRequeue := false
+	defer ackHandler(shouldAck, shouldRequeue)
+
+	clientID := dataEnvelope.GetClientId()
 
 	if dataEnvelope.GetIsRef() {
 		panic("The joiner only implements Task 2_1 for reduced data")
 	}
 
 	reducedData := &reduced.TotalProfitBySubtotal{}
-	err = proto.Unmarshal(dataEnvelope.GetPayload(), reducedData)
+	err := proto.Unmarshal(dataEnvelope.GetPayload(), reducedData)
 	if err != nil {
 		return err
 	}
 
 	joinedData := je.joinerService.JoinTotalProfitBySubtotal(reducedData, clientID)
 	if len(joinedData) == 0 {
+		shouldRequeue = true
 		return nil
 	}
 
 	for _, jd := range joinedData {
 		err = worker.SendDataToMiddleware(jd, enum.T2_1, clientID, je.aggregatorQueue)
 		if err != nil {
+			shouldRequeue = true
 			return err
 		}
 	}
 
+	shouldAck = true
 	return nil
 }
 
 // HandleTask2_2 is exclusively for reduced data
-func (je *joinerExecutor) HandleTask2_2(payload []byte, clientID string) error {
-	dataEnvelope := &protocol.DataEnvelope{}
-	err := proto.Unmarshal(payload, dataEnvelope)
-	if err != nil {
-		return err
-	}
+func (je *joinerExecutor) HandleTask2_2(dataEnvelope *protocol.DataEnvelope, ackHandler func(bool, bool) error) error {
+	shouldAck := false
+	shouldRequeue := false
+	defer ackHandler(shouldAck, shouldRequeue)
+
+	clientID := dataEnvelope.GetClientId()
 
 	if dataEnvelope.GetIsRef() {
 		panic("The joiner only implements Task 2_2 for reduced data")
 	}
 
 	reducedData := &reduced.TotalSoldByQuantity{}
-	err = proto.Unmarshal(dataEnvelope.GetPayload(), reducedData)
+	err := proto.Unmarshal(dataEnvelope.GetPayload(), reducedData)
 	if err != nil {
 		return err
 	}
 
 	joinedData := je.joinerService.JoinTotalSoldByQuantity(reducedData, clientID)
 	if len(joinedData) == 0 {
+		shouldRequeue = true
 		return nil
 	}
 
 	for _, jd := range joinedData {
 		err = worker.SendDataToMiddleware(jd, enum.T2_2, clientID, je.aggregatorQueue)
 		if err != nil {
+			shouldRequeue = true
 			return err
 		}
 	}
 
+	shouldAck = true
 	return nil
 }
 
-func (je *joinerExecutor) HandleTask3(payload []byte, clientID string) error {
-	dataEnvelope := &protocol.DataEnvelope{}
-	err := proto.Unmarshal(payload, dataEnvelope)
-	if err != nil {
-		return err
-	}
+func (je *joinerExecutor) HandleTask3(dataEnvelope *protocol.DataEnvelope, ackHandler func(bool, bool) error) error {
+	shouldAck := false
+	shouldRequeue := false
+	defer ackHandler(shouldAck, shouldRequeue)
+
+	clientID := dataEnvelope.GetClientId()
 
 	if dataEnvelope.GetIsRef() {
+		var err error
 		if !dataEnvelope.GetIsDone() {
-			return je.handleRefData(dataEnvelope, clientID)
+			err = je.handleRefData(dataEnvelope, clientID)
+		} else {
+			err = je.joinerService.FinishStoringRefData(clientID)
 		}
-		return je.joinerService.FinishStoringRefData(clientID)
+
+		if err != nil {
+			return err
+		}
+		shouldAck = true
+		return nil
 	}
 
 	reducedData := &reduced.TotalPaymentValue{}
 
-	err = proto.Unmarshal(dataEnvelope.GetPayload(), reducedData)
+	err := proto.Unmarshal(dataEnvelope.GetPayload(), reducedData)
 	if err != nil {
 		return err
 	}
 
 	joinedData := je.joinerService.JoinTotalPaymentValue(reducedData, clientID)
 	if len(joinedData) == 0 {
+		shouldRequeue = true
 		return nil
 	}
 
 	for _, jd := range joinedData {
 		err = worker.SendDataToMiddleware(jd, enum.T3, clientID, je.aggregatorQueue)
 		if err != nil {
+			shouldRequeue = true
 			return err
 		}
 	}
 
+	shouldAck = true
 	return nil
 }
 
-func (je *joinerExecutor) HandleTask4(payload []byte, clientID string) error {
-	dataEnvelope := &protocol.DataEnvelope{}
-	err := proto.Unmarshal(payload, dataEnvelope)
-	if err != nil {
-		return err
-	}
+func (je *joinerExecutor) HandleTask4(dataEnvelope *protocol.DataEnvelope, ackHandler func(bool, bool) error) error {
+	shouldAck := false
+	shouldRequeue := false
+	defer ackHandler(shouldAck, shouldRequeue)
+
+	clientID := dataEnvelope.GetClientId()
 
 	if dataEnvelope.GetIsRef() {
+		var err error
 		if !dataEnvelope.GetIsDone() {
-			return je.handleRefData(dataEnvelope, clientID)
+			err = je.handleRefData(dataEnvelope, clientID)
+		} else {
+			err = je.joinerService.FinishStoringRefData(clientID)
 		}
-		return je.joinerService.FinishStoringRefData(clientID)
+
+		if err != nil {
+			return err
+		}
+
+		shouldAck = true
+		return nil
 	}
 
 	countedData := &reduced.CountedUserTransactions{}
-	err = proto.Unmarshal(dataEnvelope.GetPayload(), countedData)
+	err := proto.Unmarshal(dataEnvelope.GetPayload(), countedData)
 	if err != nil {
 		return err
 	}
 
 	joinedData := je.joinerService.JoinCountedUserTransactions(countedData, clientID)
 	if len(joinedData) == 0 {
+		shouldRequeue = true
 		return nil
 	}
 
 	for _, jd := range joinedData {
 		err = worker.SendDataToMiddleware(jd, enum.T4, clientID, je.aggregatorQueue)
 		if err != nil {
+			shouldRequeue = true
 			return err
 		}
 	}
@@ -189,7 +223,8 @@ func (je *joinerExecutor) HandleTask4(payload []byte, clientID string) error {
 	return nil
 }
 
-func (je *joinerExecutor) HandleFinishClient(clientID string) error {
+func (je *joinerExecutor) HandleFinishClient(dataEnvelope *protocol.DataEnvelope, ackHandler func(bool, bool) error) error {
+	clientID := dataEnvelope.GetClientId()
 	log.Debug("Finishing client: ", clientID)
 
 	return je.joinerService.DeleteClientRefData(clientID)
@@ -204,7 +239,7 @@ func (je *joinerExecutor) Close() error {
 	return nil
 }
 
-func (je *joinerExecutor) HandleTask1(payload []byte, clientID string) error {
+func (je *joinerExecutor) HandleTask1(dataEnvelope *protocol.DataEnvelope, ackHandler func(bool, bool) error) error {
 	panic("The joiner does not implement Task 1")
 }
 

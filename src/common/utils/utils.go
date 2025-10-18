@@ -7,9 +7,7 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-// DEPRECATED
 func GetDataEnvelope(msg []byte) (*protocol.DataEnvelope, error) {
-
 	dataBatch := &protocol.DataEnvelope{}
 	err := proto.Unmarshal(msg, dataBatch)
 	if err != nil {

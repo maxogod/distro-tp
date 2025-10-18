@@ -80,12 +80,10 @@ func (js *joinerService) FinishStoringRefData(clientID string) error {
 
 // This is T2_1
 func (js *joinerService) JoinTotalProfitBySubtotal(profit *reduced.TotalProfitBySubtotal, clientID string) []*reduced.TotalProfitBySubtotal {
-	bufferID := "T2_1" + SEPERATOR + clientID
 	referenceID := profit.GetItemId() + SEPERATOR + MENU_ITEM
 
 	_, allRefPresent := js.fullRefClients[clientID]
 	if !allRefPresent {
-		js.cacheService.BufferUnreferencedData(clientID, bufferID, profit)
 		return nil
 	}
 	protoRef, err := js.cacheService.GetRefData(clientID, referenceID)
@@ -97,8 +95,6 @@ func (js *joinerService) JoinTotalProfitBySubtotal(profit *reduced.TotalProfitBy
 	menuItem := utils.CastProtoMessage[*raw.MenuItem](protoRef)
 	profit.ItemId = menuItem.GetItemName()
 	joinedData = append(joinedData, profit)
-	// In case there are buffered profits waiting for this reference, resolve them now
-	js.joinBufferedProfitData(clientID, bufferID, &joinedData)
 	return joinedData
 }
 
@@ -127,11 +123,9 @@ func (js *joinerService) JoinTotalSoldByQuantity(sales *reduced.TotalSoldByQuant
 
 // This is T3
 func (js *joinerService) JoinTotalPaymentValue(tpv *reduced.TotalPaymentValue, clientID string) []*reduced.TotalPaymentValue {
-	bufferID := "T3" + SEPERATOR + clientID
 	referenceID := tpv.GetStoreId() + SEPERATOR + STORE
 	_, allRefPresent := js.fullRefClients[clientID]
 	if !allRefPresent {
-		js.cacheService.BufferUnreferencedData(clientID, bufferID, tpv)
 		return nil
 	}
 	protoRef, err := js.cacheService.GetRefData(clientID, referenceID)
@@ -143,19 +137,15 @@ func (js *joinerService) JoinTotalPaymentValue(tpv *reduced.TotalPaymentValue, c
 	store := utils.CastProtoMessage[*raw.Store](protoRef)
 	tpv.StoreId = store.GetStoreName()
 	joinedData = append(joinedData, tpv)
-	// In case there are buffered profits waiting for this reference, resolve them now
-	js.joinBufferedTPVData(clientID, bufferID, &joinedData)
 	return joinedData
 }
 
 // This is T4
 func (js *joinerService) JoinCountedUserTransactions(countedTransaction *reduced.CountedUserTransactions, clientID string) []*reduced.CountedUserTransactions {
-	bufferID := "T4" + SEPERATOR + clientID
 	storeRefID := countedTransaction.GetStoreId() + SEPERATOR + STORE
 	userRefID := countedTransaction.GetUserId() + SEPERATOR + USER
 	_, allRefPresent := js.fullRefClients[clientID]
 	if !allRefPresent {
-		js.cacheService.BufferUnreferencedData(clientID, bufferID, countedTransaction)
 		return nil
 	}
 	storeProtoRef, err := js.cacheService.GetRefData(clientID, storeRefID)
@@ -174,8 +164,6 @@ func (js *joinerService) JoinCountedUserTransactions(countedTransaction *reduced
 	countedTransaction.Birthdate = user.GetBirthdate()
 	countedTransaction.StoreId = store.GetStoreName()
 	joinedData = append(joinedData, countedTransaction)
-	// In case there are buffered profits waiting for this reference, resolve them now
-	js.joinBufferedCountedTransactionsData(clientID, bufferID, &joinedData)
 	return joinedData
 }
 
