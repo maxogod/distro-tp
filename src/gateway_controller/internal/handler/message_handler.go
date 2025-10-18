@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"crypto/cipher"
 	"fmt"
 	"time"
 
@@ -79,19 +78,34 @@ func (th *messageHandler) AwaitForWorkers() error {
 
 	doneCh := make(chan bool)
 	e := th.counterExchange.StartConsuming(func(msgs middleware.ConsumeChannel, d chan error) {
+		log.Debugf("Started listening for workers done messages of client %s", th.clientID)
 		currentWorkerType := enum.FilterWorker
 		receivedFromCurrentLayer := 0
 		sentFromCurrentLayer := 0
 
 		waiting := true
 		for waiting {
-			msg, _ := <-msgs
+			var msg middleware.MessageDelivery
+			select {
+			case m := <-msgs:
+				msg = m
+			case <-time.After(30 * time.Second):
+				log.Errorf("Timeout while waiting for done messages from workers for client %s", th.clientID)
+				waiting = false
+				continue
+			}
+
 			counter := &protocol.MessageCounter{}
 			err := proto.Unmarshal(msg.Body, counter)
-			if err != nil ||
-				counter.GetClientId() != th.clientID ||
+			if err != nil {
+				log.Errorf("Failed to unmarshal done message: %v", err)
+				msg.Nack(false, false)
+				continue
+			}
+			if counter.GetClientId() != th.clientID ||
 				enum.WorkerType(counter.GetFrom()) != currentWorkerType {
 				msg.Nack(false, false)
+				continue
 			}
 
 			receivedFromCurrentLayer++
@@ -105,8 +119,8 @@ func (th *messageHandler) AwaitForWorkers() error {
 				receivedFromCurrentLayer = 0
 			}
 
-			if currentWorkerType == enum.AggregatorWorker {
-				log.Debug("All done messages received from worker layers and sent to aggregator")
+			if currentWorkerType == enum.None {
+				log.Debug("All done messages received by aggregator")
 				waiting = false
 			}
 
@@ -115,6 +129,7 @@ func (th *messageHandler) AwaitForWorkers() error {
 		doneCh <- true
 	})
 	<-doneCh
+	log.Debugf("Finished listening for workers done messages of client %s", th.clientID)
 
 	if e != middleware.MessageMiddlewareSuccess {
 		return fmt.Errorf("error while awaiting for workers done messages")
@@ -124,20 +139,10 @@ func (th *messageHandler) AwaitForWorkers() error {
 }
 
 func (th *messageHandler) SendDone(worker enum.WorkerType) error {
-	messageCounter := &protocol.MessageCounter{
-		ClientId:   th.clientID,
-		AmountSent: int32(th.messagesSentToNextLayer),
-	}
-	counterBytes, err := proto.Marshal(messageCounter)
-	if err != nil {
-		log.Error("Error marshaling message counter:", err)
-		return err
-	}
-
 	doneMessage := &protocol.DataEnvelope{
 		ClientId: th.clientID,
 		IsDone:   true,
-		Payload:  counterBytes,
+		Payload:  nil,
 	}
 	dataBytes, err := proto.Marshal(doneMessage)
 	if err != nil {

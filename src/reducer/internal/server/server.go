@@ -27,9 +27,12 @@ func InitServer(conf *config.Config) *Server {
 
 	// initiate internal components
 	service := business.NewReducerService()
+	connectedClients := make(map[string]middleware.MessageMiddleware)
 
 	taskExecutor := task_executor.NewReducerExecutor(
 		service,
+		conf.Address,
+		connectedClients,
 		joinerOutputQueue,
 	)
 
@@ -47,7 +50,7 @@ func InitServer(conf *config.Config) *Server {
 }
 
 func (s *Server) Run() error {
-	log.Info("Starting Group By server...")
+	log.Info("Starting Reducer server...")
 	s.setupGracefulShutdown()
 
 	// This is a blocking call, it will run until an error occurs or
@@ -74,11 +77,11 @@ func (s *Server) setupGracefulShutdown() {
 }
 
 func (s *Server) Shutdown() {
-	log.Debug("Shutting down Group By Worker server...")
+	log.Debug("Shutting down Reducer Worker server...")
 	err := s.messageHandler.Close()
 	if err != nil {
 		log.Errorf("Error closing message handler: %v", err)
 	}
 
-	log.Debug("Group By Worker server shut down successfully.")
+	log.Debug("Reducer Worker server shut down successfully.")
 }

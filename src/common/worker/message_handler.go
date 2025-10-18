@@ -71,8 +71,8 @@ func NewMessageHandler(
 
 // Starts consuming indefinetly from monitor channel and handling messages with the provided dataHandler function
 func (mh *messageHandler) Start() error {
-
 	log.Debug("Starting MessageHandler...")
+
 	for _, queue := range mh.inputQueues {
 		go func(q middleware.MessageMiddleware) {
 			if err := mh.consumeFromQueue(q, mh.inputChannel); err != nil {
@@ -80,12 +80,9 @@ func (mh *messageHandler) Start() error {
 			}
 		}(queue)
 	}
-
 	log.Debug("All input queues are now consuming.")
 
-	// GLT! (Geodude Likes This)
 	for mh.isRunning {
-
 		select {
 		case message := <-mh.inputChannel:
 			if err := mh.dataHandler.HandleData(message.dataEnvelope, message.ackHandler); err != nil {
@@ -96,7 +93,6 @@ func (mh *messageHandler) Start() error {
 		case message := <-mh.finisherChannel:
 			log.Debugf("Received finish message for client: %s", message.dataEnvelope.ClientId)
 			mh.dataHandler.HandleFinishClient(message.dataEnvelope, message.ackHandler)
-
 		}
 	}
 	return nil
@@ -176,6 +172,25 @@ func SendDataToMiddleware(data proto.Message, taskType enum.TaskType, clientID s
 		return fmt.Errorf("failed to send message to output queue: %d", int(e))
 	}
 
+	return nil
+}
+
+func SendCounterMessage(clientID string, amount int, from, next enum.WorkerType, counterExchange middleware.MessageMiddleware) error {
+	counterMessage := &protocol.MessageCounter{
+		ClientId:   clientID,
+		AmountSent: int32(amount),
+		From:       string(from),
+		Next:       string(next),
+	}
+	counterBytes, err := proto.Marshal(counterMessage)
+	if err != nil {
+		return fmt.Errorf("error marshaling message counter: %v", err)
+	}
+
+	sendErr := counterExchange.Send(counterBytes)
+	if sendErr != middleware.MessageMiddlewareSuccess {
+		return fmt.Errorf("error sending message counter: %v", sendErr)
+	}
 	return nil
 }
 

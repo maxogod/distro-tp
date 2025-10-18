@@ -20,7 +20,6 @@ type Server struct {
 }
 
 func InitServer(conf *config.Config) *Server {
-
 	// initiateOutputs
 	filterInputQueue := middleware.GetFilterQueue(conf.Address)
 	aggregatorOutputQueue := middleware.GetAggregatorQueue(conf.Address)
@@ -28,10 +27,13 @@ func InitServer(conf *config.Config) *Server {
 
 	// initiate internal components
 	filterService := business.NewFilterService()
+	connectedClients := make(map[string]middleware.MessageMiddleware)
 
 	taskExecutor := task_executor.NewFilterExecutor(
 		conf.TaskConfig,
+		conf.Address,
 		filterService,
+		connectedClients,
 		groupByOutputQueue,
 		aggregatorOutputQueue,
 	)

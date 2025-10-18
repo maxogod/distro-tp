@@ -1,6 +1,8 @@
 package task_executor
 
 import (
+	"fmt"
+
 	"github.com/maxogod/distro-tp/src/common/logger"
 	"github.com/maxogod/distro-tp/src/common/middleware"
 	"github.com/maxogod/distro-tp/src/common/models/enum"
@@ -18,18 +20,21 @@ const SEND_LIMIT = 1000
 var log = logger.GetLogger()
 
 type joinerExecutor struct {
-	config          *config.Config
-	joinerService   business.JoinerService
-	aggregatorQueue middleware.MessageMiddleware
+	config           *config.Config
+	connectedClients map[string]middleware.MessageMiddleware
+	joinerService    business.JoinerService
+	aggregatorQueue  middleware.MessageMiddleware
 }
 
 func NewJoinerExecutor(config *config.Config,
+	connectedClients map[string]middleware.MessageMiddleware,
 	joinerService business.JoinerService,
 	aggregatorQueue middleware.MessageMiddleware) worker.TaskExecutor {
 	return &joinerExecutor{
-		config:          config,
-		joinerService:   joinerService,
-		aggregatorQueue: aggregatorQueue,
+		config:           config,
+		connectedClients: connectedClients,
+		joinerService:    joinerService,
+		aggregatorQueue:  aggregatorQueue,
 	}
 }
 
@@ -77,20 +82,27 @@ func (je *joinerExecutor) HandleTask2_1(dataEnvelope *protocol.DataEnvelope, ack
 	}
 
 	joinedData := je.joinerService.JoinTotalProfitBySubtotal(reducedData, clientID)
-	if len(joinedData) == 0 {
-		shouldRequeue = true
-		return nil
-	}
 
+	amountSent := 0
 	for _, jd := range joinedData {
 		err = worker.SendDataToMiddleware(jd, enum.T2_1, clientID, je.aggregatorQueue)
 		if err != nil {
 			shouldRequeue = true
 			return err
 		}
+		amountSent++
+	}
+	shouldAck = true
+
+	_, exists := je.connectedClients[clientID]
+	if !exists {
+		je.connectedClients[clientID] = middleware.GetCounterExchange(je.config.Address, clientID)
+	}
+	counterExchange := je.connectedClients[clientID]
+	if err := worker.SendCounterMessage(clientID, amountSent, enum.JoinerWorker, enum.AggregatorWorker, counterExchange); err != nil {
+		return err
 	}
 
-	shouldAck = true
 	return nil
 }
 
@@ -113,20 +125,27 @@ func (je *joinerExecutor) HandleTask2_2(dataEnvelope *protocol.DataEnvelope, ack
 	}
 
 	joinedData := je.joinerService.JoinTotalSoldByQuantity(reducedData, clientID)
-	if len(joinedData) == 0 {
-		shouldRequeue = true
-		return nil
-	}
 
+	amountSent := 0
 	for _, jd := range joinedData {
 		err = worker.SendDataToMiddleware(jd, enum.T2_2, clientID, je.aggregatorQueue)
 		if err != nil {
 			shouldRequeue = true
 			return err
 		}
+		amountSent++
+	}
+	shouldAck = true
+
+	_, exists := je.connectedClients[clientID]
+	if !exists {
+		je.connectedClients[clientID] = middleware.GetCounterExchange(je.config.Address, clientID)
+	}
+	counterExchange := je.connectedClients[clientID]
+	if err := worker.SendCounterMessage(clientID, amountSent, enum.JoinerWorker, enum.AggregatorWorker, counterExchange); err != nil {
+		return err
 	}
 
-	shouldAck = true
 	return nil
 }
 
@@ -160,20 +179,28 @@ func (je *joinerExecutor) HandleTask3(dataEnvelope *protocol.DataEnvelope, ackHa
 	}
 
 	joinedData := je.joinerService.JoinTotalPaymentValue(reducedData, clientID)
-	if len(joinedData) == 0 {
-		shouldRequeue = true
-		return nil
-	}
 
+	amountSent := 0
 	for _, jd := range joinedData {
 		err = worker.SendDataToMiddleware(jd, enum.T3, clientID, je.aggregatorQueue)
 		if err != nil {
 			shouldRequeue = true
 			return err
 		}
+		amountSent++
 	}
 
 	shouldAck = true
+
+	_, exists := je.connectedClients[clientID]
+	if !exists {
+		je.connectedClients[clientID] = middleware.GetCounterExchange(je.config.Address, clientID)
+	}
+	counterExchange := je.connectedClients[clientID]
+	if err := worker.SendCounterMessage(clientID, amountSent, enum.JoinerWorker, enum.AggregatorWorker, counterExchange); err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -212,12 +239,24 @@ func (je *joinerExecutor) HandleTask4(dataEnvelope *protocol.DataEnvelope, ackHa
 		return nil
 	}
 
+	amountSent := 0
 	for _, jd := range joinedData {
 		err = worker.SendDataToMiddleware(jd, enum.T4, clientID, je.aggregatorQueue)
 		if err != nil {
 			shouldRequeue = true
 			return err
 		}
+		amountSent++
+	}
+	shouldAck = true
+
+	_, exists := je.connectedClients[clientID]
+	if !exists {
+		je.connectedClients[clientID] = middleware.GetCounterExchange(je.config.Address, clientID)
+	}
+	counterExchange := je.connectedClients[clientID]
+	if err := worker.SendCounterMessage(clientID, amountSent, enum.JoinerWorker, enum.AggregatorWorker, counterExchange); err != nil {
+		return err
 	}
 
 	return nil
@@ -231,11 +270,20 @@ func (je *joinerExecutor) HandleFinishClient(dataEnvelope *protocol.DataEnvelope
 }
 
 func (je *joinerExecutor) Close() error {
-	err := je.joinerService.Close()
-	je.aggregatorQueue.Close()
-	if err != nil {
+	if err := je.joinerService.Close(); err != nil {
 		return err
 	}
+
+	if err := je.aggregatorQueue.Close(); err != middleware.MessageMiddlewareSuccess {
+		return fmt.Errorf("failed to close aggregator queue: %v", err)
+	}
+
+	for clientID, exchange := range je.connectedClients {
+		if e := exchange.Close(); e != middleware.MessageMiddlewareSuccess {
+			return fmt.Errorf("failed to close counter exchange for client %s: %v", clientID, e)
+		}
+	}
+
 	return nil
 }
 
