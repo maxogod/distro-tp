@@ -2,7 +2,6 @@ package worker
 
 import (
 	"fmt"
-	"time"
 
 	"github.com/maxogod/distro-tp/src/common/logger"
 	"github.com/maxogod/distro-tp/src/common/middleware"
@@ -14,12 +13,14 @@ import (
 
 var log = logger.GetLogger()
 
-// when having to handle / finish clients, there is a bool to indicate if
-// the client is in finishing mode, and a timer to count down to when it should execute the
-// finishClient function
-type client struct {
-	finishUp bool
-	timer    *time.Timer
+// message represents a message received from middleware
+// it contains the data envelope and an ack handler function
+// this will be delegated to the DataHandler implementation
+// so they can properly ack/nack the message after processing
+// to ack the message, call ackHandler(false)
+type message struct {
+	dataEnvelope *protocol.DataEnvelope
+	ackHandler   func(bool) error
 }
 
 // This struct is required when creating a worker that consumes
@@ -33,8 +34,8 @@ type messageHandler struct {
 
 	// internals
 	dataHandler     DataHandler
-	inputChannel    chan *protocol.DataEnvelope
-	finisherChannel chan *protocol.DataEnvelope
+	inputChannel    chan message
+	finisherChannel chan message
 	isRunning       bool //GLT
 }
 
@@ -47,8 +48,8 @@ func NewMessageHandler(
 	mh := &messageHandler{
 		dataHandler:     dataHandler,
 		inputQueues:     inputQueues,
-		inputChannel:    make(chan *protocol.DataEnvelope),
-		finisherChannel: make(chan *protocol.DataEnvelope),
+		inputChannel:    make(chan message),
+		finisherChannel: make(chan message),
 		isRunning:       true,
 	}
 
@@ -86,17 +87,15 @@ func (mh *messageHandler) Start() error {
 	for mh.isRunning {
 
 		select {
-		case dataEnvelope := <-mh.inputChannel:
-
-			if err := mh.dataHandler.HandleData(dataEnvelope); err != nil {
+		case message := <-mh.inputChannel:
+			if err := mh.dataHandler.HandleData(message.dataEnvelope, message.ackHandler); err != nil {
 				log.Warnf("Failed to handle data batch: %v", err)
 				return err
 			}
 
-		case finishEnvelope := <-mh.finisherChannel:
-			clientID := finishEnvelope.GetClientId()
-			log.Debugf("Received finish message for client: %s", clientID)
-			mh.dataHandler.HandleFinishClient(clientID)
+		case message := <-mh.finisherChannel:
+			log.Debugf("Received finish message for client: %s", message.dataEnvelope.ClientId)
+			mh.dataHandler.HandleFinishClient(message.dataEnvelope, message.ackHandler)
 
 		}
 	}
@@ -131,7 +130,7 @@ func (mh *messageHandler) Close() error {
 /* --- PRIVATE UTIL METHODS --- */
 
 // Starts consuming for input queues indefinitely and placeing received messages into a monitor channel
-func (mh *messageHandler) consumeFromQueue(inputQueue middleware.MessageMiddleware, channelOutput chan *protocol.DataEnvelope) error {
+func (mh *messageHandler) consumeFromQueue(inputQueue middleware.MessageMiddleware, channelOutput chan message) error {
 
 	log.Debugf("Starting to consume from queue")
 
@@ -140,10 +139,6 @@ func (mh *messageHandler) consumeFromQueue(inputQueue middleware.MessageMiddlewa
 	e := inputQueue.StartConsuming(func(consumeChannel middleware.ConsumeChannel, d chan error) {
 		for msg := range consumeChannel {
 
-			// TODO: change when ACK actually occures,
-			// not just when received but actually after processed and sent to next queue
-			msg.Ack(false)
-
 			dataBatch, err := utils.GetDataEnvelope(msg.Body)
 
 			if err != nil {
@@ -151,17 +146,19 @@ func (mh *messageHandler) consumeFromQueue(inputQueue middleware.MessageMiddlewa
 				done <- true
 				return
 			}
-			channelOutput <- dataBatch
+			newMessage := message{
+				dataEnvelope: dataBatch,
+				ackHandler:   msg.Ack,
+			}
 
+			channelOutput <- newMessage
 		}
 		done <- true
 	})
 	<-done
-
 	if e != middleware.MessageMiddlewareSuccess {
 		return fmt.Errorf("A error occurred while starting consumption: %d", int(e))
 	}
-
 	return nil
 }
 
