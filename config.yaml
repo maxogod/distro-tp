@@ -3,4 +3,4 @@ services:
   - joiner: 2
   - reducer: 2
   - group_by: 2
-  - gateway: 4
+  - gateway: 1

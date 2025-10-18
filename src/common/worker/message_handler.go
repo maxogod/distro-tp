@@ -130,6 +130,7 @@ func (mh *messageHandler) Start() error {
 				log.Warnf("Failed to finish client %s: %v", finishedClientID, err)
 			}
 			delete(mh.clientManager, finishedClientID)
+			log.Debugf("Client [%s] finished.", finishedClientID)
 		}
 	}
 	return nil
