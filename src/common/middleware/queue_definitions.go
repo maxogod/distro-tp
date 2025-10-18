@@ -64,6 +64,14 @@ func GetProcessedDataExchange(url, clientID string) MessageMiddleware {
 
 /* --- Node tracking for Gateway Controller --- */
 
+// GetCounterExchange retrieves the middleware for the given exchange
+// to send or receive with a specific topic pass the clientID parameter.
+func GetCounterExchange(url, clientID string) MessageMiddleware {
+	return retryMiddlewareCreation(MIDDLEWARE_CONNECTION_RETRIES, WAIT_INTERVAL, func() (MessageMiddleware, error) {
+		return NewExchangeMiddleware(url, "counter_exchange", "direct", []string{clientID})
+	})
+}
+
 // GetFinishExchange retrieves the middleware for the given exchange
 // to send or receive with a specific topic pass the topics parameter.
 // Possible topics: joiner, aggregator

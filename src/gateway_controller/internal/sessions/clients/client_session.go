@@ -51,6 +51,8 @@ func (cs *clientSession) ProcessRequest() error {
 		}
 	}
 
+	cs.messageHandler.AwaitForWorkers()
+
 	log.Debugln("All data received from client, sending done signal to task handler")
 	err := cs.messageHandler.SendDone(enum.AggregatorWorker)
 	if err != nil {

@@ -1,0 +1,12 @@
+syntax = "proto3";
+
+package protocol;
+
+option go_package = "./protocol";
+
+message MessageCounter {
+  string client_id = 1;
+  int32 amount_sent = 2;
+  string from = 3;
+  string next = 4;
+}

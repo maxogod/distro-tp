@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"crypto/cipher"
 	"fmt"
 	"time"
 
@@ -21,6 +22,8 @@ type messageHandler struct {
 	joinerRefExchange      middleware.MessageMiddleware
 
 	// Node connections middleware
+	messagesSentToNextLayer         int
+	counterExchange                 middleware.MessageMiddleware
 	joinerFinishExchange            middleware.MessageMiddleware
 	aggregatorFinishExchange        middleware.MessageMiddleware
 	processedDataExchangeMiddleware middleware.MessageMiddleware
@@ -33,6 +36,7 @@ func NewMessageHandler(middlewareUrl, clientID string) MessageHandler {
 		filtersQueueMiddleware: middleware.GetFilterQueue(middlewareUrl),
 		joinerRefExchange:      middleware.GetRefDataExchange(middlewareUrl),
 
+		counterExchange:                 middleware.GetCounterExchange(middlewareUrl, clientID),
 		joinerFinishExchange:            middleware.GetFinishExchange(middlewareUrl, []string{string(enum.JoinerWorker)}),
 		aggregatorFinishExchange:        middleware.GetFinishExchange(middlewareUrl, []string{string(enum.AggregatorWorker)}),
 		processedDataExchangeMiddleware: middleware.GetProcessedDataExchange(middlewareUrl, clientID),
@@ -51,6 +55,7 @@ func (th *messageHandler) ForwardData(dataBatch *protocol.DataEnvelope) error {
 	if sendErr := th.filtersQueueMiddleware.Send(dateBytes); sendErr != middleware.MessageMiddlewareSuccess {
 		return fmt.Errorf("error sending data batch to filters queue")
 	}
+	th.messagesSentToNextLayer++
 	return nil
 }
 
@@ -69,13 +74,72 @@ func (th *messageHandler) ForwardReferenceData(dataBatch *protocol.DataEnvelope)
 	return nil
 }
 
+func (th *messageHandler) AwaitForWorkers() error {
+	defer th.counterExchange.StopConsuming()
+
+	doneCh := make(chan bool)
+	e := th.counterExchange.StartConsuming(func(msgs middleware.ConsumeChannel, d chan error) {
+		currentWorkerType := enum.FilterWorker
+		receivedFromCurrentLayer := 0
+		sentFromCurrentLayer := 0
+
+		waiting := true
+		for waiting {
+			msg, _ := <-msgs
+			counter := &protocol.MessageCounter{}
+			err := proto.Unmarshal(msg.Body, counter)
+			if err != nil ||
+				counter.GetClientId() != th.clientID ||
+				enum.WorkerType(counter.GetFrom()) != currentWorkerType {
+				msg.Nack(false, false)
+			}
+
+			receivedFromCurrentLayer++
+			sentFromCurrentLayer += int(counter.GetAmountSent())
+
+			if receivedFromCurrentLayer == th.messagesSentToNextLayer {
+				log.Debugf("All done messages received from %s workers", currentWorkerType)
+				currentWorkerType = enum.WorkerType(counter.GetNext())
+				th.messagesSentToNextLayer = sentFromCurrentLayer
+				sentFromCurrentLayer = 0
+				receivedFromCurrentLayer = 0
+			}
+
+			if currentWorkerType == enum.AggregatorWorker {
+				log.Debug("All done messages received from worker layers and sent to aggregator")
+				waiting = false
+			}
+
+			msg.Ack(false)
+		}
+		doneCh <- true
+	})
+	<-doneCh
+
+	if e != middleware.MessageMiddlewareSuccess {
+		return fmt.Errorf("error while awaiting for workers done messages")
+	}
+
+	return nil
+}
+
 func (th *messageHandler) SendDone(worker enum.WorkerType) error {
+	messageCounter := &protocol.MessageCounter{
+		ClientId:   th.clientID,
+		AmountSent: int32(th.messagesSentToNextLayer),
+	}
+	counterBytes, err := proto.Marshal(messageCounter)
+	if err != nil {
+		log.Error("Error marshaling message counter:", err)
+		return err
+	}
+
 	doneMessage := &protocol.DataEnvelope{
 		ClientId: th.clientID,
 		IsDone:   true,
+		Payload:  counterBytes,
 	}
-
-	dateBytes, err := proto.Marshal(doneMessage)
+	dataBytes, err := proto.Marshal(doneMessage)
 	if err != nil {
 		log.Error("Error marshaling done message:", err)
 		return err
@@ -84,9 +148,9 @@ func (th *messageHandler) SendDone(worker enum.WorkerType) error {
 	var sendErr middleware.MessageMiddlewareError
 	switch worker {
 	case enum.JoinerWorker:
-		sendErr = th.joinerFinishExchange.Send(dateBytes)
+		sendErr = th.joinerFinishExchange.Send(dataBytes)
 	case enum.AggregatorWorker:
-		sendErr = th.aggregatorFinishExchange.Send(dateBytes)
+		sendErr = th.aggregatorFinishExchange.Send(dataBytes)
 	default:
 		return fmt.Errorf("unknown worker type: %s", worker)
 	}
@@ -154,4 +218,5 @@ func (th *messageHandler) Close() {
 	th.joinerFinishExchange.Close()
 	th.aggregatorFinishExchange.Close()
 	th.processedDataExchangeMiddleware.Close()
+	th.counterExchange.Close()
 }
