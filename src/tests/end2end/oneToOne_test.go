@@ -8,7 +8,7 @@ import (
 	"github.com/maxogod/distro-tp/src/common/models/protocol"
 	"github.com/maxogod/distro-tp/src/common/models/raw"
 	"github.com/maxogod/distro-tp/src/common/network"
-	eof "github.com/maxogod/distro-tp/src/tests/end2end"
+	mock "github.com/maxogod/distro-tp/src/tests/end2end/io"
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/protobuf/proto"
 )
@@ -21,14 +21,17 @@ func testOnetoOneEof(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to connect to server: %v", err)
 	}
-	defer clientConnection.Close()
 
 	// We begin to send data for task type 1
 	// This demonstrates a one-to-one communication because
 	// there is only one client and one node that handles the EOF (aggregator)
-	sendData(t, clientConnection, &eof.MockTransactionsBatchT1, enum.T1, true)
+	dataBytes := getDataBytes(t, &mock.MockTransactionsBatchT1, enum.T1)
+	doneData := getEOFDataBytes(t, enum.T1, false)
+	clientConnection.SendData(dataBytes)
+	clientConnection.SendData(doneData)
 
 	t.Log("Sent all data and EOF signal, waiting for output...")
+
 	output := []*raw.Transaction{}
 	for {
 		receivedData, err := clientConnection.ReceiveData()
@@ -51,9 +54,9 @@ func testOnetoOneEof(t *testing.T) {
 		output = append(output, transactionBatch.Transactions...)
 	}
 
-	assert.Equal(t, len(eof.MockTransactionsOutput), len(output), "Expected the same output length")
+	assert.Equal(t, len(mock.MockTransactionsOutput), len(output), "Expected the same output length")
 	for i, tx := range output {
-		expectedTx := eof.MockTransactionsOutput[i]
+		expectedTx := mock.MockTransactionsOutput[i]
 		assert.Equal(t, expectedTx.TransactionId, tx.TransactionId, "Transaction ID should match")
 		assert.Equal(t, expectedTx.StoreId, tx.StoreId, "Store ID should match")
 		assert.Equal(t, expectedTx.UserId, tx.UserId, "User ID should match")
@@ -61,8 +64,7 @@ func testOnetoOneEof(t *testing.T) {
 		assert.Equal(t, expectedTx.CreatedAt, tx.CreatedAt, "Created At should match")
 	}
 
-	// --- After test, check logs ---
-	t.Log("Checking docker compose logs...")
+	t.Log("client outputs verified successfully. Now checking logs...")
 
 	out, err := runCommand("docker", "compose", "logs", "aggregator")
 	if err != nil {
@@ -78,4 +80,6 @@ func testOnetoOneEof(t *testing.T) {
 	}
 
 	t.Logf("Success! Found log: %s", match)
+	clientConnection.Close()
+
 }

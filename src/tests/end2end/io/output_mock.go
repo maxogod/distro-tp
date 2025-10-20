@@ -1,4 +1,4 @@
-package eof
+package mock
 
 import (
 	"github.com/maxogod/distro-tp/src/common/models/raw"
