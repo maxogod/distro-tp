@@ -40,6 +40,8 @@ func NewGroupExecutor(groupService business.GroupService,
 	reducerQueue middleware.MessageMiddleware) worker.TaskExecutor {
 	return &GroupExecutor{
 		service:          groupService,
+		url:              url,
+		connectedClients: connectedClients,
 		reducerQueue:     reducerQueue,
 		groupAccumulator: make(map[string]groupAccumulator),
 	}
@@ -83,7 +85,7 @@ func (ge *GroupExecutor) HandleTask2(dataEnvelope *protocol.DataEnvelope, ackHan
 
 	_, exists := ge.connectedClients[clientID]
 	if !exists {
-		ge.connectedClients[clientID] = middleware.GetCounterExchange(ge.url, clientID)
+		ge.connectedClients[clientID] = middleware.GetCounterExchange(ge.url, clientID+"@"+string(enum.GroupbyWorker))
 	}
 	counterExchange := ge.connectedClients[clientID]
 	if err := worker.SendCounterMessage(clientID, amountSent, enum.GroupbyWorker, enum.ReducerWorker, counterExchange); err != nil {
@@ -123,7 +125,7 @@ func (ge *GroupExecutor) HandleTask3(dataEnvelope *protocol.DataEnvelope, ackHan
 
 	_, exists := ge.connectedClients[clientID]
 	if !exists {
-		ge.connectedClients[clientID] = middleware.GetCounterExchange(ge.url, clientID)
+		ge.connectedClients[clientID] = middleware.GetCounterExchange(ge.url, clientID+"@"+string(enum.GroupbyWorker))
 	}
 	counterExchange := ge.connectedClients[clientID]
 	if err := worker.SendCounterMessage(clientID, amountSent, enum.GroupbyWorker, enum.ReducerWorker, counterExchange); err != nil {
@@ -163,7 +165,7 @@ func (ge *GroupExecutor) HandleTask4(dataEnvelope *protocol.DataEnvelope, ackHan
 
 	_, exists := ge.connectedClients[clientID]
 	if !exists {
-		ge.connectedClients[clientID] = middleware.GetCounterExchange(ge.url, clientID)
+		ge.connectedClients[clientID] = middleware.GetCounterExchange(ge.url, clientID+"@"+string(enum.GroupbyWorker))
 	}
 	counterExchange := ge.connectedClients[clientID]
 	if err := worker.SendCounterMessage(clientID, amountSent, enum.GroupbyWorker, enum.ReducerWorker, counterExchange); err != nil {

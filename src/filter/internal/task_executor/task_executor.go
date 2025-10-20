@@ -71,7 +71,7 @@ func (fe *FilterExecutor) HandleTask1(dataEnvelope *protocol.DataEnvelope, ackHa
 
 	_, exists := fe.connectedClients[clientID]
 	if !exists {
-		fe.connectedClients[clientID] = middleware.GetCounterExchange(fe.url, clientID)
+		fe.connectedClients[clientID] = middleware.GetCounterExchange(fe.url, clientID+"@"+string(enum.FilterWorker))
 	}
 	counterExchange := fe.connectedClients[clientID]
 	if err := worker.SendCounterMessage(clientID, amountSent, enum.FilterWorker, enum.AggregatorWorker, counterExchange); err != nil {
@@ -110,7 +110,7 @@ func (fe *FilterExecutor) HandleTask2(dataEnvelope *protocol.DataEnvelope, ackHa
 
 	_, exists := fe.connectedClients[clientID]
 	if !exists {
-		fe.connectedClients[clientID] = middleware.GetCounterExchange(fe.url, clientID)
+		fe.connectedClients[clientID] = middleware.GetCounterExchange(fe.url, clientID+"@"+string(enum.FilterWorker))
 	}
 	counterExchange := fe.connectedClients[clientID]
 	if err := worker.SendCounterMessage(clientID, amountSent, enum.FilterWorker, enum.GroupbyWorker, counterExchange); err != nil {
@@ -150,7 +150,7 @@ func (fe *FilterExecutor) HandleTask3(dataEnvelope *protocol.DataEnvelope, ackHa
 
 	_, exists := fe.connectedClients[clientID]
 	if !exists {
-		fe.connectedClients[clientID] = middleware.GetCounterExchange(fe.url, clientID)
+		fe.connectedClients[clientID] = middleware.GetCounterExchange(fe.url, clientID+"@"+string(enum.FilterWorker))
 	}
 	counterExchange := fe.connectedClients[clientID]
 	if err := worker.SendCounterMessage(clientID, amountSent, enum.FilterWorker, enum.GroupbyWorker, counterExchange); err != nil {
@@ -190,7 +190,7 @@ func (fe *FilterExecutor) HandleTask4(dataEnvelope *protocol.DataEnvelope, ackHa
 
 	_, exists := fe.connectedClients[clientID]
 	if !exists {
-		fe.connectedClients[clientID] = middleware.GetCounterExchange(fe.url, clientID)
+		fe.connectedClients[clientID] = middleware.GetCounterExchange(fe.url, clientID+"@"+string(enum.FilterWorker))
 	}
 	counterExchange := fe.connectedClients[clientID]
 	if err := worker.SendCounterMessage(clientID, amountSent, enum.FilterWorker, enum.GroupbyWorker, counterExchange); err != nil {

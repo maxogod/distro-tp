@@ -2,6 +2,7 @@ package task_executor
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/maxogod/distro-tp/src/aggregator/business"
 	"github.com/maxogod/distro-tp/src/aggregator/config"
@@ -64,7 +65,7 @@ func (ae *AggregatorExecutor) HandleTask1(dataEnvelope *protocol.DataEnvelope, a
 
 	_, exists := ae.connectedClients[clientID]
 	if !exists {
-		ae.connectedClients[clientID] = middleware.GetCounterExchange(ae.config.Address, clientID)
+		ae.connectedClients[clientID] = middleware.GetCounterExchange(ae.config.Address, clientID+"@"+string(enum.AggregatorWorker))
 	}
 	counterExchange := ae.connectedClients[clientID]
 	if err := worker.SendCounterMessage(clientID, 0, enum.AggregatorWorker, enum.None, counterExchange); err != nil {
@@ -98,12 +99,13 @@ func (ae *AggregatorExecutor) HandleTask2_1(dataEnvelope *protocol.DataEnvelope,
 	}
 	shouldAck = true
 
+	realClientID := strings.Split(clientID, "@")[1]
 	_, exists := ae.connectedClients[clientID]
 	if !exists {
-		ae.connectedClients[clientID] = middleware.GetCounterExchange(ae.config.Address, clientID)
+		ae.connectedClients[clientID] = middleware.GetCounterExchange(ae.config.Address, realClientID+"@"+string(enum.AggregatorWorker))
 	}
 	counterExchange := ae.connectedClients[clientID]
-	if err := worker.SendCounterMessage(clientID, 0, enum.AggregatorWorker, enum.None, counterExchange); err != nil {
+	if err := worker.SendCounterMessage(realClientID, 0, enum.AggregatorWorker, enum.None, counterExchange); err != nil {
 		return err
 	}
 
@@ -134,12 +136,13 @@ func (ae *AggregatorExecutor) HandleTask2_2(dataEnvelope *protocol.DataEnvelope,
 	}
 	shouldAck = true
 
+	realClientID := strings.Split(clientID, "@")[1]
 	_, exists := ae.connectedClients[clientID]
 	if !exists {
-		ae.connectedClients[clientID] = middleware.GetCounterExchange(ae.config.Address, clientID)
+		ae.connectedClients[clientID] = middleware.GetCounterExchange(ae.config.Address, realClientID+"@"+string(enum.AggregatorWorker))
 	}
 	counterExchange := ae.connectedClients[clientID]
-	if err := worker.SendCounterMessage(clientID, 0, enum.AggregatorWorker, enum.None, counterExchange); err != nil {
+	if err := worker.SendCounterMessage(realClientID, 0, enum.AggregatorWorker, enum.None, counterExchange); err != nil {
 		return err
 	}
 
@@ -169,7 +172,7 @@ func (ae *AggregatorExecutor) HandleTask3(dataEnvelope *protocol.DataEnvelope, a
 
 	_, exists := ae.connectedClients[clientID]
 	if !exists {
-		ae.connectedClients[clientID] = middleware.GetCounterExchange(ae.config.Address, clientID)
+		ae.connectedClients[clientID] = middleware.GetCounterExchange(ae.config.Address, clientID+"@"+string(enum.AggregatorWorker))
 	}
 	counterExchange := ae.connectedClients[clientID]
 	if err := worker.SendCounterMessage(clientID, 0, enum.AggregatorWorker, enum.None, counterExchange); err != nil {
@@ -202,7 +205,7 @@ func (ae *AggregatorExecutor) HandleTask4(dataEnvelope *protocol.DataEnvelope, a
 
 	_, exists := ae.connectedClients[clientID]
 	if !exists {
-		ae.connectedClients[clientID] = middleware.GetCounterExchange(ae.config.Address, clientID)
+		ae.connectedClients[clientID] = middleware.GetCounterExchange(ae.config.Address, clientID+"@"+string(enum.AggregatorWorker))
 	}
 	counterExchange := ae.connectedClients[clientID]
 	if err := worker.SendCounterMessage(clientID, 0, enum.AggregatorWorker, enum.None, counterExchange); err != nil {

@@ -96,7 +96,7 @@ func (je *joinerExecutor) HandleTask2_1(dataEnvelope *protocol.DataEnvelope, ack
 
 	_, exists := je.connectedClients[clientID]
 	if !exists {
-		je.connectedClients[clientID] = middleware.GetCounterExchange(je.config.Address, clientID)
+		je.connectedClients[clientID] = middleware.GetCounterExchange(je.config.Address, clientID+"@"+string(enum.JoinerWorker))
 	}
 	counterExchange := je.connectedClients[clientID]
 	if err := worker.SendCounterMessage(clientID, amountSent, enum.JoinerWorker, enum.AggregatorWorker, counterExchange); err != nil {
@@ -139,7 +139,7 @@ func (je *joinerExecutor) HandleTask2_2(dataEnvelope *protocol.DataEnvelope, ack
 
 	_, exists := je.connectedClients[clientID]
 	if !exists {
-		je.connectedClients[clientID] = middleware.GetCounterExchange(je.config.Address, clientID)
+		je.connectedClients[clientID] = middleware.GetCounterExchange(je.config.Address, clientID+"@"+string(enum.JoinerWorker))
 	}
 	counterExchange := je.connectedClients[clientID]
 	if err := worker.SendCounterMessage(clientID, amountSent, enum.JoinerWorker, enum.AggregatorWorker, counterExchange); err != nil {
@@ -194,7 +194,7 @@ func (je *joinerExecutor) HandleTask3(dataEnvelope *protocol.DataEnvelope, ackHa
 
 	_, exists := je.connectedClients[clientID]
 	if !exists {
-		je.connectedClients[clientID] = middleware.GetCounterExchange(je.config.Address, clientID)
+		je.connectedClients[clientID] = middleware.GetCounterExchange(je.config.Address, clientID+"@"+string(enum.JoinerWorker))
 	}
 	counterExchange := je.connectedClients[clientID]
 	if err := worker.SendCounterMessage(clientID, amountSent, enum.JoinerWorker, enum.AggregatorWorker, counterExchange); err != nil {
@@ -252,7 +252,7 @@ func (je *joinerExecutor) HandleTask4(dataEnvelope *protocol.DataEnvelope, ackHa
 
 	_, exists := je.connectedClients[clientID]
 	if !exists {
-		je.connectedClients[clientID] = middleware.GetCounterExchange(je.config.Address, clientID)
+		je.connectedClients[clientID] = middleware.GetCounterExchange(je.config.Address, clientID+"@"+string(enum.JoinerWorker))
 	}
 	counterExchange := je.connectedClients[clientID]
 	if err := worker.SendCounterMessage(clientID, amountSent, enum.JoinerWorker, enum.AggregatorWorker, counterExchange); err != nil {

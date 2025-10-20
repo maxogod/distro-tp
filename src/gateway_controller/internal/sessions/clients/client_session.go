@@ -38,6 +38,7 @@ func (cs *clientSession) ProcessRequest() error {
 	for processData {
 		request, err := cs.getRequest()
 		if err != nil {
+			log.Errorf("Error getting request from client %s: %v", cs.Id, err)
 			return err
 		}
 		request.ClientId = cs.Id
@@ -51,11 +52,16 @@ func (cs *clientSession) ProcessRequest() error {
 		}
 	}
 
-	cs.messageHandler.AwaitForWorkers()
+	err := cs.messageHandler.AwaitForWorkers()
+	if err != nil {
+		log.Errorf("Error awaiting for workers to finish processing data for client %s: %v", cs.Id, err)
+		return err
+	}
 
 	log.Debugln("All data received from client, sending done signal to task handler")
-	err := cs.messageHandler.SendDone(enum.AggregatorWorker)
+	err = cs.messageHandler.SendDone(enum.AggregatorWorker)
 	if err != nil {
+		log.Errorf("Error sending done signal to task handler for client %s: %v", cs.Id, err)
 		return err
 	}
 
@@ -64,6 +70,7 @@ func (cs *clientSession) ProcessRequest() error {
 
 	err = cs.messageHandler.SendDone(enum.JoinerWorker)
 	if err != nil {
+		log.Errorf("Error sending done signal to joiner for client %s: %v", cs.Id, err)
 		return err
 	}
 
