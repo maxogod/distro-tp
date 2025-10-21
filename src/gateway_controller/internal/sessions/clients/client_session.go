@@ -32,7 +32,7 @@ func (cs *clientSession) IsFinished() bool {
 }
 
 func (cs *clientSession) ProcessRequest() error {
-	log.Debugf("Starting to process client request for: %s", cs.Id)
+	log.Debugf("[%s] Starting to process client request", cs.Id)
 
 	processData := true
 	for processData {
@@ -58,14 +58,14 @@ func (cs *clientSession) ProcessRequest() error {
 		return err
 	}
 
-	log.Debugln("All data received from client, sending done signal to task handler")
+	log.Debugf("[%s] All data received from client, sending done signal to task handler", cs.Id)
 	err = cs.messageHandler.SendDone(enum.AggregatorWorker)
 	if err != nil {
 		log.Errorf("Error sending done signal to task handler for client %s: %v", cs.Id, err)
 		return err
 	}
 
-	log.Debugln("Starting to send report data to client")
+	log.Debugf("[%s] Starting to send report data to client", cs.Id)
 	cs.processResponse()
 
 	err = cs.messageHandler.SendDone(enum.JoinerWorker)
@@ -74,14 +74,19 @@ func (cs *clientSession) ProcessRequest() error {
 		return err
 	}
 
-	log.Debugf("All report data sent to client %s, closing session", cs.Id)
-	cs.running = false
+	cs.Close()
+	log.Debugf("[%s] All report data sent to client, and session closed", cs.Id)
 
 	return nil
 }
 
 func (cs *clientSession) Close() {
-	cs.clientConnection.Close()
+	if !cs.IsFinished() {
+		cs.clientConnection.Close()
+		cs.messageHandler.Close()
+		cs.running = false
+		log.Debugf("[%s] Closed client session", cs.Id)
+	}
 }
 
 // --- PRIVATE METHODS ---
