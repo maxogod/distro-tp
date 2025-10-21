@@ -12,5 +12,5 @@ message CountedUserTransactions {
 }
 
 message CountedUserTransactionBatch {
-  repeated CountedUserTransactions coutedUserTransactions = 1;
+  repeated CountedUserTransactions countedUserTransactions = 1;
 }

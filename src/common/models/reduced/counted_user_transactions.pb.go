@@ -90,10 +90,10 @@ func (x *CountedUserTransactions) GetTransactionQuantity() int32 {
 }
 
 type CountedUserTransactionBatch struct {
-	state                  protoimpl.MessageState     `protogen:"open.v1"`
-	CoutedUserTransactions []*CountedUserTransactions `protobuf:"bytes,1,rep,name=coutedUserTransactions,proto3" json:"coutedUserTransactions,omitempty"`
-	unknownFields          protoimpl.UnknownFields
-	sizeCache              protoimpl.SizeCache
+	state                   protoimpl.MessageState     `protogen:"open.v1"`
+	CountedUserTransactions []*CountedUserTransactions `protobuf:"bytes,1,rep,name=countedUserTransactions,proto3" json:"countedUserTransactions,omitempty"`
+	unknownFields           protoimpl.UnknownFields
+	sizeCache               protoimpl.SizeCache
 }
 
 func (x *CountedUserTransactionBatch) Reset() {
@@ -126,9 +126,9 @@ func (*CountedUserTransactionBatch) Descriptor() ([]byte, []int) {
 	return file_reduced_counted_user_transactions_proto_rawDescGZIP(), []int{1}
 }
 
-func (x *CountedUserTransactionBatch) GetCoutedUserTransactions() []*CountedUserTransactions {
+func (x *CountedUserTransactionBatch) GetCountedUserTransactions() []*CountedUserTransactions {
 	if x != nil {
-		return x.CoutedUserTransactions
+		return x.CountedUserTransactions
 	}
 	return nil
 }
@@ -142,9 +142,9 @@ const file_reduced_counted_user_transactions_proto_rawDesc = "" +
 	"\bstore_id\x18\x01 \x01(\tR\astoreId\x12\x17\n" +
 	"\auser_id\x18\x02 \x01(\tR\x06userId\x12\x1c\n" +
 	"\tbirthdate\x18\x03 \x01(\tR\tbirthdate\x121\n" +
-	"\x14transaction_quantity\x18\x04 \x01(\x05R\x13transactionQuantity\"w\n" +
-	"\x1bCountedUserTransactionBatch\x12X\n" +
-	"\x16coutedUserTransactions\x18\x01 \x03(\v2 .reduced.CountedUserTransactionsR\x16coutedUserTransactionsB\vZ\t./reducedb\x06proto3"
+	"\x14transaction_quantity\x18\x04 \x01(\x05R\x13transactionQuantity\"y\n" +
+	"\x1bCountedUserTransactionBatch\x12Z\n" +
+	"\x17countedUserTransactions\x18\x01 \x03(\v2 .reduced.CountedUserTransactionsR\x17countedUserTransactionsB\vZ\t./reducedb\x06proto3"
 
 var (
 	file_reduced_counted_user_transactions_proto_rawDescOnce sync.Once
@@ -164,7 +164,7 @@ var file_reduced_counted_user_transactions_proto_goTypes = []any{
 	(*CountedUserTransactionBatch)(nil), // 1: reduced.CountedUserTransactionBatch
 }
 var file_reduced_counted_user_transactions_proto_depIdxs = []int32{
-	0, // 0: reduced.CountedUserTransactionBatch.coutedUserTransactions:type_name -> reduced.CountedUserTransactions
+	0, // 0: reduced.CountedUserTransactionBatch.countedUserTransactions:type_name -> reduced.CountedUserTransactions
 	1, // [1:1] is the sub-list for method output_type
 	1, // [1:1] is the sub-list for method input_type
 	1, // [1:1] is the sub-list for extension type_name
