@@ -25,7 +25,6 @@ func (p *pingServer) Run() {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/ping", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
-		log.Debug("Ping received")
 	})
 
 	p.server = &http.Server{

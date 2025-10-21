@@ -186,22 +186,23 @@ func (ae *AggregatorExecutor) HandleTask4(dataEnvelope *protocol.DataEnvelope, a
 	shouldAck := false
 	defer ackHandler(shouldAck, false)
 
-	countedData := &reduced.CountedUserTransactions{}
 	payload := dataEnvelope.GetPayload()
 	clientID := dataEnvelope.GetClientId()
 
-	err := proto.Unmarshal(payload, countedData)
+	countedDataBatch := &reduced.CountedUserTransactionBatch{}
+	err := proto.Unmarshal(payload, countedDataBatch)
 	if err != nil {
 		return err
 	}
 
-	ae.clientTasks[clientID] = enum.T4
-
-	err = ae.aggregatorService.StoreCountedUserTransactions(clientID, countedData)
-	if err != nil {
-		return err
+	for _, countedData := range countedDataBatch.GetCountedUserTransactions() {
+		ae.clientTasks[clientID] = enum.T4
+		err = ae.aggregatorService.StoreCountedUserTransactions(clientID, countedData)
+		if err != nil {
+			return err
+		}
+		shouldAck = true
 	}
-	shouldAck = true
 
 	_, exists := ae.connectedClients[clientID]
 	if !exists {
@@ -211,7 +212,6 @@ func (ae *AggregatorExecutor) HandleTask4(dataEnvelope *protocol.DataEnvelope, a
 	if err := worker.SendCounterMessage(clientID, 0, enum.AggregatorWorker, enum.None, counterExchange); err != nil {
 		return err
 	}
-
 	return nil
 }
 

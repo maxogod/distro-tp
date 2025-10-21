@@ -1,6 +1,8 @@
 package business
 
 import (
+	"fmt"
+
 	"github.com/maxogod/distro-tp/src/common/logger"
 	"github.com/maxogod/distro-tp/src/common/models/raw"
 	"github.com/maxogod/distro-tp/src/common/models/reduced"
@@ -141,30 +143,28 @@ func (js *joinerService) JoinTotalPaymentValue(tpv *reduced.TotalPaymentValue, c
 }
 
 // This is T4
-func (js *joinerService) JoinCountedUserTransactions(countedTransaction *reduced.CountedUserTransactions, clientID string) []*reduced.CountedUserTransactions {
+func (js *joinerService) JoinCountedUserTransactions(countedTransaction *reduced.CountedUserTransactions, clientID string) (*reduced.CountedUserTransactions, error) {
 	storeRefID := countedTransaction.GetStoreId() + SEPERATOR + STORE
 	userRefID := countedTransaction.GetUserId() + SEPERATOR + USER
 	_, allRefPresent := js.fullRefClients[clientID]
 	if !allRefPresent {
-		return nil
+		return nil, fmt.Errorf("not all reference data present for client %s", clientID)
 	}
 	storeProtoRef, err := js.cacheService.GetRefData(clientID, storeRefID)
 	if err != nil {
 		log.Debugf("Error retrieving reference data %s for client %s: %v", storeRefID, clientID, err)
-		return nil
+		return nil, err
 	}
 	userProtoRef, err := js.cacheService.GetRefData(clientID, userRefID)
 	if err != nil {
 		log.Debugf("Error retrieving reference data %s for client %s: %v", userRefID, clientID, err)
-		return nil
+		return nil, err
 	}
-	joinedData := make([]*reduced.CountedUserTransactions, 0)
 	user := utils.CastProtoMessage[*raw.User](userProtoRef)
 	store := utils.CastProtoMessage[*raw.Store](storeProtoRef)
 	countedTransaction.Birthdate = user.GetBirthdate()
 	countedTransaction.StoreId = store.GetStoreName()
-	joinedData = append(joinedData, countedTransaction)
-	return joinedData
+	return countedTransaction, nil
 }
 
 /* --- Resource release --- */

@@ -24,6 +24,7 @@ type joinerExecutor struct {
 	connectedClients map[string]middleware.MessageMiddleware
 	joinerService    business.JoinerService
 	aggregatorQueue  middleware.MessageMiddleware
+	joinerQueue      middleware.MessageMiddleware
 }
 
 func NewJoinerExecutor(config *config.Config,
@@ -35,6 +36,7 @@ func NewJoinerExecutor(config *config.Config,
 		connectedClients: connectedClients,
 		joinerService:    joinerService,
 		aggregatorQueue:  aggregatorQueue,
+		joinerQueue:      middleware.GetJoinerQueue(config.Address), // TODO: MOVE THIS OUT LATER!!
 	}
 }
 
@@ -208,7 +210,6 @@ func (je *joinerExecutor) HandleTask4(dataEnvelope *protocol.DataEnvelope, ackHa
 	shouldAck := false
 	shouldRequeue := false
 	defer ackHandler(shouldAck, shouldRequeue)
-
 	clientID := dataEnvelope.GetClientId()
 
 	if dataEnvelope.GetIsRef() {
@@ -227,26 +228,28 @@ func (je *joinerExecutor) HandleTask4(dataEnvelope *protocol.DataEnvelope, ackHa
 		return nil
 	}
 
-	countedData := &reduced.CountedUserTransactions{}
-	err := proto.Unmarshal(dataEnvelope.GetPayload(), countedData)
+	countedDataBatch := &reduced.CountedUserTransactionBatch{}
+	err := proto.Unmarshal(dataEnvelope.GetPayload(), countedDataBatch)
 	if err != nil {
 		return err
 	}
-
-	joinedData := je.joinerService.JoinCountedUserTransactions(countedData, clientID)
-	if len(joinedData) == 0 {
-		shouldRequeue = true
-		return nil
+	for i, countedData := range countedDataBatch.GetCountedUserTransactions() {
+		joinedData, err := je.joinerService.JoinCountedUserTransactions(countedData, clientID)
+		if err != nil {
+			// if the ref data is not present yet, requeue the message
+			payload, _ := proto.Marshal(dataEnvelope)
+			je.joinerQueue.Send(payload)
+			shouldAck = true
+			return nil
+		}
+		countedDataBatch.CountedUserTransactions[i] = joinedData
 	}
 
-	amountSent := 0
-	for _, jd := range joinedData {
-		err = worker.SendDataToMiddleware(jd, enum.T4, clientID, je.aggregatorQueue)
-		if err != nil {
-			shouldRequeue = true
-			return err
-		}
-		amountSent++
+	err = worker.SendDataToMiddleware(countedDataBatch, enum.T4, clientID, je.aggregatorQueue)
+	if err != nil {
+		shouldRequeue = true
+		log.Debugf("An error occurred: %s", err)
+		return err
 	}
 	shouldAck = true
 
@@ -255,7 +258,7 @@ func (je *joinerExecutor) HandleTask4(dataEnvelope *protocol.DataEnvelope, ackHa
 		je.connectedClients[clientID] = middleware.GetCounterExchange(je.config.Address, clientID+"@"+string(enum.JoinerWorker))
 	}
 	counterExchange := je.connectedClients[clientID]
-	if err := worker.SendCounterMessage(clientID, amountSent, enum.JoinerWorker, enum.AggregatorWorker, counterExchange); err != nil {
+	if err := worker.SendCounterMessage(clientID, 1, enum.JoinerWorker, enum.AggregatorWorker, counterExchange); err != nil {
 		return err
 	}
 

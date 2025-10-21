@@ -36,7 +36,7 @@ type JoinerService interface {
 
 	// JoinCountedUserTransactions is responsible for joining CountedUserTransactions with User data
 	// as part of T4 task.
-	JoinCountedUserTransactions(countedTransaction *reduced.CountedUserTransactions, clientID string) []*reduced.CountedUserTransactions
+	JoinCountedUserTransactions(countedTransaction *reduced.CountedUserTransactions, clientID string) (*reduced.CountedUserTransactions, error)
 
 	/* --- Resource release --- */
 

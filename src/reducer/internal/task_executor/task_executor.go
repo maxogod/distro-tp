@@ -7,12 +7,13 @@ import (
 	"github.com/maxogod/distro-tp/src/common/models/enum"
 	"github.com/maxogod/distro-tp/src/common/models/group_by"
 	"github.com/maxogod/distro-tp/src/common/models/protocol"
+	"github.com/maxogod/distro-tp/src/common/models/reduced"
 	"github.com/maxogod/distro-tp/src/common/worker"
 	"github.com/maxogod/distro-tp/src/reducer/business"
 	"google.golang.org/protobuf/proto"
 )
 
-type GroupByExecutor struct {
+type reducerExecutor struct {
 	service          business.ReducerService
 	url              string
 	connectedClients map[string]middleware.MessageMiddleware
@@ -23,7 +24,7 @@ func NewReducerExecutor(filterService business.ReducerService,
 	url string,
 	connectedClients map[string]middleware.MessageMiddleware,
 	reducerQueue middleware.MessageMiddleware) worker.TaskExecutor {
-	return &GroupByExecutor{
+	return &reducerExecutor{
 		service:          filterService,
 		url:              url,
 		connectedClients: connectedClients,
@@ -31,7 +32,7 @@ func NewReducerExecutor(filterService business.ReducerService,
 	}
 }
 
-func (re *GroupByExecutor) HandleTask2_1(dataEnvelope *protocol.DataEnvelope, ackHandler func(bool, bool) error) error {
+func (re *reducerExecutor) HandleTask2_1(dataEnvelope *protocol.DataEnvelope, ackHandler func(bool, bool) error) error {
 	shouldAck := false
 	shouldRequeue := false
 	defer ackHandler(shouldAck, shouldRequeue)
@@ -67,7 +68,7 @@ func (re *GroupByExecutor) HandleTask2_1(dataEnvelope *protocol.DataEnvelope, ac
 	return nil
 }
 
-func (re *GroupByExecutor) HandleTask2_2(dataEnvelope *protocol.DataEnvelope, ackHandler func(bool, bool) error) error {
+func (re *reducerExecutor) HandleTask2_2(dataEnvelope *protocol.DataEnvelope, ackHandler func(bool, bool) error) error {
 	shouldAck := false
 	shouldRequeue := false
 	defer ackHandler(shouldAck, shouldRequeue)
@@ -103,7 +104,7 @@ func (re *GroupByExecutor) HandleTask2_2(dataEnvelope *protocol.DataEnvelope, ac
 	return nil
 }
 
-func (re *GroupByExecutor) HandleTask3(dataEnvelope *protocol.DataEnvelope, ackHandler func(bool, bool) error) error {
+func (re *reducerExecutor) HandleTask3(dataEnvelope *protocol.DataEnvelope, ackHandler func(bool, bool) error) error {
 	shouldAck := false
 	shouldRequeue := false
 	defer ackHandler(shouldAck, shouldRequeue)
@@ -139,12 +140,13 @@ func (re *GroupByExecutor) HandleTask3(dataEnvelope *protocol.DataEnvelope, ackH
 	return nil
 }
 
-func (re *GroupByExecutor) HandleTask4(dataEnvelope *protocol.DataEnvelope, ackHandler func(bool, bool) error) error {
+func (re *reducerExecutor) HandleTask4(dataEnvelope *protocol.DataEnvelope, ackHandler func(bool, bool) error) error {
 	shouldAck := false
 	shouldRequeue := false
 	defer ackHandler(shouldAck, shouldRequeue)
 
-	groupTransactions := &group_by.GroupTransactions{}
+	groupTransactions := &group_by.GroupTransactionsBatch{}
+	countedTransactionsBatch := &reduced.CountedUserTransactionBatch{}
 	payload := dataEnvelope.GetPayload()
 	clientID := dataEnvelope.GetClientId()
 
@@ -153,14 +155,16 @@ func (re *GroupByExecutor) HandleTask4(dataEnvelope *protocol.DataEnvelope, ackH
 		return err
 	}
 	// === Business logic ===
-	reducedTransactions := re.service.CountUserTransactions(groupTransactions)
+	for _, group := range groupTransactions.GetGroupedTransactions() {
+		countedTransactions := re.service.CountUserTransactions(group)
+		countedTransactionsBatch.CountedUserTransactions = append(countedTransactionsBatch.GetCountedUserTransactions(), countedTransactions)
+	}
 
-	err = worker.SendDataToMiddleware(reducedTransactions, enum.T4, clientID, re.outputQueue)
+	err = worker.SendDataToMiddleware(countedTransactionsBatch, enum.T4, clientID, re.outputQueue)
 	if err != nil {
 		shouldRequeue = true
 		return err
 	}
-	amountSent := 1
 	shouldAck = true
 
 	_, exists := re.connectedClients[clientID]
@@ -168,14 +172,14 @@ func (re *GroupByExecutor) HandleTask4(dataEnvelope *protocol.DataEnvelope, ackH
 		re.connectedClients[clientID] = middleware.GetCounterExchange(re.url, clientID+"@"+string(enum.ReducerWorker))
 	}
 	counterExchange := re.connectedClients[clientID]
-	if err := worker.SendCounterMessage(clientID, amountSent, enum.ReducerWorker, enum.JoinerWorker, counterExchange); err != nil {
+	if err := worker.SendCounterMessage(clientID, 1, enum.ReducerWorker, enum.JoinerWorker, counterExchange); err != nil {
 		return err
 	}
 
 	return nil
 }
 
-func (re *GroupByExecutor) Close() error {
+func (re *reducerExecutor) Close() error {
 	if e := re.outputQueue.Close(); e != middleware.MessageMiddlewareSuccess {
 		return fmt.Errorf("failed to close reducer queue: %v", e)
 	}
@@ -188,15 +192,15 @@ func (re *GroupByExecutor) Close() error {
 
 	return nil
 }
-func (re *GroupByExecutor) HandleFinishClient(dataEnvelope *protocol.DataEnvelope, ackHandler func(bool, bool) error) error {
+func (re *reducerExecutor) HandleFinishClient(dataEnvelope *protocol.DataEnvelope, ackHandler func(bool, bool) error) error {
 	panic("The reducer worker does not require client finishing handling")
 }
 
-func (re *GroupByExecutor) HandleTask1(dataEnvelope *protocol.DataEnvelope, ackHandler func(bool, bool) error) error {
+func (re *reducerExecutor) HandleTask1(dataEnvelope *protocol.DataEnvelope, ackHandler func(bool, bool) error) error {
 	panic("The reducer worker does not implement Task 1")
 }
 
-func (re *GroupByExecutor) HandleTask2(dataEnvelope *protocol.DataEnvelope, ackHandler func(bool, bool) error) error {
+func (re *reducerExecutor) HandleTask2(dataEnvelope *protocol.DataEnvelope, ackHandler func(bool, bool) error) error {
 
 	panic("The reducer worker does not implement Task 2, but Task 2.1 and 2.2 separately")
 }
