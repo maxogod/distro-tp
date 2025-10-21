@@ -1,6 +1,6 @@
 services:
   - filter: 2
-  - joiner: 2
-  - reducer: 2
   - group_by: 2
+  - reducer: 2
+  - joiner: 2
   - client: 4
