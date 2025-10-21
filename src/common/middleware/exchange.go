@@ -2,7 +2,6 @@ package middleware
 
 import (
 	"context"
-	"fmt"
 	"time"
 
 	"github.com/google/uuid"
@@ -43,36 +42,6 @@ func NewExchangeMiddleware(url, exchangeName, exchangeType string, routingKeys [
 		return m, err
 	}
 
-	// Consumer queue
-	q, err := ch.QueueDeclare(
-		"",    // name
-		false, // durable
-		true,  // delete when unused
-		true,  // exclusive
-		false, // no-wait
-		nil,   // arguments
-	)
-	if err != nil {
-		logger.GetLogger().Errorln("Failed to declare a queue:", err)
-		return nil, fmt.Errorf("failed to declare consumer queue: %w", err)
-	}
-
-	for _, key := range routingKeys {
-		logger.GetLogger().Debugf("Binding queue %s to exchange %s with routing key %s", q.Name, exchangeName, key)
-		err := ch.QueueBind(
-			q.Name,       // queue name
-			key,          // routing key
-			exchangeName, // exchange
-			false,        // no-wait
-			nil,
-		)
-		if err != nil {
-			logger.GetLogger().Errorln("Failed to bind consumer queue to exchange:", err)
-			return nil, fmt.Errorf("failed to bind consumer queue to exchange: %w", err)
-		}
-	}
-
-	m.queueName = q.Name
 	m.exchangeName = exchangeName
 	m.routeKeys = routingKeys
 	m.conn = conn
@@ -82,18 +51,46 @@ func NewExchangeMiddleware(url, exchangeName, exchangeType string, routingKeys [
 }
 
 func (me *MessageMiddlewareExchange) StartConsuming(onMessageCallback onMessageCallback) (e MessageMiddlewareError) {
+	q, err := me.channel.QueueDeclare(
+		"",    // name
+		false, // durable
+		true,  // delete when unused
+		true,  // exclusive
+		false, // no-wait
+		nil,   // arguments
+	)
+	if err != nil {
+		logger.GetLogger().Errorln("Failed to declare a queue:", err)
+		return MessageMiddlewareMessageError
+	}
+
+	for _, key := range me.routeKeys {
+		logger.GetLogger().Debugf("Binding queue %s to exchange %s with routing key %s", q.Name, me.exchangeName, key)
+		err = me.channel.QueueBind(
+			q.Name,          // queue name
+			key,             // routing key
+			me.exchangeName, // exchange
+			false,           // no-wait
+			nil,
+		)
+		if err != nil {
+			logger.GetLogger().Errorln("Failed to bind consumer queue to exchange:", err)
+			return MessageMiddlewareMessageError
+		}
+	}
+
 	// TODO: prefetch count and size (Qos)
 	consumerTag := uuid.New().String()
 	me.consumerTag = consumerTag
 
 	consumeChannel, err := me.channel.Consume(
-		me.queueName, // queue
-		consumerTag,  // consumer
-		false,        // auto-ack
-		true,         // exclusive
-		false,        // no-local
-		false,        // no-wait
-		nil,          // args
+		q.Name,      // queue
+		consumerTag, // consumer
+		false,       // auto-ack
+		true,        // exclusive
+		false,       // no-local
+		false,       // no-wait
+		nil,         // args
 	)
 	if err != nil {
 		logger.GetLogger().Errorln("Failed to register a consumer:", err)

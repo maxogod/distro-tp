@@ -26,10 +26,12 @@ type messageHandler struct {
 	joinerRefExchange      middleware.MessageMiddleware
 
 	// Node connections middleware
-	messagesSentToNextLayer         int
-	joinerFinishExchange            middleware.MessageMiddleware
-	aggregatorFinishExchange        middleware.MessageMiddleware
+	messagesSentToNextLayer  int
+	joinerFinishExchange     middleware.MessageMiddleware
+	aggregatorFinishExchange middleware.MessageMiddleware
+
 	processedDataExchangeMiddleware middleware.MessageMiddleware
+	processedCh                     chan *protocol.DataEnvelope
 
 	workersMonitoring map[enum.WorkerType]workerMonitor
 	counterCh         chan *protocol.MessageCounter
@@ -42,9 +44,11 @@ func NewMessageHandler(middlewareUrl, clientID string) MessageHandler {
 		filtersQueueMiddleware: middleware.GetFilterQueue(middlewareUrl),
 		joinerRefExchange:      middleware.GetRefDataExchange(middlewareUrl),
 
-		joinerFinishExchange:            middleware.GetFinishExchange(middlewareUrl, []string{string(enum.JoinerWorker)}),
-		aggregatorFinishExchange:        middleware.GetFinishExchange(middlewareUrl, []string{string(enum.AggregatorWorker)}),
+		joinerFinishExchange:     middleware.GetFinishExchange(middlewareUrl, []string{string(enum.JoinerWorker)}),
+		aggregatorFinishExchange: middleware.GetFinishExchange(middlewareUrl, []string{string(enum.AggregatorWorker)}),
+
 		processedDataExchangeMiddleware: middleware.GetProcessedDataExchange(middlewareUrl, clientID),
+		processedCh:                     make(chan *protocol.DataEnvelope, 9999),
 
 		workersMonitoring: make(map[enum.WorkerType]workerMonitor),
 		counterCh:         make(chan *protocol.MessageCounter, 9999),
@@ -61,6 +65,7 @@ func NewMessageHandler(middlewareUrl, clientID string) MessageHandler {
 		}
 		go h.startCounterListener(worker)
 	}
+	go h.startReportDataListener()
 
 	return h
 }
@@ -159,54 +164,10 @@ func (mh *messageHandler) SendDone(worker enum.WorkerType) error {
 }
 
 func (mh *messageHandler) GetReportData(data chan *protocol.DataEnvelope) {
-	defer mh.processedDataExchangeMiddleware.StopConsuming()
-
-	done := make(chan bool)
-	mh.processedDataExchangeMiddleware.StartConsuming(func(msgs middleware.ConsumeChannel, d chan error) {
-		log.Debugf("[%s] Started listening for processed data", mh.clientID)
-		receiving := true
-		firstMessageReceived := false // To track if aggregator has started sending data
-
-		timer := time.NewTimer(RECEIVING_TIMEOUT)
-		defer timer.Stop()
-		defer close(data)
-
-		for receiving {
-			select {
-			case msg := <-msgs:
-				// Reset timer
-				if !timer.Stop() {
-					<-timer.C
-				}
-				timer.Reset(RECEIVING_TIMEOUT)
-
-				envelope := &protocol.DataEnvelope{}
-				err := proto.Unmarshal(msg.Body, envelope)
-				if err != nil || envelope.GetClientId() != mh.clientID {
-					msg.Nack(false, false) // Discard unwanted messages
-					continue
-				}
-
-				data <- envelope
-				msg.Ack(false)
-				if envelope.GetIsDone() && enum.TaskType(envelope.GetTaskType()) != enum.T2_1 {
-					receiving = false
-				} else if !firstMessageReceived {
-					firstMessageReceived = true
-				}
-			case <-timer.C:
-				// Only stop receiving if at least one message was received before
-				if firstMessageReceived {
-					log.Warnln("[%s] Timeout waiting for processed data", mh.clientID)
-					receiving = false
-				}
-				timer.Reset(RECEIVING_TIMEOUT)
-			}
-		}
-		log.Debugf("[%s] Finished listening for processed data", mh.clientID)
-		done <- true
-	})
-	<-done
+	for envelope := range mh.processedCh {
+		data <- envelope
+	}
+	close(data)
 }
 
 func (mh *messageHandler) Close() {
@@ -266,4 +227,56 @@ func (mh *messageHandler) startCounterListener(workerRoute enum.WorkerType) {
 	}
 
 	log.Debugf("[%s] Counter listener for %s stopped", mh.clientID, workerRoute)
+}
+
+// startReportDataListener starts a go routine that consumes msgs from the process data queue.
+func (mh *messageHandler) startReportDataListener() {
+	defer mh.processedDataExchangeMiddleware.StopConsuming()
+
+	done := make(chan bool)
+	mh.processedDataExchangeMiddleware.StartConsuming(func(msgs middleware.ConsumeChannel, d chan error) {
+		log.Debugf("[%s] Started listening for processed data", mh.clientID)
+		receiving := true
+		firstMessageReceived := false // To track if aggregator has started sending data
+
+		timer := time.NewTimer(RECEIVING_TIMEOUT)
+		defer timer.Stop()
+		defer close(mh.processedCh)
+
+		for receiving {
+			select {
+			case msg := <-msgs:
+				// Reset timer
+				if !timer.Stop() {
+					<-timer.C
+				}
+				timer.Reset(RECEIVING_TIMEOUT)
+
+				envelope := &protocol.DataEnvelope{}
+				err := proto.Unmarshal(msg.Body, envelope)
+				if err != nil || envelope.GetClientId() != mh.clientID {
+					msg.Nack(false, false) // Discard unwanted messages
+					continue
+				}
+
+				mh.processedCh <- envelope
+				msg.Ack(false)
+				if envelope.GetIsDone() && enum.TaskType(envelope.GetTaskType()) != enum.T2_1 {
+					receiving = false
+				} else if !firstMessageReceived {
+					firstMessageReceived = true
+				}
+			case <-timer.C:
+				// Only stop receiving if at least one message was received before
+				if firstMessageReceived {
+					log.Warnln("[%s] Timeout waiting for processed data", mh.clientID)
+					receiving = false
+				}
+				timer.Reset(RECEIVING_TIMEOUT)
+			}
+		}
+		log.Debugf("[%s] Finished listening for processed data", mh.clientID)
+		done <- true
+	})
+	<-done
 }
