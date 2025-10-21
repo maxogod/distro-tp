@@ -13,3 +13,7 @@ message GroupTransactions {
   string semester = 4;
   repeated raw.Transaction transactions = 5;
 }
+
+message GroupTransactionsBatch {
+  repeated GroupTransactions groupedTransactions = 1;
+}
