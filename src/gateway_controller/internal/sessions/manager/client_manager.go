@@ -35,7 +35,6 @@ func (cm *clientManager) RemoveClient(id string) {
 func (cm *clientManager) ReapStaleClients() {
 	for id, session := range cm.clients {
 		if session.IsFinished() {
-			session.Close()
 			delete(cm.clients, id)
 		}
 	}

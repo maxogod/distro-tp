@@ -61,7 +61,7 @@ func NewMessageHandler(middlewareUrl, clientID string) MessageHandler {
 	for _, worker := range workers {
 		h.workersMonitoring[worker] = workerMonitor{
 			queue:           middleware.GetCounterExchange(middlewareUrl, clientID+"@"+string(worker)),
-			startOrFinishCh: make(chan bool),
+			startOrFinishCh: make(chan bool, 2),
 		}
 		go h.startCounterListener(worker)
 	}
@@ -119,7 +119,7 @@ func (mh *messageHandler) AwaitForWorkers() error {
 			log.Debugf("[%s] All %d messages received from %s workers, next layer %s with msgs: %d",
 				mh.clientID, receivedFromCurrentLayer, currentWorkerType, nextLayer, sentFromCurrentLayer)
 
-			mh.workersMonitoring[currentWorkerType].startOrFinishCh <- true // finish
+			mh.workersMonitoring[currentWorkerType].startOrFinishCh <- false // finish
 			if nextLayer != enum.None {
 				mh.workersMonitoring[nextLayer].startOrFinishCh <- true // start
 			}
@@ -177,6 +177,7 @@ func (mh *messageHandler) Close() {
 	mh.aggregatorFinishExchange.Close()
 	mh.processedDataExchangeMiddleware.Close()
 	for _, monitor := range mh.workersMonitoring {
+		monitor.startOrFinishCh <- false
 		monitor.queue.Close()
 	}
 }
@@ -189,9 +190,8 @@ func (mh *messageHandler) startCounterListener(workerRoute enum.WorkerType) {
 
 	doneCh := make(chan bool)
 	e := mh.workersMonitoring[workerRoute].queue.StartConsuming(func(msgs middleware.ConsumeChannel, d chan error) {
-		<-mh.workersMonitoring[workerRoute].startOrFinishCh
 		log.Debugf("[%s] Starting to consume from counter exchange for %s workers", mh.clientID, workerRoute)
-		running := true
+		running := <-mh.workersMonitoring[workerRoute].startOrFinishCh
 		for running {
 			var msg middleware.MessageDelivery
 			select {
