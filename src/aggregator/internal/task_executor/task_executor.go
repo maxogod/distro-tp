@@ -239,6 +239,7 @@ func (ae *AggregatorExecutor) HandleFinishClient(dataEnvelope *protocol.DataEnve
 		}
 		log.Debug("Client Finished: ", clientID)
 		delete(ae.clientTasks, clientID)
+		shouldAck = true
 		return nil
 	}
 

@@ -111,8 +111,8 @@ func (mh *messageHandler) AwaitForWorkers() error {
 
 		if receivedFromCurrentLayer == mh.messagesSentToNextLayer {
 			nextLayer := enum.WorkerType(counter.GetNext())
-			log.Debugf("All %d messages received from %s workers, next layer %s with msgs: %d",
-				receivedFromCurrentLayer, currentWorkerType, nextLayer, sentFromCurrentLayer)
+			log.Debugf("[%s] All %d messages received from %s workers, next layer %s with msgs: %d",
+				mh.clientID, receivedFromCurrentLayer, currentWorkerType, nextLayer, sentFromCurrentLayer)
 
 			mh.workersMonitoring[currentWorkerType].startOrFinishCh <- true // finish
 			if nextLayer != enum.None {
@@ -122,10 +122,10 @@ func (mh *messageHandler) AwaitForWorkers() error {
 			mh.messagesSentToNextLayer = sentFromCurrentLayer
 			sentFromCurrentLayer = 0
 			receivedFromCurrentLayer = 0
-			log.Debugf("Proceeding to wait for %s workers", currentWorkerType)
+			log.Debugf("[%s] Proceeding to wait for %s workers", mh.clientID, currentWorkerType)
 		}
 	}
-	log.Debug("All workers done, proceed with finish sequence")
+	log.Debugf("[%s] All workers done, proceed with finish sequence", mh.clientID)
 
 	return nil
 }
@@ -163,7 +163,7 @@ func (mh *messageHandler) GetReportData(data chan *protocol.DataEnvelope) {
 
 	done := make(chan bool)
 	mh.processedDataExchangeMiddleware.StartConsuming(func(msgs middleware.ConsumeChannel, d chan error) {
-		log.Debug("Started listening for processed data")
+		log.Debugf("[%s] Started listening for processed data", mh.clientID)
 		receiving := true
 		firstMessageReceived := false // To track if aggregator has started sending data
 
@@ -197,13 +197,13 @@ func (mh *messageHandler) GetReportData(data chan *protocol.DataEnvelope) {
 			case <-timer.C:
 				// Only stop receiving if at least one message was received before
 				if firstMessageReceived {
-					log.Warnln("Timeout waiting for processed data")
+					log.Warnln("[%s] Timeout waiting for processed data", mh.clientID)
 					receiving = false
 				}
 				timer.Reset(RECEIVING_TIMEOUT)
 			}
 		}
-		log.Debug("Finished listening for processed data")
+		log.Debugf("[%s] Finished listening for processed data", mh.clientID)
 		done <- true
 	})
 	<-done
@@ -229,7 +229,7 @@ func (mh *messageHandler) startCounterListener(workerRoute enum.WorkerType) {
 	doneCh := make(chan bool)
 	e := mh.workersMonitoring[workerRoute].queue.StartConsuming(func(msgs middleware.ConsumeChannel, d chan error) {
 		<-mh.workersMonitoring[workerRoute].startOrFinishCh
-		log.Debugf("Starting to consume from counter exchange for %s workers", workerRoute)
+		log.Debugf("[%s] Starting to consume from counter exchange for %s workers", mh.clientID, workerRoute)
 		running := true
 		for running {
 			var msg middleware.MessageDelivery
@@ -244,12 +244,12 @@ func (mh *messageHandler) startCounterListener(workerRoute enum.WorkerType) {
 			counter := &protocol.MessageCounter{}
 			err := proto.Unmarshal(msg.Body, counter)
 			if err != nil {
-				log.Errorf("Failed to unmarshal done message: %v", err)
+				log.Errorf("[%s] Failed to unmarshal done message: %v", mh.clientID, err)
 				msg.Nack(false, false)
 				continue
 			}
 			if counter.GetClientId() != mh.clientID || enum.WorkerType(counter.GetFrom()) != workerRoute {
-				log.Warnf("Received wrong clientID %s or WorkerType %s", counter.GetClientId(), counter.GetFrom())
+				log.Warnf("[%s] Received wrong clientID or WorkerType %s", counter.GetClientId(), counter.GetFrom())
 				msg.Nack(false, false)
 				continue
 			}
@@ -262,8 +262,8 @@ func (mh *messageHandler) startCounterListener(workerRoute enum.WorkerType) {
 	})
 	<-doneCh
 	if e != middleware.MessageMiddlewareSuccess {
-		log.Error("Error starting counter listener:", e)
+		log.Errorf("[%s] Error starting counter listener: %d", mh.clientID, e)
 	}
 
-	log.Debugf("Counter listener for %s stopped", workerRoute)
+	log.Debugf("[%s] Counter listener for %s stopped", mh.clientID, workerRoute)
 }
