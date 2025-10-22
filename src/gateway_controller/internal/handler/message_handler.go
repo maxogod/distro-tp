@@ -269,7 +269,7 @@ func (mh *messageHandler) startReportDataListener() {
 			case <-timer.C:
 				// Only stop receiving if at least one message was received before
 				if firstMessageReceived {
-					log.Warnln("[%s] Timeout waiting for processed data", mh.clientID)
+					log.Warnf("[%s] Timeout waiting for processed data", mh.clientID)
 					receiving = false
 				}
 				timer.Reset(RECEIVING_TIMEOUT)
