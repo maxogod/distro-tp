@@ -1,6 +1,8 @@
 package clients
 
 import (
+	"sync/atomic"
+
 	"github.com/maxogod/distro-tp/src/common/logger"
 	"github.com/maxogod/distro-tp/src/common/models/enum"
 	"github.com/maxogod/distro-tp/src/common/models/protocol"
@@ -15,20 +17,21 @@ type clientSession struct {
 	Id               string
 	clientConnection network.ConnectionInterface
 	messageHandler   handler.MessageHandler
-	running          bool
+	running          atomic.Bool
 }
 
 func NewClientSession(id string, conn network.ConnectionInterface, messageHandler handler.MessageHandler) ClientSession {
-	return &clientSession{
+	s := &clientSession{
 		Id:               id,
 		clientConnection: conn,
 		messageHandler:   messageHandler,
-		running:          true,
 	}
+	s.running.Store(true)
+	return s
 }
 
 func (cs *clientSession) IsFinished() bool {
-	return !cs.running
+	return !cs.running.Load()
 }
 
 func (cs *clientSession) ProcessRequest() error {
@@ -84,7 +87,7 @@ func (cs *clientSession) Close() {
 	if !cs.IsFinished() {
 		cs.clientConnection.Close()
 		cs.messageHandler.Close()
-		cs.running = false
+		cs.running.Store(false)
 		log.Debugf("[%s] Closed client session", cs.Id)
 	}
 }
