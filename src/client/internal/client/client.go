@@ -8,8 +8,8 @@ import (
 
 	"github.com/maxogod/distro-tp/src/common/logger"
 	"github.com/maxogod/distro-tp/src/common/network"
-	"github.com/maxogod/distro-tp/src/gateway/business/task_executor"
-	"github.com/maxogod/distro-tp/src/gateway/config"
+	"github.com/maxogod/distro-tp/src/client/business/task_executor"
+	"github.com/maxogod/distro-tp/src/client/config"
 )
 
 var log = logger.GetLogger()

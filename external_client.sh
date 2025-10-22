@@ -7,7 +7,7 @@ fi
 
 echo "Building image"
 
-docker build -t client -f ./src/gateway/Dockerfile . > /dev/null 2>&1
+docker build -t client -f ./src/client/Dockerfile . > /dev/null 2>&1
 
 echo "Running"
 

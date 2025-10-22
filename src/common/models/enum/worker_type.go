@@ -8,4 +8,5 @@ const (
 	ReducerWorker    WorkerType = "reducer"
 	JoinerWorker     WorkerType = "joiner"
 	AggregatorWorker WorkerType = "aggregator"
+	None             WorkerType = "none"
 )

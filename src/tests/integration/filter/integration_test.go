@@ -47,10 +47,6 @@ func TestSequentialRun(t *testing.T) {
 func t1FilterMock(t *testing.T) {
 	filterQueue := middleware.GetFilterQueue(url)
 	aggregatorOutputQueue := middleware.GetAggregatorQueue(url)
-	defer aggregatorOutputQueue.StopConsuming()
-	defer filterQueue.StopConsuming()
-	defer filterQueue.Close()
-	defer aggregatorOutputQueue.Close()
 
 	serializedTransactions, _ := proto.Marshal(&MockTransactionsBatch)
 	dataEnvelope := protocol.DataEnvelope{
@@ -89,15 +85,15 @@ func t1FilterMock(t *testing.T) {
 	assert.Equal(t, "1", res.Transactions[0].TransactionId)
 	assert.Equal(t, "6", res.Transactions[1].TransactionId)
 	assert.Equal(t, "7", res.Transactions[2].TransactionId)
+
+	aggregatorOutputQueue.StopConsuming()
+	filterQueue.Close()
+	aggregatorOutputQueue.Close()
 }
 
 func t2FilterMock(t *testing.T) {
 	filterQueue := middleware.GetFilterQueue(url)
 	groupbyOutputQueue := middleware.GetGroupByQueue(url)
-	defer groupbyOutputQueue.StopConsuming()
-	defer filterQueue.StopConsuming()
-	defer filterQueue.Close()
-	defer groupbyOutputQueue.Close()
 
 	serializedTransactions, _ := proto.Marshal(&MockTransactionItemsBatch)
 	dataEnvelope := protocol.DataEnvelope{
@@ -139,15 +135,15 @@ func t2FilterMock(t *testing.T) {
 	assert.Equal(t, "4", res.TransactionItems[3].ItemId)
 	assert.Equal(t, "5", res.TransactionItems[4].ItemId)
 	assert.Equal(t, "6", res.TransactionItems[5].ItemId)
+
+	groupbyOutputQueue.StopConsuming()
+	filterQueue.Close()
+	groupbyOutputQueue.Close()
 }
 
 func t3FilterMock(t *testing.T) {
 	filterQueue := middleware.GetFilterQueue(url)
 	groupbyOutputQueue := middleware.GetGroupByQueue(url)
-	defer groupbyOutputQueue.StopConsuming()
-	defer filterQueue.StopConsuming()
-	defer filterQueue.Close()
-	defer groupbyOutputQueue.Close()
 
 	serializedTransactions, _ := proto.Marshal(&MockTransactionsBatch)
 	dataEnvelope := protocol.DataEnvelope{
@@ -187,15 +183,15 @@ func t3FilterMock(t *testing.T) {
 	assert.Equal(t, "4", res.Transactions[1].TransactionId)
 	assert.Equal(t, "6", res.Transactions[2].TransactionId)
 	assert.Equal(t, "7", res.Transactions[3].TransactionId)
+
+	groupbyOutputQueue.StopConsuming()
+	filterQueue.Close()
+	groupbyOutputQueue.Close()
 }
 
 func t4FilterMock(t *testing.T) {
 	filterQueue := middleware.GetFilterQueue(url)
 	groupbyOutputQueue := middleware.GetGroupByQueue(url)
-	defer groupbyOutputQueue.StopConsuming()
-	defer filterQueue.StopConsuming()
-	defer filterQueue.Close()
-	defer groupbyOutputQueue.Close()
 
 	serializedTransactions, _ := proto.Marshal(&MockTransactionsBatch)
 	dataEnvelope := protocol.DataEnvelope{
@@ -238,4 +234,8 @@ func t4FilterMock(t *testing.T) {
 	assert.Equal(t, "4", res.Transactions[2].TransactionId)
 	assert.Equal(t, "6", res.Transactions[3].TransactionId)
 	assert.Equal(t, "7", res.Transactions[4].TransactionId)
+
+	groupbyOutputQueue.StopConsuming()
+	filterQueue.Close()
+	groupbyOutputQueue.Close()
 }

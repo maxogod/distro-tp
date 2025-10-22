@@ -130,17 +130,17 @@ for svc in ["filter", "joiner", "reducer", "group_by"]:
         add_services(svc, count)
 
 # ==============================
-# Gateways
+# Clients
 # ==============================
-gw_count = service_counts.get("gateway", 0)
+gw_count = service_counts.get("client", 0)
 for i in range(gw_count):
     lines.append(
-        f"""  gateway{i+1}:
-    container_name: gateway{i+1}
+        f"""  client{i+1}:
+    container_name: client{i+1}
     entrypoint: ["/app/app", "t{(i % 4)+1}"]
     build:
-      dockerfile: ./src/gateway/Dockerfile
-    image: gateway:latest
+      dockerfile: ./src/client/Dockerfile
+    image: client:latest
     networks:
       - tp_net
     volumes:
@@ -151,7 +151,7 @@ for i in range(gw_count):
         condition: service_healthy
         """
     )
-    print(f"Adding gateway{i+1}")
+    print(f"Adding client{i+1}")
 
 # ==============================
 # Networks

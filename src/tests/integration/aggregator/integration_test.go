@@ -67,6 +67,7 @@ func t1AggregateMock(t *testing.T) {
 		IsDone:   true,
 	}
 	doneBytes, _ := proto.Marshal(doneMessage)
+	time.Sleep(3 * time.Second)
 	err := finishExchange.Send(doneBytes)
 	assert.Equal(t, err, middleware.MessageMiddlewareSuccess)
 
@@ -94,7 +95,7 @@ func t1AggregateMock(t *testing.T) {
 	})
 	select {
 	case <-done:
-	case <-time.After(35 * time.Second):
+	case <-time.After(5 * time.Second):
 		t.Error("Test timed out waiting for results")
 	}
 	assert.Equal(t, 0, int(e))
@@ -148,6 +149,7 @@ func t2AggregateMock(t *testing.T) {
 		IsDone:   true,
 	}
 	doneBytes, _ := proto.Marshal(doneMessage)
+	time.Sleep(3 * time.Second)
 	err := finishExchange.Send(doneBytes)
 	assert.Equal(t, err, middleware.MessageMiddlewareSuccess)
 
@@ -187,7 +189,7 @@ func t2AggregateMock(t *testing.T) {
 	})
 	select {
 	case <-done:
-	case <-time.After(35 * time.Second):
+	case <-time.After(5 * time.Second):
 		t.Error("Test timed out waiting for results")
 	}
 	assert.Equal(t, 0, int(e))
@@ -236,6 +238,7 @@ func t3AggregateMock(t *testing.T) {
 		IsDone:   true,
 	}
 	doneBytes, _ := proto.Marshal(doneMessage)
+	time.Sleep(3 * time.Second)
 	err := finishExchange.Send(doneBytes)
 	assert.Equal(t, err, middleware.MessageMiddlewareSuccess)
 
@@ -259,7 +262,7 @@ func t3AggregateMock(t *testing.T) {
 	})
 	select {
 	case <-done:
-	case <-time.After(35 * time.Second):
+	case <-time.After(5 * time.Second):
 		t.Error("Test timed out waiting for results")
 	}
 	assert.Equal(t, 0, int(e))
@@ -302,6 +305,7 @@ func t4AggregateMock(t *testing.T) {
 		IsDone:   true,
 	}
 	doneBytes, _ := proto.Marshal(doneMessage)
+	time.Sleep(3 * time.Second)
 	err := finishExchange.Send(doneBytes)
 	assert.Equal(t, err, middleware.MessageMiddlewareSuccess)
 
@@ -327,7 +331,7 @@ func t4AggregateMock(t *testing.T) {
 	})
 	select {
 	case <-done:
-	case <-time.After(35 * time.Second):
+	case <-time.After(5 * time.Second):
 		t.Error("Test timed out waiting for results")
 	}
 	assert.Equal(t, 0, int(e))

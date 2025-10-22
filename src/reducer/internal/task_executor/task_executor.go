@@ -6,88 +6,201 @@ import (
 	"github.com/maxogod/distro-tp/src/common/middleware"
 	"github.com/maxogod/distro-tp/src/common/models/enum"
 	"github.com/maxogod/distro-tp/src/common/models/group_by"
+	"github.com/maxogod/distro-tp/src/common/models/protocol"
+	"github.com/maxogod/distro-tp/src/common/models/reduced"
 	"github.com/maxogod/distro-tp/src/common/worker"
 	"github.com/maxogod/distro-tp/src/reducer/business"
 	"google.golang.org/protobuf/proto"
 )
 
-type GroupByExecutor struct {
-	service     business.ReducerService
-	outputQueue middleware.MessageMiddleware
+type reducerExecutor struct {
+	service          business.ReducerService
+	url              string
+	connectedClients map[string]middleware.MessageMiddleware
+	outputQueue      middleware.MessageMiddleware
 }
 
-func NewReducerExecutor(filterService business.ReducerService, reducerQueue middleware.MessageMiddleware) worker.TaskExecutor {
-	return &GroupByExecutor{
-		service:     filterService,
-		outputQueue: reducerQueue,
+func NewReducerExecutor(filterService business.ReducerService,
+	url string,
+	connectedClients map[string]middleware.MessageMiddleware,
+	reducerQueue middleware.MessageMiddleware) worker.TaskExecutor {
+	return &reducerExecutor{
+		service:          filterService,
+		url:              url,
+		connectedClients: connectedClients,
+		outputQueue:      reducerQueue,
 	}
 }
 
-func (fe *GroupByExecutor) HandleTask2_1(payload []byte, clientID string) error {
+func (re *reducerExecutor) HandleTask2_1(dataEnvelope *protocol.DataEnvelope, ackHandler func(bool, bool) error) error {
+	shouldAck := false
+	shouldRequeue := false
+	defer ackHandler(shouldAck, shouldRequeue)
+
 	groupedItems := &group_by.GroupTransactionItems{}
+	payload := dataEnvelope.GetPayload()
+	clientID := dataEnvelope.GetClientId()
+
 	err := proto.Unmarshal(payload, groupedItems)
 	if err != nil {
 		return err
 	}
 	// === Business logic ===
-	reducedItems := fe.service.SumTotalProfitBySubtotal(groupedItems)
+	reducedItems := re.service.SumTotalProfitBySubtotal(groupedItems)
 
-	return worker.SendDataToMiddleware(reducedItems, enum.T2_1, clientID, fe.outputQueue)
-}
-
-func (fe *GroupByExecutor) HandleTask2_2(payload []byte, clientID string) error {
-	groupedItems := &group_by.GroupTransactionItems{}
-	err := proto.Unmarshal(payload, groupedItems)
+	err = worker.SendDataToMiddleware(reducedItems, enum.T2_1, clientID, re.outputQueue)
 	if err != nil {
+		shouldRequeue = true
 		return err
 	}
-	// === Business logic ===
-	reducedItems := fe.service.SumTotalSoldByQuantity(groupedItems)
+	amountSent := 1
+	shouldAck = true
 
-	return worker.SendDataToMiddleware(reducedItems, enum.T2_2, clientID, fe.outputQueue)
-}
-
-func (fe *GroupByExecutor) HandleTask3(payload []byte, clientID string) error {
-	groupTransactions := &group_by.GroupTransactions{}
-	err := proto.Unmarshal(payload, groupTransactions)
-	if err != nil {
+	_, exists := re.connectedClients[clientID]
+	if !exists {
+		re.connectedClients[clientID] = middleware.GetCounterExchange(re.url, clientID+"@"+string(enum.ReducerWorker))
+	}
+	counterExchange := re.connectedClients[clientID]
+	if err := worker.SendCounterMessage(clientID, amountSent, enum.ReducerWorker, enum.JoinerWorker, counterExchange); err != nil {
 		return err
 	}
-	// === Business logic ===
-	reducedTransactions := fe.service.SumTotalPaymentValue(groupTransactions)
 
-	return worker.SendDataToMiddleware(reducedTransactions, enum.T3, clientID, fe.outputQueue)
-}
-
-func (fe *GroupByExecutor) HandleTask4(payload []byte, clientID string) error {
-	groupTransactions := &group_by.GroupTransactions{}
-	err := proto.Unmarshal(payload, groupTransactions)
-	if err != nil {
-		return err
-	}
-	// === Business logic ===
-	reducedTransactions := fe.service.CountUserTransactions(groupTransactions)
-
-	return worker.SendDataToMiddleware(reducedTransactions, enum.T4, clientID, fe.outputQueue)
-}
-
-func (fe *GroupByExecutor) Close() error {
-
-	e := fe.outputQueue.Close()
-	if e != middleware.MessageMiddlewareSuccess {
-		return fmt.Errorf("failed to close reducer queue: %v", e)
-	}
 	return nil
 }
-func (fe *GroupByExecutor) HandleFinishClient(clientID string) error {
+
+func (re *reducerExecutor) HandleTask2_2(dataEnvelope *protocol.DataEnvelope, ackHandler func(bool, bool) error) error {
+	shouldAck := false
+	shouldRequeue := false
+	defer ackHandler(shouldAck, shouldRequeue)
+
+	groupedItems := &group_by.GroupTransactionItems{}
+	payload := dataEnvelope.GetPayload()
+	clientID := dataEnvelope.GetClientId()
+
+	err := proto.Unmarshal(payload, groupedItems)
+	if err != nil {
+		return err
+	}
+	// === Business logic ===
+	reducedItems := re.service.SumTotalSoldByQuantity(groupedItems)
+
+	err = worker.SendDataToMiddleware(reducedItems, enum.T2_2, clientID, re.outputQueue)
+	if err != nil {
+		shouldRequeue = true
+		return err
+	}
+	amountSent := 1
+	shouldAck = true
+
+	_, exists := re.connectedClients[clientID]
+	if !exists {
+		re.connectedClients[clientID] = middleware.GetCounterExchange(re.url, clientID+"@"+string(enum.ReducerWorker))
+	}
+	counterExchange := re.connectedClients[clientID]
+	if err := worker.SendCounterMessage(clientID, amountSent, enum.ReducerWorker, enum.JoinerWorker, counterExchange); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (re *reducerExecutor) HandleTask3(dataEnvelope *protocol.DataEnvelope, ackHandler func(bool, bool) error) error {
+	shouldAck := false
+	shouldRequeue := false
+	defer ackHandler(shouldAck, shouldRequeue)
+
+	groupTransactions := &group_by.GroupTransactions{}
+	payload := dataEnvelope.GetPayload()
+	clientID := dataEnvelope.GetClientId()
+
+	err := proto.Unmarshal(payload, groupTransactions)
+	if err != nil {
+		return err
+	}
+	// === Business logic ===
+	reducedTransactions := re.service.SumTotalPaymentValue(groupTransactions)
+
+	err = worker.SendDataToMiddleware(reducedTransactions, enum.T3, clientID, re.outputQueue)
+	if err != nil {
+		shouldRequeue = true
+		return err
+	}
+	amountSent := 1
+	shouldAck = true
+
+	_, exists := re.connectedClients[clientID]
+	if !exists {
+		re.connectedClients[clientID] = middleware.GetCounterExchange(re.url, clientID+"@"+string(enum.ReducerWorker))
+	}
+	counterExchange := re.connectedClients[clientID]
+	if err := worker.SendCounterMessage(clientID, amountSent, enum.ReducerWorker, enum.JoinerWorker, counterExchange); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (re *reducerExecutor) HandleTask4(dataEnvelope *protocol.DataEnvelope, ackHandler func(bool, bool) error) error {
+	shouldAck := false
+	shouldRequeue := false
+	defer ackHandler(shouldAck, shouldRequeue)
+
+	groupTransactions := &group_by.GroupTransactionsBatch{}
+	countedTransactionsBatch := &reduced.CountedUserTransactionBatch{}
+	payload := dataEnvelope.GetPayload()
+	clientID := dataEnvelope.GetClientId()
+
+	err := proto.Unmarshal(payload, groupTransactions)
+	if err != nil {
+		return err
+	}
+	// === Business logic ===
+	for _, group := range groupTransactions.GetGroupedTransactions() {
+		countedTransactions := re.service.CountUserTransactions(group)
+		countedTransactionsBatch.CountedUserTransactions = append(countedTransactionsBatch.GetCountedUserTransactions(), countedTransactions)
+	}
+
+	err = worker.SendDataToMiddleware(countedTransactionsBatch, enum.T4, clientID, re.outputQueue)
+	if err != nil {
+		shouldRequeue = true
+		return err
+	}
+	shouldAck = true
+
+	_, exists := re.connectedClients[clientID]
+	if !exists {
+		re.connectedClients[clientID] = middleware.GetCounterExchange(re.url, clientID+"@"+string(enum.ReducerWorker))
+	}
+	counterExchange := re.connectedClients[clientID]
+	if err := worker.SendCounterMessage(clientID, 1, enum.ReducerWorker, enum.JoinerWorker, counterExchange); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (re *reducerExecutor) Close() error {
+	if e := re.outputQueue.Close(); e != middleware.MessageMiddlewareSuccess {
+		return fmt.Errorf("failed to close reducer queue: %v", e)
+	}
+
+	for clientID, q := range re.connectedClients {
+		if e := q.Close(); e != middleware.MessageMiddlewareSuccess {
+			return fmt.Errorf("failed to close counter exchange for client %s: %v", clientID, e)
+		}
+	}
+
+	return nil
+}
+func (re *reducerExecutor) HandleFinishClient(dataEnvelope *protocol.DataEnvelope, ackHandler func(bool, bool) error) error {
 	panic("The reducer worker does not require client finishing handling")
 }
 
-func (fe *GroupByExecutor) HandleTask1(payload []byte, clientID string) error {
+func (re *reducerExecutor) HandleTask1(dataEnvelope *protocol.DataEnvelope, ackHandler func(bool, bool) error) error {
 	panic("The reducer worker does not implement Task 1")
 }
 
-func (fe *GroupByExecutor) HandleTask2(payload []byte, clientID string) error {
+func (re *reducerExecutor) HandleTask2(dataEnvelope *protocol.DataEnvelope, ackHandler func(bool, bool) error) error {
 
 	panic("The reducer worker does not implement Task 2, but Task 2.1 and 2.2 separately")
 }

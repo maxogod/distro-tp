@@ -157,12 +157,12 @@ services:
       rabbitmq:
         condition: service_healthy
         
-  gateway1:
-    container_name: gateway1
+  client1:
+    container_name: client1
     entrypoint: ["/app/app", "t1"]
     build:
-      dockerfile: ./src/gateway/Dockerfile
-    image: gateway:latest
+      dockerfile: ./src/client/Dockerfile
+    image: client:latest
     networks:
       - tp_net
     volumes:
@@ -172,12 +172,12 @@ services:
       gateway_controller:
         condition: service_healthy
         
-  gateway2:
-    container_name: gateway2
+  client2:
+    container_name: client2
     entrypoint: ["/app/app", "t2"]
     build:
-      dockerfile: ./src/gateway/Dockerfile
-    image: gateway:latest
+      dockerfile: ./src/client/Dockerfile
+    image: client:latest
     networks:
       - tp_net
     volumes:
@@ -187,12 +187,12 @@ services:
       gateway_controller:
         condition: service_healthy
         
-  gateway3:
-    container_name: gateway3
+  client3:
+    container_name: client3
     entrypoint: ["/app/app", "t3"]
     build:
-      dockerfile: ./src/gateway/Dockerfile
-    image: gateway:latest
+      dockerfile: ./src/client/Dockerfile
+    image: client:latest
     networks:
       - tp_net
     volumes:
@@ -202,12 +202,12 @@ services:
       gateway_controller:
         condition: service_healthy
         
-  gateway4:
-    container_name: gateway4
+  client4:
+    container_name: client4
     entrypoint: ["/app/app", "t4"]
     build:
-      dockerfile: ./src/gateway/Dockerfile
-    image: gateway:latest
+      dockerfile: ./src/client/Dockerfile
+    image: client:latest
     networks:
       - tp_net
     volumes:
