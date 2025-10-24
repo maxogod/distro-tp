@@ -58,11 +58,19 @@ func GetAggregatorQueue(url string) MessageMiddleware {
 // Filters in case of task 1 and aggregators in case of the other tasks will be the producers.
 func GetProcessedDataExchange(url, clientID string) MessageMiddleware {
 	return retryMiddlewareCreation(MIDDLEWARE_CONNECTION_RETRIES, WAIT_INTERVAL, func() (MessageMiddleware, error) {
-		return NewExchangeMiddleware(url, "finish_exchange", "direct", []string{clientID})
+		return NewExchangeMiddleware(url, "processed_data_exchange", "direct", []string{clientID})
 	})
 }
 
 /* --- Node tracking for Gateway Controller --- */
+
+// GetCounterExchange retrieves the middleware for the given exchange
+// to send or receive with a specific topic pass the clientID parameter.
+func GetCounterExchange(url, clientID string) MessageMiddleware {
+	return retryMiddlewareCreation(MIDDLEWARE_CONNECTION_RETRIES, WAIT_INTERVAL, func() (MessageMiddleware, error) {
+		return NewExchangeMiddleware(url, "counter_exchange", "direct", []string{clientID})
+	})
+}
 
 // GetFinishExchange retrieves the middleware for the given exchange
 // to send or receive with a specific topic pass the topics parameter.

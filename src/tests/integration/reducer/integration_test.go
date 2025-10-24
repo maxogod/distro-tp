@@ -47,10 +47,6 @@ func TestSequentialRun(t *testing.T) {
 func reduceTask3(t *testing.T) {
 	reducerInputQueue := middleware.GetReducerQueue(url)
 	joinerOutputQueue := middleware.GetJoinerQueue(url)
-	defer reducerInputQueue.StopConsuming()
-	defer joinerOutputQueue.StopConsuming()
-	defer reducerInputQueue.Close()
-	defer joinerOutputQueue.Close()
 
 	serializedTransactions, _ := proto.Marshal(&GroupTransactionMock1)
 
@@ -91,15 +87,15 @@ func reduceTask3(t *testing.T) {
 		t.Error("Test timed out waiting for results")
 	}
 	assert.Equal(t, 0, int(e))
+
+	joinerOutputQueue.StopConsuming()
+	reducerInputQueue.Close()
+	joinerOutputQueue.Close()
 }
 
 func reduceTask2_1(t *testing.T) {
 	reducerInputQueue := middleware.GetReducerQueue(url)
 	joinerOutputQueue := middleware.GetJoinerQueue(url)
-	defer reducerInputQueue.StopConsuming()
-	defer joinerOutputQueue.StopConsuming()
-	defer reducerInputQueue.Close()
-	defer joinerOutputQueue.Close()
 
 	serializedTransactions, _ := proto.Marshal(&GroupTransactionMock2)
 
@@ -140,15 +136,15 @@ func reduceTask2_1(t *testing.T) {
 		t.Error("Test timed out waiting for results")
 	}
 	assert.Equal(t, 0, int(e))
+
+	joinerOutputQueue.StopConsuming()
+	reducerInputQueue.Close()
+	joinerOutputQueue.Close()
 }
 
 func reduceTask2_2(t *testing.T) {
 	reducerInputQueue := middleware.GetReducerQueue(url)
 	joinerOutputQueue := middleware.GetJoinerQueue(url)
-	defer reducerInputQueue.StopConsuming()
-	defer joinerOutputQueue.StopConsuming()
-	defer reducerInputQueue.Close()
-	defer joinerOutputQueue.Close()
 
 	serializedTransactions, _ := proto.Marshal(&GroupTransactionMock2)
 
@@ -189,15 +185,15 @@ func reduceTask2_2(t *testing.T) {
 		t.Error("Test timed out waiting for results")
 	}
 	assert.Equal(t, 0, int(e))
+
+	joinerOutputQueue.StopConsuming()
+	reducerInputQueue.Close()
+	joinerOutputQueue.Close()
 }
 
 func reduceTask4(t *testing.T) {
 	reducerInputQueue := middleware.GetReducerQueue(url)
 	joinerOutputQueue := middleware.GetJoinerQueue(url)
-	defer reducerInputQueue.StopConsuming()
-	defer joinerOutputQueue.StopConsuming()
-	defer reducerInputQueue.Close()
-	defer joinerOutputQueue.Close()
 
 	serializedTransactions, _ := proto.Marshal(&GroupTransactionMock4)
 
@@ -238,4 +234,8 @@ func reduceTask4(t *testing.T) {
 		t.Error("Test timed out waiting for results")
 	}
 	assert.Equal(t, 0, int(e))
+
+	joinerOutputQueue.StopConsuming()
+	reducerInputQueue.Close()
+	joinerOutputQueue.Close()
 }

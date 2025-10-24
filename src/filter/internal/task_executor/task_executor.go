@@ -6,6 +6,7 @@ import (
 	"github.com/maxogod/distro-tp/src/common/logger"
 	"github.com/maxogod/distro-tp/src/common/middleware"
 	"github.com/maxogod/distro-tp/src/common/models/enum"
+	"github.com/maxogod/distro-tp/src/common/models/protocol"
 	"github.com/maxogod/distro-tp/src/common/models/raw"
 	"github.com/maxogod/distro-tp/src/common/worker"
 	"github.com/maxogod/distro-tp/src/filter/business"
@@ -15,23 +16,39 @@ import (
 var log = logger.GetLogger()
 
 type FilterExecutor struct {
-	config          TaskConfig
-	filterService   business.FilterService
-	aggregatorQueue middleware.MessageMiddleware
-	groupByQueue    middleware.MessageMiddleware
+	config           TaskConfig
+	url              string
+	filterService    business.FilterService
+	connectedClients map[string]middleware.MessageMiddleware
+	aggregatorQueue  middleware.MessageMiddleware
+	groupByQueue     middleware.MessageMiddleware
 }
 
-func NewFilterExecutor(config TaskConfig, filterService business.FilterService, groupByQueue middleware.MessageMiddleware, aggregatorQueue middleware.MessageMiddleware) worker.TaskExecutor {
+func NewFilterExecutor(config TaskConfig,
+	url string,
+	filterService business.FilterService,
+	connectedClients map[string]middleware.MessageMiddleware,
+	groupByQueue middleware.MessageMiddleware,
+	aggregatorQueue middleware.MessageMiddleware) worker.TaskExecutor {
 	return &FilterExecutor{
-		config:          config,
-		filterService:   filterService,
-		aggregatorQueue: aggregatorQueue,
-		groupByQueue:    groupByQueue,
+		config:           config,
+		url:              url,
+		filterService:    filterService,
+		connectedClients: connectedClients,
+		aggregatorQueue:  aggregatorQueue,
+		groupByQueue:     groupByQueue,
 	}
 }
 
-func (fe *FilterExecutor) HandleTask1(payload []byte, clientID string) error {
+func (fe *FilterExecutor) HandleTask1(dataEnvelope *protocol.DataEnvelope, ackHandler func(bool, bool) error) error {
+	shouldAck := false
+	shouldRequeue := false
+	defer ackHandler(shouldAck, shouldRequeue)
+
 	transactionBatch := &raw.TransactionBatch{}
+	payload := dataEnvelope.GetPayload()
+	clientID := dataEnvelope.GetClientId()
+
 	err := proto.Unmarshal(payload, transactionBatch)
 	if err != nil {
 		return err
@@ -41,11 +58,38 @@ func (fe *FilterExecutor) HandleTask1(payload []byte, clientID string) error {
 	fe.filterService.FilterByTime(transactionBatch)
 	fe.filterService.FilterByFinalAmount(transactionBatch)
 
-	return worker.SendDataToMiddleware(transactionBatch, enum.T1, clientID, fe.aggregatorQueue)
+	amountSent := 0
+	if len(transactionBatch.Transactions) != 0 {
+		err = worker.SendDataToMiddleware(transactionBatch, enum.T1, clientID, fe.aggregatorQueue)
+		if err != nil {
+			shouldRequeue = true
+			return err
+		}
+		amountSent = 1
+	}
+	shouldAck = true
+
+	_, exists := fe.connectedClients[clientID]
+	if !exists {
+		fe.connectedClients[clientID] = middleware.GetCounterExchange(fe.url, clientID+"@"+string(enum.FilterWorker))
+	}
+	counterExchange := fe.connectedClients[clientID]
+	if err := worker.SendCounterMessage(clientID, amountSent, enum.FilterWorker, enum.AggregatorWorker, counterExchange); err != nil {
+		return err
+	}
+
+	return nil
 }
 
-func (fe *FilterExecutor) HandleTask2(payload []byte, clientID string) error {
+func (fe *FilterExecutor) HandleTask2(dataEnvelope *protocol.DataEnvelope, ackHandler func(bool, bool) error) error {
+	shouldAck := false
+	shouldRequeue := false
+	defer ackHandler(shouldAck, shouldRequeue)
+
 	transactionBatch := &raw.TransactionItemsBatch{}
+	payload := dataEnvelope.GetPayload()
+	clientID := dataEnvelope.GetClientId()
+
 	err := proto.Unmarshal(payload, transactionBatch)
 	if err != nil {
 		return err
@@ -53,11 +97,38 @@ func (fe *FilterExecutor) HandleTask2(payload []byte, clientID string) error {
 
 	fe.filterService.FilterItemsByYear(transactionBatch)
 
-	return worker.SendDataToMiddleware(transactionBatch, enum.T2, clientID, fe.groupByQueue)
+	amountSent := 0
+	if len(transactionBatch.TransactionItems) != 0 {
+		err = worker.SendDataToMiddleware(transactionBatch, enum.T2, clientID, fe.groupByQueue)
+		if err != nil {
+			shouldRequeue = true
+			return err
+		}
+		amountSent = 1
+	}
+	shouldAck = true
+
+	_, exists := fe.connectedClients[clientID]
+	if !exists {
+		fe.connectedClients[clientID] = middleware.GetCounterExchange(fe.url, clientID+"@"+string(enum.FilterWorker))
+	}
+	counterExchange := fe.connectedClients[clientID]
+	if err := worker.SendCounterMessage(clientID, amountSent, enum.FilterWorker, enum.GroupbyWorker, counterExchange); err != nil {
+		return err
+	}
+
+	return nil
 }
 
-func (fe *FilterExecutor) HandleTask3(payload []byte, clientID string) error {
+func (fe *FilterExecutor) HandleTask3(dataEnvelope *protocol.DataEnvelope, ackHandler func(bool, bool) error) error {
+	shouldAck := false
+	shouldRequeue := false
+	defer ackHandler(shouldAck, shouldRequeue)
+
 	transactionBatch := &raw.TransactionBatch{}
+	payload := dataEnvelope.GetPayload()
+	clientID := dataEnvelope.GetClientId()
+
 	err := proto.Unmarshal(payload, transactionBatch)
 	if err != nil {
 		return err
@@ -66,11 +137,38 @@ func (fe *FilterExecutor) HandleTask3(payload []byte, clientID string) error {
 	fe.filterService.FilterByYear(transactionBatch)
 	fe.filterService.FilterByTime(transactionBatch)
 
-	return worker.SendDataToMiddleware(transactionBatch, enum.T3, clientID, fe.groupByQueue)
+	amountSent := 0
+	if len(transactionBatch.Transactions) != 0 {
+		err = worker.SendDataToMiddleware(transactionBatch, enum.T3, clientID, fe.groupByQueue)
+		if err != nil {
+			shouldRequeue = true
+			return err
+		}
+		amountSent = 1
+	}
+	shouldAck = true
+
+	_, exists := fe.connectedClients[clientID]
+	if !exists {
+		fe.connectedClients[clientID] = middleware.GetCounterExchange(fe.url, clientID+"@"+string(enum.FilterWorker))
+	}
+	counterExchange := fe.connectedClients[clientID]
+	if err := worker.SendCounterMessage(clientID, amountSent, enum.FilterWorker, enum.GroupbyWorker, counterExchange); err != nil {
+		return err
+	}
+
+	return nil
 }
 
-func (fe *FilterExecutor) HandleTask4(payload []byte, clientID string) error {
+func (fe *FilterExecutor) HandleTask4(dataEnvelope *protocol.DataEnvelope, ackHandler func(bool, bool) error) error {
+	shouldAck := false
+	shouldRequeue := false
+	defer ackHandler(shouldAck, shouldRequeue)
+
 	transactionBatch := &raw.TransactionBatch{}
+	payload := dataEnvelope.GetPayload()
+	clientID := dataEnvelope.GetClientId()
+
 	err := proto.Unmarshal(payload, transactionBatch)
 	if err != nil {
 		return err
@@ -79,31 +177,59 @@ func (fe *FilterExecutor) HandleTask4(payload []byte, clientID string) error {
 	fe.filterService.FilterByYear(transactionBatch)
 	fe.filterService.FilterNullUserIDs(transactionBatch)
 
-	return worker.SendDataToMiddleware(transactionBatch, enum.T4, clientID, fe.groupByQueue)
-}
+	amountSent := 0
+	if len(transactionBatch.Transactions) != 0 {
+		err = worker.SendDataToMiddleware(transactionBatch, enum.T4, clientID, fe.groupByQueue)
+		if err != nil {
+			shouldRequeue = true
+			return err
+		}
+		amountSent = 1
+	}
+	shouldAck = true
 
-func (fe *FilterExecutor) Close() error {
-	e := fe.aggregatorQueue.Close()
-	if e != middleware.MessageMiddlewareSuccess {
-		return fmt.Errorf("failed to close aggregator queue: %v", e)
+	_, exists := fe.connectedClients[clientID]
+	if !exists {
+		fe.connectedClients[clientID] = middleware.GetCounterExchange(fe.url, clientID+"@"+string(enum.FilterWorker))
+	}
+	counterExchange := fe.connectedClients[clientID]
+	if err := worker.SendCounterMessage(clientID, amountSent, enum.FilterWorker, enum.GroupbyWorker, counterExchange); err != nil {
+		return err
 	}
 
-	e = fe.groupByQueue.Close()
-
-	if e != middleware.MessageMiddlewareSuccess {
-		return fmt.Errorf("failed to close group by queue: %v", e)
-	}
 	return nil
 }
 
-func (fe *FilterExecutor) HandleTask2_1(payload []byte, clientID string) error {
+func (fe *FilterExecutor) Close() error {
+	// TODO: if more than one task executor will exist concurrently, they should not close anything
+	// The closing of queues and exchanges should be handled at a higher level.
+	// CONSIDER MAKING A CLIENT CONNECTIONS MANAGER TO HANDLE THIS (or monitor).
+	// SAME GOES FOR ALL THE WORKERS.
+	if e := fe.aggregatorQueue.Close(); e != middleware.MessageMiddlewareSuccess {
+		return fmt.Errorf("failed to close aggregator queue: %v", e)
+	}
+
+	if e := fe.groupByQueue.Close(); e != middleware.MessageMiddlewareSuccess {
+		return fmt.Errorf("failed to close group by queue: %v", e)
+	}
+
+	for clientID, counterExchange := range fe.connectedClients {
+		if e := counterExchange.Close(); e != middleware.MessageMiddlewareSuccess {
+			return fmt.Errorf("failed to close counter exchange for client %s: %v", clientID, e)
+		}
+	}
+
+	return nil
+}
+
+func (fe *FilterExecutor) HandleTask2_1(dataEnvelope *protocol.DataEnvelope, ackHandler func(bool, bool) error) error {
 	panic("The filter does not implement Task 2.1")
 }
 
-func (fe *FilterExecutor) HandleTask2_2(payload []byte, clientID string) error {
+func (fe *FilterExecutor) HandleTask2_2(dataEnvelope *protocol.DataEnvelope, ackHandler func(bool, bool) error) error {
 	panic("The filter does not implement Task 2.2")
 }
 
-func (fe *FilterExecutor) HandleFinishClient(clientID string) error {
+func (fe *FilterExecutor) HandleFinishClient(dataEnvelope *protocol.DataEnvelope, ackHandler func(bool, bool) error) error {
 	panic("Filter does not require client finishing handling")
 }

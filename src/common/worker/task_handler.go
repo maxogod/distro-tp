@@ -13,13 +13,13 @@ const FINISH enum.TaskType = 0
 // for the specific tasks that the worker will handle via the TaskHandler.
 // Once created, it is passed to the TaskHandler constructor
 type TaskExecutor interface {
-	HandleTask1(payload []byte, clientID string) error
-	HandleTask2(payload []byte, clientID string) error
-	HandleTask2_1(payload []byte, clientID string) error
-	HandleTask2_2(payload []byte, clientID string) error
-	HandleTask3(payload []byte, clientID string) error
-	HandleTask4(payload []byte, clientID string) error
-	HandleFinishClient(clientID string) error
+	HandleTask1(dataEnvelope *protocol.DataEnvelope, ackHandler func(bool, bool) error) error
+	HandleTask2(dataEnvelope *protocol.DataEnvelope, ackHandler func(bool, bool) error) error
+	HandleTask2_1(dataEnvelope *protocol.DataEnvelope, ackHandler func(bool, bool) error) error
+	HandleTask2_2(dataEnvelope *protocol.DataEnvelope, ackHandler func(bool, bool) error) error
+	HandleTask3(dataEnvelope *protocol.DataEnvelope, ackHandler func(bool, bool) error) error
+	HandleTask4(dataEnvelope *protocol.DataEnvelope, ackHandler func(bool, bool) error) error
+	HandleFinishClient(dataEnvelope *protocol.DataEnvelope, ackHandler func(bool, bool) error) error
 	Close() error
 }
 
@@ -27,7 +27,7 @@ type TaskExecutor interface {
 // This is not required for every worker, but highly recommended to use it
 // You only create this struct and pass it to the MessageHandler
 type taskHandler struct {
-	taskHandlers map[enum.TaskType]func([]byte, string) error
+	taskHandlers map[enum.TaskType]func(*protocol.DataEnvelope, func(bool, bool) error) error
 	taskExecutor TaskExecutor
 }
 
@@ -37,7 +37,7 @@ func NewTaskHandler(
 		taskExecutor: taskExecutor,
 	}
 
-	th.taskHandlers = map[enum.TaskType]func([]byte, string) error{
+	th.taskHandlers = map[enum.TaskType]func(*protocol.DataEnvelope, func(bool, bool) error) error{
 		enum.T1:   th.taskExecutor.HandleTask1,
 		enum.T2:   th.taskExecutor.HandleTask2,
 		enum.T2_1: th.taskExecutor.HandleTask2_1,
@@ -49,14 +49,12 @@ func NewTaskHandler(
 	return th
 }
 
-func (th *taskHandler) HandleData(dataEnvelope *protocol.DataEnvelope) error {
+func (th *taskHandler) HandleData(dataEnvelope *protocol.DataEnvelope, ackHandler func(bool, bool) error) error {
 	taskType := enum.TaskType(dataEnvelope.GetTaskType())
-	payload := dataEnvelope.GetPayload()
-	clientID := dataEnvelope.GetClientId()
-	return th.handleTask(taskType, payload, clientID)
+	return th.handleTask(taskType, dataEnvelope, ackHandler)
 }
 
-func (th *taskHandler) handleTask(taskType enum.TaskType, payload []byte, clientID string) error {
+func (th *taskHandler) handleTask(taskType enum.TaskType, dataEnvelope *protocol.DataEnvelope, ackHandler func(bool, bool) error) error {
 	handler, exists := th.taskHandlers[taskType]
 	if !exists {
 		if taskType == FINISH {
@@ -64,11 +62,11 @@ func (th *taskHandler) handleTask(taskType enum.TaskType, payload []byte, client
 		}
 		return fmt.Errorf("unknown task type: %d", taskType)
 	}
-	return handler(payload, clientID)
+	return handler(dataEnvelope, ackHandler)
 }
 
-func (th *taskHandler) HandleFinishClient(clientID string) error {
-	return th.taskExecutor.HandleFinishClient(clientID)
+func (th *taskHandler) HandleFinishClient(dataEnvelope *protocol.DataEnvelope, ackHandler func(bool, bool) error) error {
+	return th.taskExecutor.HandleFinishClient(dataEnvelope, ackHandler)
 }
 
 func (th *taskHandler) Close() error {

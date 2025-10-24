@@ -5,8 +5,8 @@ import (
 	"time"
 
 	"github.com/maxogod/distro-tp/src/common/logger"
-	"github.com/maxogod/distro-tp/src/gateway/config"
-	"github.com/maxogod/distro-tp/src/gateway/internal/client"
+	"github.com/maxogod/distro-tp/src/client/config"
+	"github.com/maxogod/distro-tp/src/client/internal/client"
 )
 
 var log = logger.GetLogger()

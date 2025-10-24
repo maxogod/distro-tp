@@ -23,6 +23,9 @@ type MessageHandler interface {
 	// use it for data merging.
 	ForwardReferenceData(dataBatch *protocol.DataEnvelope) error
 
+	// AwaitForWorkers blocks until all workers have signaled completion for the current clientID.
+	AwaitForWorkers() error
+
 	// SendDone notifies the
 	SendDone(worker enum.WorkerType) error
 

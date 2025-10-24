@@ -10,3 +10,7 @@ message CountedUserTransactions {
   string birthdate = 3;
   int32 transaction_quantity = 4;
 }
+
+message CountedUserTransactionBatch {
+  repeated CountedUserTransactions countedUserTransactions = 1;
+}
