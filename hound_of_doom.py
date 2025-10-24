@@ -1,11 +1,12 @@
 #!/bin/python3
 
-import requests
 import time
 import subprocess
 import random
 
 HEALTHY = 200
+CONTAINER_NAME_POS = 0
+CONTAINER_ID_POS = 1
 RABBITMQ_CONTAINER = "rabbitmq"
 
 def run_cmd(cmd_str):
@@ -20,11 +21,13 @@ def run_cmd(cmd_str):
     return res.stdout
 
 class HoundDoom:
-    def __init__(self, network, prefix="", exeption_prefix="None"):
-        self.network = network
+    def __init__(self, amount_to_doom, prefix="", exeption_prefix="None"):
+        self.amount_to_doom = amount_to_doom
         self.prefix = prefix
         self.exeption_prefix = exeption_prefix
-        self.containers = self._get_container_names()
+        containers = self._get_container_names()
+        self.containers = [value.strip("'").split(",") for value in containers]
+        self.containers.pop(-1) # remove last empty string
 
     def unleash_doom(self):
         if len(self.containers) == 0:
@@ -33,44 +36,30 @@ class HoundDoom:
 
         indexes = list(range(len(self.containers)))
         random.shuffle(indexes)
+        indexes = indexes[:self.amount_to_doom]
 
         for i in indexes:
-            container = self.containers[i]
-            has_prefix = container.startswith(self.prefix)
-            has_exeption = container.startswith(self.exeption_prefix)
-            if container == "" or not has_prefix or has_exeption or container == RABBITMQ_CONTAINER:
+            container_name = self.containers[i][CONTAINER_NAME_POS]
+            has_prefix = container_name.startswith(self.prefix)
+            has_exeption = container_name.startswith(self.exeption_prefix)
+            if container_name == "" or not has_prefix or has_exeption or container_name == RABBITMQ_CONTAINER:
+                print(f"Skipping {container_name}")
                 continue
-            self._kill(container, 8081)
+            container_id = self.containers[i][CONTAINER_ID_POS]
+            self._kill(container_name, container_id)
             time.sleep(3)
 
     def _get_container_names(self):
-        res = run_cmd("docker ps --format '{{.Names}}'")
+        res = run_cmd("docker ps --format '{{.Names}},{{.ID}}'")
         return res.split("\n")
 
-    def _kill(self, container_name, healthcheck_port):
-        if not self._is_healthy(container_name, healthcheck_port):
-            return
-
+    def _kill(self, container_name, container_id):
         print(f"Killing {container_name}")
-        run_cmd(f"docker kill {container_name}")
-
-    def _is_healthy(self, container_name, healthcheck_port):
-        return True
-        # TODO: handle networking to be able to hit these endpoints
-        url = f"http://{container_name}:{healthcheck_port}"
-        try:
-            res = requests.get(url)
-            if res.status_code != HEALTHY:
-                print(f"Container {container_name} is already unhealthy")
-                return False
-        except:
-            print(f"Container {container_name} is already dead")
-            return False
-        return True
+        run_cmd(f"docker kill {container_id}")
 
 def main():
-    kong = HoundDoom("atus")
-    kong.unleash_doom()
+    hound = HoundDoom(3)
+    hound.unleash_doom()
 
 if __name__ == "__main__":
     main()
