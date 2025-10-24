@@ -19,7 +19,7 @@ def run_cmd(cmd_str):
         print(res.stderr)
     return res.stdout
 
-class DoomKong:
+class HoundDoom:
     def __init__(self, network, prefix="", exeption_prefix="None"):
         self.network = network
         self.prefix = prefix
@@ -69,7 +69,7 @@ class DoomKong:
         return True
 
 def main():
-    kong = DoomKong("atus")
+    kong = HoundDoom("atus")
     kong.unleash_doom()
 
 if __name__ == "__main__":
