@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os/exec"
 	"regexp"
+	"strings"
 	"testing"
 	"time"
 
@@ -24,23 +25,20 @@ func TestSequentialRun(t *testing.T) {
 
 	defer runCommand("docker", "compose", "-f", dockerComposeFile, "down")
 	tests := []func(t *testing.T){
-		// testOnetoOneEof,
-		// testOnetoN,
-		testNtoM,
 		testNoEof,
+		testOnetoOneEof,
+		testOnetoN,
+		testNtoM,
 	}
 
-	runCommand("docker", "compose", "-f", dockerComposeFile, "down", "-d")
+	t.Log("Setting up environment")
+	runCommand("docker", "compose", "-f", dockerComposeFile, "up", "-d")
+	runHealthCheck(t, healthCheckAddress)
 
 	// Run each test one by one
-	for _, test := range tests {
-		t.Log("Setting up enviroment")
-		runCommand("docker", "compose", "-f", dockerComposeFile, "up", "-d")
-		runHealthCheck(t, healthCheckAddress)
+	for i, test := range tests {
+		t.Logf("========================[ Test %d ]========================", i+1)
 		test(t)
-		t.Log("Restarting environment for next test...")
-		runCommand("docker", "compose", "-f", dockerComposeFile, "down")
-		t.Log("================================================")
 		time.Sleep(100 * time.Millisecond)
 	}
 	t.Log("All tests completed!")
@@ -49,6 +47,7 @@ func TestSequentialRun(t *testing.T) {
 // -------- Helper functions for testing --------
 
 func runCommand(name string, args ...string) (string, error) {
+
 	cmd := exec.Command(name, args...)
 	var out bytes.Buffer
 	cmd.Stdout = &out
@@ -57,12 +56,13 @@ func runCommand(name string, args ...string) (string, error) {
 	return out.String(), err
 }
 
-func checkLogForPattern(t *testing.T, container string, pattern *regexp.Regexp) string {
+func checkEOFLog(t *testing.T, container, clientId string) bool {
+	finishLog := fmt.Sprintf("Finishing Client with ID: [%s]", clientId)
 	out, err := runCommand("docker", "compose", "logs", container)
 	if err != nil {
 		t.Fatalf("Failed to get docker compose logs for %s: %v", container, err)
 	}
-	return pattern.FindString(out)
+	return strings.Contains(out, finishLog)
 }
 
 func runHealthCheck(t *testing.T, address string) error {

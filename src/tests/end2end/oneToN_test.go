@@ -1,9 +1,7 @@
 package eof_test
 
 import (
-	"regexp"
 	"testing"
-	"time"
 
 	"github.com/maxogod/distro-tp/src/common/models/enum"
 	"github.com/maxogod/distro-tp/src/common/models/protocol"
@@ -16,13 +14,13 @@ import (
 
 func testOnetoN(t *testing.T) {
 	t.Log("Starting One-to-N test")
-	// Connect to the server
 	clientConnection := network.NewConnection()
 	err := clientConnection.Connect(address, 5)
 	if err != nil {
 		t.Fatalf("Failed to connect to server: %v", err)
 	}
 	defer clientConnection.Close()
+	var clientID string
 
 	// ============================================================
 
@@ -45,7 +43,6 @@ func testOnetoN(t *testing.T) {
 	// --- Receive output ---
 
 	t.Log("Sent all data and EOF signal, waiting for output...")
-	time.Sleep(100 * time.Millisecond)
 	output := map[string]*reduced.TotalPaymentValue{}
 	for {
 		receivedData, err := clientConnection.ReceiveData()
@@ -65,6 +62,7 @@ func testOnetoN(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Failed to deserialize transaction batch: %v", err)
 		}
+		clientID = receivedEnvelope.ClientId
 		output[tpv.StoreId] = &tpv
 	}
 
@@ -80,24 +78,8 @@ func testOnetoN(t *testing.T) {
 		assert.Equal(t, expectedTx.FinalAmount, tx.FinalAmount, "Final Amount should match")
 	}
 
-	t.Log("client outputs verified successfully. Now checking logs...")
-	time.Sleep(1 * time.Minute)
-
-	// Compile the regex once
-	re := regexp.MustCompile(`Client \[.*?\] finished\.`)
-
-	// Containers to check
-	containers := []string{"aggregator", "joiner1", "joiner2"}
-
-	var match string
-	for _, container := range containers {
-		if match = checkLogForPattern(t, container, re); match != "" {
-			t.Logf("Success! Found log: [ %s ] in %s", match, container)
-		} else {
-			t.Fatalf("Expected log not found in container %s: pattern 'Client [<id>] finished.'", container)
-		}
-	}
-
-	t.Log("Test passed Successfully!")
+	assert.True(t, checkEOFLog(t, "aggregator", clientID), "EOF log not found in aggregator container")
+	assert.True(t, checkEOFLog(t, "joiner1", clientID), "EOF log not found in joiner1 container")
+	assert.True(t, checkEOFLog(t, "joiner2", clientID), "EOF log not found in joiner2 container")
 
 }
