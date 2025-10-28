@@ -31,7 +31,7 @@ func NewMockDataHandler(mockDataExecutor MockDataExecutor) worker.DataHandler {
 	}
 }
 
-func (m *MockDataHandler) HandleData(dataEnvelope *protocol.DataEnvelope) error {
+func (m *MockDataHandler) HandleData(dataEnvelope *protocol.DataEnvelope, ackHandler func(bool, bool) error) error {
 
 	if dataEnvelope == nil {
 		return nil
@@ -43,8 +43,9 @@ func (m *MockDataHandler) HandleData(dataEnvelope *protocol.DataEnvelope) error 
 	return nil
 }
 
-func (m *MockDataHandler) HandleFinishClient(clientID string) error {
+func (m *MockDataHandler) HandleFinishClient(dataEnvelope *protocol.DataEnvelope, ackHandler func(bool, bool) error) error {
 
+	clientID := dataEnvelope.GetClientId()
 	_, exists := m.mockDataExecutor.HandleFinishClientCalled[clientID]
 	if !exists {
 		m.mockDataExecutor.HandleFinishClientCalled[clientID] = make(chan bool, 1)

@@ -1,9 +1,7 @@
 package eof_test
 
 import (
-	"regexp"
 	"testing"
-	"time"
 
 	"github.com/maxogod/distro-tp/src/common/models/enum"
 	"github.com/maxogod/distro-tp/src/common/models/protocol"
@@ -14,15 +12,20 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
+type clientData struct {
+	clientID   string
+	connection network.ConnectionInterface
+}
+
 func testNtoM(t *testing.T) {
 	t.Log("Starting N-to-M concurrent test with output collection")
 
 	numClients := 3
-	clients := make([]network.ConnectionInterface, numClients)
+	clients := make([]clientData, numClients)
 	defer func() {
 		for _, c := range clients {
-			if c != nil {
-				c.Close()
+			if c.connection != nil {
+				c.connection.Close()
 			}
 		}
 	}()
@@ -33,7 +36,10 @@ func testNtoM(t *testing.T) {
 		if err := client.Connect(address, 5); err != nil {
 			t.Fatalf("Client %d failed to connect: %v", i+1, err)
 		}
-		clients[i] = client
+		clients[i] = clientData{
+			clientID:   "",
+			connection: client,
+		}
 	}
 	t.Logf("All %d clients connected successfully.", numClients)
 
@@ -41,27 +47,28 @@ func testNtoM(t *testing.T) {
 	outputCh := make(chan map[string]*reduced.TotalPaymentValue, numClients)
 
 	// --- Run clients concurrently ---
-	for i, client := range clients {
-		go func(i int, client network.ConnectionInterface) {
+	for i := range clients {
+		go func(i int) {
+			client := &clients[i]
 
 			// --- Send store reference data ---
 			storeRefDataBytes := getStoreDataBytes(t)
-			client.SendData(storeRefDataBytes)
+			client.connection.SendData(storeRefDataBytes)
 
 			doneRef := getEOFDataBytes(t, enum.T3, true)
-			client.SendData(doneRef)
+			client.connection.SendData(doneRef)
 
 			// --- Send transactions batch ---
 			dataBytes := getDataBytes(t, &mock.MockTransactionsBatchT3, enum.T3)
-			client.SendData(dataBytes)
+			client.connection.SendData(dataBytes)
 
 			doneData := getEOFDataBytes(t, enum.T3, false)
-			client.SendData(doneData)
+			client.connection.SendData(doneData)
 
 			t.Logf("Client %d waiting for output", i+1)
 			output := map[string]*reduced.TotalPaymentValue{}
 			for {
-				data, _ := client.ReceiveData()
+				data, _ := client.connection.ReceiveData()
 
 				envelope := protocol.DataEnvelope{}
 				proto.Unmarshal(data, &envelope)
@@ -71,11 +78,12 @@ func testNtoM(t *testing.T) {
 				}
 				tpv := reduced.TotalPaymentValue{}
 				proto.Unmarshal(envelope.Payload, &tpv)
+				client.clientID = envelope.ClientId
 				output[tpv.StoreId] = &tpv
 			}
 			// Send output to channel
 			outputCh <- output
-		}(i, client)
+		}(i)
 	}
 
 	// --- Collect outputs ---
@@ -100,14 +108,11 @@ func testNtoM(t *testing.T) {
 		}
 	}
 	t.Log("All client outputs verified successfully. Now checking logs...")
-	time.Sleep(1 * time.Minute)
-	re := regexp.MustCompile(`Client \[.*?\] finished\.`)
-	containers := []string{"aggregator", "joiner1", "joiner2"}
 
-	for _, container := range containers {
-		matchCount := countLogMatches(t, container, re)
-		t.Logf("Container %s had %d matches", container, matchCount)
-		assert.Equal(t, numClients, matchCount, "Container %s: Expected %d clients to appear finished in logs", container, numClients)
+	for i, client := range clients {
+		assert.True(t, checkEOFLog(t, "aggregator", client.clientID), "Client %d: EOF log not found in aggregator container", i+1)
+		assert.True(t, checkEOFLog(t, "joiner1", client.clientID), "Client %d: EOF log not found in joiner1 container", i+1)
+		assert.True(t, checkEOFLog(t, "joiner2", client.clientID), "Client %d: EOF log not found in joiner2 container", i+1)
 	}
-	t.Log("N-to-M concurrent test passed successfully!")
+
 }

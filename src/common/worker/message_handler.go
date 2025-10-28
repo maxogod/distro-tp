@@ -91,7 +91,7 @@ func (mh *messageHandler) Start() error {
 			}
 
 		case message := <-mh.finisherChannel:
-			log.Debugf("Received finish message for client: %s", message.dataEnvelope.ClientId)
+			log.Debugf("Finishing Client with ID: [%s]", message.dataEnvelope.ClientId)
 			mh.dataHandler.HandleFinishClient(message.dataEnvelope, message.ackHandler)
 		}
 	}
