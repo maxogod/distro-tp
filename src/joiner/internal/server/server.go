@@ -82,11 +82,11 @@ func (s *Server) setupGracefulShutdown() {
 }
 
 func (s *Server) Shutdown() {
-	log.Debug("Shutting down aggregator Worker server...")
+	log.Debug("Shutting down joiner Worker server...")
 	err := s.messageHandler.Close()
 	if err != nil {
 		log.Errorf("Error closing message handler: %v", err)
 	}
 
-	log.Debug("aggregator Worker server shut down successfully.")
+	log.Debug("joiner Worker server shut down successfully.")
 }
