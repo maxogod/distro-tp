@@ -37,7 +37,7 @@ func NewAggregatorExecutor(config *config.Config,
 		config:            config,
 		connectedClients:  connectedClients,
 		aggregatorService: aggregatorService,
-		finishExecutor:    NewFinishExecutor(config.Address, aggregatorService),
+		finishExecutor:    NewFinishExecutor(config.Address, aggregatorService, config.Limits),
 		clientTasks:       make(map[string]enum.TaskType),
 	}
 }

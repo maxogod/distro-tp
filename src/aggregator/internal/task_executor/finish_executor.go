@@ -5,6 +5,7 @@ import (
 	"sort"
 
 	"github.com/maxogod/distro-tp/src/aggregator/business"
+	"github.com/maxogod/distro-tp/src/aggregator/config"
 	"github.com/maxogod/distro-tp/src/common/middleware"
 	"github.com/maxogod/distro-tp/src/common/models/enum"
 	"github.com/maxogod/distro-tp/src/common/models/raw"
@@ -14,22 +15,19 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-// TODO: Move to config
-const TRANSACTION_SEND_LIMIT = 1000
-const TOP_N = 3
-const MAX_AMOUNT_TO_SEND = 35
-
 type finishExecutor struct {
 	address           string
 	aggregatorService business.AggregatorService
 	sortExecutors     map[enum.TaskType]func(clientID string) error
 	finishExecutors   map[enum.TaskType]func(clientID string) error
+	limits            config.Limits
 }
 
-func NewFinishExecutor(address string, aggregatorService business.AggregatorService) FinishExecutor {
+func NewFinishExecutor(address string, aggregatorService business.AggregatorService, limits config.Limits) FinishExecutor {
 	fe := finishExecutor{
 		address:           address,
 		aggregatorService: aggregatorService,
+		limits:            limits,
 	}
 
 	fe.finishExecutors = map[enum.TaskType]func(clientID string) error{
@@ -94,7 +92,7 @@ func (fe *finishExecutor) finishTask1(clientID string) error {
 	processedDataQueue := middleware.GetProcessedDataExchange(fe.address, clientID)
 	defer processedDataQueue.Close()
 	for {
-		transactions, moreBatches := fe.aggregatorService.GetStoredTransactions(clientID, TRANSACTION_SEND_LIMIT)
+		transactions, moreBatches := fe.aggregatorService.GetStoredTransactions(clientID, fe.limits.TransactionSendLimit)
 		if !moreBatches {
 			break
 		}
@@ -114,7 +112,7 @@ func (fe *finishExecutor) finishTask2_1(clientID string) error {
 	defer processedDataQueue.Close()
 	clientWithPrefix := T2_1_PREFIX + clientID
 	for {
-		tpsDataBatch, moreBatches := fe.aggregatorService.GetStoredTotalProfitBySubtotal(clientWithPrefix, TRANSACTION_SEND_LIMIT)
+		tpsDataBatch, moreBatches := fe.aggregatorService.GetStoredTotalProfitBySubtotal(clientWithPrefix, fe.limits.TransactionSendLimit)
 		if !moreBatches {
 			break
 		}
@@ -150,7 +148,7 @@ func (fe *finishExecutor) finishTask2_2(clientID string) error {
 	defer processedDataQueue.Close()
 	clientWithPrefix := T2_2_PREFIX + clientID
 	for {
-		tpqDataBatch, moreBatches := fe.aggregatorService.GetStoredTotalSoldByQuantity(clientWithPrefix, TRANSACTION_SEND_LIMIT)
+		tpqDataBatch, moreBatches := fe.aggregatorService.GetStoredTotalSoldByQuantity(clientWithPrefix, fe.limits.TransactionSendLimit)
 		if !moreBatches {
 			break
 		}
@@ -186,7 +184,7 @@ func (fe *finishExecutor) finishTask3(clientID string) error {
 	processedDataQueue := middleware.GetProcessedDataExchange(fe.address, clientID)
 	defer processedDataQueue.Close()
 	for {
-		tpvDataBatch, moreBatches := fe.aggregatorService.GetStoredTotalPaymentValue(clientID, TRANSACTION_SEND_LIMIT)
+		tpvDataBatch, moreBatches := fe.aggregatorService.GetStoredTotalPaymentValue(clientID, fe.limits.TransactionSendLimit)
 		if !moreBatches {
 			break
 		}
@@ -211,7 +209,7 @@ func (fe *finishExecutor) finishTask4(clientID string) error {
 	processedDataQueue := middleware.GetProcessedDataExchange(fe.address, clientID)
 	defer processedDataQueue.Close()
 	for {
-		countUserTransactions, moreBatches := fe.aggregatorService.GetStoredCountedUserTransactions(clientID, TRANSACTION_SEND_LIMIT)
+		countUserTransactions, moreBatches := fe.aggregatorService.GetStoredCountedUserTransactions(clientID, fe.limits.TransactionSendLimit)
 		if !moreBatches {
 			break
 		}
@@ -246,7 +244,7 @@ func (fe *finishExecutor) finishTask4(clientID string) error {
 			orderedList = append(orderedList, quantityMap[quantity]...)
 		}
 
-		amountToSend := min(len(orderedList), MAX_AMOUNT_TO_SEND)
+		amountToSend := min(len(orderedList), fe.limits.MaxAmountToSend)
 
 		// Step 3: Send the ordered list to the middleware
 		for _, user := range orderedList[:amountToSend] {
