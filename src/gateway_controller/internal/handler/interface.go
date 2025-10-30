@@ -1,14 +1,8 @@
 package handler
 
 import (
-	"time"
-
 	"github.com/maxogod/distro-tp/src/common/models/enum"
 	"github.com/maxogod/distro-tp/src/common/models/protocol"
-)
-
-const (
-	RECEIVING_TIMEOUT = 10 * time.Second
 )
 
 // MessageHandler interface defines methods for forwarding tasks to be processed by workers
