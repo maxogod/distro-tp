@@ -57,7 +57,7 @@ func (t *taskExecutor) Task1() error {
 
 	t.receiveAndSaveResults(
 		filepath.Join(t.outputPath, t.conf.OutputFiles.T1),
-		utils.T1_RES_HEADER,
+		t.conf.Headers.T1,
 		func(dataBatch *protocol.DataEnvelope, ch chan string) {
 			transactionBatch := &raw.TransactionBatch{}
 			if err := proto.Unmarshal(dataBatch.Payload, transactionBatch); err != nil {
@@ -106,7 +106,7 @@ func (t *taskExecutor) Task2() error {
 
 	t.receiveAndSaveResults(
 		filepath.Join(t.outputPath, t.conf.OutputFiles.T2_1),
-		utils.T2_1_RES_HEADER,
+		t.conf.Headers.T2_1,
 		func(dataBatch *protocol.DataEnvelope, ch chan string) {
 			data := &reduced.TotalProfitBySubtotal{}
 			if err := proto.Unmarshal(dataBatch.Payload, data); err != nil {
@@ -121,7 +121,7 @@ func (t *taskExecutor) Task2() error {
 
 	t.receiveAndSaveResults(
 		filepath.Join(t.outputPath, t.conf.OutputFiles.T2_2),
-		utils.T2_2_RES_HEADER,
+		t.conf.Headers.T2_2,
 		func(dataBatch *protocol.DataEnvelope, ch chan string) {
 			data := &reduced.TotalSoldByQuantity{}
 			if err := proto.Unmarshal(dataBatch.Payload, data); err != nil {
@@ -168,7 +168,7 @@ func (t *taskExecutor) Task3() error {
 
 	t.receiveAndSaveResults(
 		filepath.Join(t.outputPath, t.conf.OutputFiles.T3),
-		utils.T3_RES_HEADER,
+		t.conf.Headers.T3,
 		func(dataBatch *protocol.DataEnvelope, ch chan string) {
 			data := &reduced.TotalPaymentValue{}
 			if err := proto.Unmarshal(dataBatch.Payload, data); err != nil {
@@ -229,7 +229,7 @@ func (t *taskExecutor) Task4() error {
 
 	t.receiveAndSaveResults(
 		filepath.Join(t.outputPath, t.conf.OutputFiles.T4),
-		utils.T4_RES_HEADER,
+		t.conf.Headers.T4,
 		func(dataBatch *protocol.DataEnvelope, ch chan string) {
 			data := &reduced.CountedUserTransactions{}
 			if err := proto.Unmarshal(dataBatch.Payload, data); err != nil {

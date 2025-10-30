@@ -19,6 +19,12 @@ output_files:
   t2_2: "t2_2.csv"
   t3: "t3.csv"
   t4: "t4.csv"
+headers:
+  t1: "transaction_id,final_amount\n"
+  t2_1: "year_month_created_at,item_name,profit_sum\n"
+  t2_2: "year_month_created_at,item_name,sellings_qty\n"
+  t3: "year_half_created_at,store_name,tpv\n"
+  t4: "store_name,birthdate,purchases_qty\n"
 args:
   t1: "t1"
   t2: "t2"

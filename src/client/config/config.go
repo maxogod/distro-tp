@@ -24,6 +24,14 @@ type OutputFiles struct {
 	T4   string
 }
 
+type Headers struct {
+	T1   string
+	T2_1 string
+	T2_2 string
+	T3   string
+	T4   string
+}
+
 type Args struct {
 	T1 string
 	T2 string
@@ -40,6 +48,7 @@ type Config struct {
 	BatchSize         int
 	Paths             Paths
 	OutputFiles       OutputFiles
+	Headers           Headers
 	Args              Args
 }
 
@@ -79,6 +88,13 @@ func InitConfig() (*Config, error) {
 			T2_2: v.GetString("output_files.t2_2"),
 			T3:   v.GetString("output_files.t3"),
 			T4:   v.GetString("output_files.t4"),
+		},
+		Headers: Headers{
+			T1:   v.GetString("headers.t1"),
+			T2_1: v.GetString("headers.t2_1"),
+			T2_2: v.GetString("headers.t2_2"),
+			T3:   v.GetString("headers.t3"),
+			T4:   v.GetString("headers.t4"),
 		},
 		Args: Args{
 			T1: v.GetString("args.t1"),

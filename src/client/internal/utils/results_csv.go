@@ -7,14 +7,6 @@ import (
 	"github.com/maxogod/distro-tp/src/common/models/reduced"
 )
 
-const (
-	T1_RES_HEADER   = "transaction_id,final_amount\n"
-	T2_1_RES_HEADER = "year_month_created_at,item_name,profit_sum\n"
-	T2_2_RES_HEADER = "year_month_created_at,item_name,sellings_qty\n"
-	T3_RES_HEADER   = "year_half_created_at,store_name,tpv\n"
-	T4_RES_HEADER   = "store_name,birthdate,purchases_qty\n"
-)
-
 // TODO: new proto to match the appropiate name of the fields
 func TransactionToCsv(record *raw.Transaction) string {
 	csvStr := fmt.Sprintf("%s,%.2f\n", record.TransactionId, record.FinalAmount)
