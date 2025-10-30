@@ -10,4 +10,5 @@ message DataEnvelope {
   bool is_done = 3;
   bool  is_ref = 4;
   bytes payload = 5;
+  bool is_items = 6;
 }
