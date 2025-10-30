@@ -8,15 +8,13 @@ import (
 	"github.com/maxogod/distro-tp/src/common/models/reduced"
 	"github.com/maxogod/distro-tp/src/common/utils"
 	"github.com/maxogod/distro-tp/src/joiner/cache"
+	"github.com/maxogod/distro-tp/src/joiner/config"
 	"google.golang.org/protobuf/proto"
 )
 
 var log = logger.GetLogger()
 
 const SEPERATOR = "@"
-const MENU_ITEM = "menu_item"
-const STORE = "store"
-const USER = "user"
 
 // TODO: [1]
 // This implementation only works asusming that all of the reference data is sent before all of the reduced data.
@@ -30,12 +28,14 @@ const USER = "user"
 type joinerService struct {
 	cacheService   cache.CacheService
 	fullRefClients map[string]bool // Used as a set
+	datasets       config.ReferenceDatasets
 }
 
-func NewJoinerService(cacheService cache.CacheService) JoinerService {
+func NewJoinerService(cacheService cache.CacheService, datasets config.ReferenceDatasets) JoinerService {
 	return &joinerService{
 		cacheService:   cacheService,
 		fullRefClients: make(map[string]bool),
+		datasets:       datasets,
 	}
 }
 
@@ -56,19 +56,19 @@ func storeRefData[T proto.Message](clientID string, items []T, getRefID func(T) 
 // Usage in joinerService methods:
 func (js *joinerService) StoreMenuItems(clientID string, items []*raw.MenuItem) error {
 	return storeRefData(clientID, items, func(item *raw.MenuItem) string {
-		return item.ItemId + SEPERATOR + MENU_ITEM
+		return item.ItemId + SEPERATOR + js.datasets.MenuItem
 	}, js.cacheService)
 }
 
 func (js *joinerService) StoreShops(clientID string, items []*raw.Store) error {
 	return storeRefData(clientID, items, func(item *raw.Store) string {
-		return item.StoreId + SEPERATOR + STORE
+		return item.StoreId + SEPERATOR + js.datasets.Store
 	}, js.cacheService)
 }
 
 func (js *joinerService) StoreUsers(clientID string, items []*raw.User) error {
 	return storeRefData(clientID, items, func(item *raw.User) string {
-		return item.UserId + SEPERATOR + USER
+		return item.UserId + SEPERATOR + js.datasets.User
 	}, js.cacheService)
 }
 
@@ -82,7 +82,7 @@ func (js *joinerService) FinishStoringRefData(clientID string) error {
 
 // This is T2_1
 func (js *joinerService) JoinTotalProfitBySubtotal(profit *reduced.TotalProfitBySubtotal, clientID string) []*reduced.TotalProfitBySubtotal {
-	referenceID := profit.GetItemId() + SEPERATOR + MENU_ITEM
+	referenceID := profit.GetItemId() + SEPERATOR + js.datasets.MenuItem
 
 	_, allRefPresent := js.fullRefClients[clientID]
 	if !allRefPresent {
@@ -103,7 +103,7 @@ func (js *joinerService) JoinTotalProfitBySubtotal(profit *reduced.TotalProfitBy
 // This is T2_2
 func (js *joinerService) JoinTotalSoldByQuantity(sales *reduced.TotalSoldByQuantity, clientID string) []*reduced.TotalSoldByQuantity {
 	bufferID := "T2_2" + SEPERATOR + clientID
-	referenceID := sales.GetItemId() + SEPERATOR + MENU_ITEM
+	referenceID := sales.GetItemId() + SEPERATOR + js.datasets.MenuItem
 	_, allRefPresent := js.fullRefClients[clientID]
 	if !allRefPresent {
 		js.cacheService.BufferUnreferencedData(clientID, bufferID, sales)
@@ -125,7 +125,7 @@ func (js *joinerService) JoinTotalSoldByQuantity(sales *reduced.TotalSoldByQuant
 
 // This is T3
 func (js *joinerService) JoinTotalPaymentValue(tpv *reduced.TotalPaymentValue, clientID string) []*reduced.TotalPaymentValue {
-	referenceID := tpv.GetStoreId() + SEPERATOR + STORE
+	referenceID := tpv.GetStoreId() + SEPERATOR + js.datasets.Store
 	_, allRefPresent := js.fullRefClients[clientID]
 	if !allRefPresent {
 		return nil
@@ -144,8 +144,8 @@ func (js *joinerService) JoinTotalPaymentValue(tpv *reduced.TotalPaymentValue, c
 
 // This is T4
 func (js *joinerService) JoinCountedUserTransactions(countedTransaction *reduced.CountedUserTransactions, clientID string) (*reduced.CountedUserTransactions, error) {
-	storeRefID := countedTransaction.GetStoreId() + SEPERATOR + STORE
-	userRefID := countedTransaction.GetUserId() + SEPERATOR + USER
+	storeRefID := countedTransaction.GetStoreId() + SEPERATOR + js.datasets.Store
+	userRefID := countedTransaction.GetUserId() + SEPERATOR + js.datasets.User
 	_, allRefPresent := js.fullRefClients[clientID]
 	if !allRefPresent {
 		return nil, fmt.Errorf("not all reference data present for client %s", clientID)
@@ -183,7 +183,7 @@ func (js *joinerService) Close() error {
 func (js *joinerService) joinBufferedProfitData(clientID, bufferID string, joinedData *[]*reduced.TotalProfitBySubtotal) {
 	js.cacheService.IterateUnreferencedData(clientID, bufferID, func(bufferedProto proto.Message) bool {
 		bufferedProfit := utils.CastProtoMessage[*reduced.TotalProfitBySubtotal](bufferedProto)
-		refID := bufferedProfit.GetItemId() + SEPERATOR + MENU_ITEM
+		refID := bufferedProfit.GetItemId() + SEPERATOR + js.datasets.MenuItem
 		protoRef, err := js.cacheService.GetRefData(clientID, refID)
 		if err != nil {
 			log.Debugf("Error retrieving reference data %s for client %s: %v", refID, clientID, err)
@@ -200,7 +200,7 @@ func (js *joinerService) joinBufferedProfitData(clientID, bufferID string, joine
 func (js *joinerService) joinBufferedSalesData(clientID, bufferID string, joinedData *[]*reduced.TotalSoldByQuantity) {
 	js.cacheService.IterateUnreferencedData(clientID, bufferID, func(bufferedProto proto.Message) bool {
 		bufferedSales := utils.CastProtoMessage[*reduced.TotalSoldByQuantity](bufferedProto)
-		refID := bufferedSales.GetItemId() + SEPERATOR + MENU_ITEM
+		refID := bufferedSales.GetItemId() + SEPERATOR + js.datasets.MenuItem
 		protoRef, err := js.cacheService.GetRefData(clientID, refID)
 		if err != nil {
 			log.Debugf("Error retrieving reference data %s for client %s: %v", refID, clientID, err)
@@ -217,7 +217,7 @@ func (js *joinerService) joinBufferedSalesData(clientID, bufferID string, joined
 func (js *joinerService) joinBufferedTPVData(clientID, bufferID string, joinedData *[]*reduced.TotalPaymentValue) {
 	js.cacheService.IterateUnreferencedData(clientID, bufferID, func(bufferedProto proto.Message) bool {
 		bufferedSales := utils.CastProtoMessage[*reduced.TotalPaymentValue](bufferedProto)
-		refID := bufferedSales.GetStoreId() + SEPERATOR + STORE
+		refID := bufferedSales.GetStoreId() + SEPERATOR + js.datasets.Store
 		protoRef, err := js.cacheService.GetRefData(clientID, refID)
 		if err != nil {
 			log.Debugf("Error retrieving reference data %s for client %s: %v", refID, clientID, err)
@@ -234,8 +234,8 @@ func (js *joinerService) joinBufferedTPVData(clientID, bufferID string, joinedDa
 func (js *joinerService) joinBufferedCountedTransactionsData(clientID, bufferID string, joinedData *[]*reduced.CountedUserTransactions) {
 	js.cacheService.IterateUnreferencedData(clientID, bufferID, func(bufferedProto proto.Message) bool {
 		bufferedSales := utils.CastProtoMessage[*reduced.CountedUserTransactions](bufferedProto)
-		storeRefID := bufferedSales.GetStoreId() + SEPERATOR + STORE
-		userRefID := bufferedSales.GetUserId() + SEPERATOR + USER
+		storeRefID := bufferedSales.GetStoreId() + SEPERATOR + js.datasets.Store
+		userRefID := bufferedSales.GetUserId() + SEPERATOR + js.datasets.User
 		storeProtoRef, err := js.cacheService.GetRefData(clientID, storeRefID)
 		if err != nil {
 			log.Debugf("Error retrieving reference data %s for client %s: %v", storeRefID, clientID, err)

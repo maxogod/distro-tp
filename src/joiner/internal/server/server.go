@@ -32,7 +32,7 @@ func InitServer(conf *config.Config) *Server {
 	cacheService := cache.NewInMemoryCache()
 	connectedClients := make(map[string]middleware.MessageMiddleware)
 
-	joinerService := business.NewJoinerService(cacheService)
+	joinerService := business.NewJoinerService(cacheService, conf.ReferenceDatasets)
 
 	taskExecutor := task_executor.NewJoinerExecutor(
 		conf,
