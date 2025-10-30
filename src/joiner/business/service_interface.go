@@ -32,7 +32,7 @@ type JoinerService interface {
 
 	// JoinTotalPaymentValue is responsible for joining TotalPaymentValue with Store and User data
 	// as part of T3 task.
-	JoinTotalPaymentValue(tpv *reduced.TotalPaymentValue, clientID string) []*reduced.TotalPaymentValue
+	JoinTotalPaymentValue(tpv *reduced.TotalPaymentValue, clientID string) (*reduced.TotalPaymentValue, error)
 
 	// JoinCountedUserTransactions is responsible for joining CountedUserTransactions with User data
 	// as part of T4 task.

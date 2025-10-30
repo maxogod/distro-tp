@@ -124,22 +124,20 @@ func (js *joinerService) JoinTotalSoldByQuantity(sales *reduced.TotalSoldByQuant
 }
 
 // This is T3
-func (js *joinerService) JoinTotalPaymentValue(tpv *reduced.TotalPaymentValue, clientID string) []*reduced.TotalPaymentValue {
+func (js *joinerService) JoinTotalPaymentValue(tpv *reduced.TotalPaymentValue, clientID string) (*reduced.TotalPaymentValue, error) {
 	referenceID := tpv.GetStoreId() + SEPERATOR + STORE
 	_, allRefPresent := js.fullRefClients[clientID]
 	if !allRefPresent {
-		return nil
+		return nil, fmt.Errorf("not all reference data present for client %s", clientID)
 	}
 	protoRef, err := js.cacheService.GetRefData(clientID, referenceID)
 	if err != nil {
 		log.Debugf("Error retrieving reference data %s for client %s: %v", referenceID, clientID, err)
-		return nil
+		return nil, err
 	}
-	joinedData := make([]*reduced.TotalPaymentValue, 0)
 	store := utils.CastProtoMessage[*raw.Store](protoRef)
 	tpv.StoreId = store.GetStoreName()
-	joinedData = append(joinedData, tpv)
-	return joinedData
+	return tpv, nil
 }
 
 // This is T4

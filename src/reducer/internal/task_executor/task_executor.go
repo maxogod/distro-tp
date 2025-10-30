@@ -109,7 +109,8 @@ func (re *reducerExecutor) HandleTask3(dataEnvelope *protocol.DataEnvelope, ackH
 	shouldRequeue := false
 	defer ackHandler(shouldAck, shouldRequeue)
 
-	groupTransactions := &group_by.GroupTransactions{}
+	groupTransactions := &group_by.GroupTransactionsBatch{}
+	reducedBatch := &reduced.TotalPaymentValueBatch{}
 	payload := dataEnvelope.GetPayload()
 	clientID := dataEnvelope.GetClientId()
 
@@ -118,9 +119,12 @@ func (re *reducerExecutor) HandleTask3(dataEnvelope *protocol.DataEnvelope, ackH
 		return err
 	}
 	// === Business logic ===
-	reducedTransactions := re.service.SumTotalPaymentValue(groupTransactions)
+	for _, group := range groupTransactions.GetGroupedTransactions() {
+		reduced := re.service.SumTotalPaymentValue(group)
+		reducedBatch.TotalPaymentValues = append(reducedBatch.GetTotalPaymentValues(), reduced)
+	}
 
-	err = worker.SendDataToMiddleware(reducedTransactions, enum.T3, clientID, re.outputQueue)
+	err = worker.SendDataToMiddleware(reducedBatch, enum.T3, clientID, re.outputQueue)
 	if err != nil {
 		shouldRequeue = true
 		return err

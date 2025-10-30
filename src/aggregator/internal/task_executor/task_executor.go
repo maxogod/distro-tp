@@ -153,7 +153,7 @@ func (ae *AggregatorExecutor) HandleTask3(dataEnvelope *protocol.DataEnvelope, a
 	shouldAck := false
 	defer ackHandler(shouldAck, false)
 
-	reducedData := &reduced.TotalPaymentValue{}
+	reducedData := &reduced.TotalPaymentValueBatch{}
 	payload := dataEnvelope.GetPayload()
 	clientID := dataEnvelope.GetClientId()
 
@@ -164,11 +164,13 @@ func (ae *AggregatorExecutor) HandleTask3(dataEnvelope *protocol.DataEnvelope, a
 
 	ae.clientTasks[clientID] = enum.T3
 
-	err = ae.aggregatorService.StoreTotalPaymentValue(clientID, reducedData)
-	if err != nil {
-		return err
+	for _, tpv := range reducedData.GetTotalPaymentValues() {
+		err = ae.aggregatorService.StoreTotalPaymentValue(clientID, tpv)
+		if err != nil {
+			return err
+		}
+		shouldAck = true
 	}
-	shouldAck = true
 
 	_, exists := ae.connectedClients[clientID]
 	if !exists {

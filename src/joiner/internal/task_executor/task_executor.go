@@ -173,25 +173,29 @@ func (je *joinerExecutor) HandleTask3(dataEnvelope *protocol.DataEnvelope, ackHa
 		return nil
 	}
 
-	reducedData := &reduced.TotalPaymentValue{}
-
+	reducedData := &reduced.TotalPaymentValueBatch{}
 	err := proto.Unmarshal(dataEnvelope.GetPayload(), reducedData)
 	if err != nil {
 		return err
 	}
 
-	joinedData := je.joinerService.JoinTotalPaymentValue(reducedData, clientID)
-
-	amountSent := 0
-	for _, jd := range joinedData {
-		err = worker.SendDataToMiddleware(jd, enum.T3, clientID, je.aggregatorQueue)
+	for i, rData := range reducedData.GetTotalPaymentValues() {
+		joinedData, err := je.joinerService.JoinTotalPaymentValue(rData, clientID)
 		if err != nil {
-			shouldRequeue = true
-			return err
+			// if the ref data is not present yet, requeue the message
+			payload, _ := proto.Marshal(dataEnvelope)
+			je.joinerQueue.Send(payload)
+			shouldAck = true
+			return nil
 		}
-		amountSent++
+		reducedData.TotalPaymentValues[i] = joinedData
 	}
 
+	err = worker.SendDataToMiddleware(reducedData, enum.T3, clientID, je.aggregatorQueue)
+	if err != nil {
+		shouldRequeue = true
+		return err
+	}
 	shouldAck = true
 
 	_, exists := je.connectedClients[clientID]
@@ -199,7 +203,7 @@ func (je *joinerExecutor) HandleTask3(dataEnvelope *protocol.DataEnvelope, ackHa
 		je.connectedClients[clientID] = middleware.GetCounterExchange(je.config.Address, clientID+"@"+string(enum.JoinerWorker))
 	}
 	counterExchange := je.connectedClients[clientID]
-	if err := worker.SendCounterMessage(clientID, amountSent, enum.JoinerWorker, enum.AggregatorWorker, counterExchange); err != nil {
+	if err := worker.SendCounterMessage(clientID, 1, enum.JoinerWorker, enum.AggregatorWorker, counterExchange); err != nil {
 		return err
 	}
 
