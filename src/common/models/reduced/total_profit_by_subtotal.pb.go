@@ -81,6 +81,50 @@ func (x *TotalProfitBySubtotal) GetSubtotal() float64 {
 	return 0
 }
 
+type TotalProfitBySubtotalBatch struct {
+	state                  protoimpl.MessageState   `protogen:"open.v1"`
+	TotalProfitBySubtotals []*TotalProfitBySubtotal `protobuf:"bytes,1,rep,name=totalProfitBySubtotals,proto3" json:"totalProfitBySubtotals,omitempty"`
+	unknownFields          protoimpl.UnknownFields
+	sizeCache              protoimpl.SizeCache
+}
+
+func (x *TotalProfitBySubtotalBatch) Reset() {
+	*x = TotalProfitBySubtotalBatch{}
+	mi := &file_reduced_total_profit_by_subtotal_proto_msgTypes[1]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *TotalProfitBySubtotalBatch) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TotalProfitBySubtotalBatch) ProtoMessage() {}
+
+func (x *TotalProfitBySubtotalBatch) ProtoReflect() protoreflect.Message {
+	mi := &file_reduced_total_profit_by_subtotal_proto_msgTypes[1]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TotalProfitBySubtotalBatch.ProtoReflect.Descriptor instead.
+func (*TotalProfitBySubtotalBatch) Descriptor() ([]byte, []int) {
+	return file_reduced_total_profit_by_subtotal_proto_rawDescGZIP(), []int{1}
+}
+
+func (x *TotalProfitBySubtotalBatch) GetTotalProfitBySubtotals() []*TotalProfitBySubtotal {
+	if x != nil {
+		return x.TotalProfitBySubtotals
+	}
+	return nil
+}
+
 var File_reduced_total_profit_by_subtotal_proto protoreflect.FileDescriptor
 
 const file_reduced_total_profit_by_subtotal_proto_rawDesc = "" +
@@ -90,7 +134,9 @@ const file_reduced_total_profit_by_subtotal_proto_rawDesc = "" +
 	"\aitem_id\x18\x01 \x01(\tR\x06itemId\x12\x1d\n" +
 	"\n" +
 	"year_month\x18\x02 \x01(\tR\tyearMonth\x12\x1a\n" +
-	"\bsubtotal\x18\x03 \x01(\x01R\bsubtotalB\vZ\t./reducedb\x06proto3"
+	"\bsubtotal\x18\x03 \x01(\x01R\bsubtotal\"t\n" +
+	"\x1aTotalProfitBySubtotalBatch\x12V\n" +
+	"\x16totalProfitBySubtotals\x18\x01 \x03(\v2\x1e.reduced.TotalProfitBySubtotalR\x16totalProfitBySubtotalsB\vZ\t./reducedb\x06proto3"
 
 var (
 	file_reduced_total_profit_by_subtotal_proto_rawDescOnce sync.Once
@@ -104,16 +150,18 @@ func file_reduced_total_profit_by_subtotal_proto_rawDescGZIP() []byte {
 	return file_reduced_total_profit_by_subtotal_proto_rawDescData
 }
 
-var file_reduced_total_profit_by_subtotal_proto_msgTypes = make([]protoimpl.MessageInfo, 1)
+var file_reduced_total_profit_by_subtotal_proto_msgTypes = make([]protoimpl.MessageInfo, 2)
 var file_reduced_total_profit_by_subtotal_proto_goTypes = []any{
-	(*TotalProfitBySubtotal)(nil), // 0: reduced.TotalProfitBySubtotal
+	(*TotalProfitBySubtotal)(nil),      // 0: reduced.TotalProfitBySubtotal
+	(*TotalProfitBySubtotalBatch)(nil), // 1: reduced.TotalProfitBySubtotalBatch
 }
 var file_reduced_total_profit_by_subtotal_proto_depIdxs = []int32{
-	0, // [0:0] is the sub-list for method output_type
-	0, // [0:0] is the sub-list for method input_type
-	0, // [0:0] is the sub-list for extension type_name
-	0, // [0:0] is the sub-list for extension extendee
-	0, // [0:0] is the sub-list for field type_name
+	0, // 0: reduced.TotalProfitBySubtotalBatch.totalProfitBySubtotals:type_name -> reduced.TotalProfitBySubtotal
+	1, // [1:1] is the sub-list for method output_type
+	1, // [1:1] is the sub-list for method input_type
+	1, // [1:1] is the sub-list for extension type_name
+	1, // [1:1] is the sub-list for extension extendee
+	0, // [0:1] is the sub-list for field type_name
 }
 
 func init() { file_reduced_total_profit_by_subtotal_proto_init() }
@@ -127,7 +175,7 @@ func file_reduced_total_profit_by_subtotal_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_reduced_total_profit_by_subtotal_proto_rawDesc), len(file_reduced_total_profit_by_subtotal_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   1,
+			NumMessages:   2,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

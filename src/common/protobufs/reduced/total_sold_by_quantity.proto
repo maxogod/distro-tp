@@ -9,3 +9,7 @@ message TotalSoldByQuantity {
   string year_month = 2;
   int32 quantity = 3;
 }
+
+message TotalSoldByQuantityBatch {
+  repeated TotalSoldByQuantity totalSoldByQuantities = 1;
+}
