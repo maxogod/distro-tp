@@ -26,7 +26,13 @@ func InitServer(conf *config.Config) *Server {
 	groupByOutputQueue := middleware.GetGroupByQueue(conf.Address)
 
 	// initiate internal components
-	filterService := business.NewFilterService()
+	filterService := business.NewFilterService(
+		conf.TaskConfig.FilterYearFrom,
+		conf.TaskConfig.FilterYearTo,
+		conf.TaskConfig.BusinessHourFrom,
+		conf.TaskConfig.BusinessHourTo,
+		conf.TaskConfig.TotalAmountThreshold,
+	)
 	connectedClients := make(map[string]middleware.MessageMiddleware)
 
 	taskExecutor := task_executor.NewFilterExecutor(
