@@ -4,14 +4,15 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/maxogod/distro-tp/src/client/business/file_service"
+	"github.com/maxogod/distro-tp/src/client/config"
+	"github.com/maxogod/distro-tp/src/client/internal/utils"
 	"github.com/maxogod/distro-tp/src/common/logger"
 	"github.com/maxogod/distro-tp/src/common/models/enum"
 	"github.com/maxogod/distro-tp/src/common/models/protocol"
 	"github.com/maxogod/distro-tp/src/common/models/raw"
 	"github.com/maxogod/distro-tp/src/common/models/reduced"
 	"github.com/maxogod/distro-tp/src/common/network"
-	"github.com/maxogod/distro-tp/src/client/business/file_service"
-	"github.com/maxogod/distro-tp/src/client/internal/utils"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -23,20 +24,22 @@ type taskExecutor struct {
 	batchSize  int
 	conn       network.ConnectionInterface
 	fs         file_service.FileService
+	conf       *config.Config
 }
 
-func NewTaskExecutor(dataPath, outputPath string, batchSize int, conn network.ConnectionInterface) TaskExecutor {
+func NewTaskExecutor(dataPath, outputPath string, batchSize int, conn network.ConnectionInterface, conf *config.Config) TaskExecutor {
 	return &taskExecutor{
 		dataPath:   dataPath,
 		outputPath: outputPath,
 		batchSize:  batchSize,
 		conn:       conn,
 		fs:         file_service.NewFileService(batchSize),
+		conf:       conf,
 	}
 }
 
 func (t *taskExecutor) Task1() error {
-	transactionsDir := t.dataPath + TransactionsDirPath
+	transactionsDir := t.dataPath + t.conf.Paths.Transactions
 	err := t.readAndSendData(
 		enum.T1,
 		transactionsDir,
@@ -53,7 +56,7 @@ func (t *taskExecutor) Task1() error {
 	log.Debug("All transactions data sent, waiting for results...")
 
 	t.receiveAndSaveResults(
-		filepath.Join(t.outputPath, OUTPUT_FILE_T1),
+		filepath.Join(t.outputPath, t.conf.OutputFiles.T1),
 		utils.T1_RES_HEADER,
 		func(dataBatch *protocol.DataEnvelope, ch chan string) {
 			transactionBatch := &raw.TransactionBatch{}
@@ -73,7 +76,7 @@ func (t *taskExecutor) Task1() error {
 }
 
 func (t *taskExecutor) Task2() error {
-	menuItemsDir := t.dataPath + MenuItemsDirPath
+	menuItemsDir := t.dataPath + t.conf.Paths.MenuItems
 	err := t.readAndSendData(
 		enum.T2,
 		menuItemsDir,
@@ -87,7 +90,7 @@ func (t *taskExecutor) Task2() error {
 		return err
 	}
 
-	transactionsItemsDir := t.dataPath + TransactionItemsDirPath
+	transactionsItemsDir := t.dataPath + t.conf.Paths.TransactionItems
 	err = t.readAndSendData(
 		enum.T2,
 		transactionsItemsDir,
@@ -102,7 +105,7 @@ func (t *taskExecutor) Task2() error {
 	}
 
 	t.receiveAndSaveResults(
-		filepath.Join(t.outputPath, OUTPUT_FILE_T2_1),
+		filepath.Join(t.outputPath, t.conf.OutputFiles.T2_1),
 		utils.T2_1_RES_HEADER,
 		func(dataBatch *protocol.DataEnvelope, ch chan string) {
 			data := &reduced.TotalProfitBySubtotal{}
@@ -117,7 +120,7 @@ func (t *taskExecutor) Task2() error {
 	)
 
 	t.receiveAndSaveResults(
-		filepath.Join(t.outputPath, OUTPUT_FILE_T2_2),
+		filepath.Join(t.outputPath, t.conf.OutputFiles.T2_2),
 		utils.T2_2_RES_HEADER,
 		func(dataBatch *protocol.DataEnvelope, ch chan string) {
 			data := &reduced.TotalSoldByQuantity{}
@@ -135,7 +138,7 @@ func (t *taskExecutor) Task2() error {
 }
 
 func (t *taskExecutor) Task3() error {
-	storesDir := t.dataPath + StoresDirPath
+	storesDir := t.dataPath + t.conf.Paths.Stores
 	err := t.readAndSendData(
 		enum.T3,
 		storesDir,
@@ -149,7 +152,7 @@ func (t *taskExecutor) Task3() error {
 		return err
 	}
 
-	transactionsDir := t.dataPath + TransactionsDirPath
+	transactionsDir := t.dataPath + t.conf.Paths.Transactions
 	err = t.readAndSendData(
 		enum.T3,
 		transactionsDir,
@@ -164,7 +167,7 @@ func (t *taskExecutor) Task3() error {
 	}
 
 	t.receiveAndSaveResults(
-		filepath.Join(t.outputPath, OUTPUT_FILE_T3),
+		filepath.Join(t.outputPath, t.conf.OutputFiles.T3),
 		utils.T3_RES_HEADER,
 		func(dataBatch *protocol.DataEnvelope, ch chan string) {
 			data := &reduced.TotalPaymentValue{}
@@ -182,7 +185,7 @@ func (t *taskExecutor) Task3() error {
 }
 
 func (t *taskExecutor) Task4() error {
-	usersDir := t.dataPath + UsersDirPath
+	usersDir := t.dataPath + t.conf.Paths.Users
 	err := t.readAndSendData(
 		enum.T4,
 		usersDir,
@@ -196,7 +199,7 @@ func (t *taskExecutor) Task4() error {
 		return err
 	}
 
-	storesDir := t.dataPath + StoresDirPath
+	storesDir := t.dataPath + t.conf.Paths.Stores
 	err = t.readAndSendData(
 		enum.T4,
 		storesDir,
@@ -210,7 +213,7 @@ func (t *taskExecutor) Task4() error {
 		return err
 	}
 
-	transactionsDir := t.dataPath + TransactionsDirPath
+	transactionsDir := t.dataPath + t.conf.Paths.Transactions
 	err = t.readAndSendData(
 		enum.T4,
 		transactionsDir,
@@ -225,7 +228,7 @@ func (t *taskExecutor) Task4() error {
 	}
 
 	t.receiveAndSaveResults(
-		filepath.Join(t.outputPath, OUTPUT_FILE_T4),
+		filepath.Join(t.outputPath, t.conf.OutputFiles.T4),
 		utils.T4_RES_HEADER,
 		func(dataBatch *protocol.DataEnvelope, ch chan string) {
 			data := &reduced.CountedUserTransactions{}

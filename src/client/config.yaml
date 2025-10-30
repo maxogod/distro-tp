@@ -7,3 +7,20 @@ server:
   connection_retries: 5
 log:
   level: "DEBUG"
+paths:
+  transactions: "/transactions"
+  transaction_items: "/transaction_items"
+  menu_items: "/menu_items"
+  stores: "/stores"
+  users: "/users"
+output_files:
+  t1: "t1.csv"
+  t2_1: "t2_1.csv"
+  t2_2: "t2_2.csv"
+  t3: "t3.csv"
+  t4: "t4.csv"
+args:
+  t1: "t1"
+  t2: "t2"
+  t3: "t3"
+  t4: "t4"
