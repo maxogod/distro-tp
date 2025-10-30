@@ -68,14 +68,16 @@ func reduceTask3(t *testing.T) {
 			dataBatch, _ := utils.GetDataEnvelope(msg.Body)
 			assert.True(t, enum.TaskType(dataBatch.TaskType) == enum.T3)
 
-			reducedData := &reduced.TotalPaymentValue{}
+			reducedData := &reduced.TotalPaymentValueBatch{}
 			err := proto.Unmarshal(dataBatch.Payload, reducedData)
 
 			assert.Nil(t, err)
 
-			assert.Equal(t, ReducedTransactionMock1.GetFinalAmount(), reducedData.GetFinalAmount())
-			assert.Equal(t, ReducedTransactionMock1.GetStoreId(), reducedData.GetStoreId())
-			assert.Equal(t, ReducedTransactionMock1.GetSemester(), reducedData.GetSemester())
+			for _, item := range reducedData.TotalPaymentValues {
+				assert.Equal(t, ReducedTransactionMock1.GetFinalAmount(), item.GetFinalAmount())
+				assert.Equal(t, ReducedTransactionMock1.GetStoreId(), item.GetStoreId())
+				assert.Equal(t, ReducedTransactionMock1.GetSemester(), item.GetSemester())
+			}
 
 			break
 		}
@@ -117,14 +119,16 @@ func reduceTask2_1(t *testing.T) {
 			dataBatch, _ := utils.GetDataEnvelope(msg.Body)
 			assert.True(t, enum.TaskType(dataBatch.TaskType) == enum.T2_1)
 
-			reducedData := &reduced.TotalProfitBySubtotal{}
+			reducedData := &reduced.TotalProfitBySubtotalBatch{}
 			err := proto.Unmarshal(dataBatch.Payload, reducedData)
 
 			assert.Nil(t, err)
 
-			assert.Equal(t, ReducedTransactionMock2_1.GetItemId(), reducedData.GetItemId())
-			assert.Equal(t, ReducedTransactionMock2_1.GetYearMonth(), reducedData.GetYearMonth())
-			assert.Equal(t, ReducedTransactionMock2_1.GetSubtotal(), reducedData.GetSubtotal())
+			for _, item := range reducedData.TotalProfitBySubtotals {
+				assert.Equal(t, ReducedTransactionMock2_1.GetItemId(), item.GetItemId())
+				assert.Equal(t, ReducedTransactionMock2_1.GetYearMonth(), item.GetYearMonth())
+				assert.Equal(t, ReducedTransactionMock2_1.GetSubtotal(), item.GetSubtotal())
+			}
 
 			break
 		}
@@ -166,14 +170,16 @@ func reduceTask2_2(t *testing.T) {
 			dataBatch, _ := utils.GetDataEnvelope(msg.Body)
 			assert.True(t, enum.TaskType(dataBatch.TaskType) == enum.T2_2)
 
-			reducedData := &reduced.TotalSoldByQuantity{}
+			reducedData := &reduced.TotalSoldByQuantityBatch{}
 			err := proto.Unmarshal(dataBatch.Payload, reducedData)
 
 			assert.Nil(t, err)
 
-			assert.Equal(t, ReducedTransactionMock2_2.GetItemId(), reducedData.GetItemId())
-			assert.Equal(t, ReducedTransactionMock2_2.GetYearMonth(), reducedData.GetYearMonth())
-			assert.Equal(t, ReducedTransactionMock2_2.GetQuantity(), reducedData.GetQuantity())
+			for _, item := range reducedData.TotalSoldByQuantities {
+				assert.Equal(t, ReducedTransactionMock2_2.GetItemId(), item.GetItemId())
+				assert.Equal(t, ReducedTransactionMock2_2.GetYearMonth(), item.GetYearMonth())
+				assert.Equal(t, ReducedTransactionMock2_2.GetQuantity(), item.GetQuantity())
+			}
 
 			break
 		}
@@ -215,14 +221,16 @@ func reduceTask4(t *testing.T) {
 			dataBatch, _ := utils.GetDataEnvelope(msg.Body)
 			assert.True(t, enum.TaskType(dataBatch.TaskType) == enum.T4)
 
-			reducedData := &reduced.CountedUserTransactions{}
+			reducedData := &reduced.CountedUserTransactionBatch{}
 			err := proto.Unmarshal(dataBatch.Payload, reducedData)
 
 			assert.Nil(t, err)
 
-			assert.Equal(t, ReducedTransactionMock4.GetUserId(), reducedData.GetUserId())
-			assert.Equal(t, ReducedTransactionMock4.GetStoreId(), reducedData.GetStoreId())
-			assert.Equal(t, ReducedTransactionMock4.GetTransactionQuantity(), reducedData.GetTransactionQuantity())
+			for _, countedUserTransaction := range reducedData.CountedUserTransactions {
+				assert.Equal(t, ReducedTransactionMock4.GetUserId(), countedUserTransaction.GetUserId())
+				assert.Equal(t, ReducedTransactionMock4.GetStoreId(), countedUserTransaction.GetStoreId())
+				assert.Equal(t, ReducedTransactionMock4.GetTransactionQuantity(), countedUserTransaction.GetTransactionQuantity())
+			}
 
 			break
 		}
