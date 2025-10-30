@@ -9,4 +9,5 @@ const (
 	T2_2
 	T3
 	T4
+	TFULL
 )
