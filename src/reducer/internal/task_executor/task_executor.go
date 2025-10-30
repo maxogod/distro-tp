@@ -37,7 +37,8 @@ func (re *reducerExecutor) HandleTask2_1(dataEnvelope *protocol.DataEnvelope, ac
 	shouldRequeue := false
 	defer ackHandler(shouldAck, shouldRequeue)
 
-	groupedItems := &group_by.GroupTransactionItems{}
+	groupedItems := &group_by.GroupTransactionItemsBatch{}
+	reducedRes := &reduced.TotalProfitBySubtotalBatch{}
 	payload := dataEnvelope.GetPayload()
 	clientID := dataEnvelope.GetClientId()
 
@@ -46,14 +47,16 @@ func (re *reducerExecutor) HandleTask2_1(dataEnvelope *protocol.DataEnvelope, ac
 		return err
 	}
 	// === Business logic ===
-	reducedItems := re.service.SumTotalProfitBySubtotal(groupedItems)
+	for _, group := range groupedItems.GetGroupTransactionItems() {
+		reduced := re.service.SumTotalProfitBySubtotal(group)
+		reducedRes.TotalProfitBySubtotals = append(reducedRes.GetTotalProfitBySubtotals(), reduced)
+	}
 
-	err = worker.SendDataToMiddleware(reducedItems, enum.T2_1, clientID, re.outputQueue)
+	err = worker.SendDataToMiddleware(reducedRes, enum.T2_1, clientID, re.outputQueue)
 	if err != nil {
 		shouldRequeue = true
 		return err
 	}
-	amountSent := 1
 	shouldAck = true
 
 	_, exists := re.connectedClients[clientID]
@@ -61,7 +64,7 @@ func (re *reducerExecutor) HandleTask2_1(dataEnvelope *protocol.DataEnvelope, ac
 		re.connectedClients[clientID] = middleware.GetCounterExchange(re.url, clientID+"@"+string(enum.ReducerWorker))
 	}
 	counterExchange := re.connectedClients[clientID]
-	if err := worker.SendCounterMessage(clientID, amountSent, enum.ReducerWorker, enum.JoinerWorker, counterExchange); err != nil {
+	if err := worker.SendCounterMessage(clientID, 1, enum.ReducerWorker, enum.JoinerWorker, counterExchange); err != nil {
 		return err
 	}
 
@@ -73,7 +76,8 @@ func (re *reducerExecutor) HandleTask2_2(dataEnvelope *protocol.DataEnvelope, ac
 	shouldRequeue := false
 	defer ackHandler(shouldAck, shouldRequeue)
 
-	groupedItems := &group_by.GroupTransactionItems{}
+	groupedItems := &group_by.GroupTransactionItemsBatch{}
+	reducedRes := &reduced.TotalSoldByQuantityBatch{}
 	payload := dataEnvelope.GetPayload()
 	clientID := dataEnvelope.GetClientId()
 
@@ -82,14 +86,16 @@ func (re *reducerExecutor) HandleTask2_2(dataEnvelope *protocol.DataEnvelope, ac
 		return err
 	}
 	// === Business logic ===
-	reducedItems := re.service.SumTotalSoldByQuantity(groupedItems)
+	for _, group := range groupedItems.GetGroupTransactionItems() {
+		reduced := re.service.SumTotalSoldByQuantity(group)
+		reducedRes.TotalSoldByQuantities = append(reducedRes.GetTotalSoldByQuantities(), reduced)
+	}
 
-	err = worker.SendDataToMiddleware(reducedItems, enum.T2_2, clientID, re.outputQueue)
+	err = worker.SendDataToMiddleware(reducedRes, enum.T2_2, clientID, re.outputQueue)
 	if err != nil {
 		shouldRequeue = true
 		return err
 	}
-	amountSent := 1
 	shouldAck = true
 
 	_, exists := re.connectedClients[clientID]
@@ -97,7 +103,7 @@ func (re *reducerExecutor) HandleTask2_2(dataEnvelope *protocol.DataEnvelope, ac
 		re.connectedClients[clientID] = middleware.GetCounterExchange(re.url, clientID+"@"+string(enum.ReducerWorker))
 	}
 	counterExchange := re.connectedClients[clientID]
-	if err := worker.SendCounterMessage(clientID, amountSent, enum.ReducerWorker, enum.JoinerWorker, counterExchange); err != nil {
+	if err := worker.SendCounterMessage(clientID, 1, enum.ReducerWorker, enum.JoinerWorker, counterExchange); err != nil {
 		return err
 	}
 

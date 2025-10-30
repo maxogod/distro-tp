@@ -79,7 +79,7 @@ func (ae *AggregatorExecutor) HandleTask2_1(dataEnvelope *protocol.DataEnvelope,
 	shouldAck := false
 	defer ackHandler(shouldAck, false)
 
-	reducedData := &reduced.TotalProfitBySubtotal{}
+	reducedData := &reduced.TotalProfitBySubtotalBatch{}
 	payload := dataEnvelope.GetPayload()
 	clientID := dataEnvelope.GetClientId()
 
@@ -93,9 +93,11 @@ func (ae *AggregatorExecutor) HandleTask2_1(dataEnvelope *protocol.DataEnvelope,
 	// To differentiate between Task 2.1 and Task 2.2 results in the DB
 	clientID = T2_1_PREFIX + clientID
 
-	err = ae.aggregatorService.StoreTotalProfitBySubtotal(clientID, reducedData)
-	if err != nil {
-		return err
+	for _, profit := range reducedData.GetTotalProfitBySubtotals() {
+		err = ae.aggregatorService.StoreTotalProfitBySubtotal(clientID, profit)
+		if err != nil {
+			return err
+		}
 	}
 	shouldAck = true
 
@@ -116,7 +118,7 @@ func (ae *AggregatorExecutor) HandleTask2_2(dataEnvelope *protocol.DataEnvelope,
 	shouldAck := false
 	defer ackHandler(shouldAck, false)
 
-	reducedData := &reduced.TotalSoldByQuantity{}
+	reducedData := &reduced.TotalSoldByQuantityBatch{}
 	payload := dataEnvelope.GetPayload()
 	clientID := dataEnvelope.GetClientId()
 
@@ -130,9 +132,11 @@ func (ae *AggregatorExecutor) HandleTask2_2(dataEnvelope *protocol.DataEnvelope,
 	// To differentiate between Task 2.1 and Task 2.2 results in the DB
 	clientID = T2_2_PREFIX + clientID
 
-	err = ae.aggregatorService.StoreTotalSoldByQuantity(clientID, reducedData)
-	if err != nil {
-		return err
+	for _, tsq := range reducedData.GetTotalSoldByQuantities() {
+		err = ae.aggregatorService.StoreTotalSoldByQuantity(clientID, tsq)
+		if err != nil {
+			return err
+		}
 	}
 	shouldAck = true
 
@@ -169,8 +173,8 @@ func (ae *AggregatorExecutor) HandleTask3(dataEnvelope *protocol.DataEnvelope, a
 		if err != nil {
 			return err
 		}
-		shouldAck = true
 	}
+	shouldAck = true
 
 	_, exists := ae.connectedClients[clientID]
 	if !exists {
@@ -203,8 +207,8 @@ func (ae *AggregatorExecutor) HandleTask4(dataEnvelope *protocol.DataEnvelope, a
 		if err != nil {
 			return err
 		}
-		shouldAck = true
 	}
+	shouldAck = true
 
 	_, exists := ae.connectedClients[clientID]
 	if !exists {
