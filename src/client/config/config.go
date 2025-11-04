@@ -8,6 +8,37 @@ import (
 	"github.com/spf13/viper"
 )
 
+type Paths struct {
+	Transactions     string
+	TransactionItems string
+	MenuItems        string
+	Stores           string
+	Users            string
+}
+
+type OutputFiles struct {
+	T1   string
+	T2_1 string
+	T2_2 string
+	T3   string
+	T4   string
+}
+
+type Headers struct {
+	T1   string
+	T2_1 string
+	T2_2 string
+	T3   string
+	T4   string
+}
+
+type Args struct {
+	T1 string
+	T2 string
+	T3 string
+	T4 string
+}
+
 type Config struct {
 	ServerHost        string
 	ServerPort        int
@@ -15,6 +46,10 @@ type Config struct {
 	DataPath          string
 	OutputPath        string
 	BatchSize         int
+	Paths             Paths
+	OutputFiles       OutputFiles
+	Headers           Headers
+	Args              Args
 }
 
 func (c *Config) String() string {
@@ -40,6 +75,33 @@ func InitConfig() (*Config, error) {
 		DataPath:          v.GetString("data_path"),
 		OutputPath:        v.GetString("output_path"),
 		BatchSize:         v.GetInt("batch_size"),
+		Paths: Paths{
+			Transactions:     v.GetString("paths.transactions"),
+			TransactionItems: v.GetString("paths.transaction_items"),
+			MenuItems:        v.GetString("paths.menu_items"),
+			Stores:           v.GetString("paths.stores"),
+			Users:            v.GetString("paths.users"),
+		},
+		OutputFiles: OutputFiles{
+			T1:   v.GetString("output_files.t1"),
+			T2_1: v.GetString("output_files.t2_1"),
+			T2_2: v.GetString("output_files.t2_2"),
+			T3:   v.GetString("output_files.t3"),
+			T4:   v.GetString("output_files.t4"),
+		},
+		Headers: Headers{
+			T1:   v.GetString("headers.t1"),
+			T2_1: v.GetString("headers.t2_1"),
+			T2_2: v.GetString("headers.t2_2"),
+			T3:   v.GetString("headers.t3"),
+			T4:   v.GetString("headers.t4"),
+		},
+		Args: Args{
+			T1: v.GetString("args.t1"),
+			T2: v.GetString("args.t2"),
+			T3: v.GetString("args.t3"),
+			T4: v.GetString("args.t4"),
+		},
 	}
 
 	fmt.Printf("Config loaded: %s\n", config.String())

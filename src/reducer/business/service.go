@@ -14,7 +14,6 @@ func NewReducerService() ReducerService {
 
 // This is T2_1
 func (rs *reducerService) SumTotalProfitBySubtotal(groupedData *group_by.GroupTransactionItems) *reduced.TotalProfitBySubtotal {
-
 	var result reduced.TotalProfitBySubtotal
 
 	result.ItemId = groupedData.ItemId
@@ -50,7 +49,6 @@ func (rs *reducerService) SumTotalSoldByQuantity(groupedData *group_by.GroupTran
 
 // This is T3
 func (rs *reducerService) SumTotalPaymentValue(groupedData *group_by.GroupTransactions) *reduced.TotalPaymentValue {
-
 	var result reduced.TotalPaymentValue
 
 	result.StoreId = groupedData.GetStoreId()
@@ -66,7 +64,6 @@ func (rs *reducerService) SumTotalPaymentValue(groupedData *group_by.GroupTransa
 
 // This is T4
 func (rs *reducerService) CountUserTransactions(groupedData *group_by.GroupTransactions) *reduced.CountedUserTransactions {
-
 	var result reduced.CountedUserTransactions
 
 	result.UserId = groupedData.GetUserId()

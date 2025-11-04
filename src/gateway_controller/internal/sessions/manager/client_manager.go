@@ -22,7 +22,7 @@ func NewClientManager(conf *config.Config) ClientManager {
 
 func (cm *clientManager) AddClient(connection network.ConnectionInterface) clients.ClientSession {
 	id := uuid.New().String()
-	messageHandler := handler.NewMessageHandler(cm.config.MiddlewareAddress, id)
+	messageHandler := handler.NewMessageHandler(cm.config.MiddlewareAddress, id, cm.config.ReceivingTimeout)
 	session := clients.NewClientSession(id, connection, messageHandler)
 	cm.clients[id] = session
 	return session

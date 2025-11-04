@@ -9,3 +9,7 @@ message TotalProfitBySubtotal {
   string year_month = 2;
   double subtotal = 3;
 }
+
+message TotalProfitBySubtotalBatch {
+  repeated TotalProfitBySubtotal totalProfitBySubtotals = 1;
+}

@@ -4,3 +4,6 @@ log:
   level: "DEBUG"
 persistence:
   enabled: true
+limits:
+  transaction_send_limit: 1000
+  max_amount_to_send: 35

@@ -4,3 +4,7 @@ log:
   level: "DEBUG"
 persistence:
   enabled: true
+reference_datasets:
+  menu_item: "menu_item"
+  store: "store"
+  user: "user"

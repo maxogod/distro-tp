@@ -34,10 +34,12 @@ type messageHandler struct {
 	processedCh                     chan *protocol.DataEnvelope
 
 	workersMonitoring map[enum.WorkerType]workerMonitor
+	routineReadyCh    chan bool
 	counterCh         chan *protocol.MessageCounter
+	receivingTimeout  time.Duration
 }
 
-func NewMessageHandler(middlewareUrl, clientID string) MessageHandler {
+func NewMessageHandler(middlewareUrl, clientID string, receivingTimeout int) MessageHandler {
 	h := &messageHandler{
 		clientID: clientID,
 
@@ -51,7 +53,9 @@ func NewMessageHandler(middlewareUrl, clientID string) MessageHandler {
 		processedCh:                     make(chan *protocol.DataEnvelope, 9999),
 
 		workersMonitoring: make(map[enum.WorkerType]workerMonitor),
+		routineReadyCh:    make(chan bool),
 		counterCh:         make(chan *protocol.MessageCounter, 9999),
+		receivingTimeout:  time.Duration(receivingTimeout) * time.Second,
 	}
 
 	workers := []enum.WorkerType{
@@ -64,8 +68,10 @@ func NewMessageHandler(middlewareUrl, clientID string) MessageHandler {
 			startOrFinishCh: make(chan bool, 2),
 		}
 		go h.startCounterListener(worker)
+		<-h.routineReadyCh
 	}
 	go h.startReportDataListener()
+	<-h.routineReadyCh
 
 	return h
 }
@@ -191,6 +197,7 @@ func (mh *messageHandler) startCounterListener(workerRoute enum.WorkerType) {
 	doneCh := make(chan bool)
 	e := mh.workersMonitoring[workerRoute].queue.StartConsuming(func(msgs middleware.ConsumeChannel, d chan error) {
 		log.Debugf("[%s] Starting to consume from counter exchange for %s workers", mh.clientID, workerRoute)
+		mh.routineReadyCh <- true
 		running := <-mh.workersMonitoring[workerRoute].startOrFinishCh
 		for running {
 			var msg middleware.MessageDelivery
@@ -236,10 +243,11 @@ func (mh *messageHandler) startReportDataListener() {
 	done := make(chan bool)
 	mh.processedDataExchangeMiddleware.StartConsuming(func(msgs middleware.ConsumeChannel, d chan error) {
 		log.Debugf("[%s] Started listening for processed data", mh.clientID)
+		mh.routineReadyCh <- true
 		receiving := true
 		firstMessageReceived := false // To track if aggregator has started sending data
 
-		timer := time.NewTimer(RECEIVING_TIMEOUT)
+		timer := time.NewTimer(mh.receivingTimeout)
 		defer timer.Stop()
 		defer close(mh.processedCh)
 
@@ -250,7 +258,7 @@ func (mh *messageHandler) startReportDataListener() {
 				if !timer.Stop() {
 					<-timer.C
 				}
-				timer.Reset(RECEIVING_TIMEOUT)
+				timer.Reset(mh.receivingTimeout)
 
 				envelope := &protocol.DataEnvelope{}
 				err := proto.Unmarshal(msg.Body, envelope)
@@ -272,7 +280,7 @@ func (mh *messageHandler) startReportDataListener() {
 					log.Warnf("[%s] Timeout waiting for processed data", mh.clientID)
 					receiving = false
 				}
-				timer.Reset(RECEIVING_TIMEOUT)
+				timer.Reset(mh.receivingTimeout)
 			}
 		}
 		log.Debugf("[%s] Finished listening for processed data", mh.clientID)

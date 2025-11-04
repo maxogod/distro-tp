@@ -6,10 +6,10 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/maxogod/distro-tp/src/common/logger"
-	"github.com/maxogod/distro-tp/src/common/network"
 	"github.com/maxogod/distro-tp/src/client/business/task_executor"
 	"github.com/maxogod/distro-tp/src/client/config"
+	"github.com/maxogod/distro-tp/src/common/logger"
+	"github.com/maxogod/distro-tp/src/common/network"
 )
 
 var log = logger.GetLogger()
@@ -33,7 +33,7 @@ func NewClient(conf *config.Config) (Client, error) {
 	return &client{
 		conf:         conf,
 		conn:         conn,
-		tastExecutor: task_executor.NewTaskExecutor(conf.DataPath, conf.OutputPath, conf.BatchSize, conn),
+		tastExecutor: task_executor.NewTaskExecutor(conf.DataPath, conf.OutputPath, conf.BatchSize, conn, conf),
 	}, nil
 }
 
@@ -48,13 +48,13 @@ func (c *client) Start(task string) error {
 	}
 
 	switch task {
-	case ARG_T1:
+	case c.conf.Args.T1:
 		return c.handleTaskError(c.tastExecutor.Task1())
-	case ARG_T2:
+	case c.conf.Args.T2:
 		return c.handleTaskError(c.tastExecutor.Task2())
-	case ARG_T3:
+	case c.conf.Args.T3:
 		return c.handleTaskError(c.tastExecutor.Task3())
-	case ARG_T4:
+	case c.conf.Args.T4:
 		return c.handleTaskError(c.tastExecutor.Task4())
 	}
 
