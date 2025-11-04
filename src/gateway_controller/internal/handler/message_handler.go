@@ -34,6 +34,7 @@ type messageHandler struct {
 	processedCh                     chan *protocol.DataEnvelope
 
 	workersMonitoring map[enum.WorkerType]workerMonitor
+	routineReadyCh    chan bool
 	counterCh         chan *protocol.MessageCounter
 	receivingTimeout  time.Duration
 }
@@ -52,6 +53,7 @@ func NewMessageHandler(middlewareUrl, clientID string, receivingTimeout int) Mes
 		processedCh:                     make(chan *protocol.DataEnvelope, 9999),
 
 		workersMonitoring: make(map[enum.WorkerType]workerMonitor),
+		routineReadyCh:    make(chan bool),
 		counterCh:         make(chan *protocol.MessageCounter, 9999),
 		receivingTimeout:  time.Duration(receivingTimeout) * time.Second,
 	}
@@ -66,8 +68,10 @@ func NewMessageHandler(middlewareUrl, clientID string, receivingTimeout int) Mes
 			startOrFinishCh: make(chan bool, 2),
 		}
 		go h.startCounterListener(worker)
+		<-h.routineReadyCh
 	}
 	go h.startReportDataListener()
+	<-h.routineReadyCh
 
 	return h
 }
@@ -193,6 +197,7 @@ func (mh *messageHandler) startCounterListener(workerRoute enum.WorkerType) {
 	doneCh := make(chan bool)
 	e := mh.workersMonitoring[workerRoute].queue.StartConsuming(func(msgs middleware.ConsumeChannel, d chan error) {
 		log.Debugf("[%s] Starting to consume from counter exchange for %s workers", mh.clientID, workerRoute)
+		mh.routineReadyCh <- true
 		running := <-mh.workersMonitoring[workerRoute].startOrFinishCh
 		for running {
 			var msg middleware.MessageDelivery
@@ -238,6 +243,7 @@ func (mh *messageHandler) startReportDataListener() {
 	done := make(chan bool)
 	mh.processedDataExchangeMiddleware.StartConsuming(func(msgs middleware.ConsumeChannel, d chan error) {
 		log.Debugf("[%s] Started listening for processed data", mh.clientID)
+		mh.routineReadyCh <- true
 		receiving := true
 		firstMessageReceived := false // To track if aggregator has started sending data
 
