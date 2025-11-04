@@ -11,3 +11,7 @@ message GroupTransactionItems {
   string year_month = 2;
   repeated raw.TransactionItem transaction_items = 3;
 }
+
+message GroupTransactionItemsBatch {
+  repeated GroupTransactionItems group_transaction_items = 1;
+}

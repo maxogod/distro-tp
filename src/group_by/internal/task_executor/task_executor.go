@@ -54,6 +54,7 @@ func (ge *GroupExecutor) HandleTask2(dataEnvelope *protocol.DataEnvelope, ackHan
 	defer ackHandler(shouldAck, shouldRequeue)
 
 	transactionBatch := &raw.TransactionItemsBatch{}
+	groupBatch := &group_by.GroupTransactionItemsBatch{}
 	payload := dataEnvelope.GetPayload()
 	clientID := dataEnvelope.GetClientId()
 
@@ -64,23 +65,19 @@ func (ge *GroupExecutor) HandleTask2(dataEnvelope *protocol.DataEnvelope, ackHan
 
 	// === Business logic ===
 	groupedData := ge.service.GroupItemsByYearMonthAndItem(transactionBatch.GetTransactionItems())
-
-	// This output is sent to both T2.1 and T2.2
-	// So we iterate over the map and send each grouped data to both queues
-	// This will increase the traffic twice as much as any other task
-	amountSent := 0
 	for _, group := range groupedData {
-		err := worker.SendDataToMiddleware(group, enum.T2_1, clientID, ge.reducerQueue)
-		if err != nil {
-			shouldRequeue = true
-			return err
-		}
-		err = worker.SendDataToMiddleware(group, enum.T2_2, clientID, ge.reducerQueue)
-		if err != nil {
-			shouldRequeue = true
-			return err
-		}
-		amountSent += 2
+		groupBatch.GroupTransactionItems = append(groupBatch.GetGroupTransactionItems(), group)
+	}
+
+	err = worker.SendDataToMiddleware(groupBatch, enum.T2_1, clientID, ge.reducerQueue)
+	if err != nil {
+		shouldRequeue = true
+		return err
+	}
+	err = worker.SendDataToMiddleware(groupBatch, enum.T2_2, clientID, ge.reducerQueue)
+	if err != nil {
+		shouldRequeue = true
+		return err
 	}
 	shouldAck = true
 
@@ -89,7 +86,7 @@ func (ge *GroupExecutor) HandleTask2(dataEnvelope *protocol.DataEnvelope, ackHan
 		ge.connectedClients[clientID] = middleware.GetCounterExchange(ge.url, clientID+"@"+string(enum.GroupbyWorker))
 	}
 	counterExchange := ge.connectedClients[clientID]
-	if err := worker.SendCounterMessage(clientID, amountSent, enum.GroupbyWorker, enum.ReducerWorker, counterExchange); err != nil {
+	if err := worker.SendCounterMessage(clientID, 2, enum.GroupbyWorker, enum.ReducerWorker, counterExchange); err != nil {
 		return err
 	}
 
@@ -102,6 +99,7 @@ func (ge *GroupExecutor) HandleTask3(dataEnvelope *protocol.DataEnvelope, ackHan
 	defer ackHandler(shouldAck, shouldRequeue)
 
 	transactionBatch := &raw.TransactionBatch{}
+	groupBatch := &group_by.GroupTransactionsBatch{}
 	payload := dataEnvelope.GetPayload()
 	clientID := dataEnvelope.GetClientId()
 
@@ -112,15 +110,14 @@ func (ge *GroupExecutor) HandleTask3(dataEnvelope *protocol.DataEnvelope, ackHan
 
 	// === Business logic ===
 	groupedData := ge.service.GroupTransactionsByStoreAndSemester(transactionBatch.GetTransactions())
-
-	amountSent := 0
 	for _, group := range groupedData {
-		err := worker.SendDataToMiddleware(group, enum.T3, clientID, ge.reducerQueue)
-		if err != nil {
-			shouldRequeue = true
-			return err
-		}
-		amountSent++
+		groupBatch.GroupedTransactions = append(groupBatch.GetGroupedTransactions(), group)
+	}
+
+	err = worker.SendDataToMiddleware(groupBatch, enum.T3, clientID, ge.reducerQueue)
+	if err != nil {
+		shouldRequeue = true
+		return err
 	}
 	shouldAck = true
 
@@ -129,7 +126,7 @@ func (ge *GroupExecutor) HandleTask3(dataEnvelope *protocol.DataEnvelope, ackHan
 		ge.connectedClients[clientID] = middleware.GetCounterExchange(ge.url, clientID+"@"+string(enum.GroupbyWorker))
 	}
 	counterExchange := ge.connectedClients[clientID]
-	if err := worker.SendCounterMessage(clientID, amountSent, enum.GroupbyWorker, enum.ReducerWorker, counterExchange); err != nil {
+	if err := worker.SendCounterMessage(clientID, 1, enum.GroupbyWorker, enum.ReducerWorker, counterExchange); err != nil {
 		return err
 	}
 

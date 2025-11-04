@@ -81,65 +81,57 @@ func (js *joinerService) FinishStoringRefData(clientID string) error {
 /* --- Get joined data --- */
 
 // This is T2_1
-func (js *joinerService) JoinTotalProfitBySubtotal(profit *reduced.TotalProfitBySubtotal, clientID string) []*reduced.TotalProfitBySubtotal {
+func (js *joinerService) JoinTotalProfitBySubtotal(profit *reduced.TotalProfitBySubtotal, clientID string) (*reduced.TotalProfitBySubtotal, error) {
 	referenceID := profit.GetItemId() + SEPERATOR + js.datasets.MenuItem
 
 	_, allRefPresent := js.fullRefClients[clientID]
 	if !allRefPresent {
-		return nil
+		return nil, fmt.Errorf("not all reference data present for client %s", clientID)
 	}
 	protoRef, err := js.cacheService.GetRefData(clientID, referenceID)
 	if err != nil {
 		log.Debugf("Error retrieving reference data %s for client %s: %v", referenceID, clientID, err)
-		return nil
+		return nil, err
 	}
-	joinedData := make([]*reduced.TotalProfitBySubtotal, 0)
 	menuItem := utils.CastProtoMessage[*raw.MenuItem](protoRef)
 	profit.ItemId = menuItem.GetItemName()
-	joinedData = append(joinedData, profit)
-	return joinedData
+	return profit, nil
 }
 
 // This is T2_2
-func (js *joinerService) JoinTotalSoldByQuantity(sales *reduced.TotalSoldByQuantity, clientID string) []*reduced.TotalSoldByQuantity {
+func (js *joinerService) JoinTotalSoldByQuantity(sales *reduced.TotalSoldByQuantity, clientID string) (*reduced.TotalSoldByQuantity, error) {
 	bufferID := "T2_2" + SEPERATOR + clientID
 	referenceID := sales.GetItemId() + SEPERATOR + js.datasets.MenuItem
 	_, allRefPresent := js.fullRefClients[clientID]
 	if !allRefPresent {
 		js.cacheService.BufferUnreferencedData(clientID, bufferID, sales)
-		return nil
+		return nil, fmt.Errorf("not all reference data present for client %s", clientID)
 	}
 	protoRef, err := js.cacheService.GetRefData(clientID, referenceID)
 	if err != nil {
 		log.Debugf("Error retrieving reference data %s for client %s: %v", referenceID, clientID, err)
-		return nil
+		return nil, err
 	}
-	joinedData := make([]*reduced.TotalSoldByQuantity, 0)
 	menuItem := utils.CastProtoMessage[*raw.MenuItem](protoRef)
 	sales.ItemId = menuItem.GetItemName()
-	joinedData = append(joinedData, sales)
-	// In case there are buffered profits waiting for this reference, resolve them now
-	js.joinBufferedSalesData(clientID, bufferID, &joinedData)
-	return joinedData
+	return sales, nil
 }
 
 // This is T3
-func (js *joinerService) JoinTotalPaymentValue(tpv *reduced.TotalPaymentValue, clientID string) []*reduced.TotalPaymentValue {
+func (js *joinerService) JoinTotalPaymentValue(tpv *reduced.TotalPaymentValue, clientID string) (*reduced.TotalPaymentValue, error) {
 	referenceID := tpv.GetStoreId() + SEPERATOR + js.datasets.Store
 	_, allRefPresent := js.fullRefClients[clientID]
 	if !allRefPresent {
-		return nil
+		return nil, fmt.Errorf("not all reference data present for client %s", clientID)
 	}
 	protoRef, err := js.cacheService.GetRefData(clientID, referenceID)
 	if err != nil {
 		log.Debugf("Error retrieving reference data %s for client %s: %v", referenceID, clientID, err)
-		return nil
+		return nil, err
 	}
-	joinedData := make([]*reduced.TotalPaymentValue, 0)
 	store := utils.CastProtoMessage[*raw.Store](protoRef)
 	tpv.StoreId = store.GetStoreName()
-	joinedData = append(joinedData, tpv)
-	return joinedData
+	return tpv, nil
 }
 
 // This is T4
