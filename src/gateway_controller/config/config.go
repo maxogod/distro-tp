@@ -13,13 +13,15 @@ type Config struct {
 	Port              int32
 	HealthCheckPort   int
 	LogLevel          string
+	ReceivingTimeout  int
 }
 
 func (c Config) String() string {
 	return fmt.Sprintf(
-		"[CONFIG: Port: %d | LogLevel: %s]",
+		"[CONFIG: Port: %d | LogLevel: %s | ReceivingTimeout: %d]",
 		c.Port,
 		c.LogLevel,
+		c.ReceivingTimeout,
 	)
 }
 
@@ -40,12 +42,14 @@ func InitConfig() (*Config, error) {
 	v.BindEnv("port", "PORT")
 	v.BindEnv("healthcheck.port", "HEALTHCHECK_PORT")
 	v.BindEnv("log.level", "LOG_LEVEL")
+	v.BindEnv("receiving.timeout", "RECEIVING_TIMEOUT")
 
 	config := &Config{
 		MiddlewareAddress: v.GetString("middleware.address"),
 		Port:              int32(v.GetInt("port")),
 		HealthCheckPort:   v.GetInt("healthcheck.port"),
 		LogLevel:          v.GetString("log.level"),
+		ReceivingTimeout:  v.GetInt("receiving.timeout"),
 	}
 
 	return config, nil

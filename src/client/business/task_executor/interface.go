@@ -1,19 +1,5 @@
 package task_executor
 
-const (
-	TransactionsDirPath     = "/transactions"
-	TransactionItemsDirPath = "/transaction_items"
-	MenuItemsDirPath        = "/menu_items"
-	StoresDirPath           = "/stores"
-	UsersDirPath            = "/users"
-
-	OUTPUT_FILE_T1   = "t1.csv"
-	OUTPUT_FILE_T2_1 = "t2_1.csv"
-	OUTPUT_FILE_T2_2 = "t2_2.csv"
-	OUTPUT_FILE_T3   = "t3.csv"
-	OUTPUT_FILE_T4   = "t4.csv"
-)
-
 // TaskExecutor handles the execution of tasks by communicating with the server
 // and fetching the processed data accordingly.
 type TaskExecutor interface {

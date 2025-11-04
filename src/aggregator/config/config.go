@@ -8,23 +8,32 @@ import (
 	"github.com/spf13/viper"
 )
 
+type Limits struct {
+	TransactionSendLimit int32
+	MaxAmountToSend      int
+}
+
 type Config struct {
-	Address  string
-	LogLevel string
+	Address            string
+	LogLevel           string
+	PersistenceEnabled bool
+	Limits             Limits
 }
 
 func (c Config) String() string {
 	return fmt.Sprintf(
-		"Address: %s | LogLevel: %s",
+		"Address: %s | LogLevel: %s | PersistenceEnabled: %t | Limits: [TransactionSendLimit=%d, MaxAmountToSend=%d]",
 		c.Address,
 		c.LogLevel,
+		c.PersistenceEnabled,
+		c.Limits.TransactionSendLimit,
+		c.Limits.MaxAmountToSend,
 	)
 }
 
 const CONFIG_FILE_PATH = "./config.yaml"
 
 func InitConfig(configFilePath string) (*Config, error) {
-
 	v := viper.New()
 	v.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 	v.AutomaticEnv()
@@ -40,8 +49,13 @@ func InitConfig(configFilePath string) (*Config, error) {
 	}
 
 	config := &Config{
-		Address:  v.GetString("gateway.address"),
-		LogLevel: v.GetString("log.level"),
+		Address:            v.GetString("gateway.address"),
+		LogLevel:           v.GetString("log.level"),
+		PersistenceEnabled: v.GetBool("persistence.enabled"),
+		Limits: Limits{
+			TransactionSendLimit: v.GetInt32("limits.transaction_send_limit"),
+			MaxAmountToSend:      v.GetInt("limits.max_amount_to_send"),
+		},
 	}
 
 	return config, nil
