@@ -16,6 +16,8 @@ func tmpCachePath(t *testing.T, name string) string {
 	return filepath.Join(dir, name)
 }
 
+// ===== INPUT DATA =====
+
 var Transactions = []*raw.Transaction{
 	{
 		TransactionId: "1",
@@ -70,6 +72,8 @@ var TransactionsMap = map[string]*raw.Transaction{
 		CreatedAt:     "2025-07-01 23:00:00",
 	},
 }
+
+// ===== TESTS =====
 
 func TestDiskMemoryCache_StoreAndReadData(t *testing.T) {
 	c := cache.NewDiskMemoryCache()
