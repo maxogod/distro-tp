@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/maxogod/distro-tp/src/common/models/raw"
+	"github.com/stretchr/testify/assert"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -73,9 +74,7 @@ func TestSaveAndReadProtoData(t *testing.T) {
 		total = append(total, &tr)
 	}
 
-	if len(total) != len(Transactions) {
-		t.Fatalf("expected %d transactions, got %d", len(Transactions), len(total))
-	}
+	assert.Len(t, total, len(Transactions), "Number of transactions read back mismatch")
 
 	for i, tr := range Transactions {
 		if total[i].TransactionId != tr.TransactionId || total[i].FinalAmount != tr.FinalAmount {
@@ -132,9 +131,7 @@ func TestSaveIndexedAndReadProtoData(t *testing.T) {
 		total = append(total, &tr)
 	}
 
-	if len(total) != 1 {
-		t.Fatalf("expected %d transaction, got %d", 1, len(total))
-	}
+	assert.Len(t, total, 1, "Number of transactions read back mismatch")
 
 	expectedFinalAmount := 0.0
 	for _, tr := range Transactions {
@@ -190,9 +187,7 @@ func TestSaveIndexedWithVariedData(t *testing.T) {
 		total = append(total, &tr)
 	}
 
-	if len(total) != 2 {
-		t.Fatalf("expected %d transaction, got %d", 2, len(total))
-	}
+	assert.Len(t, total, 2, "Number of transactions read back mismatch")
 
 	mapFinalAmounts := make(map[string]float64)
 	for _, tr := range total {
