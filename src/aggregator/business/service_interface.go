@@ -3,7 +3,6 @@ package business
 import (
 	"github.com/maxogod/distro-tp/src/common/models/raw"
 	"github.com/maxogod/distro-tp/src/common/models/reduced"
-	"google.golang.org/protobuf/proto"
 )
 
 // AggregatorService defines the interface for storing and retrieving raw and reduced-aggregated data.
@@ -40,7 +39,10 @@ type AggregatorService interface {
 	GetStoredCountedUserTransactions(clientID string, amount int32) ([]*reduced.CountedUserTransactions, bool)
 
 	// SortData sorts the stored data for a client using the provided comparison function.
-	SortData(clientID string, sortFn func(a, b proto.Message) bool) error
+	SortData(clientID string, sortFn func(a, b []byte) bool) error
+
+	// FinishData finalizes and cleans up resources for a client's data.
+	FinishData(clientID string) error
 
 	// Close releases resources held by the service.
 	Close() error
