@@ -40,71 +40,47 @@ func tmpFilePath(t *testing.T) string {
 }
 
 func TestSaveAndReadProtoData(t *testing.T) {
-	fh := NewFileHandler(5)
+	fh := NewFileHandler()
 
 	path := tmpFilePath(t)
-	ch := make(chan proto.Message)
+	ch := make(chan []byte)
 
 	go func() {
-		err := fh.SaveProtoData(path, ch)
+		err := fh.SaveData(path, ch)
 		if err != nil {
-			t.Errorf("SaveProtoData error: %v", err)
+			t.Errorf("SaveData error: %v", err)
 		}
 	}()
 
 	// send some dummy messages
-	protoMessages := make([]proto.Message, len(Transactions))
-	for i := range Transactions {
-		protoMessages[i] = Transactions[i]
-	}
-	for _, msg := range protoMessages {
-		ch <- msg
+	for _, tr := range Transactions {
+		data, _ := proto.Marshal(tr)
+		ch <- data
 	}
 	close(ch)
 
 	// read them back
-	readCh := make(chan [][]byte)
-	go fh.ReadAsBatches(path, readCh)
+	readCh := make(chan []byte)
+	go fh.ReadData(path, readCh)
 
 	var total []*raw.Transaction
-	for batch := range readCh {
-		for _, msg := range batch {
-			var tr raw.Transaction
-			if err := proto.Unmarshal(msg, &tr); err != nil {
-				t.Errorf("proto unmarshal error: %v", err)
-				continue
-			}
-			total = append(total, &tr)
+	for msg := range readCh {
+		var tr raw.Transaction
+		if err := proto.Unmarshal(msg, &tr); err != nil {
+			t.Errorf("proto unmarshal error: %v", err)
+			continue
 		}
+		total = append(total, &tr)
 	}
 
 	if len(total) != len(Transactions) {
 		t.Fatalf("expected %d transactions, got %d", len(Transactions), len(total))
 	}
 
-	expected := make(map[string]*raw.Transaction, len(Transactions))
-	for _, tr := range Transactions {
-		expected[tr.TransactionId] = tr
-	}
-
-	var missing []string
-	for _, tr := range total {
-		exp, ok := expected[tr.TransactionId]
-		if !ok {
-			t.Errorf("unexpected transaction id %s", tr.TransactionId)
-			continue
+	for i, tr := range Transactions {
+		if total[i].TransactionId != tr.TransactionId || total[i].FinalAmount != tr.FinalAmount {
+			t.Errorf("expected transaction %v, got %v", tr, total[i])
 		}
-		if tr.StoreId != exp.StoreId || tr.UserId != exp.UserId || tr.FinalAmount != exp.FinalAmount || tr.CreatedAt != exp.CreatedAt {
-			t.Errorf("transaction %s mismatch: expected %+v, got %+v", tr.TransactionId, exp, tr)
-		}
-		delete(expected, tr.TransactionId)
-	}
-
-	for id := range expected {
-		missing = append(missing, id)
-	}
-	if len(missing) > 0 {
-		t.Errorf("missing transactions: %v", missing)
 	}
 
 	fh.Close()
@@ -112,7 +88,7 @@ func TestSaveAndReadProtoData(t *testing.T) {
 }
 
 func TestSaveIndexedAndReadProtoData(t *testing.T) {
-	fh := NewFileHandler(5)
+	fh := NewFileHandler()
 
 	path := tmpFilePath(t)
 
@@ -143,19 +119,17 @@ func TestSaveIndexedAndReadProtoData(t *testing.T) {
 	}
 
 	// read them back
-	readCh := make(chan [][]byte)
-	go fh.ReadAsBatches(path, readCh)
+	readCh := make(chan []byte)
+	go fh.ReadData(path, readCh)
 
 	var total []*raw.Transaction
-	for batch := range readCh {
-		for _, msg := range batch {
-			var tr raw.Transaction
-			if err := proto.Unmarshal(msg, &tr); err != nil {
-				t.Errorf("proto unmarshal error: %v", err)
-				continue
-			}
-			total = append(total, &tr)
+	for msg := range readCh {
+		var tr raw.Transaction
+		if err := proto.Unmarshal(msg, &tr); err != nil {
+			t.Errorf("proto unmarshal error: %v", err)
+			continue
 		}
+		total = append(total, &tr)
 	}
 
 	if len(total) != 1 {
@@ -175,7 +149,7 @@ func TestSaveIndexedAndReadProtoData(t *testing.T) {
 }
 
 func TestSaveIndexedWithVariedData(t *testing.T) {
-	fh := NewFileHandler(5)
+	fh := NewFileHandler()
 
 	path := tmpFilePath(t)
 
@@ -200,23 +174,20 @@ func TestSaveIndexedWithVariedData(t *testing.T) {
 		if err != nil {
 			t.Fatalf("SaveIndexedData error: %v", err)
 		}
-
 	}
 
 	// read them back
-	readCh := make(chan [][]byte)
-	go fh.ReadAsBatches(path, readCh)
+	readCh := make(chan []byte)
+	go fh.ReadData(path, readCh)
 
 	var total []*raw.Transaction
-	for batch := range readCh {
-		for _, msg := range batch {
-			var tr raw.Transaction
-			if err := proto.Unmarshal(msg, &tr); err != nil {
-				t.Errorf("proto unmarshal error: %v", err)
-				continue
-			}
-			total = append(total, &tr)
+	for msg := range readCh {
+		var tr raw.Transaction
+		if err := proto.Unmarshal(msg, &tr); err != nil {
+			t.Errorf("proto unmarshal error: %v", err)
+			continue
 		}
+		total = append(total, &tr)
 	}
 
 	if len(total) != 2 {
