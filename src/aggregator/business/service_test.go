@@ -8,6 +8,7 @@ import (
 	"github.com/maxogod/distro-tp/src/common/models/raw"
 	"github.com/maxogod/distro-tp/src/common/models/reduced"
 	"github.com/stretchr/testify/assert"
+	"google.golang.org/protobuf/proto"
 )
 
 // ====== INPUT DATA ======
@@ -33,6 +34,37 @@ var Transactions = []*raw.Transaction{
 		UserId:        "userID",
 		FinalAmount:   100.0,
 		CreatedAt:     "2025-07-01 23:00:00",
+	},
+}
+
+var UnsortedTransactionsMap = map[string]*raw.Transaction{
+	"1": {
+		TransactionId: "1",
+		StoreId:       "storeID",
+		UserId:        "userID",
+		FinalAmount:   100.0,
+		CreatedAt:     "2025-07-01 06:01:00",
+	},
+	"4": {
+		TransactionId: "4",
+		StoreId:       "storeID",
+		UserId:        "userID",
+		FinalAmount:   100.0,
+		CreatedAt:     "2025-07-01 23:00:00",
+	},
+	"3": {
+		TransactionId: "3",
+		StoreId:       "storeID",
+		UserId:        "userID",
+		FinalAmount:   100.0,
+		CreatedAt:     "2025-07-01 23:00:00",
+	},
+	"2": {
+		TransactionId: "2",
+		StoreId:       "storeID",
+		UserId:        "userID",
+		FinalAmount:   100.0,
+		CreatedAt:     "2025-07-01 06:00:00",
 	},
 }
 
@@ -260,5 +292,40 @@ func TestAggregatorService_StoreAggregatedAndReadTotalCountedUserTransactions(t 
 		assert.True(t, ok, "Unexpected key found: %s", key)
 		assert.Equal(t, expectedAmount, result.TransactionQuantity,
 			"TransactionQuantity mismatch for key %s", key)
+	}
+}
+
+func TestAggregatorService_SortAggregatedData(t *testing.T) {
+
+	clientID := "client6"
+	c := cache.NewDiskMemoryCache()
+	service := business.NewAggregatorService(c)
+	defer service.FinishData(clientID)
+
+	var unsortedTransactions []*raw.Transaction
+	for _, tx := range UnsortedTransactionsMap {
+		unsortedTransactions = append(unsortedTransactions, tx)
+	}
+
+	err := service.StoreTransactions(clientID, unsortedTransactions)
+	assert.NoError(t, err)
+
+	service.SortData(clientID, func(a, b []byte) bool {
+		txA := &raw.Transaction{}
+		txB := &raw.Transaction{}
+		err := proto.Unmarshal(a, txA)
+		assert.NoError(t, err)
+		err = proto.Unmarshal(b, txB)
+		assert.NoError(t, err)
+
+		return txA.TransactionId < txB.TransactionId
+	})
+
+	results, found := service.GetStoredTransactions(clientID, 10)
+	assert.True(t, found)
+	for _, result := range results {
+		expected, _ := UnsortedTransactionsMap[result.TransactionId]
+		assert.Equal(t, expected.TransactionId, result.TransactionId,
+			"TransactionId mismatch for TransactionId %s", result.TransactionId)
 	}
 }
