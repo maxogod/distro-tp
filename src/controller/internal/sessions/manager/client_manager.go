@@ -1,8 +1,6 @@
 package manager
 
 import (
-	"github.com/google/uuid"
-	"github.com/maxogod/distro-tp/src/common/network"
 	"github.com/maxogod/distro-tp/src/controller/config"
 	"github.com/maxogod/distro-tp/src/controller/internal/handler"
 	"github.com/maxogod/distro-tp/src/controller/internal/sessions/clients"

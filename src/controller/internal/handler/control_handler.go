@@ -24,6 +24,7 @@ type controlHandler struct {
 	messagesSentToNextLayer  int
 	joinerFinishExchange     middleware.MessageMiddleware
 	aggregatorFinishExchange middleware.MessageMiddleware
+	clientControlExchange    middleware.MessageMiddleware
 
 	workersMonitoring map[enum.WorkerType]workerMonitor
 	routineReadyCh    chan bool
@@ -34,8 +35,10 @@ func NewControlHandler(middlewareUrl, clientID string) MessageHandler {
 	h := &controlHandler{
 		clientID: clientID,
 
+		messagesSentToNextLayer:  1, // start with 1 message from gateway
 		joinerFinishExchange:     middleware.GetFinishExchange(middlewareUrl, []string{string(enum.JoinerWorker)}),
 		aggregatorFinishExchange: middleware.GetFinishExchange(middlewareUrl, []string{string(enum.AggregatorWorker)}),
+		clientControlExchange:    middleware.GetClientControlExchange(middlewareUrl, clientID),
 
 		workersMonitoring: make(map[enum.WorkerType]workerMonitor),
 		routineReadyCh:    make(chan bool),
@@ -43,8 +46,8 @@ func NewControlHandler(middlewareUrl, clientID string) MessageHandler {
 	}
 
 	workers := []enum.WorkerType{
-		enum.FilterWorker, enum.GroupbyWorker, enum.ReducerWorker,
-		enum.JoinerWorker, enum.AggregatorWorker,
+		enum.Gateway, enum.FilterWorker, enum.GroupbyWorker,
+		enum.ReducerWorker, enum.JoinerWorker, enum.AggregatorWorker,
 	}
 	for _, worker := range workers {
 		h.workersMonitoring[worker] = workerMonitor{
@@ -55,46 +58,48 @@ func NewControlHandler(middlewareUrl, clientID string) MessageHandler {
 		<-h.routineReadyCh
 	}
 
+	h.sendControllerReady()
+
 	return h
 }
 
-func (mh *controlHandler) AwaitForWorkers() error {
-	log.Debugf("Started listening for workers done messages of client %s", mh.clientID)
-	currentWorkerType := enum.FilterWorker
+func (ch *controlHandler) AwaitForWorkers() error {
+	log.Debugf("Started listening for workers done messages of client %s", ch.clientID)
+	currentWorkerType := enum.Gateway
 	receivedFromCurrentLayer := 0
 	sentFromCurrentLayer := 0
 
-	mh.workersMonitoring[currentWorkerType].startOrFinishCh <- true
+	ch.workersMonitoring[currentWorkerType].startOrFinishCh <- true
 	for currentWorkerType != enum.None {
-		counter := <-mh.counterCh
+		counter := <-ch.counterCh
 
 		receivedFromCurrentLayer++
 		sentFromCurrentLayer += int(counter.GetAmountSent())
 
-		if receivedFromCurrentLayer == mh.messagesSentToNextLayer {
+		if receivedFromCurrentLayer == ch.messagesSentToNextLayer {
 			nextLayer := enum.WorkerType(counter.GetNext())
 			log.Debugf("[%s] All %d messages received from %s workers, next layer %s with msgs: %d",
-				mh.clientID, receivedFromCurrentLayer, currentWorkerType, nextLayer, sentFromCurrentLayer)
+				ch.clientID, receivedFromCurrentLayer, currentWorkerType, nextLayer, sentFromCurrentLayer)
 
-			mh.workersMonitoring[currentWorkerType].startOrFinishCh <- false // finish
+			ch.workersMonitoring[currentWorkerType].startOrFinishCh <- false // finish
 			if nextLayer != enum.None {
-				mh.workersMonitoring[nextLayer].startOrFinishCh <- true // start
+				ch.workersMonitoring[nextLayer].startOrFinishCh <- true // start
 			}
 			currentWorkerType = nextLayer
-			mh.messagesSentToNextLayer = sentFromCurrentLayer
+			ch.messagesSentToNextLayer = sentFromCurrentLayer
 			sentFromCurrentLayer = 0
 			receivedFromCurrentLayer = 0
-			log.Debugf("[%s] Proceeding to wait for %s workers", mh.clientID, currentWorkerType)
+			log.Debugf("[%s] Proceeding to wait for %s workers", ch.clientID, currentWorkerType)
 		}
 	}
-	log.Debugf("[%s] All workers done, proceed with finish sequence", mh.clientID)
+	log.Debugf("[%s] All workers done, proceed with finish sequence", ch.clientID)
 
 	return nil
 }
 
-func (mh *controlHandler) SendDone(worker enum.WorkerType) error {
+func (ch *controlHandler) SendDone(worker enum.WorkerType) error {
 	doneMessage := &protocol.DataEnvelope{
-		ClientId: mh.clientID,
+		ClientId: ch.clientID,
 		IsDone:   true,
 		Payload:  nil,
 	}
@@ -107,9 +112,9 @@ func (mh *controlHandler) SendDone(worker enum.WorkerType) error {
 	var sendErr middleware.MessageMiddlewareError
 	switch worker {
 	case enum.JoinerWorker:
-		sendErr = mh.joinerFinishExchange.Send(dataBytes)
+		sendErr = ch.joinerFinishExchange.Send(dataBytes)
 	case enum.AggregatorWorker:
-		sendErr = mh.aggregatorFinishExchange.Send(dataBytes)
+		sendErr = ch.aggregatorFinishExchange.Send(dataBytes)
 	default:
 		return fmt.Errorf("unknown worker type: %s", worker)
 	}
@@ -120,10 +125,10 @@ func (mh *controlHandler) SendDone(worker enum.WorkerType) error {
 	return nil
 }
 
-func (mh *controlHandler) Close() {
-	mh.joinerFinishExchange.Close()
-	mh.aggregatorFinishExchange.Close()
-	for _, monitor := range mh.workersMonitoring {
+func (ch *controlHandler) Close() {
+	ch.joinerFinishExchange.Close()
+	ch.aggregatorFinishExchange.Close()
+	for _, monitor := range ch.workersMonitoring {
 		monitor.startOrFinishCh <- false
 		monitor.queue.Close()
 	}
@@ -131,21 +136,41 @@ func (mh *controlHandler) Close() {
 
 /* --- UTIL PRIVATE METHODS --- */
 
+func (ch *controlHandler) sendControllerReady() {
+	readyMessage := &protocol.ControlMessage{
+		ClientId: ch.clientID,
+		IsAck:    true,
+	}
+	dataBytes, err := proto.Marshal(readyMessage)
+	if err != nil {
+		log.Errorf("[%s] Error marshaling controller ready message: %v", ch.clientID, err)
+		return
+	}
+
+	sendErr := ch.clientControlExchange.Send(dataBytes)
+	if sendErr != middleware.MessageMiddlewareSuccess {
+		log.Errorf("[%s] Error sending controller ready message: %d", ch.clientID, sendErr)
+		return
+	}
+
+	log.Infof("[%s] Controller ready message sent", ch.clientID)
+}
+
 // startCounterListener starts a goroutine that listens for counter messages from workers.
-func (mh *controlHandler) startCounterListener(workerRoute enum.WorkerType) {
-	defer mh.workersMonitoring[workerRoute].queue.StopConsuming()
+func (ch *controlHandler) startCounterListener(workerRoute enum.WorkerType) {
+	defer ch.workersMonitoring[workerRoute].queue.StopConsuming()
 
 	doneCh := make(chan bool)
-	e := mh.workersMonitoring[workerRoute].queue.StartConsuming(func(msgs middleware.ConsumeChannel, d chan error) {
-		log.Debugf("[%s] Starting to consume from counter exchange for %s workers", mh.clientID, workerRoute)
-		mh.routineReadyCh <- true
-		running := <-mh.workersMonitoring[workerRoute].startOrFinishCh
+	e := ch.workersMonitoring[workerRoute].queue.StartConsuming(func(msgs middleware.ConsumeChannel, d chan error) {
+		log.Debugf("[%s] Starting to consume from counter exchange for %s workers", ch.clientID, workerRoute)
+		ch.routineReadyCh <- true
+		running := <-ch.workersMonitoring[workerRoute].startOrFinishCh
 		for running {
 			var msg middleware.MessageDelivery
 			select {
 			case m := <-msgs:
 				msg = m
-			case <-mh.workersMonitoring[workerRoute].startOrFinishCh:
+			case <-ch.workersMonitoring[workerRoute].startOrFinishCh:
 				running = false
 				continue
 			}
@@ -153,17 +178,17 @@ func (mh *controlHandler) startCounterListener(workerRoute enum.WorkerType) {
 			counter := &protocol.MessageCounter{}
 			err := proto.Unmarshal(msg.Body, counter)
 			if err != nil {
-				log.Errorf("[%s] Failed to unmarshal done message: %v", mh.clientID, err)
+				log.Errorf("[%s] Failed to unmarshal done message: %v", ch.clientID, err)
 				msg.Nack(false, false)
 				continue
 			}
-			if counter.GetClientId() != mh.clientID || enum.WorkerType(counter.GetFrom()) != workerRoute {
+			if counter.GetClientId() != ch.clientID || enum.WorkerType(counter.GetFrom()) != workerRoute {
 				log.Warnf("[%s] Received wrong clientID or WorkerType %s", counter.GetClientId(), counter.GetFrom())
 				msg.Nack(false, false)
 				continue
 			}
 
-			mh.counterCh <- counter
+			ch.counterCh <- counter
 
 			msg.Ack(false)
 		}
@@ -171,8 +196,8 @@ func (mh *controlHandler) startCounterListener(workerRoute enum.WorkerType) {
 	})
 	<-doneCh
 	if e != middleware.MessageMiddlewareSuccess {
-		log.Errorf("[%s] Error starting counter listener: %d", mh.clientID, e)
+		log.Errorf("[%s] Error starting counter listener: %d", ch.clientID, e)
 	}
 
-	log.Debugf("[%s] Counter listener for %s stopped", mh.clientID, workerRoute)
+	log.Debugf("[%s] Counter listener for %s stopped", ch.clientID, workerRoute)
 }

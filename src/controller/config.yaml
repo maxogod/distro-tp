@@ -5,3 +5,5 @@ log:
   level: "DEBUG"
 receiving:
   timeout: 10
+max:
+  clients: 100

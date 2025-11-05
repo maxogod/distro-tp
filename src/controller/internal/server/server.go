@@ -3,39 +3,78 @@ package server
 import (
 	"os"
 	"os/signal"
+	"sync/atomic"
 	"syscall"
 
 	"github.com/maxogod/distro-tp/src/common/logger"
+	"github.com/maxogod/distro-tp/src/common/middleware"
+	"github.com/maxogod/distro-tp/src/common/models/protocol"
 	"github.com/maxogod/distro-tp/src/controller/config"
 	"github.com/maxogod/distro-tp/src/controller/internal/sessions/manager"
+	"google.golang.org/protobuf/proto"
 )
 
 var log = logger.GetLogger()
 
 type Server struct {
 	config        *config.Config
-	running       bool
+	running       atomic.Bool
 	clientManager manager.ClientManager
+
+	newClientsChan        chan string
+	initControlMiddleware middleware.MessageMiddleware
+	finishAcceptingChan   chan bool
 }
 
 func NewServer(conf *config.Config) *Server {
-	return &Server{
-		config:        conf,
-		running:       true,
-		clientManager: manager.NewClientManager(conf),
+	s := &Server{
+		config:                conf,
+		clientManager:         manager.NewClientManager(conf),
+		newClientsChan:        make(chan string, conf.MaxClients),
+		initControlMiddleware: middleware.GetInitControlQueue(conf.MiddlewareAddress),
+		finishAcceptingChan:   make(chan bool),
 	}
+	s.running.Store(true)
+
+	go s.acceptNewClients()
+
+	return s
 }
 
 func (s *Server) Run() error {
 	s.setupGracefulShutdown()
 	defer s.Shutdown()
 
-	for s.running {
+	for clientID := range s.newClientsChan {
+		if !s.running.Load() {
+			break
+		}
 
+		s.clientManager.ReapStaleClients()
+
+		clientSession := s.clientManager.AddClient(clientID)
+		clientSession.InitiateControlSequence()
+
+		log.Infof("action: add_client | client_id: %s | result: success", clientID)
 	}
 
 	return nil
 }
+
+func (s *Server) Shutdown() {
+	if !s.running.Load() {
+		return
+	}
+
+	s.running.Store(false)
+	s.clientManager.Close()
+	s.finishAcceptingChan <- true // Stop accepting new clients
+	s.initControlMiddleware.Close()
+
+	log.Infof("action: shutdown | result: success")
+}
+
+/* --- PRIVATE UTILS --- */
 
 func (s *Server) setupGracefulShutdown() {
 	sigChannel := make(chan os.Signal, 1)
@@ -48,13 +87,37 @@ func (s *Server) setupGracefulShutdown() {
 	}()
 }
 
-func (s *Server) Shutdown() {
-	s.running = false
-	s.clientManager.Close()
+func (s *Server) acceptNewClients() {
+	done := make(chan bool)
+	e := s.initControlMiddleware.StartConsuming(func(msgs middleware.ConsumeChannel, d chan error) {
+		running := true
+		for running {
+			var msg middleware.MessageDelivery
+			select {
+			case m := <-msgs:
+				msg = m
+			case <-s.finishAcceptingChan:
+				running = false
+				continue
+			}
 
-	log.Infof("action: shutdown | result: success")
+			controlMsg := protocol.ControlMessage{}
+			err := proto.Unmarshal(msg.Body, &controlMsg)
+			if err != nil {
+				log.Errorf("action: accept_new_clients | result: failed | error: %s", err.Error())
+				msg.Nack(false, false)
+				continue
+			}
+
+			s.newClientsChan <- controlMsg.GetClientId()
+
+			msg.Ack(false)
+		}
+		done <- true
+	})
+	if e != middleware.MessageMiddlewareSuccess {
+		log.Errorf("action: accept_new_clients | result: failed | error: %d", e)
+	}
+	<-done
+	close(s.newClientsChan)
 }
-
-/* --- PRIVATE UTILS --- */
-
-func (s *Server) acceptNewClients() {}

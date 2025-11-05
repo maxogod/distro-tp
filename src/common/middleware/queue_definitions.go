@@ -62,7 +62,23 @@ func GetProcessedDataExchange(url, clientID string) MessageMiddleware {
 	})
 }
 
-/* --- Node tracking for Gateway Controller --- */
+/* --- Node tracking for Controller --- */
+
+// GetInitControlQueue retrieves the middleware for the given exchange
+// to send or receive control messages for initialization.
+func GetInitControlQueue(url string) MessageMiddleware {
+	return retryMiddlewareCreation(MIDDLEWARE_CONNECTION_RETRIES, WAIT_INTERVAL, func() (MessageMiddleware, error) {
+		return NewQueueMiddleware(url, "init_control_queue")
+	})
+}
+
+// GetClientControlExchange retrieves the middleware for the given exchange
+// to send or receive ack/nack for a client.
+func GetClientControlExchange(url, clientID string) MessageMiddleware {
+	return retryMiddlewareCreation(MIDDLEWARE_CONNECTION_RETRIES, WAIT_INTERVAL, func() (MessageMiddleware, error) {
+		return NewExchangeMiddleware(url, "client_control_exchange", "direct", []string{clientID})
+	})
+}
 
 // GetCounterExchange retrieves the middleware for the given exchange
 // to send or receive with a specific topic pass the clientID parameter.
