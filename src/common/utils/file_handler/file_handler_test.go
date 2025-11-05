@@ -91,7 +91,7 @@ func TestSaveIndexedAndReadProtoData(t *testing.T) {
 
 	path := tmpFilePath(t)
 
-	dataKey := "data-1"
+	dataKey := "data@1"
 
 	for _, tr := range Transactions {
 

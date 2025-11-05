@@ -13,7 +13,7 @@ import (
 
 var log = logger.GetLogger()
 
-const SEPERATOR = "@"
+const SEPERATOR = "#"
 
 type fileHandler struct {
 	openFiles map[string]*os.File
@@ -191,8 +191,9 @@ func (fh *fileHandler) DeleteFile(path string) error {
 }
 
 func parseToString(dataKey string, bytes []byte) string {
-	encoded := base64.StdEncoding.EncodeToString(bytes)
-	return dataKey + SEPERATOR + encoded + "\n"
+	encodedData := base64.StdEncoding.EncodeToString(bytes)
+	encodedKey := base64.StdEncoding.EncodeToString([]byte(dataKey))
+	return encodedKey + SEPERATOR + encodedData + "\n"
 }
 
 func parseFromBytes(line []byte) (string, []byte, error) {
@@ -200,7 +201,11 @@ func parseFromBytes(line []byte) (string, []byte, error) {
 	if idx == -1 {
 		return "", nil, fmt.Errorf("invalid line format (missing separator): %q", string(line))
 	}
-	dataKey := string(line[:idx])
+	dataKeyBytes, err := base64.StdEncoding.DecodeString(string(line[:idx]))
+	if err != nil {
+		return "", nil, fmt.Errorf("failed to decode base64 key: %w", err)
+	}
+	dataKey := string(dataKeyBytes)
 	protoBytes, err := base64.StdEncoding.DecodeString(string(line[idx+1:]))
 	if err != nil {
 		return "", nil, fmt.Errorf("failed to decode base64: %w", err)
