@@ -3,9 +3,9 @@ package manager
 import (
 	"github.com/google/uuid"
 	"github.com/maxogod/distro-tp/src/common/network"
-	"github.com/maxogod/distro-tp/src/gateway_controller/config"
-	"github.com/maxogod/distro-tp/src/gateway_controller/internal/handler"
-	"github.com/maxogod/distro-tp/src/gateway_controller/internal/sessions/clients"
+	"github.com/maxogod/distro-tp/src/gateway/config"
+	"github.com/maxogod/distro-tp/src/gateway/internal/handler"
+	"github.com/maxogod/distro-tp/src/gateway/internal/sessions/clients"
 )
 
 type clientManager struct {

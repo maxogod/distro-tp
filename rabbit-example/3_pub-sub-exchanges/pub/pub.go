@@ -12,7 +12,7 @@ import (
 
 func failOnError(err error, msg string) {
 	if err != nil {
-		log.Panicf("%s: %s", msg, err)
+		logger.Logger.Panicf("%s: %s", msg, err)
 	}
 }
 
@@ -60,5 +60,5 @@ func main() {
 			Body:        []byte(body),
 		})
 	failOnError(err, "Failed to publish a message")
-	log.Printf(" [x] Sent %s", body)
+	logger.Logger.Infof(" [x] Sent %s", body)
 }

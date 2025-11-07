@@ -66,4 +66,4 @@ Hay un caso especial en la task 2 para este worker. Cada grupo que se generó en
 
 ## Config
 
-En el archivo de `config.yaml` del worker Reducer solo se define la configuración necesaria para conectarse a RabbitMQ y el nivel de log. No hay configuraciones específicas para este worker en particular.
+En el archivo de `config.yaml` del worker Reducer solo se define la configuración necesaria para conectarse a RabbitMQ y el nivel de logger.Logger. No hay configuraciones específicas para este worker en particular.

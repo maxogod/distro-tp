@@ -4,18 +4,30 @@ import (
 	"go.uber.org/zap"
 )
 
-var Sugar *zap.SugaredLogger
+type LoggerEnvironment string
 
-func GetLogger() *zap.SugaredLogger {
-	if Sugar == nil {
-		logger, _ := zap.NewDevelopment() // TODO configure production logger
-		Sugar = logger.Sugar()
+const (
+	LoggerEnvDevelopment LoggerEnvironment = "development"
+	LoggerEnvProduction  LoggerEnvironment = "production"
+)
+
+var Logger *zap.SugaredLogger
+
+func InitLogger(environ LoggerEnvironment) {
+	if Logger == nil {
+		switch environ {
+		case LoggerEnvDevelopment:
+			logger, _ := zap.NewDevelopment()
+			Logger = logger.Sugar()
+		case LoggerEnvProduction:
+			logger, _ := zap.NewProduction()
+			Logger = logger.Sugar()
+		}
 	}
-	return Sugar
 }
 
 func Sync() {
-	if Sugar != nil {
-		Sugar.Sync()
+	if Logger != nil {
+		Logger.Sync()
 	}
 }

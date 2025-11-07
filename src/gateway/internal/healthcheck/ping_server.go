@@ -8,8 +8,6 @@ import (
 	"github.com/maxogod/distro-tp/src/common/logger"
 )
 
-var log = logger.GetLogger()
-
 type pingServer struct {
 	port   int
 	server *http.Server
@@ -32,16 +30,16 @@ func (p *pingServer) Run() {
 		Handler: mux,
 	}
 
-	log.Infof("Starting ping server on port %d", p.port)
+	logger.Logger.Infof("Starting ping server on port %d", p.port)
 	if err := p.server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-		log.Errorf("Ping server failed: %v", err)
+		logger.Logger.Errorf("Ping server failed: %v", err)
 	}
 }
 
 func (p *pingServer) Shutdown(ctx context.Context) {
 	if p.server != nil {
 		if err := p.server.Shutdown(ctx); err != nil {
-			log.Errorf("Failed to close ping server: %v", err)
+			logger.Logger.Errorf("Failed to close ping server: %v", err)
 		}
 	}
 }

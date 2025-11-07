@@ -7,8 +7,6 @@ import (
 	"github.com/maxogod/distro-tp/src/common/models/raw"
 )
 
-var log = logger.GetLogger()
-
 const timeFormat = "2006-01-02 15:04:05" // Example format
 
 type filterService struct {
@@ -34,7 +32,7 @@ func (f *filterService) FilterByYear(batch *raw.TransactionBatch) error {
 	for _, tx := range batch.Transactions {
 		t, err := time.Parse(timeFormat, tx.CreatedAt)
 		if err != nil {
-			log.Warnf("Skipping transaction %s due to parse error: %v", tx.TransactionId, err)
+			logger.Logger.Warnf("Skipping transaction %s due to parse error: %v", tx.TransactionId, err)
 			continue // skip invalid
 		}
 		year := t.Year()
@@ -51,7 +49,7 @@ func (f *filterService) FilterItemsByYear(batch *raw.TransactionItemsBatch) erro
 	for _, tx := range batch.TransactionItems {
 		t, err := time.Parse(timeFormat, tx.CreatedAt)
 		if err != nil {
-			log.Warnf("Skipping transaction %s due to parse error: %v", tx.ItemId, err)
+			logger.Logger.Warnf("Skipping transaction %s due to parse error: %v", tx.ItemId, err)
 			continue // skip invalid
 		}
 		year := t.Year()

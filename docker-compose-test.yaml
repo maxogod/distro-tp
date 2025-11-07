@@ -18,16 +18,16 @@ services:
     networks:
       - tp_net
 
-  gateway_controller:
-    container_name: gateway_controller
+  gateway:
+    container_name: gateway
     build:
-      dockerfile: ./src/gateway_controller/Dockerfile
-    image: gateway_controller:latest
+      dockerfile: ./src/gateway/Dockerfile
+    image: gateway:latest
     ports:
       - "8080:8080"
       - "8081:8081"
     volumes:
-      - ./src/gateway_controller/config.yaml:/config.yaml
+      - ./src/gateway/config.yaml:/config.yaml
     depends_on:
       rabbitmq:
         condition: service_healthy
@@ -37,6 +37,19 @@ services:
       timeout: 5s
       retries: 10
       start_period: 10s
+    networks:
+      - tp_net
+
+  controller:
+    container_name: controller 
+    build:
+      dockerfile: ./src/controller/Dockerfile
+    image: controller:latest
+    volumes:
+      - ./src/controller/config.yaml:/config.yaml
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
     networks:
       - tp_net
 

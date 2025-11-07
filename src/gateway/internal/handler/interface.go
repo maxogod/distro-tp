@@ -1,14 +1,20 @@
 package handler
 
 import (
-	"github.com/maxogod/distro-tp/src/common/models/enum"
 	"github.com/maxogod/distro-tp/src/common/models/protocol"
 )
 
 // MessageHandler interface defines methods for forwarding tasks to be processed by workers
 // and managing client interactions.
-// Messaging methods need the current clientID to support multiclient environments.
 type MessageHandler interface {
+
+	// AwaitControllerInit comunicates with the controller to start a session and wait for it
+	// to be ready.
+	AwaitControllerInit() error
+
+	// NotifyClientMessagesCount notifies the controller about the total number of messages
+	// that was sent by the client for processing.
+	NotifyClientMessagesCount() error
 
 	// ForwardData sends a given data envelope to the corresponding worker layer to start processing it.
 	ForwardData(dataBatch *protocol.DataEnvelope) error
@@ -16,12 +22,6 @@ type MessageHandler interface {
 	// ForwardReferenceData sends a given reference data envelope to the corresponding worker layer to
 	// use it for data merging.
 	ForwardReferenceData(dataBatch *protocol.DataEnvelope) error
-
-	// AwaitForWorkers blocks until all workers have signaled completion for the current clientID.
-	AwaitForWorkers() error
-
-	// SendDone notifies the
-	SendDone(worker enum.WorkerType) error
 
 	// GetReportData generates data envelopes received from workers into the provided channel.
 	// Ignoring any messages that do not match the given clientID.

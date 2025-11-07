@@ -42,6 +42,7 @@ type Args struct {
 type Config struct {
 	ServerHost        string
 	ServerPort        int
+	LogLevel          string
 	ConnectionRetries int
 	DataPath          string
 	OutputPath        string
@@ -71,6 +72,7 @@ func InitConfig() (*Config, error) {
 	config := &Config{
 		ServerHost:        v.GetString("server.host"),
 		ServerPort:        v.GetInt("server.port"),
+		LogLevel:          v.GetString("log.level"),
 		ConnectionRetries: v.GetInt("server.connection_retries"),
 		DataPath:          v.GetString("data_path"),
 		OutputPath:        v.GetString("output_path"),

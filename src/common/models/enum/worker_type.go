@@ -3,6 +3,7 @@ package enum
 type WorkerType string
 
 const (
+	Gateway          WorkerType = "gateway"
 	FilterWorker     WorkerType = "filter"
 	GroupbyWorker    WorkerType = "groupby"
 	ReducerWorker    WorkerType = "reducer"

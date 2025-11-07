@@ -4,14 +4,11 @@ import (
 	"sync/atomic"
 
 	"github.com/maxogod/distro-tp/src/common/logger"
-	"github.com/maxogod/distro-tp/src/common/models/enum"
 	"github.com/maxogod/distro-tp/src/common/models/protocol"
 	"github.com/maxogod/distro-tp/src/common/network"
-	"github.com/maxogod/distro-tp/src/gateway_controller/internal/handler"
+	"github.com/maxogod/distro-tp/src/gateway/internal/handler"
 	"google.golang.org/protobuf/proto"
 )
-
-var log = logger.GetLogger()
 
 type clientSession struct {
 	Id               string
@@ -35,13 +32,21 @@ func (cs *clientSession) IsFinished() bool {
 }
 
 func (cs *clientSession) ProcessRequest() error {
-	log.Debugf("[%s] Starting to process client request", cs.Id)
+	logger.Logger.Debugf("[%s] Starting to process client request", cs.Id)
 
+	// Initialize session with controller
+	err := cs.messageHandler.AwaitControllerInit()
+	if err != nil {
+		logger.Logger.Errorf("[%s] Error awaiting controller init for client: %v", cs.Id, err)
+		return err
+	}
+
+	// Start processing
 	processData := true
 	for processData {
 		request, err := cs.getRequest()
 		if err != nil {
-			log.Errorf("Error getting request from client %s: %v", cs.Id, err)
+			logger.Logger.Errorf("[%s] Error getting request from client: %v", cs.Id, err)
 			return err
 		}
 		request.ClientId = cs.Id
@@ -55,30 +60,17 @@ func (cs *clientSession) ProcessRequest() error {
 		}
 	}
 
-	err := cs.messageHandler.AwaitForWorkers()
+	err = cs.messageHandler.NotifyClientMessagesCount()
 	if err != nil {
-		log.Errorf("Error awaiting for workers to finish processing data for client %s: %v", cs.Id, err)
+		logger.Logger.Errorf("[%s] Error notifying controller about client messages count: %v", cs.Id, err)
 		return err
 	}
 
-	log.Debugf("[%s] All data received from client, sending done signal to task handler", cs.Id)
-	err = cs.messageHandler.SendDone(enum.AggregatorWorker)
-	if err != nil {
-		log.Errorf("Error sending done signal to task handler for client %s: %v", cs.Id, err)
-		return err
-	}
-
-	log.Debugf("[%s] Starting to send report data to client", cs.Id)
+	logger.Logger.Debugf("[%s] Starting to send report data to client", cs.Id)
 	cs.processResponse()
 
-	err = cs.messageHandler.SendDone(enum.JoinerWorker)
-	if err != nil {
-		log.Errorf("Error sending done signal to joiner for client %s: %v", cs.Id, err)
-		return err
-	}
-
 	cs.Close()
-	log.Debugf("[%s] All report data sent to client, and session closed", cs.Id)
+	logger.Logger.Debugf("[%s] All report data sent to client, and session closed", cs.Id)
 
 	return nil
 }
@@ -88,11 +80,11 @@ func (cs *clientSession) Close() {
 		cs.clientConnection.Close()
 		cs.messageHandler.Close()
 		cs.running.Store(false)
-		log.Debugf("[%s] Closed client session", cs.Id)
+		logger.Logger.Debugf("[%s] Closed client session", cs.Id)
 	}
 }
 
-// --- PRIVATE METHODS ---
+/* --- PRIVATE METHODS --- */
 
 func (cs *clientSession) processResponse() {
 	data := make(chan *protocol.DataEnvelope)
@@ -102,7 +94,7 @@ func (cs *clientSession) processResponse() {
 	for batch := range data {
 		dataBytes, err := proto.Marshal(batch)
 		if err != nil {
-			log.Errorf("Error marshaling data to send to client: %v", err)
+			logger.Logger.Errorf("[%s] Error marshaling data to send to client: %v", cs.Id, err)
 			continue
 		}
 		cs.clientConnection.SendData(dataBytes)
@@ -112,14 +104,14 @@ func (cs *clientSession) processResponse() {
 func (cs *clientSession) getRequest() (*protocol.DataEnvelope, error) {
 	requestBytes, err := cs.clientConnection.ReceiveData()
 	if err != nil {
-		log.Errorf("Error receiving data: %v", err)
+		logger.Logger.Errorf("[%s] Error receiving data: %v", cs.Id, err)
 		return nil, err
 	}
 
 	request := &protocol.DataEnvelope{}
 	err = proto.Unmarshal(requestBytes, request)
 	if err != nil {
-		log.Errorf("Error receiving data: %v", err)
+		logger.Logger.Errorf("[%s] Error receiving data: %v", cs.Id, err)
 		return nil, err
 	}
 

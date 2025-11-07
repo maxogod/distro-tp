@@ -8,8 +8,6 @@ import (
 	"github.com/maxogod/distro-tp/src/reducer/internal/server"
 )
 
-var log = logger.GetLogger()
-
 func main() {
 
 	var configPath string
@@ -17,16 +15,15 @@ func main() {
 		configPath = os.Args[1]
 	}
 
-	conf, err := config.InitConfig(configPath)
-	if err != nil {
-		log.Fatalf("%s", err)
-	}
+	conf, _ := config.InitConfig(configPath)
 
-	log.Debug(conf.String())
+	logger.InitLogger(logger.LoggerEnvironment(conf.LogLevel))
+
+	logger.Logger.Infof(conf.String())
 
 	server := server.InitServer(conf)
 
 	server.Run()
-	log.Debug("Dratini thanks you for using the Reducer Worker!")
+	logger.Logger.Infof("Dratini thanks you for using the Reducer Worker!")
 
 }

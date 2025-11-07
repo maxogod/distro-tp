@@ -35,6 +35,7 @@ lines.append(
       context: ./src/rabbitmq
       dockerfile: Dockerfile
     image: rabbitmq:latest
+    command: sh -c "rabbitmq-server > /dev/null 2>&1"
     ports:
       - '5670:5672'
       - '15670:15672'
@@ -50,19 +51,19 @@ lines.append(
 )
 
 # ==============================
-# Gateway Controller
+# Gateway
 # ==============================
 lines.append(
-    """  gateway_controller:
-    container_name: gateway_controller
+    """  gateway:
+    container_name: gateway
     build:
-      dockerfile: ./src/gateway_controller/Dockerfile
-    image: gateway_controller:latest
+      dockerfile: ./src/gateway/Dockerfile
+    image: gateway:latest
     ports:
       - '8080:8080'
       - '8081:8081'
     volumes:
-      - ./src/gateway_controller/config.yaml:/config.yaml
+      - ./src/gateway/config.yaml:/config.yaml
     depends_on:
       rabbitmq:
         condition: service_healthy
@@ -72,6 +73,25 @@ lines.append(
       timeout: 5s
       retries: 5
       start_period: 10s
+    networks:
+      - tp_net
+    """
+)
+
+# ==============================
+# Controller
+# ==============================
+lines.append(
+    """  controller:
+    container_name: controller 
+    build:
+      dockerfile: ./src/controller/Dockerfile
+    image: controller:latest
+    volumes:
+      - ./src/controller/config.yaml:/config.yaml
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
     networks:
       - tp_net
     """
@@ -147,7 +167,7 @@ for i in range(gw_count):
       - ./.data:/app/.data
       - ./.output{i+1}:/app/.output
     depends_on:
-      gateway_controller:
+      gateway:
         condition: service_healthy
         """
     )
