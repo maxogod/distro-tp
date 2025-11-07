@@ -8,8 +8,6 @@ import (
 	"github.com/maxogod/distro-tp/src/controller/internal/handler"
 )
 
-var log = logger.GetLogger()
-
 type clientSession struct {
 	Id             string
 	controlHandler handler.MessageHandler
@@ -30,29 +28,29 @@ func (cs *clientSession) IsFinished() bool {
 }
 
 func (cs *clientSession) InitiateControlSequence() error {
-	log.Debugf("[%s] Starting EOF control sequence", cs.Id)
+	logger.Logger.Debugf("[%s] Starting EOF control sequence", cs.Id)
 
 	err := cs.controlHandler.AwaitForWorkers()
 	if err != nil {
-		log.Errorf("[%s] Error awaiting for workers to finish processing data for client: %v", cs.Id, err)
+		logger.Logger.Errorf("[%s] Error awaiting for workers to finish processing data for client: %v", cs.Id, err)
 		return err
 	}
 
-	log.Debugf("[%s] EOF control finished, sending done signal to task handler", cs.Id)
+	logger.Logger.Debugf("[%s] EOF control finished, sending done signal to task handler", cs.Id)
 	err = cs.controlHandler.SendDone(enum.AggregatorWorker)
 	if err != nil {
-		log.Errorf("[%s] Error sending done signal to task handler for client: %v", cs.Id, err)
+		logger.Logger.Errorf("[%s] Error sending done signal to task handler for client: %v", cs.Id, err)
 		return err
 	}
 
 	err = cs.controlHandler.SendDone(enum.JoinerWorker)
 	if err != nil {
-		log.Errorf("[%s] Error sending done signal to joiner for client: %v", cs.Id, err)
+		logger.Logger.Errorf("[%s] Error sending done signal to joiner for client: %v", cs.Id, err)
 		return err
 	}
 
 	cs.Close()
-	log.Debugf("[%s] EOF delivered, and session closed", cs.Id)
+	logger.Logger.Debugf("[%s] EOF delivered, and session closed", cs.Id)
 
 	return nil
 }
@@ -61,6 +59,6 @@ func (cs *clientSession) Close() {
 	if !cs.IsFinished() {
 		cs.controlHandler.Close()
 		cs.running.Store(false)
-		log.Debugf("[%s] Closed client session", cs.Id)
+		logger.Logger.Debugf("[%s] Closed client session", cs.Id)
 	}
 }

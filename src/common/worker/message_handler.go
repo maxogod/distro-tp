@@ -11,8 +11,6 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-var log = logger.GetLogger()
-
 // message represents a message received from middleware
 // it contains the data envelope and an ack handler function
 // this will be delegated to the DataHandler implementation
@@ -58,10 +56,10 @@ func NewMessageHandler(
 	// begins to wrap up any consumption of a specific clients messages
 	if finisherExchange != nil {
 		mh.finisherExchange = finisherExchange
-		log.Debug("Finisher queue consuming.")
+		logger.Logger.Debug("Finisher queue consuming.")
 		go func() {
 			if err := mh.consumeFromQueue(mh.finisherExchange, mh.finisherChannel); err != nil {
-				log.Errorf("Failed to consume from finisher queue: %v", err)
+				logger.Logger.Errorf("Failed to consume from finisher queue: %v", err)
 			}
 		}()
 	}
@@ -71,27 +69,27 @@ func NewMessageHandler(
 
 // Starts consuming indefinetly from monitor channel and handling messages with the provided dataHandler function
 func (mh *messageHandler) Start() error {
-	log.Debug("Starting MessageHandler...")
+	logger.Logger.Debug("Starting MessageHandler...")
 
 	for _, queue := range mh.inputQueues {
 		go func(q middleware.MessageMiddleware) {
 			if err := mh.consumeFromQueue(q, mh.inputChannel); err != nil {
-				log.Errorf("Failed to consume from queue: %v", err)
+				logger.Logger.Errorf("Failed to consume from queue: %v", err)
 			}
 		}(queue)
 	}
-	log.Debug("All input queues are now consuming.")
+	logger.Logger.Debug("All input queues are now consuming.")
 
 	for mh.isRunning {
 		select {
 		case message := <-mh.inputChannel:
 			if err := mh.dataHandler.HandleData(message.dataEnvelope, message.ackHandler); err != nil {
-				log.Warnf("Failed to handle data batch: %v", err)
+				logger.Logger.Warnf("Failed to handle data batch: %v", err)
 				return err
 			}
 
 		case message := <-mh.finisherChannel:
-			log.Debugf("Finishing Client with ID: [%s]", message.dataEnvelope.ClientId)
+			logger.Logger.Debugf("Finishing Client with ID: [%s]", message.dataEnvelope.ClientId)
 			mh.dataHandler.HandleFinishClient(message.dataEnvelope, message.ackHandler)
 		}
 	}
@@ -105,21 +103,21 @@ func (mh *messageHandler) Close() error {
 	for _, queue := range mh.inputQueues {
 		queue.StopConsuming()
 		if e := queue.Close(); e != middleware.MessageMiddlewareSuccess {
-			log.Errorf("Failed to close input queue: %d", int(e))
+			logger.Logger.Errorf("Failed to close input queue: %d", int(e))
 		}
 	}
 	if mh.finisherExchange != nil {
 		mh.finisherExchange.StopConsuming()
 		if e := mh.finisherExchange.Close(); e != middleware.MessageMiddlewareSuccess {
-			log.Errorf("Failed to close finisher queue: %d", int(e))
+			logger.Logger.Errorf("Failed to close finisher queue: %d", int(e))
 		}
 	}
 	err := mh.dataHandler.Close()
 	if err != nil {
-		log.Errorf("Failed to close data handler: %v", err)
+		logger.Logger.Errorf("Failed to close data handler: %v", err)
 		return err
 	}
-	log.Debug("MessageHandler closed successfully.")
+	logger.Logger.Debug("MessageHandler closed successfully.")
 	return nil
 }
 
@@ -128,7 +126,7 @@ func (mh *messageHandler) Close() error {
 // Starts consuming for input queues indefinitely and placeing received messages into a monitor channel
 func (mh *messageHandler) consumeFromQueue(inputQueue middleware.MessageMiddleware, channelOutput chan message) error {
 
-	log.Debugf("Starting to consume from queue")
+	logger.Logger.Debugf("Starting to consume from queue")
 
 	done := make(chan bool, 1)
 
@@ -138,7 +136,7 @@ func (mh *messageHandler) consumeFromQueue(inputQueue middleware.MessageMiddlewa
 			dataBatch, err := utils.GetDataEnvelope(msg.Body)
 
 			if err != nil {
-				log.Errorf("Failed to unmarshal message: %v", err)
+				logger.Logger.Errorf("Failed to unmarshal message: %v", err)
 				done <- true
 				return
 			}

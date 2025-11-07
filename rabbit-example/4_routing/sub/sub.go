@@ -11,7 +11,7 @@ import (
 
 func failOnError(err error, msg string) {
 	if err != nil {
-		log.Panicf("%s: %s", msg, err)
+		logger.Logger.Panicf("%s: %s", msg, err)
 	}
 }
 
@@ -46,11 +46,11 @@ func main() {
 	failOnError(err, "Failed to declare a queue")
 
 	if len(os.Args) < 2 {
-		log.Printf("Usage: %s [info] [warning] [error]", os.Args[0])
+		logger.Logger.Infof("Usage: %s [info] [warning] [error]", os.Args[0])
 		os.Exit(0)
 	}
 	for _, s := range os.Args[1:] {
-		log.Printf("Binding queue %s to exchange %s with routing key %s",
+		logger.Logger.Infof("Binding queue %s to exchange %s with routing key %s",
 			q.Name, "logs_direct", s)
 		err = ch.QueueBind(
 			q.Name,        // queue name
@@ -83,15 +83,15 @@ func main() {
 
 	go func() {
 		for d := range msgs {
-			log.Printf("Received a message: %s", d.Body)
+			logger.Logger.Infof("Received a message: %s", d.Body)
 			dotCount := bytes.Count(d.Body, []byte("."))
 			t := time.Duration(dotCount)
 			time.Sleep(t * time.Second)
-			log.Printf("Done")
+			logger.Logger.Infof("Done")
 			d.Ack(false)
 		}
 	}()
 
-	log.Printf(" [*] Waiting for messages. To exit press CTRL+C")
+	logger.Logger.Infof(" [*] Waiting for messages. To exit press CTRL+C")
 	<-forever
 }

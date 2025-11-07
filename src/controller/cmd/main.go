@@ -6,20 +6,17 @@ import (
 	"github.com/maxogod/distro-tp/src/controller/internal/server"
 )
 
-var log = logger.GetLogger()
-
 func main() {
-	conf, err := config.InitConfig()
-	if err != nil {
-		log.Fatalf("%s", err)
-	}
+	conf, _ := config.InitConfig()
 
-	log.Infoln("Controller server starting")
+	logger.InitLogger(logger.LoggerEnvironment(conf.LogLevel))
+
+	logger.Logger.Infof("Controller server starting")
 	server := server.NewServer(conf)
-	err = server.Run()
+	err := server.Run()
 	if err != nil {
-		log.Fatalf("Failed to run server: %v", err)
+		logger.Logger.Fatalf("Failed to run server: %v", err)
 	}
 
-	log.Infoln("Creselia finished successfully!")
+	logger.Logger.Infof("Creselia finished successfully!")
 }

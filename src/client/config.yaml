@@ -6,7 +6,7 @@ server:
   port: 8080
   connection_retries: 5
 log:
-  level: "DEBUG"
+  level: "development"
 paths:
   transactions: "/transactions"
   transaction_items: "/transaction_items"

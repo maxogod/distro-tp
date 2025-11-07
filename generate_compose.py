@@ -35,6 +35,7 @@ lines.append(
       context: ./src/rabbitmq
       dockerfile: Dockerfile
     image: rabbitmq:latest
+    command: sh -c "rabbitmq-server > /dev/null 2>&1"
     ports:
       - '5670:5672'
       - '15670:15672'

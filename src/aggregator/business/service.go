@@ -9,8 +9,6 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-var log = logger.GetLogger()
-
 const SEPERATOR = "@"
 
 type aggregatorService struct {
@@ -42,7 +40,7 @@ func storeAggregatedBatch[T proto.Message](as *aggregatorService, clientID strin
 func getBatch[T proto.Message](as *aggregatorService, clientID string, amount int32) ([]T, bool) {
 	protoMessages, err := as.cacheService.ReadBatch(clientID, amount)
 	if err != nil {
-		log.Errorf("Error reading batch from cache: %v", err)
+		logger.Logger.Errorf("Error reading batch from cache: %v", err)
 		return nil, false
 	}
 

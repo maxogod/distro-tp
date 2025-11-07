@@ -15,8 +15,6 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-var log = logger.GetLogger()
-
 type groupData struct {
 	data   []proto.Message
 	isDone bool
@@ -180,7 +178,7 @@ func (ge *GroupExecutor) Close() error {
 
 	for clientID, q := range ge.connectedClients {
 		if e := q.Close(); e != middleware.MessageMiddlewareSuccess {
-			log.Errorf("failed to close middleware for client %s: %v", clientID, e)
+			logger.Logger.Errorf("failed to close middleware for client %s: %v", clientID, e)
 		}
 	}
 	return nil

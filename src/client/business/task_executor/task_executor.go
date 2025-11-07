@@ -16,8 +16,6 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-var log = logger.GetLogger()
-
 type taskExecutor struct {
 	dataPath   string
 	outputPath string
@@ -49,11 +47,11 @@ func (t *taskExecutor) Task1() error {
 		utils.TransactionBatchFromList,
 	)
 	if err != nil {
-		log.Errorf("failed to send transactions data: %v", err)
+		logger.Logger.Errorf("failed to send transactions data: %v", err)
 		return err
 	}
 
-	log.Debug("All transactions data sent, waiting for results...")
+	logger.Logger.Debug("All transactions data sent, waiting for results...")
 
 	t.receiveAndSaveResults(
 		filepath.Join(t.outputPath, t.conf.OutputFiles.T1),
@@ -61,7 +59,7 @@ func (t *taskExecutor) Task1() error {
 		func(dataBatch *protocol.DataEnvelope, ch chan string) {
 			transactionBatch := &raw.TransactionBatch{}
 			if err := proto.Unmarshal(dataBatch.Payload, transactionBatch); err != nil {
-				log.Errorf("failed to unmarshal transaction batch from server: %v", err)
+				logger.Logger.Errorf("failed to unmarshal transaction batch from server: %v", err)
 				return
 			}
 
@@ -86,7 +84,7 @@ func (t *taskExecutor) Task2() error {
 		utils.MenuItemBatchFromList,
 	)
 	if err != nil {
-		log.Errorf("failed to send menu items data: %v", err)
+		logger.Logger.Errorf("failed to send menu items data: %v", err)
 		return err
 	}
 
@@ -100,7 +98,7 @@ func (t *taskExecutor) Task2() error {
 		utils.TransactionItemsBatchFromList,
 	)
 	if err != nil {
-		log.Errorf("failed to send transaction items data: %v", err)
+		logger.Logger.Errorf("failed to send transaction items data: %v", err)
 		return err
 	}
 
@@ -110,7 +108,7 @@ func (t *taskExecutor) Task2() error {
 		func(dataBatch *protocol.DataEnvelope, ch chan string) {
 			data := &reduced.TotalProfitBySubtotal{}
 			if err := proto.Unmarshal(dataBatch.Payload, data); err != nil {
-				log.Errorf("failed to unmarshal transaction items batch from server: %v", err)
+				logger.Logger.Errorf("failed to unmarshal transaction items batch from server: %v", err)
 				return
 			}
 
@@ -125,7 +123,7 @@ func (t *taskExecutor) Task2() error {
 		func(dataBatch *protocol.DataEnvelope, ch chan string) {
 			data := &reduced.TotalSoldByQuantity{}
 			if err := proto.Unmarshal(dataBatch.Payload, data); err != nil {
-				log.Errorf("failed to unmarshal transaction items batch from server: %v", err)
+				logger.Logger.Errorf("failed to unmarshal transaction items batch from server: %v", err)
 				return
 			}
 
@@ -148,7 +146,7 @@ func (t *taskExecutor) Task3() error {
 		utils.StoreBatchFromList,
 	)
 	if err != nil {
-		log.Errorf("failed to send stores data: %v", err)
+		logger.Logger.Errorf("failed to send stores data: %v", err)
 		return err
 	}
 
@@ -162,7 +160,7 @@ func (t *taskExecutor) Task3() error {
 		utils.TransactionBatchFromList,
 	)
 	if err != nil {
-		log.Errorf("failed to send transactions data: %v", err)
+		logger.Logger.Errorf("failed to send transactions data: %v", err)
 		return err
 	}
 
@@ -172,7 +170,7 @@ func (t *taskExecutor) Task3() error {
 		func(dataBatch *protocol.DataEnvelope, ch chan string) {
 			data := &reduced.TotalPaymentValue{}
 			if err := proto.Unmarshal(dataBatch.Payload, data); err != nil {
-				log.Errorf("failed to unmarshal store tpv batch from server: %v", err)
+				logger.Logger.Errorf("failed to unmarshal store tpv batch from server: %v", err)
 				return
 			}
 
@@ -195,7 +193,7 @@ func (t *taskExecutor) Task4() error {
 		utils.UserBatchFromList,
 	)
 	if err != nil {
-		log.Errorf("failed to send users data: %v", err)
+		logger.Logger.Errorf("failed to send users data: %v", err)
 		return err
 	}
 
@@ -209,7 +207,7 @@ func (t *taskExecutor) Task4() error {
 		utils.StoreBatchFromList,
 	)
 	if err != nil {
-		log.Errorf("failed to send stores data: %v", err)
+		logger.Logger.Errorf("failed to send stores data: %v", err)
 		return err
 	}
 
@@ -223,7 +221,7 @@ func (t *taskExecutor) Task4() error {
 		utils.TransactionBatchFromList,
 	)
 	if err != nil {
-		log.Errorf("failed to send transactions data: %v", err)
+		logger.Logger.Errorf("failed to send transactions data: %v", err)
 		return err
 	}
 
@@ -233,7 +231,7 @@ func (t *taskExecutor) Task4() error {
 		func(dataBatch *protocol.DataEnvelope, ch chan string) {
 			data := &reduced.CountedUserTransactions{}
 			if err := proto.Unmarshal(dataBatch.Payload, data); err != nil {
-				log.Errorf("failed to unmarshal most purchases user batch from server: %v", err)
+				logger.Logger.Errorf("failed to unmarshal most purchases user batch from server: %v", err)
 				return
 			}
 
@@ -257,7 +255,7 @@ func (t taskExecutor) readAndSendData(
 ) error {
 	files, err := os.ReadDir(dataDir)
 	if err != nil {
-		log.Errorf("failed to read transactions directory: %v", err)
+		logger.Logger.Errorf("failed to read transactions directory: %v", err)
 		return err
 	}
 
@@ -314,12 +312,12 @@ func (t taskExecutor) receiveAndSaveResults(
 		for {
 			res, err := t.conn.ReceiveData()
 			if err != nil {
-				log.Debugf("connection with server closed")
+				logger.Logger.Debugf("connection with server closed")
 				return
 			}
 			dataBatch := &protocol.DataEnvelope{}
 			if err := proto.Unmarshal(res, dataBatch); err != nil {
-				log.Errorf("failed to unmarshal response from server: %v", err)
+				logger.Logger.Errorf("failed to unmarshal response from server: %v", err)
 				return
 			} else if dataBatch.GetIsDone() {
 				break // No more batches
@@ -330,7 +328,7 @@ func (t taskExecutor) receiveAndSaveResults(
 	}()
 
 	t.fs.SaveCsvAsBatches(path, batchesCh, header)
-	log.Debug("Finished saving data")
+	logger.Logger.Debug("Finished saving data")
 
 	return nil
 }

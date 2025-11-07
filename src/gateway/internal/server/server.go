@@ -15,8 +15,6 @@ import (
 	"github.com/maxogod/distro-tp/src/gateway/internal/sessions/manager"
 )
 
-var log = logger.GetLogger()
-
 type Server struct {
 	config            *config.Config
 	running           atomic.Bool
@@ -43,7 +41,7 @@ func (s *Server) Run() error {
 
 	err := s.connectionManager.StartListening()
 	if err != nil {
-		log.Errorf("Failed to start listening: %v", err)
+		logger.Logger.Errorf("Failed to start listening: %v", err)
 		return err
 	}
 
@@ -54,7 +52,7 @@ func (s *Server) Run() error {
 
 		clientConnection, err := s.connectionManager.AcceptConnection()
 		if err != nil {
-			log.Errorf("Failed to accept connection: %v", err)
+			logger.Logger.Errorf("Failed to accept connection: %v", err)
 			break
 		}
 
@@ -72,7 +70,7 @@ func (s *Server) setupGracefulShutdown() {
 
 	go func() {
 		<-sigChannel
-		log.Infof("action: shutdown_signal | result: received")
+		logger.Logger.Infof("action: shutdown_signal | result: received")
 		s.Shutdown()
 	}()
 }
@@ -86,5 +84,5 @@ func (s *Server) Shutdown() {
 	defer cancel()
 	s.pingServer.Shutdown(ctx)
 
-	log.Infof("action: shutdown | result: success")
+	logger.Logger.Infof("action: shutdown | result: success")
 }

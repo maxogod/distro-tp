@@ -4,38 +4,35 @@ import (
 	"os"
 	"time"
 
-	"github.com/maxogod/distro-tp/src/common/logger"
 	"github.com/maxogod/distro-tp/src/client/config"
 	"github.com/maxogod/distro-tp/src/client/internal/client"
+	"github.com/maxogod/distro-tp/src/common/logger"
 )
-
-var log = logger.GetLogger()
 
 func main() {
 	before := time.Now()
 
+	conf, _ := config.InitConfig()
+
+	logger.InitLogger(logger.LoggerEnvironment(conf.LogLevel))
+
 	if len(os.Args) < 2 {
-		log.Fatalln("no arguments provided")
+		logger.Logger.Fatalln("no arguments provided")
 	}
 
-	conf, err := config.InitConfig()
-	if err != nil {
-		log.Fatalln("failed to initialize config:", err)
-	}
-
-	log.Debugf("Client will do tasks: %v", os.Args[1:])
+	logger.Logger.Infof("Client will do tasks: %v", os.Args[1:])
 	for _, t := range os.Args[1:] {
 		c, err := client.NewClient(conf)
 		if err != nil {
-			log.Fatalf("failed to create client: %v", err)
+			logger.Logger.Fatalf("failed to create client: %v", err)
 		}
 
 		if err := c.Start(t); err != nil {
-			log.Fatalln("Client error:", err)
+			logger.Logger.Fatalln("Client error:", err)
 		}
 	}
 
 	after := time.Now()
 
-	log.Debugf("Pikachu finished successfully in %s\n", after.Sub(before).String())
+	logger.Logger.Infof("Pikachu finished successfully in %s\n", after.Sub(before).String())
 }

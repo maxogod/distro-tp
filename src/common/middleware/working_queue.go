@@ -15,13 +15,13 @@ func NewQueueMiddleware(url, queueName string) (MessageMiddleware, error) {
 
 	conn, err := amqp.Dial(url)
 	if err != nil {
-		logger.GetLogger().Errorln("Failed to connect to RabbitMQ:", err)
+		logger.Logger.Errorln("Failed to connect to RabbitMQ:", err)
 		return m, err
 	}
 
 	ch, err := conn.Channel()
 	if err != nil {
-		logger.GetLogger().Errorln("Failed to open a channel:", err)
+		logger.Logger.Errorln("Failed to open a channel:", err)
 		return m, err
 	}
 
@@ -34,7 +34,7 @@ func NewQueueMiddleware(url, queueName string) (MessageMiddleware, error) {
 		nil,       // arguments
 	)
 	if err != nil {
-		logger.GetLogger().Errorln("Failed to declare a queue:", err)
+		logger.Logger.Errorln("Failed to declare a queue:", err)
 		return m, err
 	}
 
@@ -47,7 +47,7 @@ func NewQueueMiddleware(url, queueName string) (MessageMiddleware, error) {
 
 func (mq *MessageMiddlewareQueue) StartConsuming(onMessageCallback onMessageCallback) (e MessageMiddlewareError) {
 	if mq.conn.IsClosed() {
-		logger.GetLogger().Errorln("Connection is closed")
+		logger.Logger.Errorln("Connection is closed")
 		return MessageMiddlewareDisconnectedError
 	}
 
@@ -65,7 +65,7 @@ func (mq *MessageMiddlewareQueue) StartConsuming(onMessageCallback onMessageCall
 		nil,          // args
 	)
 	if err != nil {
-		logger.GetLogger().Errorln("Failed to register a consumer:", err)
+		logger.Logger.Errorln("Failed to register a consumer:", err)
 		return MessageMiddlewareMessageError
 	}
 	mq.consumeChannel = consumeChannel
@@ -78,13 +78,13 @@ func (mq *MessageMiddlewareQueue) StartConsuming(onMessageCallback onMessageCall
 
 func (mq *MessageMiddlewareQueue) StopConsuming() (e MessageMiddlewareError) {
 	if mq.consumerTag == "" {
-		logger.GetLogger().Warnln("StopConsuming called but no consumer is active")
+		logger.Logger.Warnln("StopConsuming called but no consumer is active")
 		return MessageMiddlewareSuccess
 	}
 
 	err := mq.channel.Cancel(mq.consumerTag, false)
 	if err != nil {
-		logger.GetLogger().Errorln("Failed to cancel the consumer:", err)
+		logger.Logger.Errorln("Failed to cancel the consumer:", err)
 		return MessageMiddlewareMessageError
 	}
 	mq.consumerTag = ""
@@ -94,7 +94,7 @@ func (mq *MessageMiddlewareQueue) StopConsuming() (e MessageMiddlewareError) {
 
 func (mq *MessageMiddlewareQueue) Send(message []byte) (e MessageMiddlewareError) {
 	if mq.conn.IsClosed() {
-		logger.GetLogger().Errorln("Connection is closed")
+		logger.Logger.Errorln("Connection is closed")
 		return MessageMiddlewareDisconnectedError
 	}
 
@@ -112,11 +112,11 @@ func (mq *MessageMiddlewareQueue) Send(message []byte) (e MessageMiddlewareError
 			Body:         message,
 		})
 	if err != nil {
-		logger.GetLogger().Errorln("Failed to publish a message:", err)
+		logger.Logger.Errorln("Failed to publish a message:", err)
 		return MessageMiddlewareMessageError
 	}
 
-	//logger.GetLogger().Debugln("Sent message:", string(message))
+	//logger.Logger.Debugln("Sent message:", string(message))
 
 	return MessageMiddlewareSuccess
 }
@@ -125,7 +125,7 @@ func (mq *MessageMiddlewareQueue) Close() (e MessageMiddlewareError) {
 	errCh := mq.channel.Close()
 	errConn := mq.conn.Close()
 	if errCh != nil || errConn != nil {
-		logger.GetLogger().Errorln("Failed to close middleware connection")
+		logger.Logger.Errorln("Failed to close middleware connection")
 		return MessageMiddlewareCloseError
 	}
 
@@ -140,11 +140,11 @@ func (mq *MessageMiddlewareQueue) Delete() (e MessageMiddlewareError) {
 		false,        // noWait
 	)
 	if err != nil {
-		logger.GetLogger().Errorln("Failed to delete queue:", err)
+		logger.Logger.Errorln("Failed to delete queue:", err)
 		return MessageMiddlewareDeleteError
 	}
 
-	logger.GetLogger().Debugln("Deleted queue:", mq.queueName, "with", msg_count, "messages")
+	logger.Logger.Debugln("Deleted queue:", mq.queueName, "with", msg_count, "messages")
 
 	return MessageMiddlewareSuccess
 }

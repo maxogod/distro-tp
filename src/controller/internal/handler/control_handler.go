@@ -10,8 +10,6 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-var log = logger.GetLogger()
-
 type workerMonitor struct {
 	queue           middleware.MessageMiddleware
 	startOrFinishCh chan bool
@@ -64,7 +62,7 @@ func NewControlHandler(middlewareUrl, clientID string) MessageHandler {
 }
 
 func (ch *controlHandler) AwaitForWorkers() error {
-	log.Debugf("Started listening for workers done messages of client %s", ch.clientID)
+	logger.Logger.Debugf("Started listening for workers done messages of client %s", ch.clientID)
 	currentWorkerType := enum.Gateway
 	receivedFromCurrentLayer := 0
 	sentFromCurrentLayer := 0
@@ -78,7 +76,7 @@ func (ch *controlHandler) AwaitForWorkers() error {
 
 		if receivedFromCurrentLayer == ch.messagesSentToNextLayer {
 			nextLayer := enum.WorkerType(counter.GetNext())
-			log.Debugf("[%s] All %d messages received from %s workers, next layer %s with msgs: %d",
+			logger.Logger.Debugf("[%s] All %d messages received from %s workers, next layer %s with msgs: %d",
 				ch.clientID, receivedFromCurrentLayer, currentWorkerType, nextLayer, sentFromCurrentLayer)
 
 			ch.workersMonitoring[currentWorkerType].startOrFinishCh <- false // finish
@@ -89,10 +87,10 @@ func (ch *controlHandler) AwaitForWorkers() error {
 			ch.messagesSentToNextLayer = sentFromCurrentLayer
 			sentFromCurrentLayer = 0
 			receivedFromCurrentLayer = 0
-			log.Debugf("[%s] Proceeding to wait for %s workers", ch.clientID, currentWorkerType)
+			logger.Logger.Debugf("[%s] Proceeding to wait for %s workers", ch.clientID, currentWorkerType)
 		}
 	}
-	log.Debugf("[%s] All workers done, proceed with finish sequence", ch.clientID)
+	logger.Logger.Debugf("[%s] All workers done, proceed with finish sequence", ch.clientID)
 
 	return nil
 }
@@ -105,7 +103,7 @@ func (ch *controlHandler) SendDone(worker enum.WorkerType) error {
 	}
 	dataBytes, err := proto.Marshal(doneMessage)
 	if err != nil {
-		log.Error("Error marshaling done message:", err)
+		logger.Logger.Error("Error marshaling done message:", err)
 		return err
 	}
 
@@ -143,17 +141,17 @@ func (ch *controlHandler) sendControllerReady() {
 	}
 	dataBytes, err := proto.Marshal(readyMessage)
 	if err != nil {
-		log.Errorf("[%s] Error marshaling controller ready message: %v", ch.clientID, err)
+		logger.Logger.Errorf("[%s] Error marshaling controller ready message: %v", ch.clientID, err)
 		return
 	}
 
 	sendErr := ch.clientControlExchange.Send(dataBytes)
 	if sendErr != middleware.MessageMiddlewareSuccess {
-		log.Errorf("[%s] Error sending controller ready message: %d", ch.clientID, sendErr)
+		logger.Logger.Errorf("[%s] Error sending controller ready message: %d", ch.clientID, sendErr)
 		return
 	}
 
-	log.Infof("[%s] Controller ready message sent", ch.clientID)
+	logger.Logger.Infof("[%s] Controller ready message sent", ch.clientID)
 }
 
 // startCounterListener starts a goroutine that listens for counter messages from workers.
@@ -162,7 +160,7 @@ func (ch *controlHandler) startCounterListener(workerRoute enum.WorkerType) {
 
 	doneCh := make(chan bool)
 	e := ch.workersMonitoring[workerRoute].queue.StartConsuming(func(msgs middleware.ConsumeChannel, d chan error) {
-		log.Debugf("[%s] Starting to consume from counter exchange for %s workers", ch.clientID, workerRoute)
+		logger.Logger.Debugf("[%s] Starting to consume from counter exchange for %s workers", ch.clientID, workerRoute)
 		ch.routineReadyCh <- true
 		running := <-ch.workersMonitoring[workerRoute].startOrFinishCh
 		for running {
@@ -178,12 +176,12 @@ func (ch *controlHandler) startCounterListener(workerRoute enum.WorkerType) {
 			counter := &protocol.MessageCounter{}
 			err := proto.Unmarshal(msg.Body, counter)
 			if err != nil {
-				log.Errorf("[%s] Failed to unmarshal done message: %v", ch.clientID, err)
+				logger.Logger.Errorf("[%s] Failed to unmarshal done message: %v", ch.clientID, err)
 				msg.Nack(false, false)
 				continue
 			}
 			if counter.GetClientId() != ch.clientID || enum.WorkerType(counter.GetFrom()) != workerRoute {
-				log.Warnf("[%s] Received wrong clientID or WorkerType %s", counter.GetClientId(), counter.GetFrom())
+				logger.Logger.Warnf("[%s] Received wrong clientID or WorkerType %s", counter.GetClientId(), counter.GetFrom())
 				msg.Nack(false, false)
 				continue
 			}
@@ -196,8 +194,8 @@ func (ch *controlHandler) startCounterListener(workerRoute enum.WorkerType) {
 	})
 	<-doneCh
 	if e != middleware.MessageMiddlewareSuccess {
-		log.Errorf("[%s] Error starting counter listener: %d", ch.clientID, e)
+		logger.Logger.Errorf("[%s] Error starting counter listener: %d", ch.clientID, e)
 	}
 
-	log.Debugf("[%s] Counter listener for %s stopped", ch.clientID, workerRoute)
+	logger.Logger.Debugf("[%s] Counter listener for %s stopped", ch.clientID, workerRoute)
 }

@@ -10,8 +10,6 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-var log = logger.GetLogger()
-
 type clientSession struct {
 	Id               string
 	clientConnection network.ConnectionInterface
@@ -34,12 +32,12 @@ func (cs *clientSession) IsFinished() bool {
 }
 
 func (cs *clientSession) ProcessRequest() error {
-	log.Debugf("[%s] Starting to process client request", cs.Id)
+	logger.Logger.Debugf("[%s] Starting to process client request", cs.Id)
 
 	// Initialize session with controller
 	err := cs.messageHandler.AwaitControllerInit()
 	if err != nil {
-		log.Errorf("[%s] Error awaiting controller init for client: %v", cs.Id, err)
+		logger.Logger.Errorf("[%s] Error awaiting controller init for client: %v", cs.Id, err)
 		return err
 	}
 
@@ -48,7 +46,7 @@ func (cs *clientSession) ProcessRequest() error {
 	for processData {
 		request, err := cs.getRequest()
 		if err != nil {
-			log.Errorf("[%s] Error getting request from client: %v", cs.Id, err)
+			logger.Logger.Errorf("[%s] Error getting request from client: %v", cs.Id, err)
 			return err
 		}
 		request.ClientId = cs.Id
@@ -64,15 +62,15 @@ func (cs *clientSession) ProcessRequest() error {
 
 	err = cs.messageHandler.NotifyClientMessagesCount()
 	if err != nil {
-		log.Errorf("[%s] Error notifying controller about client messages count: %v", cs.Id, err)
+		logger.Logger.Errorf("[%s] Error notifying controller about client messages count: %v", cs.Id, err)
 		return err
 	}
 
-	log.Debugf("[%s] Starting to send report data to client", cs.Id)
+	logger.Logger.Debugf("[%s] Starting to send report data to client", cs.Id)
 	cs.processResponse()
 
 	cs.Close()
-	log.Debugf("[%s] All report data sent to client, and session closed", cs.Id)
+	logger.Logger.Debugf("[%s] All report data sent to client, and session closed", cs.Id)
 
 	return nil
 }
@@ -82,7 +80,7 @@ func (cs *clientSession) Close() {
 		cs.clientConnection.Close()
 		cs.messageHandler.Close()
 		cs.running.Store(false)
-		log.Debugf("[%s] Closed client session", cs.Id)
+		logger.Logger.Debugf("[%s] Closed client session", cs.Id)
 	}
 }
 
@@ -96,7 +94,7 @@ func (cs *clientSession) processResponse() {
 	for batch := range data {
 		dataBytes, err := proto.Marshal(batch)
 		if err != nil {
-			log.Errorf("[%s] Error marshaling data to send to client: %v", cs.Id, err)
+			logger.Logger.Errorf("[%s] Error marshaling data to send to client: %v", cs.Id, err)
 			continue
 		}
 		cs.clientConnection.SendData(dataBytes)
@@ -106,14 +104,14 @@ func (cs *clientSession) processResponse() {
 func (cs *clientSession) getRequest() (*protocol.DataEnvelope, error) {
 	requestBytes, err := cs.clientConnection.ReceiveData()
 	if err != nil {
-		log.Errorf("[%s] Error receiving data: %v", cs.Id, err)
+		logger.Logger.Errorf("[%s] Error receiving data: %v", cs.Id, err)
 		return nil, err
 	}
 
 	request := &protocol.DataEnvelope{}
 	err = proto.Unmarshal(requestBytes, request)
 	if err != nil {
-		log.Errorf("[%s] Error receiving data: %v", cs.Id, err)
+		logger.Logger.Errorf("[%s] Error receiving data: %v", cs.Id, err)
 		return nil, err
 	}
 

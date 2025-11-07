@@ -14,8 +14,6 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-var log = logger.GetLogger()
-
 type Server struct {
 	config        *config.Config
 	running       atomic.Bool
@@ -55,7 +53,7 @@ func (s *Server) Run() error {
 		clientSession := s.clientManager.AddClient(clientID)
 		go clientSession.InitiateControlSequence()
 
-		log.Infof("action: add_client | client_id: %s | result: success", clientID)
+		logger.Logger.Infof("action: add_client | client_id: %s | result: success", clientID)
 	}
 
 	return nil
@@ -71,7 +69,7 @@ func (s *Server) Shutdown() {
 	s.finishAcceptingChan <- true // Stop accepting new clients
 	s.initControlMiddleware.Close()
 
-	log.Infof("action: shutdown | result: success")
+	logger.Logger.Infof("action: shutdown | result: success")
 }
 
 /* --- PRIVATE UTILS --- */
@@ -82,7 +80,7 @@ func (s *Server) setupGracefulShutdown() {
 
 	go func() {
 		<-sigChannel
-		log.Infof("action: shutdown_signal | result: received")
+		logger.Logger.Infof("action: shutdown_signal | result: received")
 		s.Shutdown()
 	}()
 }
@@ -104,7 +102,7 @@ func (s *Server) acceptNewClients() {
 			controlMsg := protocol.ControlMessage{}
 			err := proto.Unmarshal(msg.Body, &controlMsg)
 			if err != nil {
-				log.Errorf("action: accept_new_clients | result: failed | error: %s", err.Error())
+				logger.Logger.Errorf("action: accept_new_clients | result: failed | error: %s", err.Error())
 				msg.Nack(false, false)
 				continue
 			}
@@ -116,7 +114,7 @@ func (s *Server) acceptNewClients() {
 		done <- true
 	})
 	if e != middleware.MessageMiddlewareSuccess {
-		log.Errorf("action: accept_new_clients | result: failed | error: %d", e)
+		logger.Logger.Errorf("action: accept_new_clients | result: failed | error: %d", e)
 	}
 	<-done
 	close(s.newClientsChan)

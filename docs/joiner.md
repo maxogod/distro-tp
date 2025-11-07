@@ -69,4 +69,4 @@ Al finalizar el procesamiento de todos los batches de data para un cliente en pa
 
 ## Config
 
-En el archivo de `config.yaml` del worker Joiner solo se define la configuración necesaria para conectarse a RabbitMQ y el nivel de log. No hay configuraciones específicas para este worker en particular.
+En el archivo de `config.yaml` del worker Joiner solo se define la configuración necesaria para conectarse a RabbitMQ y el nivel de logger.Logger. No hay configuraciones específicas para este worker en particular.

@@ -15,8 +15,6 @@ import (
 	"github.com/maxogod/distro-tp/src/common/worker"
 )
 
-var log = logger.GetLogger()
-
 type Server struct {
 	messageHandler worker.MessageHandler
 }
@@ -53,14 +51,14 @@ func InitServer(conf *config.Config) *Server {
 }
 
 func (s *Server) Run() error {
-	log.Info("Starting aggregator server...")
+	logger.Logger.Info("Starting aggregator server...")
 	s.setupGracefulShutdown()
 
 	// This is a blocking call, it will run until an error occurs or
 	// the Close() method is called via a signal
 	e := s.messageHandler.Start()
 	if e != nil {
-		log.Errorf("Error starting message handler: %v", e)
+		logger.Logger.Errorf("Error starting message handler: %v", e)
 		s.Shutdown()
 		return e
 	}
@@ -74,17 +72,17 @@ func (s *Server) setupGracefulShutdown() {
 
 	go func() {
 		<-sigChannel
-		log.Debugf("Shutdown Signal received, shutting down...")
+		logger.Logger.Debugf("Shutdown Signal received, shutting down...")
 		s.Shutdown()
 	}()
 }
 
 func (s *Server) Shutdown() {
-	log.Debug("Shutting down aggregator Worker server...")
+	logger.Logger.Debug("Shutting down aggregator Worker server...")
 	err := s.messageHandler.Close()
 	if err != nil {
-		log.Errorf("Error closing message handler: %v", err)
+		logger.Logger.Errorf("Error closing message handler: %v", err)
 	}
 
-	log.Debug("aggregator Worker server shut down successfully.")
+	logger.Logger.Debug("aggregator Worker server shut down successfully.")
 }

@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/maxogod/distro-tp/src/aggregator/mock"
+	"github.com/maxogod/distro-tp/src/common/logger"
 	"github.com/maxogod/distro-tp/src/common/middleware"
 	"github.com/maxogod/distro-tp/src/common/models/enum"
 	"github.com/maxogod/distro-tp/src/common/models/protocol"
@@ -19,6 +20,7 @@ var url = "amqp://guest:guest@localhost:5672/"
 
 func TestMain(m *testing.M) {
 	go mock.StartAggregatorMock("./config_test.yaml")
+	logger.InitLogger(logger.LoggerEnvDevelopment)
 	m.Run()
 }
 

@@ -11,8 +11,6 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-var log = logger.GetLogger()
-
 type messageHandler struct {
 	clientID string
 
@@ -110,7 +108,7 @@ func (mh *messageHandler) ForwardData(dataBatch *protocol.DataEnvelope) error {
 
 	dateBytes, err := proto.Marshal(dataBatch)
 	if err != nil {
-		log.Error("Error marshaling data batch:", err)
+		logger.Logger.Error("Error marshaling data batch:", err)
 		return err
 	}
 
@@ -126,7 +124,7 @@ func (mh *messageHandler) ForwardReferenceData(dataBatch *protocol.DataEnvelope)
 
 	dateBytes, err := proto.Marshal(dataBatch)
 	if err != nil {
-		log.Error("Error marshaling reference data batch:", err)
+		logger.Logger.Error("Error marshaling reference data batch:", err)
 		return err
 	}
 
@@ -157,7 +155,7 @@ func (mh *messageHandler) startReportDataListener() {
 
 	done := make(chan bool)
 	mh.processedDataExchangeMiddleware.StartConsuming(func(msgs middleware.ConsumeChannel, d chan error) {
-		log.Debugf("[%s] Started listening for processed data", mh.clientID)
+		logger.Logger.Debugf("[%s] Started listening for processed data", mh.clientID)
 		mh.routineReadyCh <- true
 		receiving := true
 		firstMessageReceived := false // To track if aggregator has started sending data
@@ -192,13 +190,13 @@ func (mh *messageHandler) startReportDataListener() {
 			case <-timer.C:
 				// Only stop receiving if at least one message was received before
 				if firstMessageReceived {
-					log.Warnf("[%s] Timeout waiting for processed data", mh.clientID)
+					logger.Logger.Warnf("[%s] Timeout waiting for processed data", mh.clientID)
 					receiving = false
 				}
 				timer.Reset(mh.receivingTimeout)
 			}
 		}
-		log.Debugf("[%s] Finished listening for processed data", mh.clientID)
+		logger.Logger.Debugf("[%s] Finished listening for processed data", mh.clientID)
 		done <- true
 	})
 	<-done
@@ -209,7 +207,7 @@ func (mh *messageHandler) awaitControllerAckListener() {
 
 	done := make(chan bool)
 	mh.controlReadyExchange.StartConsuming(func(msgs middleware.ConsumeChannel, d chan error) {
-		log.Debugf("[%s] Started listening for controller ack", mh.clientID)
+		logger.Logger.Debugf("[%s] Started listening for controller ack", mh.clientID)
 		mh.routineReadyCh <- true
 		<-mh.startAwaitingAck
 		waiting := true
@@ -222,20 +220,20 @@ func (mh *messageHandler) awaitControllerAckListener() {
 				err := proto.Unmarshal(msg.Body, controlMessage)
 				if err != nil || controlMessage.GetClientId() != mh.clientID {
 					msg.Nack(false, false) // Discard unwanted messages
-					log.Warnf("[%s] Received invalid control message while waiting for ack", mh.clientID)
+					logger.Logger.Warnf("[%s] Received invalid control message while waiting for ack", mh.clientID)
 					continue
 				}
 
 				if controlMessage.GetIsAck() {
 					waiting = false
 					ackReceived = true
-					log.Infof("[%s] Received controller ack for initialization", mh.clientID)
+					logger.Logger.Infof("[%s] Received controller ack for initialization", mh.clientID)
 				}
 				msg.Ack(false)
 			case <-time.After(mh.receivingTimeout):
 				waiting = false
 				ackReceived = false
-				log.Warnf("[%s] Timeout waiting for controller ack after %v", mh.clientID, mh.receivingTimeout)
+				logger.Logger.Warnf("[%s] Timeout waiting for controller ack after %v", mh.clientID, mh.receivingTimeout)
 			}
 		}
 

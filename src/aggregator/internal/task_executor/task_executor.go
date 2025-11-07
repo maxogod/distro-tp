@@ -16,8 +16,6 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-var log = logger.GetLogger()
-
 // To differentiate between Task 2.1 and Task 2.2 results in the DB
 const T2_1_PREFIX = "T2_1@"
 const T2_2_PREFIX = "T2_2@"
@@ -228,22 +226,22 @@ func (ae *AggregatorExecutor) HandleFinishClient(dataEnvelope *protocol.DataEnve
 
 	clientID := dataEnvelope.GetClientId()
 	taskType, exists := ae.clientTasks[clientID]
-	log.Debugf("Finishing client: %s | task-type: %d", clientID, taskType)
+	logger.Logger.Debugf("Finishing client: %s | task-type: %d", clientID, taskType)
 	if !exists {
-		log.Warn("Client ID never sent any data: ", clientID)
+		logger.Logger.Warn("Client ID never sent any data: ", clientID)
 		return nil
 	}
 	task := enum.TaskType(taskType)
 	if task == enum.T2 {
 		err := ae.finishExecutor.SendAllData(clientID, enum.T2_1)
 		if err != nil {
-			log.Debug("Failed to send all data for client: ", clientID, " | error: ", err)
+			logger.Logger.Debug("Failed to send all data for client: ", clientID, " | error: ", err)
 		}
 		err = ae.finishExecutor.SendAllData(clientID, enum.T2_2)
 		if err != nil {
-			log.Debug("Failed to send all data for client: ", clientID, " | error: ", err)
+			logger.Logger.Debug("Failed to send all data for client: ", clientID, " | error: ", err)
 		}
-		log.Debug("Client Finished: ", clientID)
+		logger.Logger.Debug("Client Finished: ", clientID)
 		delete(ae.clientTasks, clientID)
 		shouldAck = true
 		return nil
@@ -254,7 +252,7 @@ func (ae *AggregatorExecutor) HandleFinishClient(dataEnvelope *protocol.DataEnve
 		return err
 	}
 
-	log.Debug("Client Finished: ", clientID)
+	logger.Logger.Debug("Client Finished: ", clientID)
 	delete(ae.clientTasks, clientID)
 	shouldAck = true
 	return nil
@@ -267,7 +265,7 @@ func (ae *AggregatorExecutor) Close() error {
 
 	for clientID, q := range ae.connectedClients {
 		if e := q.Close(); e != middleware.MessageMiddlewareSuccess {
-			log.Errorf("failed to close middleware for client %s: %v", clientID, e)
+			logger.Logger.Errorf("failed to close middleware for client %s: %v", clientID, e)
 		}
 	}
 
