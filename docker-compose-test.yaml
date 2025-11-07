@@ -40,6 +40,19 @@ services:
     networks:
       - tp_net
 
+  controller:
+    container_name: controller 
+    build:
+      dockerfile: ./src/controller/Dockerfile
+    image: controller:latest
+    volumes:
+      - ./src/controller/config.yaml:/config.yaml
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - tp_net
+
   aggregator:
     container_name: aggregator
     build:
