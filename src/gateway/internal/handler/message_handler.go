@@ -48,7 +48,7 @@ func NewMessageHandler(middlewareUrl, clientID string, receivingTimeout int) Mes
 
 		initControlQueue:     middleware.GetInitControlQueue(middlewareUrl),
 		controlReadyExchange: middleware.GetClientControlExchange(middlewareUrl, clientID),
-		counterExchange:      middleware.GetCounterExchange(middlewareUrl, clientID),
+		counterExchange:      middleware.GetCounterExchange(middlewareUrl, clientID+"@"+string(enum.Gateway)),
 
 		startAwaitingAck: make(chan bool),
 		ackReceived:      make(chan bool),
@@ -235,7 +235,7 @@ func (mh *messageHandler) awaitControllerAckListener() {
 			case <-time.After(mh.receivingTimeout):
 				waiting = false
 				ackReceived = false
-				log.Warnf("[%s] Timeout waiting for controller ack", mh.clientID)
+				log.Warnf("[%s] Timeout waiting for controller ack after %v", mh.clientID, mh.receivingTimeout)
 			}
 		}
 

@@ -53,7 +53,7 @@ func (s *Server) Run() error {
 		s.clientManager.ReapStaleClients()
 
 		clientSession := s.clientManager.AddClient(clientID)
-		clientSession.InitiateControlSequence()
+		go clientSession.InitiateControlSequence()
 
 		log.Infof("action: add_client | client_id: %s | result: success", clientID)
 	}

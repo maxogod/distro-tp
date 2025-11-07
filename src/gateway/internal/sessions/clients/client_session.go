@@ -43,12 +43,6 @@ func (cs *clientSession) ProcessRequest() error {
 		return err
 	}
 
-	err = cs.messageHandler.NotifyClientMessagesCount()
-	if err != nil {
-		log.Errorf("[%s] Error notifying controller about client messages count: %v", cs.Id, err)
-		return err
-	}
-
 	// Start processing
 	processData := true
 	for processData {
@@ -66,6 +60,12 @@ func (cs *clientSession) ProcessRequest() error {
 		} else {
 			cs.messageHandler.ForwardData(request)
 		}
+	}
+
+	err = cs.messageHandler.NotifyClientMessagesCount()
+	if err != nil {
+		log.Errorf("[%s] Error notifying controller about client messages count: %v", cs.Id, err)
+		return err
 	}
 
 	log.Debugf("[%s] Starting to send report data to client", cs.Id)
