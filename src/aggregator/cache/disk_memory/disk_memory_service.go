@@ -60,27 +60,17 @@ func (c *diskMemoryStorage) FinishData(cacheReference string) {
 func (c *diskMemoryStorage) ReadData(cacheReference string, read_ch chan []byte) {
 
 	fileName := cacheReference + CACHE_EXTENSION
-	store_ch := c.storageChannels[fileName]
-	if store_ch != nil {
-		close(store_ch)
-		delete(c.storageChannels, fileName)
-	}
 	go c.fileHandler.ReadData(fileName, read_ch)
 
 }
 
 func (c *diskMemoryStorage) RemoveCache(cacheReference string) error {
 	fileName := cacheReference + CACHE_EXTENSION
-	c.fileHandler.CloseFile(fileName)
 	c.fileHandler.DeleteFile(fileName)
 	return nil
 }
 
 func (c *diskMemoryStorage) Close() error {
-
-	for _, storageCh := range c.storageChannels {
-		close(storageCh)
-	}
 
 	c.fileHandler.Close()
 	return nil
