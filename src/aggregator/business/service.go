@@ -296,8 +296,7 @@ func (as *aggregatorService) GetStoredCountedUserTransactions(clientID string) (
 	if err != nil {
 		return nil, err
 	}
-	result := getTopUsersPerStore(data)
-	return result, nil
+	return getTopUsersPerStore(data), nil
 }
 
 // ======= CLOSE =======

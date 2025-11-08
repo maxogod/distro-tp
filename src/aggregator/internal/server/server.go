@@ -6,7 +6,7 @@ import (
 	"syscall"
 
 	"github.com/maxogod/distro-tp/src/aggregator/business"
-	"github.com/maxogod/distro-tp/src/aggregator/cache"
+	cache "github.com/maxogod/distro-tp/src/aggregator/cache/disk_memory"
 	"github.com/maxogod/distro-tp/src/aggregator/config"
 	"github.com/maxogod/distro-tp/src/aggregator/internal/task_executor"
 	"github.com/maxogod/distro-tp/src/common/logger"
@@ -28,7 +28,7 @@ func InitServer(conf *config.Config) *Server {
 	finishExchange := middleware.GetFinishExchange(conf.Address, []string{string(enum.AggregatorWorker)})
 
 	// initiate internal components
-	cacheService := cache.NewInMemoryCache()
+	cacheService := cache.NewDiskMemoryStorage()
 	connectedClients := make(map[string]middleware.MessageMiddleware)
 
 	aggregatorService := business.NewAggregatorService(cacheService)
