@@ -3,7 +3,6 @@ package task_executor
 import (
 	"fmt"
 
-	"github.com/maxogod/distro-tp/src/common/logger"
 	"github.com/maxogod/distro-tp/src/common/middleware"
 	"github.com/maxogod/distro-tp/src/common/models/enum"
 	"github.com/maxogod/distro-tp/src/common/models/protocol"
@@ -12,8 +11,6 @@ import (
 	"github.com/maxogod/distro-tp/src/filter/business"
 	"google.golang.org/protobuf/proto"
 )
-
-var log = logger.GetLogger()
 
 type FilterExecutor struct {
 	config           TaskConfig

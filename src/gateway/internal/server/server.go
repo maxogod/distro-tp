@@ -4,34 +4,35 @@ import (
 	"context"
 	"os"
 	"os/signal"
+	"sync/atomic"
 	"syscall"
 	"time"
 
 	"github.com/maxogod/distro-tp/src/common/logger"
-	"github.com/maxogod/distro-tp/src/gateway_controller/config"
-	"github.com/maxogod/distro-tp/src/gateway_controller/internal/healthcheck"
-	"github.com/maxogod/distro-tp/src/gateway_controller/internal/network"
-	"github.com/maxogod/distro-tp/src/gateway_controller/internal/sessions/manager"
+	"github.com/maxogod/distro-tp/src/gateway/config"
+	"github.com/maxogod/distro-tp/src/gateway/internal/healthcheck"
+	"github.com/maxogod/distro-tp/src/gateway/internal/network"
+	"github.com/maxogod/distro-tp/src/gateway/internal/sessions/manager"
 )
-
-var log = logger.GetLogger()
 
 type Server struct {
 	config            *config.Config
-	running           bool
+	running           atomic.Bool
 	connectionManager network.ConnectionManager
 	clientManager     manager.ClientManager
 	pingServer        healthcheck.PingServer // for service health checks
 }
 
 func NewServer(conf *config.Config) *Server {
-	return &Server{
+	s := &Server{
 		config:            conf,
-		running:           true,
 		connectionManager: network.NewConnectionManager(conf.Port),
 		clientManager:     manager.NewClientManager(conf),
 		pingServer:        healthcheck.NewPingServer(int(conf.HealthCheckPort)), // for health check
 	}
+	s.running.Store(true)
+
+	return s
 }
 
 func (s *Server) Run() error {
@@ -40,18 +41,18 @@ func (s *Server) Run() error {
 
 	err := s.connectionManager.StartListening()
 	if err != nil {
-		log.Errorf("Failed to start listening: %v", err)
+		logger.Logger.Errorf("Failed to start listening: %v", err)
 		return err
 	}
 
 	go s.pingServer.Run() // Start health check server
 
-	for s.running {
+	for s.running.Load() {
 		s.clientManager.ReapStaleClients()
 
 		clientConnection, err := s.connectionManager.AcceptConnection()
 		if err != nil {
-			log.Errorf("Failed to accept connection: %v", err)
+			logger.Logger.Errorf("Failed to accept connection: %v", err)
 			break
 		}
 
@@ -69,13 +70,13 @@ func (s *Server) setupGracefulShutdown() {
 
 	go func() {
 		<-sigChannel
-		log.Infof("action: shutdown_signal | result: received")
+		logger.Logger.Infof("action: shutdown_signal | result: received")
 		s.Shutdown()
 	}()
 }
 
 func (s *Server) Shutdown() {
-	s.running = false
+	s.running.Store(false)
 	s.clientManager.Close()
 	s.connectionManager.Close()
 
@@ -83,5 +84,5 @@ func (s *Server) Shutdown() {
 	defer cancel()
 	s.pingServer.Shutdown(ctx)
 
-	log.Infof("action: shutdown | result: success")
+	logger.Logger.Infof("action: shutdown | result: success")
 }

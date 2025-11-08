@@ -98,6 +98,7 @@ func getData[T proto.Message](as *aggregatorService, clientID string, factory fu
 		} else {
 			result = append(result, protoData)
 		}
+
 	}
 
 	if joinFn != nil {

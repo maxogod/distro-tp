@@ -4,6 +4,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/maxogod/distro-tp/src/common/logger"
 	"github.com/maxogod/distro-tp/src/common/middleware"
 	"github.com/maxogod/distro-tp/src/common/models/enum"
 	"github.com/maxogod/distro-tp/src/common/models/protocol"
@@ -19,6 +20,7 @@ var url = "amqp://guest:guest@localhost:5672/"
 
 func TestMain(m *testing.M) {
 	go mock.StartJoinerMock("./config_test.yaml")
+	logger.InitLogger(logger.LoggerEnvDevelopment)
 	m.Run()
 }
 

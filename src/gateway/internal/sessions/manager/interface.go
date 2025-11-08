@@ -2,7 +2,7 @@ package manager
 
 import (
 	"github.com/maxogod/distro-tp/src/common/network"
-	"github.com/maxogod/distro-tp/src/gateway_controller/internal/sessions/clients"
+	"github.com/maxogod/distro-tp/src/gateway/internal/sessions/clients"
 )
 
 // ClientManager defines the interface for managing client sessions.

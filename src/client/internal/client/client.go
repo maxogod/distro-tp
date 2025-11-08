@@ -12,8 +12,6 @@ import (
 	"github.com/maxogod/distro-tp/src/common/network"
 )
 
-var log = logger.GetLogger()
-
 type client struct {
 	conf         *config.Config
 	conn         network.ConnectionInterface
@@ -26,7 +24,7 @@ func NewClient(conf *config.Config) (Client, error) {
 	conn := network.NewConnection()
 	err := conn.Connect(fmt.Sprintf("%s:%d", conf.ServerHost, conf.ServerPort), conf.ConnectionRetries)
 	if err != nil {
-		log.Errorf("could not connect to server: %v", err)
+		logger.Logger.Errorf("could not connect to server: %v", err)
 		return nil, err
 	}
 
@@ -43,7 +41,7 @@ func (c *client) Start(task string) error {
 
 	// Ensure output directory exists
 	if err := os.MkdirAll(c.conf.OutputPath, 0755); err != nil {
-		log.Errorf("failed to create output directory: %v", err)
+		logger.Logger.Errorf("failed to create output directory: %v", err)
 		return err
 	}
 
@@ -65,7 +63,7 @@ func (c *client) Shutdown() {
 	c.running = false
 	c.conn.Close()
 	c.tastExecutor.Close()
-	log.Infof("action: shutdown | result: success")
+	logger.Logger.Infof("action: shutdown | result: success")
 }
 
 /* --- UTILS PRIVATE METHODS --- */
@@ -76,7 +74,7 @@ func (c *client) setupGracefulShutdown() {
 
 	go func() {
 		<-sigChannel
-		log.Infof("action: shutdown_signal | result: received")
+		logger.Logger.Infof("action: shutdown_signal | result: received")
 		c.Shutdown()
 	}()
 }

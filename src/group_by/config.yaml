@@ -1,4 +1,4 @@
 gateway:
   address: "amqp://guest:guest@rabbitmq:5672/"
 log:
-  level: "DEBUG"
+  level: "development"

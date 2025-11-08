@@ -22,7 +22,6 @@ var dockerComposeFile = "../../../docker-compose-test.yaml"
 var healthCheckAddress = "localhost:8081/ping"
 
 func TestSequentialRun(t *testing.T) {
-
 	defer runCommand("docker", "compose", "-f", dockerComposeFile, "down")
 	tests := []func(t *testing.T){
 		testNoEof,

@@ -17,8 +17,6 @@ import (
 
 const SEND_LIMIT = 1000
 
-var log = logger.GetLogger()
-
 type joinerExecutor struct {
 	config           *config.Config
 	connectedClients map[string]middleware.MessageMiddleware
@@ -264,7 +262,7 @@ func (je *joinerExecutor) HandleTask4(dataEnvelope *protocol.DataEnvelope, ackHa
 	err = worker.SendDataToMiddleware(countedDataBatch, enum.T4, clientID, je.aggregatorQueue)
 	if err != nil {
 		shouldRequeue = true
-		log.Debugf("An error occurred: %s", err)
+		logger.Logger.Debugf("An error occurred: %s", err)
 		return err
 	}
 	shouldAck = true
@@ -286,7 +284,7 @@ func (je *joinerExecutor) HandleFinishClient(dataEnvelope *protocol.DataEnvelope
 	defer ackHandler(shouldAck, false)
 
 	clientID := dataEnvelope.GetClientId()
-	log.Debug("Finishing client: ", clientID)
+	logger.Logger.Debug("Finishing client: ", clientID)
 
 	err := je.joinerService.DeleteClientRefData(clientID)
 	if err != nil {
@@ -351,7 +349,7 @@ func (je *joinerExecutor) handleRefData(batch *protocol.DataEnvelope, clientID s
 		}
 		return je.joinerService.StoreShops(clientID, storeBatch.Stores)
 	default:
-		log.Errorf("Unknown reference type: %v", refData.GetReferenceType())
+		logger.Logger.Errorf("Unknown reference type: %v", refData.GetReferenceType())
 		return nil
 	}
 }

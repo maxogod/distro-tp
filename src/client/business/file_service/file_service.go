@@ -8,8 +8,6 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-var log = logger.GetLogger()
-
 type fileService struct {
 	batchSize int
 	openFiles []*os.File
@@ -23,7 +21,7 @@ func NewFileService(batchSize int) FileService {
 }
 
 func (fs *fileService) ReadAsBatches(path string, batches_ch chan []proto.Message, newObject func([]string) proto.Message) {
-	log.Debugln("Reading from file:", path)
+	logger.Logger.Debugln("Reading from file:", path)
 
 	defer close(batches_ch)
 	file, err := os.Open(path)
@@ -65,7 +63,7 @@ func (fs *fileService) ReadAsBatches(path string, batches_ch chan []proto.Messag
 func (fs *fileService) SaveCsvAsBatches(path string, batches_ch chan string, header string) error {
 	outputFile, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0644)
 	if err != nil {
-		log.Errorf("failed to create output file: %v", err)
+		logger.Logger.Errorf("failed to create output file: %v", err)
 		return err
 	}
 	fs.openFiles = append(fs.openFiles, outputFile)

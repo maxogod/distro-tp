@@ -1,0 +1,9 @@
+port: 8080
+middleware:
+  address: "amqp://guest:guest@rabbitmq:5672/"
+log:
+  level: "development"
+receiving:
+  timeout: 10
+max:
+  clients: 100

@@ -3,9 +3,15 @@ package integration_test
 import (
 	"testing"
 
+	"github.com/maxogod/distro-tp/src/common/logger"
 	"github.com/maxogod/distro-tp/src/common/middleware"
 	"github.com/stretchr/testify/assert"
 )
+
+func TestMain(m *testing.M) {
+	logger.InitLogger(logger.LoggerEnvDevelopment)
+	m.Run()
+}
 
 // TestWorkingQueue1push1consume tests the success case of a single producer single consumer
 // approach to working queues middleware.

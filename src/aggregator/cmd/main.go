@@ -8,25 +8,20 @@ import (
 	"github.com/maxogod/distro-tp/src/common/logger"
 )
 
-var log = logger.GetLogger()
-
 func main() {
-
 	var configPath string
 	if len(os.Args) > 1 {
 		configPath = os.Args[1]
 	}
 
-	conf, err := config.InitConfig(configPath)
-	if err != nil {
-		log.Fatalf("%s", err)
-	}
+	conf, _ := config.InitConfig(configPath)
 
-	log.Debug(conf.String())
+	logger.InitLogger(logger.LoggerEnvironment(conf.LogLevel))
+
+	logger.Logger.Infof(conf.String())
 
 	server := server.InitServer(conf)
 
 	server.Run()
-	log.Debug("Dugtrio thanks you for using the Aggregator Worker!")
-
+	logger.Logger.Infof("Dugtrio thanks you for using the Aggregator Worker!")
 }

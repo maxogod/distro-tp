@@ -3,6 +3,7 @@ package group_by_test
 import (
 	"testing"
 
+	"github.com/maxogod/distro-tp/src/common/logger"
 	"github.com/maxogod/distro-tp/src/common/middleware"
 	"github.com/maxogod/distro-tp/src/common/models/enum"
 	"github.com/maxogod/distro-tp/src/common/models/group_by"
@@ -17,6 +18,7 @@ var url = "amqp://guest:guest@localhost:5672/"
 
 func TestMain(m *testing.M) {
 	go mock.StartGroupByMock("./config_test.yaml")
+	logger.InitLogger(logger.LoggerEnvDevelopment)
 	m.Run()
 }
 

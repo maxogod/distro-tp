@@ -1,0 +1,22 @@
+package main
+
+import (
+	"github.com/maxogod/distro-tp/src/common/logger"
+	"github.com/maxogod/distro-tp/src/gateway/config"
+	"github.com/maxogod/distro-tp/src/gateway/internal/server"
+)
+
+func main() {
+	conf, _ := config.InitConfig()
+
+	logger.InitLogger(logger.LoggerEnvironment(conf.LogLevel))
+
+	logger.Logger.Infof("Controller server starting")
+	server := server.NewServer(conf)
+	err := server.Run()
+	if err != nil {
+		logger.Logger.Fatalf("Failed to run server: %v", err)
+	}
+
+	logger.Logger.Infof("Geodude finished successfully!")
+}

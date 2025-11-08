@@ -4,6 +4,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/maxogod/distro-tp/src/common/logger"
 	"github.com/maxogod/distro-tp/src/common/middleware"
 	"github.com/maxogod/distro-tp/src/common/models/protocol"
 	"github.com/maxogod/distro-tp/src/common/worker"
@@ -11,6 +12,11 @@ import (
 )
 
 var url = "amqp://guest:guest@localhost:5672/"
+
+func TestMain(m *testing.M) {
+	logger.InitLogger(logger.LoggerEnvDevelopment)
+	m.Run()
+}
 
 func TestSingleClientHandle(t *testing.T) {
 	t.Log("Running testSingleClientHandle")

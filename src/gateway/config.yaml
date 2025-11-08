@@ -4,6 +4,6 @@ healthcheck:
 middleware:
   address: "amqp://guest:guest@rabbitmq:5672/"
 log:
-  level: "DEBUG"
+  level: "development"
 receiving:
   timeout: 10
