@@ -41,6 +41,7 @@ func (fh *fileHandler) ReadData(
 	openFile, ok := fh.openFiles[path]
 
 	if ok {
+		log.Debug("file already present!")
 		fh.finishWritingFile(path)
 		file = openFile.file
 	} else {
@@ -51,9 +52,9 @@ func (fh *fileHandler) ReadData(
 			return err
 		}
 		fh.openFiles[path] = fileStoreHandler{
+			file:     newOpenFile,
 			finishCh: nil,
 			storeCh:  nil,
-			file:     newOpenFile,
 		}
 		file = newOpenFile
 	}
@@ -104,8 +105,12 @@ func (fh *fileHandler) WriteData(path string, byte_ch chan []byte) error {
 
 	defer func() {
 		close(finishCh)
-		outputFile.Close()
-		delete(fh.openFiles, path)
+		close(byte_ch)
+		fh.openFiles[path] = fileStoreHandler{
+			finishCh: nil,
+			storeCh:  nil,
+			file:     outputFile,
+		}
 	}()
 
 	writer := bufio.NewWriter(outputFile)
@@ -150,8 +155,9 @@ func (fh *fileHandler) Close() {
 }
 
 func (fh *fileHandler) DeleteFile(path string) {
-	os.Remove(path)
+	fh.finishWritingFile(path)
 	delete(fh.openFiles, path)
+	os.Remove(path)
 }
 
 // ========== Private Methods ===========
@@ -163,8 +169,10 @@ func (fh *fileHandler) finishWritingFile(path string) {
 		log.Warnf("No open file found for path: %s", path)
 		return
 	}
-	storeHandler.storeCh <- []byte{FLUSH_DATA_BYTE}
-	<-storeHandler.finishCh
+	if storeHandler.finishCh != nil && storeHandler.storeCh != nil {
+		storeHandler.storeCh <- []byte{FLUSH_DATA_BYTE}
+		<-storeHandler.finishCh
+	}
 }
 
 func parseToString(bytes []byte) string {
