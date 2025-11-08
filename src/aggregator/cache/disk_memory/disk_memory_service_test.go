@@ -80,6 +80,7 @@ func TestDiskMemoryCache_StoreAndReadData(t *testing.T) {
 	defer c.Close()
 
 	cacheRef := "test"
+	defer c.RemoveCache(cacheRef)
 
 	for _, tr := range Transactions {
 		// in actual usage, there would be more than one entry per call

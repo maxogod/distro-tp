@@ -17,6 +17,7 @@ const FLUSH_THRESHOLD = 64 * 1024 // aprox 64KB
 
 type fileStoreHandler struct {
 	finishCh chan bool
+	file     *os.File
 	storeCh  chan []byte
 }
 
@@ -36,7 +37,26 @@ func (fh *fileHandler) ReadData(
 	proto_ch chan []byte,
 ) error {
 
-	fh.finishWritingFile(path)
+	var file *os.File
+	openFile, ok := fh.openFiles[path]
+
+	if ok {
+		fh.finishWritingFile(path)
+		file = openFile.file
+	} else {
+
+		newOpenFile, err := os.Open(path)
+		if err != nil {
+			log.Errorf("failed to open file: %v", err)
+			return err
+		}
+		fh.openFiles[path] = fileStoreHandler{
+			finishCh: nil,
+			storeCh:  nil,
+			file:     newOpenFile,
+		}
+		file = newOpenFile
+	}
 
 	file, err := os.Open(path)
 	if err != nil {
@@ -70,6 +90,7 @@ func (fh *fileHandler) ReadData(
 }
 
 func (fh *fileHandler) WriteData(path string, byte_ch chan []byte) error {
+
 	outputFile, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0644)
 
 	if err != nil {
