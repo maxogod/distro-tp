@@ -173,7 +173,7 @@ func TestAggregatorService_StoreAndReadTransactions(t *testing.T) {
 	clientID := "client1"
 	c := cache.NewDiskMemoryStorage()
 	service := business.NewAggregatorService(c)
-	defer service.FinishData(clientID)
+	defer service.RemoveData(clientID)
 
 	err := service.StoreTransactions(clientID, Transactions)
 	assert.NoError(t, err)
@@ -195,7 +195,7 @@ func TestAggregatorService_StoreAggregatedAndReadTpvData(t *testing.T) {
 	clientID := "client2"
 	c := cache.NewDiskMemoryStorage()
 	service := business.NewAggregatorService(c)
-	defer service.FinishData(clientID)
+	defer service.RemoveData(clientID)
 
 	for _, tpv := range TPVData {
 		err := service.StoreTotalPaymentValue(clientID, tpv)
@@ -221,7 +221,7 @@ func TestAggregatorService_StoreAggregatedAndReadTotalSoldQuantity(t *testing.T)
 	clientID := "client3"
 	c := cache.NewDiskMemoryStorage()
 	service := business.NewAggregatorService(c)
-	defer service.FinishData(clientID)
+	defer service.RemoveData(clientID)
 
 	for _, sq := range TotalSoldByQuantityData {
 		err := service.StoreTotalSoldByQuantity(clientID, sq)
@@ -249,7 +249,7 @@ func TestAggregatorService_StoreAggregatedAndReadTotalProfitBySubtotal(t *testin
 	clientID := "client4"
 	c := cache.NewDiskMemoryStorage()
 	service := business.NewAggregatorService(c)
-	defer service.FinishData(clientID)
+	defer service.RemoveData(clientID)
 
 	for _, ps := range TotalProfitBySubtotalData {
 		err := service.StoreTotalProfitBySubtotal(clientID, ps)
@@ -275,7 +275,7 @@ func TestAggregatorService_StoreAggregatedAndReadTotalCountedUserTransactions(t 
 	clientID := "client5"
 	c := cache.NewDiskMemoryStorage()
 	service := business.NewAggregatorService(c)
-	defer service.FinishData(clientID)
+	defer service.RemoveData(clientID)
 
 	for _, cut := range CountedUserTransactionsData {
 		err := service.StoreCountedUserTransactions(clientID, cut)

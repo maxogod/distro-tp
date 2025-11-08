@@ -38,8 +38,8 @@ type AggregatorService interface {
 	// GetStoredCountedUserTransactions retrieves stored reduced CountedUserTransactions data for a client as part of T4 task.
 	GetStoredCountedUserTransactions(clientID string) (map[string][]*reduced.CountedUserTransactions, error)
 
-	// FinishData finalizes and cleans up resources for a client's data.
-	FinishData(clientID string) error
+	// RemoveData finalizes and cleans up resources for a client's data.
+	RemoveData(clientID string) error
 
 	// Close releases resources held by the service.
 	Close() error

@@ -7,8 +7,8 @@ services:
       dockerfile: Dockerfile
     image: rabbitmq:latest
     ports:
-      - '5670:5672'
-      - '15670:15672'
+      - "5670:5672"
+      - "15670:15672"
     healthcheck:
       test: ["CMD", "rabbitmq-diagnostics", "ping"]
       interval: 10s
@@ -17,15 +17,15 @@ services:
       retries: 5
     networks:
       - tp_net
-    
+
   gateway_controller:
     container_name: gateway_controller
     build:
       dockerfile: ./src/gateway_controller/Dockerfile
     image: gateway_controller:latest
     ports:
-      - '8080:8080'
-      - '8081:8081'
+      - "8080:8080"
+      - "8081:8081"
     volumes:
       - ./src/gateway_controller/config.yaml:/config.yaml
     depends_on:
@@ -39,7 +39,7 @@ services:
       start_period: 10s
     networks:
       - tp_net
-    
+
   aggregator:
     container_name: aggregator
     build:
@@ -52,7 +52,7 @@ services:
     depends_on:
       rabbitmq:
         condition: service_healthy
-    
+
   filter1:
     container_name: filter1
     build:
@@ -65,7 +65,7 @@ services:
     depends_on:
       rabbitmq:
         condition: service_healthy
-        
+
   filter2:
     container_name: filter2
     build:
@@ -78,7 +78,7 @@ services:
     depends_on:
       rabbitmq:
         condition: service_healthy
-        
+
   joiner1:
     container_name: joiner1
     build:
@@ -91,7 +91,7 @@ services:
     depends_on:
       rabbitmq:
         condition: service_healthy
-        
+
   joiner2:
     container_name: joiner2
     build:
@@ -104,7 +104,7 @@ services:
     depends_on:
       rabbitmq:
         condition: service_healthy
-        
+
   reducer1:
     container_name: reducer1
     build:
@@ -117,7 +117,7 @@ services:
     depends_on:
       rabbitmq:
         condition: service_healthy
-        
+
   reducer2:
     container_name: reducer2
     build:
@@ -130,7 +130,7 @@ services:
     depends_on:
       rabbitmq:
         condition: service_healthy
-        
+
   group_by1:
     container_name: group_by1
     build:
@@ -143,7 +143,7 @@ services:
     depends_on:
       rabbitmq:
         condition: service_healthy
-        
+
   group_by2:
     container_name: group_by2
     build:
@@ -156,7 +156,7 @@ services:
     depends_on:
       rabbitmq:
         condition: service_healthy
-        
+
   client1:
     container_name: client1
     entrypoint: ["/app/app", "t1"]
@@ -171,7 +171,7 @@ services:
     depends_on:
       gateway_controller:
         condition: service_healthy
-        
+
   client2:
     container_name: client2
     entrypoint: ["/app/app", "t2"]
@@ -186,7 +186,7 @@ services:
     depends_on:
       gateway_controller:
         condition: service_healthy
-        
+
   client3:
     container_name: client3
     entrypoint: ["/app/app", "t3"]
@@ -201,7 +201,7 @@ services:
     depends_on:
       gateway_controller:
         condition: service_healthy
-        
+
   client4:
     container_name: client4
     entrypoint: ["/app/app", "t4"]
@@ -216,7 +216,7 @@ services:
     depends_on:
       gateway_controller:
         condition: service_healthy
-        
+
 networks:
   tp_net:
     ipam:

@@ -7,6 +7,7 @@ import (
 	"github.com/maxogod/distro-tp/src/aggregator/config"
 	"github.com/maxogod/distro-tp/src/common/middleware"
 	"github.com/maxogod/distro-tp/src/common/models/enum"
+	"github.com/maxogod/distro-tp/src/common/models/raw"
 	"github.com/maxogod/distro-tp/src/common/worker"
 )
 
@@ -46,7 +47,10 @@ func (fe *finishExecutor) SendAllData(clientID string, taskType enum.TaskType) e
 
 func (fe *finishExecutor) finishTask1(clientID string) error {
 	processedDataQueue := middleware.GetProcessedDataExchange(fe.address, clientID)
-	defer processedDataQueue.Close()
+	defer func() {
+		processedDataQueue.Close()
+		//fe.aggregatorService.RemoveData(clientID)
+	}()
 
 	results, err := fe.aggregatorService.GetStoredTransactions(clientID)
 	if err != nil {
@@ -59,11 +63,11 @@ func (fe *finishExecutor) finishTask1(clientID string) error {
 		if endIndex > lenResults {
 			endIndex = lenResults
 		}
-		batch := results[index:endIndex]
-		for _, transaction := range batch {
-			if err := worker.SendDataToMiddleware(transaction, enum.T1, clientID, processedDataQueue); err != nil {
-				return fmt.Errorf("failed to send data to middleware: %v", err)
-			}
+		transactionBatch := &raw.TransactionBatch{
+			Transactions: results[index:endIndex],
+		}
+		if err := worker.SendDataToMiddleware(transactionBatch, enum.T1, clientID, processedDataQueue); err != nil {
+			return fmt.Errorf("failed to send data to middleware: %v", err)
 		}
 		index = endIndex
 	}
@@ -73,8 +77,11 @@ func (fe *finishExecutor) finishTask1(clientID string) error {
 
 func (fe *finishExecutor) finishTask2_1(clientID string) error {
 	processedDataQueue := middleware.GetProcessedDataExchange(fe.address, clientID)
-	defer processedDataQueue.Close()
 	clientWithPrefix := T2_1_PREFIX + clientID
+	defer func() {
+		processedDataQueue.Close()
+		//fe.aggregatorService.RemoveData(clientWithPrefix)
+	}()
 	results, err := fe.aggregatorService.GetStoredTotalProfitBySubtotal(clientWithPrefix)
 	if err != nil {
 		return fmt.Errorf("[TASK 2.1] failed to get results for client %s: %v", clientWithPrefix, err)
@@ -89,8 +96,11 @@ func (fe *finishExecutor) finishTask2_1(clientID string) error {
 
 func (fe *finishExecutor) finishTask2_2(clientID string) error {
 	processedDataQueue := middleware.GetProcessedDataExchange(fe.address, clientID)
-	defer processedDataQueue.Close()
 	clientWithPrefix := T2_2_PREFIX + clientID
+	defer func() {
+		processedDataQueue.Close()
+		//fe.aggregatorService.RemoveData(clientWithPrefix)
+	}()
 	results, err := fe.aggregatorService.GetStoredTotalSoldByQuantity(clientWithPrefix)
 	if err != nil {
 		return fmt.Errorf("[TASK 2.2] failed to get results for client %s: %v", clientWithPrefix, err)
@@ -105,11 +115,13 @@ func (fe *finishExecutor) finishTask2_2(clientID string) error {
 
 func (fe *finishExecutor) finishTask3(clientID string) error {
 	processedDataQueue := middleware.GetProcessedDataExchange(fe.address, clientID)
-	defer processedDataQueue.Close()
-	clientWithPrefix := T2_1_PREFIX + clientID
-	results, err := fe.aggregatorService.GetStoredTotalPaymentValue(clientWithPrefix)
+	defer func() {
+		processedDataQueue.Close()
+		//fe.aggregatorService.RemoveData(clientID)
+	}()
+	results, err := fe.aggregatorService.GetStoredTotalPaymentValue(clientID)
 	if err != nil {
-		return fmt.Errorf("[TASK 3] failed to get results for client %s: %v", clientWithPrefix, err)
+		return fmt.Errorf("[TASK 3] failed to get results for client %s: %v", clientID, err)
 	}
 
 	for _, tpvData := range results {
@@ -123,7 +135,10 @@ func (fe *finishExecutor) finishTask3(clientID string) error {
 func (fe *finishExecutor) finishTask4(clientID string) error {
 
 	processedDataQueue := middleware.GetProcessedDataExchange(fe.address, clientID)
-	defer processedDataQueue.Close()
+	defer func() {
+		processedDataQueue.Close()
+		//fe.aggregatorService.RemoveData(clientID)
+	}()
 	topUsersPerStore, err := fe.aggregatorService.GetStoredCountedUserTransactions(clientID)
 	if err != nil {
 		return fmt.Errorf("[TASK 4] failed to get results for client %s: %v", clientID, err)

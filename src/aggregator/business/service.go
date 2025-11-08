@@ -305,6 +305,6 @@ func (as *aggregatorService) Close() error {
 	return as.cacheService.Close()
 }
 
-func (as *aggregatorService) FinishData(clientID string) error {
+func (as *aggregatorService) RemoveData(clientID string) error {
 	return as.cacheService.RemoveCache(clientID)
 }
