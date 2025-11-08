@@ -6,8 +6,6 @@ import (
 )
 
 const CACHE_EXTENSION = ".cache"
-const SEPERATOR = "@"
-const DONE_BYTE = 0xff
 
 // This is a simple implementation of a CacheService that uses both disk for storage.
 type diskMemoryStorage struct {
@@ -46,15 +44,6 @@ func (c *diskMemoryStorage) StoreData(cacheReference string, data [][]byte) erro
 	}
 
 	return nil
-}
-
-func (c *diskMemoryStorage) FinishData(cacheReference string) {
-	fileName := cacheReference + CACHE_EXTENSION
-	store_ch := c.storageChannels[fileName]
-	if store_ch != nil {
-		close(store_ch)
-		delete(c.storageChannels, fileName)
-	}
 }
 
 func (c *diskMemoryStorage) ReadData(cacheReference string, read_ch chan []byte) {

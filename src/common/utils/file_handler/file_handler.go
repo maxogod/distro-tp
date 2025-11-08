@@ -12,7 +12,6 @@ import (
 
 var log = logger.GetLogger()
 
-const SEPERATOR = "#"
 const FLUSH_DATA_BYTE = 0xff
 const FLUSH_THRESHOLD = 64 * 1024 // aprox 64KB
 
@@ -55,7 +54,7 @@ func (fh *fileHandler) ReadData(
 			if len(line) == 0 {
 				continue
 			}
-			_, protoBytes, err := parseFromBytes(line)
+			protoBytes, err := parseFromBytes(line)
 			if err != nil {
 				log.Errorf("failed to parse from bytes: %v", err)
 			}
@@ -99,7 +98,7 @@ func (fh *fileHandler) WriteData(path string, byte_ch chan []byte) error {
 			continue
 		}
 
-		line := parseToString("", entry)
+		line := parseToString(entry)
 		if _, err := writer.WriteString(line); err != nil {
 			return err
 		}
@@ -147,26 +146,16 @@ func (fh *fileHandler) finishWritingFile(path string) {
 	<-storeHandler.finishCh
 }
 
-func parseToString(dataKey string, bytes []byte) string {
+func parseToString(bytes []byte) string {
 	encodedData := base64.StdEncoding.EncodeToString(bytes)
-	encodedKey := base64.StdEncoding.EncodeToString([]byte(dataKey))
-	return encodedKey + SEPERATOR + encodedData + "\n"
+	return encodedData + "\n"
 }
 
-func parseFromBytes(line []byte) (string, []byte, error) {
-	idx := bytes.IndexByte(line, SEPERATOR[0])
-	if idx == -1 {
-		return "", nil, fmt.Errorf("invalid line format (missing separator): %q", string(line))
-	}
-	dataKeyBytes, err := base64.StdEncoding.DecodeString(string(line[:idx]))
+func parseFromBytes(line []byte) ([]byte, error) {
+	protoBytes, err := base64.StdEncoding.DecodeString(string(line))
 	if err != nil {
-		return "", nil, fmt.Errorf("failed to decode base64 key: %w", err)
-	}
-	dataKey := string(dataKeyBytes)
-	protoBytes, err := base64.StdEncoding.DecodeString(string(line[idx+1:]))
-	if err != nil {
-		return "", nil, fmt.Errorf("failed to decode base64: %w", err)
+		return nil, fmt.Errorf("failed to decode base64: %w", err)
 	}
 
-	return dataKey, protoBytes, nil
+	return protoBytes, nil
 }
