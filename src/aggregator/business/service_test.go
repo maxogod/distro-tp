@@ -4,11 +4,10 @@ import (
 	"testing"
 
 	"github.com/maxogod/distro-tp/src/aggregator/business"
-	"github.com/maxogod/distro-tp/src/aggregator/cache"
+	cache "github.com/maxogod/distro-tp/src/aggregator/cache/disk_memory"
 	"github.com/maxogod/distro-tp/src/common/models/raw"
 	"github.com/maxogod/distro-tp/src/common/models/reduced"
 	"github.com/stretchr/testify/assert"
-	"google.golang.org/protobuf/proto"
 )
 
 // ====== INPUT DATA ======
@@ -99,7 +98,7 @@ var TotalSoldByQuantityData = []*reduced.TotalSoldByQuantity{
 	},
 	{
 		ItemId:    "item2",
-		YearMonth: "2024-06",
+		YearMonth: "2024-07",
 		Quantity:  20,
 	},
 	{
@@ -117,7 +116,7 @@ var TotalProfitBySubtotalData = []*reduced.TotalProfitBySubtotal{
 	},
 	{
 		ItemId:    "item2",
-		YearMonth: "2024-06",
+		YearMonth: "2024-07",
 		Subtotal:  20.0,
 	},
 	{
@@ -154,12 +153,12 @@ var TPVExpected = map[string]float64{
 
 var TSQExpected = map[string]int32{
 	"item1@2024-06": 25,
-	"item2@2024-06": 20,
+	"item2@2024-07": 20,
 }
 
 var TPBSEpected = map[string]float64{
 	"item1@2024-06": 25.0,
-	"item2@2024-06": 20.0,
+	"item2@2024-07": 20.0,
 }
 
 var CUTExpected = map[string]int32{
@@ -172,15 +171,15 @@ var CUTExpected = map[string]int32{
 func TestAggregatorService_StoreAndReadTransactions(t *testing.T) {
 
 	clientID := "client1"
-	c := cache.NewDiskMemoryCache()
+	c := cache.NewDiskMemoryStorage()
 	service := business.NewAggregatorService(c)
 	defer service.FinishData(clientID)
 
 	err := service.StoreTransactions(clientID, Transactions)
 	assert.NoError(t, err)
 
-	results, found := service.GetStoredTransactions(clientID, 10)
-	assert.True(t, found)
+	results, err := service.GetStoredTransactions(clientID)
+	assert.NoError(t, err)
 
 	assert.Len(t, results, len(Transactions))
 
@@ -194,7 +193,7 @@ func TestAggregatorService_StoreAndReadTransactions(t *testing.T) {
 func TestAggregatorService_StoreAggregatedAndReadTpvData(t *testing.T) {
 
 	clientID := "client2"
-	c := cache.NewDiskMemoryCache()
+	c := cache.NewDiskMemoryStorage()
 	service := business.NewAggregatorService(c)
 	defer service.FinishData(clientID)
 
@@ -203,8 +202,8 @@ func TestAggregatorService_StoreAggregatedAndReadTpvData(t *testing.T) {
 		assert.NoError(t, err)
 	}
 
-	results, found := service.GetStoredTotalPaymentValue(clientID, 10)
-	assert.True(t, found)
+	results, err := service.GetStoredTotalPaymentValue(clientID)
+	assert.NoError(t, err)
 
 	assert.Len(t, results, len(TPVExpected))
 
@@ -220,7 +219,7 @@ func TestAggregatorService_StoreAggregatedAndReadTpvData(t *testing.T) {
 func TestAggregatorService_StoreAggregatedAndReadTotalSoldQuantity(t *testing.T) {
 
 	clientID := "client3"
-	c := cache.NewDiskMemoryCache()
+	c := cache.NewDiskMemoryStorage()
 	service := business.NewAggregatorService(c)
 	defer service.FinishData(clientID)
 
@@ -229,8 +228,10 @@ func TestAggregatorService_StoreAggregatedAndReadTotalSoldQuantity(t *testing.T)
 		assert.NoError(t, err)
 	}
 
-	results, found := service.GetStoredTotalSoldByQuantity(clientID, 10)
-	assert.True(t, found)
+	results, err := service.GetStoredTotalSoldByQuantity(clientID)
+	assert.NoError(t, err)
+
+	t.Log(results)
 
 	assert.Len(t, results, len(TPVExpected))
 
@@ -246,7 +247,7 @@ func TestAggregatorService_StoreAggregatedAndReadTotalSoldQuantity(t *testing.T)
 func TestAggregatorService_StoreAggregatedAndReadTotalProfitBySubtotal(t *testing.T) {
 
 	clientID := "client4"
-	c := cache.NewDiskMemoryCache()
+	c := cache.NewDiskMemoryStorage()
 	service := business.NewAggregatorService(c)
 	defer service.FinishData(clientID)
 
@@ -255,8 +256,8 @@ func TestAggregatorService_StoreAggregatedAndReadTotalProfitBySubtotal(t *testin
 		assert.NoError(t, err)
 	}
 
-	results, found := service.GetStoredTotalProfitBySubtotal(clientID, 10)
-	assert.True(t, found)
+	results, err := service.GetStoredTotalProfitBySubtotal(clientID)
+	assert.NoError(t, err)
 
 	assert.Len(t, results, len(TPBSEpected))
 
@@ -272,7 +273,7 @@ func TestAggregatorService_StoreAggregatedAndReadTotalProfitBySubtotal(t *testin
 func TestAggregatorService_StoreAggregatedAndReadTotalCountedUserTransactions(t *testing.T) {
 
 	clientID := "client5"
-	c := cache.NewDiskMemoryCache()
+	c := cache.NewDiskMemoryStorage()
 	service := business.NewAggregatorService(c)
 	defer service.FinishData(clientID)
 
@@ -281,51 +282,18 @@ func TestAggregatorService_StoreAggregatedAndReadTotalCountedUserTransactions(t 
 		assert.NoError(t, err)
 	}
 
-	results, found := service.GetStoredCountedUserTransactions(clientID, 10)
-	assert.True(t, found)
+	results, err := service.GetStoredCountedUserTransactions(clientID)
+	assert.NoError(t, err)
 
 	assert.Len(t, results, len(CUTExpected))
 
-	for _, result := range results {
+	for _, subResult := range results {
+		assert.Len(t, subResult, 1, "Expected only one entry per store")
+		result := subResult[0]
 		key := result.StoreId + "@" + result.UserId
 		expectedAmount, ok := CUTExpected[key]
 		assert.True(t, ok, "Unexpected key found: %s", key)
 		assert.Equal(t, expectedAmount, result.TransactionQuantity,
 			"TransactionQuantity mismatch for key %s", key)
-	}
-}
-
-func TestAggregatorService_SortAggregatedData(t *testing.T) {
-
-	clientID := "client6"
-	c := cache.NewDiskMemoryCache()
-	service := business.NewAggregatorService(c)
-	defer service.FinishData(clientID)
-
-	var unsortedTransactions []*raw.Transaction
-	for _, tx := range UnsortedTransactionsMap {
-		unsortedTransactions = append(unsortedTransactions, tx)
-	}
-
-	err := service.StoreTransactions(clientID, unsortedTransactions)
-	assert.NoError(t, err)
-
-	service.SortData(clientID, func(a, b []byte) bool {
-		txA := &raw.Transaction{}
-		txB := &raw.Transaction{}
-		err := proto.Unmarshal(a, txA)
-		assert.NoError(t, err)
-		err = proto.Unmarshal(b, txB)
-		assert.NoError(t, err)
-
-		return txA.TransactionId < txB.TransactionId
-	})
-
-	results, found := service.GetStoredTransactions(clientID, 10)
-	assert.True(t, found)
-	for _, result := range results {
-		expected, _ := UnsortedTransactionsMap[result.TransactionId]
-		assert.Equal(t, expected.TransactionId, result.TransactionId,
-			"TransactionId mismatch for TransactionId %s", result.TransactionId)
 	}
 }

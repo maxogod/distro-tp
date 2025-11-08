@@ -36,11 +36,8 @@ func (fh *fileHandler) ReadData(
 	path string,
 	proto_ch chan []byte,
 ) error {
-	log.Debugln("Reading from file:", path)
 
 	fh.finishWritingFile(path)
-
-	log.Debugln("finished writing")
 
 	file, err := os.Open(path)
 	if err != nil {
@@ -76,8 +73,6 @@ func (fh *fileHandler) ReadData(
 func (fh *fileHandler) WriteData(path string, byte_ch chan []byte) error {
 	outputFile, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0644)
 
-	log.Debugln("Writing to file:", path)
-
 	if err != nil {
 		return fmt.Errorf("failed to open file: %w", err)
 	}
@@ -88,7 +83,6 @@ func (fh *fileHandler) WriteData(path string, byte_ch chan []byte) error {
 	}
 
 	defer func() {
-		log.Debugln("Finished writing to file:", path)
 		close(finishCh)
 		outputFile.Close()
 		delete(fh.openFiles, path)

@@ -79,14 +79,15 @@ func TestDiskMemoryCache_StoreAndReadData(t *testing.T) {
 	c := cache.NewDiskMemoryStorage()
 	defer c.Close()
 
-	cacheRef := tmpCachePath(t, "test1")
+	cacheRef := "test"
+
 	for _, tr := range Transactions {
 		// in actual usage, there would be more than one entry per call
 		data, _ := proto.Marshal(tr)
 		var transactionDataBytes [][]byte
 		transactionDataBytes = append(transactionDataBytes, data)
 		if err := c.StoreData(cacheRef, transactionDataBytes); err != nil {
-			t.Fatalf("StoreData error: %v", err)
+			panic(err)
 		}
 	}
 

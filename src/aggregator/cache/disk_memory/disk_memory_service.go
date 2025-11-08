@@ -60,7 +60,7 @@ func (c *diskMemoryStorage) FinishData(cacheReference string) {
 func (c *diskMemoryStorage) ReadData(cacheReference string, read_ch chan []byte) {
 
 	fileName := cacheReference + CACHE_EXTENSION
-	go c.fileHandler.ReadData(fileName, read_ch)
+	c.fileHandler.ReadData(fileName, read_ch)
 
 }
 
