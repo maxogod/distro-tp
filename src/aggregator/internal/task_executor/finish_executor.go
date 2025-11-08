@@ -49,7 +49,7 @@ func (fe *finishExecutor) finishTask1(clientID string) error {
 	processedDataQueue := middleware.GetProcessedDataExchange(fe.address, clientID)
 	defer func() {
 		processedDataQueue.Close()
-		//fe.aggregatorService.RemoveData(clientID)
+		fe.aggregatorService.RemoveData(clientID)
 	}()
 
 	results, err := fe.aggregatorService.GetStoredTransactions(clientID)
@@ -80,7 +80,7 @@ func (fe *finishExecutor) finishTask2_1(clientID string) error {
 	clientWithPrefix := T2_1_PREFIX + clientID
 	defer func() {
 		processedDataQueue.Close()
-		//fe.aggregatorService.RemoveData(clientWithPrefix)
+		fe.aggregatorService.RemoveData(clientWithPrefix)
 	}()
 	results, err := fe.aggregatorService.GetStoredTotalProfitBySubtotal(clientWithPrefix)
 	if err != nil {
@@ -99,7 +99,7 @@ func (fe *finishExecutor) finishTask2_2(clientID string) error {
 	clientWithPrefix := T2_2_PREFIX + clientID
 	defer func() {
 		processedDataQueue.Close()
-		//fe.aggregatorService.RemoveData(clientWithPrefix)
+		fe.aggregatorService.RemoveData(clientWithPrefix)
 	}()
 	results, err := fe.aggregatorService.GetStoredTotalSoldByQuantity(clientWithPrefix)
 	if err != nil {
@@ -117,7 +117,7 @@ func (fe *finishExecutor) finishTask3(clientID string) error {
 	processedDataQueue := middleware.GetProcessedDataExchange(fe.address, clientID)
 	defer func() {
 		processedDataQueue.Close()
-		//fe.aggregatorService.RemoveData(clientID)
+		fe.aggregatorService.RemoveData(clientID)
 	}()
 	results, err := fe.aggregatorService.GetStoredTotalPaymentValue(clientID)
 	if err != nil {
@@ -137,7 +137,7 @@ func (fe *finishExecutor) finishTask4(clientID string) error {
 	processedDataQueue := middleware.GetProcessedDataExchange(fe.address, clientID)
 	defer func() {
 		processedDataQueue.Close()
-		//fe.aggregatorService.RemoveData(clientID)
+		fe.aggregatorService.RemoveData(clientID)
 	}()
 	topUsersPerStore, err := fe.aggregatorService.GetStoredCountedUserTransactions(clientID)
 	if err != nil {
