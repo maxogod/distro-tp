@@ -13,6 +13,7 @@ import (
 var log = logger.GetLogger()
 
 const SEPERATOR = "#"
+const FLUSH_DATA_BYTE = 0xff
 
 type fileHandler struct {
 	openFiles map[string]*os.File
@@ -62,7 +63,7 @@ func (fh *fileHandler) ReadData(
 	return nil
 }
 
-func (fh *fileHandler) SaveData(path string, byte_ch chan []byte) error {
+func (fh *fileHandler) WriteData(path string, byte_ch chan []byte) error {
 	outputFile, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0644)
 	if err != nil {
 		return fmt.Errorf("failed to open file: %w", err)
@@ -72,6 +73,9 @@ func (fh *fileHandler) SaveData(path string, byte_ch chan []byte) error {
 	defer outputFile.Close()
 
 	for entry := range byte_ch {
+		if bytes.Equal(entry, []byte{FLUSH_DATA_BYTE}) {
+			break
+		}
 
 		if len(entry) == 0 {
 			continue
@@ -81,13 +85,17 @@ func (fh *fileHandler) SaveData(path string, byte_ch chan []byte) error {
 		if _, err := writer.WriteString(line); err != nil {
 			return err
 		}
-	}
 
-	if err := writer.Flush(); err != nil {
-		return err
+		if err := writer.Flush(); err != nil {
+			return err
+		}
 	}
 
 	return nil
+}
+
+func FinishWritingFile(byte_ch chan []byte) {
+	byte_ch <- []byte{FLUSH_DATA_BYTE}
 }
 
 func (fh *fileHandler) CloseFile(path string) error {

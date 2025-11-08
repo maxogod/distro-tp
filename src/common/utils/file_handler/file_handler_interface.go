@@ -7,7 +7,7 @@ type FileHandler interface {
 	ReadData(path string, proto_ch chan []byte) error
 
 	// SaveAsBatches saves the file at path in batches to the proto_ch channel.
-	SaveData(path string, byte_ch chan []byte) error
+	WriteData(path string, byte_ch chan []byte) error
 
 	// SaveIndexedData performs a search and update operation in the file at path.
 	//SaveIndexedData(path string, dataKey string, updateFunc func(*[]byte)) error

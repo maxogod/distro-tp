@@ -47,7 +47,7 @@ func TestSaveAndReadProtoData(t *testing.T) {
 	ch := make(chan []byte)
 
 	go func() {
-		err := fh.SaveData(path, ch)
+		err := fh.WriteData(path, ch)
 		if err != nil {
 			t.Errorf("SaveData error: %v", err)
 		}
