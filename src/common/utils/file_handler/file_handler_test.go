@@ -53,7 +53,7 @@ func TestSaveAndReadProtoData(t *testing.T) {
 
 	// read them back
 	readCh := make(chan []byte)
-	go fh.ReadData(path, readCh)
+	fh.ReadData(path, readCh)
 
 	var total []*raw.Transaction
 	for msg := range readCh {

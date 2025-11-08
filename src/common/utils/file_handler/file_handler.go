@@ -40,33 +40,35 @@ func (fh *fileHandler) ReadData(
 
 	fh.finishWritingFile(path)
 
+	log.Debugln("finished writing")
+
 	file, err := os.Open(path)
 	if err != nil {
 		log.Errorf("failed to open file: %v", err)
 		return err
 	}
 
-	defer file.Close()
-	defer close(proto_ch)
-
 	scanner := bufio.NewScanner(file)
 
-	for scanner.Scan() {
-		line := scanner.Bytes()
-		if len(line) == 0 {
-			continue
+	go func() {
+		defer file.Close()
+		defer close(proto_ch)
+		for scanner.Scan() {
+			line := scanner.Bytes()
+			if len(line) == 0 {
+				continue
+			}
+			_, protoBytes, err := parseFromBytes(line)
+			if err != nil {
+				log.Errorf("failed to parse from bytes: %v", err)
+			}
+			proto_ch <- protoBytes
 		}
-		_, protoBytes, err := parseFromBytes(line)
-		if err != nil {
-			log.Errorf("failed to parse from bytes: %v", err)
-			return err
-		}
-		proto_ch <- protoBytes
-	}
 
-	if err := scanner.Err(); err != nil {
-		log.Errorf("scanner error: %v", err)
-	}
+		if err := scanner.Err(); err != nil {
+			log.Errorf("scanner error: %v", err)
+		}
+	}()
 
 	return nil
 }
@@ -86,6 +88,7 @@ func (fh *fileHandler) WriteData(path string, byte_ch chan []byte) error {
 	}
 
 	defer func() {
+		log.Debugln("Finished writing to file:", path)
 		close(finishCh)
 		outputFile.Close()
 		delete(fh.openFiles, path)
