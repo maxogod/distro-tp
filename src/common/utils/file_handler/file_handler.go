@@ -5,7 +5,6 @@ import (
 	"bytes"
 	"encoding/base64"
 	"fmt"
-	"io"
 	"os"
 
 	"github.com/maxogod/distro-tp/src/common/logger"
@@ -86,83 +85,6 @@ func (fh *fileHandler) SaveData(path string, byte_ch chan []byte) error {
 
 	if err := writer.Flush(); err != nil {
 		return err
-	}
-
-	return nil
-}
-
-func (fh *fileHandler) SaveIndexedData(
-	path string,
-	dataKey string,
-	updateFunc func(*[]byte),
-) error {
-	file, ok := fh.openFiles[path]
-	var err error
-	if !ok {
-		file, err = os.OpenFile(path, os.O_CREATE|os.O_RDWR, 0644)
-		if err != nil {
-			return fmt.Errorf("failed to open or create file: %w", err)
-		}
-		fh.openFiles[path] = file
-	}
-
-	if _, err := file.Seek(0, io.SeekStart); err != nil {
-		return fmt.Errorf("seek start failed: %w", err)
-	}
-
-	scanner := bufio.NewScanner(file)
-	var updatedLines []string
-	var found bool
-
-	for scanner.Scan() {
-		line := scanner.Bytes()
-		if len(line) == 0 {
-			continue
-		}
-
-		lineKey, protoBytes, err := parseFromBytes(line)
-		if err != nil {
-			return fmt.Errorf("parse line failed: %w", err)
-		}
-
-		if lineKey == dataKey {
-			updateFunc(&protoBytes)
-			newLine := parseToString(dataKey, protoBytes)
-			updatedLines = append(updatedLines, newLine)
-			found = true
-		} else {
-			updatedLines = append(updatedLines, string(line)+"\n")
-		}
-	}
-
-	if err := scanner.Err(); err != nil {
-		return fmt.Errorf("scanner error: %w", err)
-	}
-
-	// Append new record if not found
-	if !found {
-		data := []byte{}
-		updateFunc(&data)
-		newLine := parseToString(dataKey, data)
-		updatedLines = append(updatedLines, newLine)
-	}
-
-	// Truncate and rewrite file
-	if err := file.Truncate(0); err != nil {
-		return fmt.Errorf("truncate failed: %w", err)
-	}
-	if _, err := file.Seek(0, io.SeekStart); err != nil {
-		return fmt.Errorf("seek start failed: %w", err)
-	}
-
-	writer := bufio.NewWriter(file)
-	for _, l := range updatedLines {
-		if _, err := writer.WriteString(l); err != nil {
-			return fmt.Errorf("failed to write line: %w", err)
-		}
-	}
-	if err := writer.Flush(); err != nil {
-		return fmt.Errorf("flush failed: %w", err)
 	}
 
 	return nil

@@ -10,7 +10,7 @@ type FileHandler interface {
 	SaveData(path string, byte_ch chan []byte) error
 
 	// SaveIndexedData performs a search and update operation in the file at path.
-	SaveIndexedData(path string, dataKey string, updateFunc func(*[]byte)) error
+	//SaveIndexedData(path string, dataKey string, updateFunc func(*[]byte)) error
 
 	// Close releases any resources held by the FileHandler
 	Close()
