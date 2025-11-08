@@ -1,7 +1,6 @@
 package file_handler
 
 import (
-	"path/filepath"
 	"testing"
 
 	"github.com/maxogod/distro-tp/src/common/models/raw"
@@ -33,18 +32,11 @@ var Transactions = []*raw.Transaction{
 	},
 }
 
-// helper: create a temp file path
-func tmpFilePath(t *testing.T) string {
-	t.Helper()
-	tmpDir := t.TempDir()
-	return filepath.Join(tmpDir, "testfile.txt")
-}
-
 func TestSaveAndReadProtoData(t *testing.T) {
 	fh := NewFileHandler()
-
-	path := tmpFilePath(t)
+	path := "test-1"
 	ch := make(chan []byte)
+	defer fh.DeleteFile(path)
 
 	go func() {
 		err := fh.WriteData(path, ch)
@@ -58,7 +50,6 @@ func TestSaveAndReadProtoData(t *testing.T) {
 		data, _ := proto.Marshal(tr)
 		ch <- data
 	}
-	close(ch)
 
 	// read them back
 	readCh := make(chan []byte)

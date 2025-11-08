@@ -14,14 +14,20 @@ var log = logger.GetLogger()
 
 const SEPERATOR = "#"
 const FLUSH_DATA_BYTE = 0xff
+const FLUSH_THRESHOLD = 64 * 1024 // aprox 64KB
+
+type fileStoreHandler struct {
+	finishCh chan bool
+	storeCh  chan []byte
+}
 
 type fileHandler struct {
-	openFiles map[string]*os.File
+	openFiles map[string]fileStoreHandler
 }
 
 func NewFileHandler() FileHandler {
 	return &fileHandler{
-		openFiles: make(map[string]*os.File),
+		openFiles: make(map[string]fileStoreHandler),
 	}
 }
 
@@ -31,15 +37,17 @@ func (fh *fileHandler) ReadData(
 	proto_ch chan []byte,
 ) error {
 	log.Debugln("Reading from file:", path)
-	defer close(proto_ch)
+
+	fh.finishWritingFile(path)
 
 	file, err := os.Open(path)
 	if err != nil {
 		log.Errorf("failed to open file: %v", err)
 		return err
 	}
-	fh.openFiles[path] = file
+
 	defer file.Close()
+	defer close(proto_ch)
 
 	scanner := bufio.NewScanner(file)
 
@@ -65,12 +73,25 @@ func (fh *fileHandler) ReadData(
 
 func (fh *fileHandler) WriteData(path string, byte_ch chan []byte) error {
 	outputFile, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0644)
+
+	log.Debugln("Writing to file:", path)
+
 	if err != nil {
 		return fmt.Errorf("failed to open file: %w", err)
 	}
-	fh.openFiles[path] = outputFile
+	finishCh := make(chan bool)
+	fh.openFiles[path] = fileStoreHandler{
+		finishCh: finishCh,
+		storeCh:  byte_ch,
+	}
+
+	defer func() {
+		close(finishCh)
+		outputFile.Close()
+		delete(fh.openFiles, path)
+	}()
+
 	writer := bufio.NewWriter(outputFile)
-	defer outputFile.Close()
 
 	for entry := range byte_ch {
 		if bytes.Equal(entry, []byte{FLUSH_DATA_BYTE}) {
@@ -86,38 +107,47 @@ func (fh *fileHandler) WriteData(path string, byte_ch chan []byte) error {
 			return err
 		}
 
-		if err := writer.Flush(); err != nil {
-			return err
+		// Flush periodically for safety
+		if writer.Buffered() > FLUSH_THRESHOLD {
+			if err := writer.Flush(); err != nil {
+				return err
+			}
 		}
 	}
+
+	if err := writer.Flush(); err != nil {
+		return err
+	}
+	if err := outputFile.Sync(); err != nil {
+		return err
+	}
+	finishCh <- true
 
 	return nil
 }
 
-func FinishWritingFile(byte_ch chan []byte) {
-	byte_ch <- []byte{FLUSH_DATA_BYTE}
-}
-
-func (fh *fileHandler) CloseFile(path string) error {
-	file, ok := fh.openFiles[path]
-	if !ok {
-		return nil
-	}
-	delete(fh.openFiles, path)
-	return file.Close()
-}
-
 func (fh *fileHandler) Close() {
-	for _, file := range fh.openFiles {
-		file.Close()
+	for path := range fh.openFiles {
+		fh.finishWritingFile(path)
 	}
 }
 
-func (fh *fileHandler) DeleteFile(path string) error {
-	if err := fh.CloseFile(path); err != nil {
-		return err
+func (fh *fileHandler) DeleteFile(path string) {
+	os.Remove(path)
+	delete(fh.openFiles, path)
+}
+
+// ========== Private Methods ===========
+
+func (fh *fileHandler) finishWritingFile(path string) {
+
+	storeHandler, ok := fh.openFiles[path]
+	if !ok {
+		log.Warnf("No open file found for path: %s", path)
+		return
 	}
-	return os.Remove(path)
+	storeHandler.storeCh <- []byte{FLUSH_DATA_BYTE}
+	<-storeHandler.finishCh
 }
 
 func parseToString(dataKey string, bytes []byte) string {

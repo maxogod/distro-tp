@@ -6,18 +6,12 @@ type FileHandler interface {
 	// ReadAll reads the file at path and sends batches of objects of type T to the proto_ch channel.
 	ReadData(path string, proto_ch chan []byte) error
 
-	// SaveAsBatches saves the file at path in batches to the proto_ch channel.
+	// WriteData writes data to the file at path from the byte_ch channel.
 	WriteData(path string, byte_ch chan []byte) error
-
-	// SaveIndexedData performs a search and update operation in the file at path.
-	//SaveIndexedData(path string, dataKey string, updateFunc func(*[]byte)) error
 
 	// Close releases any resources held by the FileHandler
 	Close()
 
-	// CloseFile closes the file at path.
-	CloseFile(path string) error
-
 	// Delete the file
-	DeleteFile(path string) error
+	DeleteFile(path string)
 }
