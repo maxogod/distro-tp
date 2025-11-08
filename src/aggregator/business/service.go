@@ -11,8 +11,6 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-var log = logger.GetLogger()
-
 const SEPERATOR = "#"
 
 type aggregatorService struct {
@@ -36,14 +34,14 @@ func storeBatch[T proto.Message](as *aggregatorService, clientID string, data []
 	for i := range data {
 		bytes, err := proto.Marshal(data[i])
 		if err != nil {
-			log.Errorf("Error marshalling proto message: %v", err)
+			logger.Logger.Errorf("Error marshalling proto message: %v", err)
 			return err
 		}
 		listBytes[i] = bytes
 	}
 	err := as.cacheService.StoreData(clientID, listBytes)
 	if err != nil {
-		log.Errorf("Error storing data for client [%s]: %v", clientID, err)
+		logger.Logger.Errorf("Error storing data for client [%s]: %v", clientID, err)
 	}
 	return nil
 }
@@ -90,7 +88,7 @@ func getData[T proto.Message](as *aggregatorService, clientID string, factory fu
 		protoData := factory()
 		err := proto.Unmarshal(protoBytes, protoData)
 		if err != nil {
-			log.Errorf("Error unmarshalling proto message: %v", err)
+			logger.Logger.Errorf("Error unmarshalling proto message: %v", err)
 			return nil, err
 		}
 		if joinFn != nil {

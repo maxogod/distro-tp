@@ -10,8 +10,6 @@ import (
 	"github.com/maxogod/distro-tp/src/common/logger"
 )
 
-var log = logger.GetLogger()
-
 const FLUSH_DATA_BYTE = 0xff
 const FLUSH_THRESHOLD = 64 * 1024 // aprox 64KB
 
@@ -41,14 +39,14 @@ func (fh *fileHandler) ReadData(
 	openFile, ok := fh.openFiles[path]
 
 	if ok {
-		log.Debug("file already present!")
+		logger.Logger.Debug("file already present!")
 		fh.finishWritingFile(path)
 		file = openFile.file
 	} else {
 
 		newOpenFile, err := os.Open(path)
 		if err != nil {
-			log.Errorf("failed to open file: %v", err)
+			logger.Logger.Errorf("failed to open file: %v", err)
 			return err
 		}
 		fh.openFiles[path] = fileStoreHandler{
@@ -61,7 +59,7 @@ func (fh *fileHandler) ReadData(
 
 	file, err := os.Open(path)
 	if err != nil {
-		log.Errorf("failed to open file: %v", err)
+		logger.Logger.Errorf("failed to open file: %v", err)
 		return err
 	}
 
@@ -77,13 +75,13 @@ func (fh *fileHandler) ReadData(
 			}
 			protoBytes, err := parseFromBytes(line)
 			if err != nil {
-				log.Errorf("failed to parse from bytes: %v", err)
+				logger.Logger.Errorf("failed to parse from bytes: %v", err)
 			}
 			proto_ch <- protoBytes
 		}
 
 		if err := scanner.Err(); err != nil {
-			log.Errorf("scanner error: %v", err)
+			logger.Logger.Errorf("scanner error: %v", err)
 		}
 	}()
 
@@ -166,7 +164,7 @@ func (fh *fileHandler) finishWritingFile(path string) {
 
 	storeHandler, ok := fh.openFiles[path]
 	if !ok {
-		log.Warnf("No open file found for path: %s", path)
+		logger.Logger.Warnf("No open file found for path: %s", path)
 		return
 	}
 	if storeHandler.finishCh != nil && storeHandler.storeCh != nil {
