@@ -30,52 +30,6 @@ var MockTransactionsBatch = raw.TransactionBatch{
 		},
 	}}
 
-var MockTotalProfit = []*reduced.TotalProfitBySubtotal{
-	{
-		ItemId:    "item1",
-		YearMonth: "2025-01",
-		Subtotal:  100.0,
-	},
-	{
-		ItemId:    "item1",
-		YearMonth: "2025-01",
-		Subtotal:  100.0,
-	},
-	{
-		ItemId:    "item2",
-		YearMonth: "2024-12",
-		Subtotal:  100.0,
-	},
-	{
-		ItemId:    "item1",
-		YearMonth: "2024-06",
-		Subtotal:  100.0,
-	},
-}
-
-var MockTotalSales = []*reduced.TotalSoldByQuantity{
-	{
-		ItemId:    "item1",
-		YearMonth: "2025-01",
-		Quantity:  100.0,
-	},
-	{
-		ItemId:    "item1",
-		YearMonth: "2025-01",
-		Quantity:  100.0,
-	},
-	{
-		ItemId:    "item2",
-		YearMonth: "2024-12",
-		Quantity:  100.0,
-	},
-	{
-		ItemId:    "item1",
-		YearMonth: "2024-06",
-		Quantity:  100.0,
-	},
-}
-
 var MockTPV = []*reduced.TotalPaymentValue{
 	{
 		StoreId:     "1",
