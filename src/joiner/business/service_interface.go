@@ -24,15 +24,15 @@ type JoinerService interface {
 
 	// JoinTotalSumItem is responsible for joining TotalSumItem with MenuItem data
 	// as part of T2 task.
-	JoinTotalSumItem(sales *reduced.TotalSumItem, clientID string) (*reduced.TotalSumItem, error)
+	JoinTotalSumItem(sales *reduced.TotalSumItem, clientID string) error
 
 	// JoinTotalPaymentValue is responsible for joining TotalPaymentValue with Store and User data
 	// as part of T3 task.
-	JoinTotalPaymentValue(tpv *reduced.TotalPaymentValue, clientID string) (*reduced.TotalPaymentValue, error)
+	JoinTotalPaymentValue(tpv *reduced.TotalPaymentValue, clientID string) error
 
 	// JoinCountedUserTransactions is responsible for joining CountedUserTransactions with User data
 	// as part of T4 task.
-	JoinCountedUserTransactions(countedTransaction *reduced.CountedUserTransactions, clientID string) (*reduced.CountedUserTransactions, error)
+	JoinCountedUserTransactions(countedTransaction *reduced.CountedUserTransactions, clientID string) error
 
 	/* --- Resource release --- */
 

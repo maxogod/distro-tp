@@ -61,6 +61,8 @@ func (in *inMemoryCache) StoreUsers(clientID string, data []*raw.User) error {
 	getRefKey := func(item *raw.User) string {
 		return item.GetUserId()
 	}
+	// First, remove any existing users for the client to avoid stale data
+	in.RemoveRefData(clientID, enum.Users)
 	return storeData(in, clientID, enum.Users, data, getRefKey)
 }
 
