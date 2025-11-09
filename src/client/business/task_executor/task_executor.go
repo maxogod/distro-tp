@@ -106,7 +106,7 @@ func (t *taskExecutor) Task2() error {
 		filepath.Join(t.outputPath, t.conf.OutputFiles.T2_1),
 		t.conf.Headers.T2_1,
 		func(dataBatch *protocol.DataEnvelope, ch chan string) {
-			data := &reduced.TotalProfitBySubtotal{}
+			data := &reduced.TotalSumItem{}
 			if err := proto.Unmarshal(dataBatch.Payload, data); err != nil {
 				logger.Logger.Errorf("failed to unmarshal transaction items batch from server: %v", err)
 				return
@@ -121,7 +121,7 @@ func (t *taskExecutor) Task2() error {
 		filepath.Join(t.outputPath, t.conf.OutputFiles.T2_2),
 		t.conf.Headers.T2_2,
 		func(dataBatch *protocol.DataEnvelope, ch chan string) {
-			data := &reduced.TotalSoldByQuantity{}
+			data := &reduced.TotalSumItem{}
 			if err := proto.Unmarshal(dataBatch.Payload, data); err != nil {
 				logger.Logger.Errorf("failed to unmarshal transaction items batch from server: %v", err)
 				return

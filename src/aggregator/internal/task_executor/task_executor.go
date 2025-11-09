@@ -2,7 +2,6 @@ package task_executor
 
 import (
 	"fmt"
-	"strings"
 
 	"github.com/maxogod/distro-tp/src/aggregator/business"
 	"github.com/maxogod/distro-tp/src/aggregator/config"
@@ -73,11 +72,11 @@ func (ae *AggregatorExecutor) HandleTask1(dataEnvelope *protocol.DataEnvelope, a
 	return nil
 }
 
-func (ae *AggregatorExecutor) HandleTask2_1(dataEnvelope *protocol.DataEnvelope, ackHandler func(bool, bool) error) error {
+func (ae *AggregatorExecutor) HandleTask2(dataEnvelope *protocol.DataEnvelope, ackHandler func(bool, bool) error) error {
 	shouldAck := false
 	defer ackHandler(shouldAck, false)
 
-	reducedData := &reduced.TotalProfitBySubtotalBatch{}
+	reducedData := &reduced.TotalSumItemsBatch{}
 	payload := dataEnvelope.GetPayload()
 	clientID := dataEnvelope.GetClientId()
 
@@ -88,63 +87,20 @@ func (ae *AggregatorExecutor) HandleTask2_1(dataEnvelope *protocol.DataEnvelope,
 
 	ae.clientTasks[clientID] = enum.T2
 
-	// To differentiate between Task 2.1 and Task 2.2 results in the DB
-	clientID = T2_1_PREFIX + clientID
-
-	for _, profit := range reducedData.GetTotalProfitBySubtotals() {
-		err = ae.aggregatorService.StoreTotalProfitBySubtotal(clientID, profit)
+	for _, profit := range reducedData.GetTotalSumItems() {
+		err = ae.aggregatorService.StoreTotalItems(clientID, profit)
 		if err != nil {
 			return err
 		}
 	}
 	shouldAck = true
 
-	realClientID := strings.Split(clientID, "@")[1]
 	_, exists := ae.connectedClients[clientID]
 	if !exists {
-		ae.connectedClients[clientID] = middleware.GetCounterExchange(ae.config.Address, realClientID+"@"+string(enum.AggregatorWorker))
+		ae.connectedClients[clientID] = middleware.GetCounterExchange(ae.config.Address, clientID+"@"+string(enum.AggregatorWorker))
 	}
 	counterExchange := ae.connectedClients[clientID]
-	if err := worker.SendCounterMessage(realClientID, 0, enum.AggregatorWorker, enum.None, counterExchange); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (ae *AggregatorExecutor) HandleTask2_2(dataEnvelope *protocol.DataEnvelope, ackHandler func(bool, bool) error) error {
-	shouldAck := false
-	defer ackHandler(shouldAck, false)
-
-	reducedData := &reduced.TotalSoldByQuantityBatch{}
-	payload := dataEnvelope.GetPayload()
-	clientID := dataEnvelope.GetClientId()
-
-	err := proto.Unmarshal(payload, reducedData)
-	if err != nil {
-		return err
-	}
-
-	ae.clientTasks[clientID] = enum.T2
-
-	// To differentiate between Task 2.1 and Task 2.2 results in the DB
-	clientID = T2_2_PREFIX + clientID
-
-	for _, tsq := range reducedData.GetTotalSoldByQuantities() {
-		err = ae.aggregatorService.StoreTotalSoldByQuantity(clientID, tsq)
-		if err != nil {
-			return err
-		}
-	}
-	shouldAck = true
-
-	realClientID := strings.Split(clientID, "@")[1]
-	_, exists := ae.connectedClients[clientID]
-	if !exists {
-		ae.connectedClients[clientID] = middleware.GetCounterExchange(ae.config.Address, realClientID+"@"+string(enum.AggregatorWorker))
-	}
-	counterExchange := ae.connectedClients[clientID]
-	if err := worker.SendCounterMessage(realClientID, 0, enum.AggregatorWorker, enum.None, counterExchange); err != nil {
+	if err := worker.SendCounterMessage(clientID, 0, enum.AggregatorWorker, enum.None, counterExchange); err != nil {
 		return err
 	}
 
@@ -231,21 +187,6 @@ func (ae *AggregatorExecutor) HandleFinishClient(dataEnvelope *protocol.DataEnve
 		logger.Logger.Warn("Client ID never sent any data: ", clientID)
 		return nil
 	}
-	task := enum.TaskType(taskType)
-	if task == enum.T2 {
-		err := ae.finishExecutor.SendAllData(clientID, enum.T2_1)
-		if err != nil {
-			logger.Logger.Debug("Failed to send all data for client: ", clientID, " | error: ", err)
-		}
-		err = ae.finishExecutor.SendAllData(clientID, enum.T2_2)
-		if err != nil {
-			logger.Logger.Debug("Failed to send all data for client: ", clientID, " | error: ", err)
-		}
-		logger.Logger.Debug("Client Finished: ", clientID)
-		delete(ae.clientTasks, clientID)
-		shouldAck = true
-		return nil
-	}
 
 	err := ae.finishExecutor.SendAllData(clientID, enum.TaskType(taskType))
 	if err != nil {
@@ -270,8 +211,4 @@ func (ae *AggregatorExecutor) Close() error {
 	}
 
 	return nil
-}
-
-func (ae *AggregatorExecutor) HandleTask2(dataEnvelope *protocol.DataEnvelope, ackHandler func(bool, bool) error) error {
-	panic("The aggregator does not implement Task 2")
 }
