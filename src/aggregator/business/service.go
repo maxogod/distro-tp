@@ -160,12 +160,8 @@ func (as *aggregatorService) StoreTransactions(clientID string, transactions []*
 	return storeBatch(as, clientID, transactions)
 }
 
-func (as *aggregatorService) StoreTotalProfitBySubtotal(clientID string, reducedData *reduced.TotalProfitBySubtotal) error {
-	return storeBatch(as, clientID, []*reduced.TotalProfitBySubtotal{reducedData})
-}
-
-func (as *aggregatorService) StoreTotalSoldByQuantity(clientID string, reducedData *reduced.TotalSoldByQuantity) error {
-	return storeBatch(as, clientID, []*reduced.TotalSoldByQuantity{reducedData})
+func (as *aggregatorService) StoreTotalItems(clientID string, reducedData *reduced.TotalSumItem) error {
+	return storeBatch(as, clientID, []*reduced.TotalSumItem{reducedData})
 }
 
 func (as *aggregatorService) StoreTotalPaymentValue(clientID string, reducedData *reduced.TotalPaymentValue) error {
@@ -185,44 +181,16 @@ func (as *aggregatorService) GetStoredTransactions(clientID string) ([]*raw.Tran
 	return getData(as, clientID, factory, nil)
 }
 
-func (as *aggregatorService) GetStoredTotalProfitBySubtotal(clientID string) ([]*reduced.TotalProfitBySubtotal, error) {
+func (as *aggregatorService) GetStoredTotalItems(clientID string) ([]*reduced.TotalSumItem, []*reduced.TotalSumItem, error) {
 
-	factory := func() *reduced.TotalProfitBySubtotal {
-		return &reduced.TotalProfitBySubtotal{}
+	factory := func() *reduced.TotalSumItem {
+		return &reduced.TotalSumItem{}
 	}
 
-	joinFn := func(newData *reduced.TotalProfitBySubtotal, flattenedDataMap map[string]*reduced.TotalProfitBySubtotal) {
+	joinFn := func(newData *reduced.TotalSumItem, flattenedDataMap map[string]*reduced.TotalSumItem) {
 		key := newData.ItemId + SEPERATOR + newData.YearMonth
 		if existingData, exists := flattenedDataMap[key]; exists {
 			existingData.Subtotal += newData.Subtotal
-		} else {
-			flattenedDataMap[key] = newData
-		}
-	}
-
-	data, err := getData(as, clientID, factory, joinFn)
-	if err != nil {
-		return nil, err
-	}
-
-	best := filterBestMonthValues(
-		data,
-		func(t *reduced.TotalProfitBySubtotal) string { return t.GetYearMonth() },
-		func(t *reduced.TotalProfitBySubtotal) float64 { return float64(t.GetSubtotal()) },
-	)
-
-	return best, nil
-}
-
-func (as *aggregatorService) GetStoredTotalSoldByQuantity(clientID string) ([]*reduced.TotalSoldByQuantity, error) {
-
-	factory := func() *reduced.TotalSoldByQuantity {
-		return &reduced.TotalSoldByQuantity{}
-	}
-
-	joinFn := func(newData *reduced.TotalSoldByQuantity, flattenedDataMap map[string]*reduced.TotalSoldByQuantity) {
-		key := newData.ItemId + SEPERATOR + newData.YearMonth
-		if existingData, exists := flattenedDataMap[key]; exists {
 			existingData.Quantity += newData.Quantity
 		} else {
 			flattenedDataMap[key] = newData
@@ -231,16 +199,22 @@ func (as *aggregatorService) GetStoredTotalSoldByQuantity(clientID string) ([]*r
 
 	data, err := getData(as, clientID, factory, joinFn)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
-	best := filterBestMonthValues(
+	bestBySubtotal := filterBestMonthValues(
 		data,
-		func(t *reduced.TotalSoldByQuantity) string { return t.GetYearMonth() },
-		func(t *reduced.TotalSoldByQuantity) float64 { return float64(t.GetQuantity()) },
+		func(t *reduced.TotalSumItem) string { return t.GetYearMonth() },
+		func(t *reduced.TotalSumItem) float64 { return float64(t.GetSubtotal()) },
 	)
 
-	return best, nil
+	bestByQuantity := filterBestMonthValues(
+		data,
+		func(t *reduced.TotalSumItem) string { return t.GetYearMonth() },
+		func(t *reduced.TotalSumItem) float64 { return float64(t.GetQuantity()) },
+	)
+
+	return bestBySubtotal, bestByQuantity, nil
 }
 
 func (as *aggregatorService) GetStoredTotalPaymentValue(clientID string) ([]*reduced.TotalPaymentValue, error) {

@@ -14,7 +14,6 @@ import (
 type finishExecutor struct {
 	address           string
 	aggregatorService business.AggregatorService
-	sortExecutors     map[enum.TaskType]func(clientID string) error
 	finishExecutors   map[enum.TaskType]func(clientID string) error
 	limits            config.Limits
 }
@@ -27,11 +26,10 @@ func NewFinishExecutor(address string, aggregatorService business.AggregatorServ
 	}
 
 	fe.finishExecutors = map[enum.TaskType]func(clientID string) error{
-		enum.T1:   fe.finishTask1,
-		enum.T2_1: fe.finishTask2_1,
-		enum.T2_2: fe.finishTask2_2,
-		enum.T3:   fe.finishTask3,
-		enum.T4:   fe.finishTask4,
+		enum.T1: fe.finishTask1,
+		enum.T2: fe.finishTask2,
+		enum.T3: fe.finishTask3,
+		enum.T4: fe.finishTask4,
 	}
 	return &fe
 }
@@ -75,38 +73,25 @@ func (fe *finishExecutor) finishTask1(clientID string) error {
 	return worker.SendDone(clientID, enum.T1, processedDataQueue)
 }
 
-func (fe *finishExecutor) finishTask2_1(clientID string) error {
+func (fe *finishExecutor) finishTask2(clientID string) error {
 	processedDataQueue := middleware.GetProcessedDataExchange(fe.address, clientID)
-	clientWithPrefix := T2_1_PREFIX + clientID
 	defer func() {
 		processedDataQueue.Close()
-		fe.aggregatorService.RemoveData(clientWithPrefix)
+		fe.aggregatorService.RemoveData(clientID)
 	}()
-	results, err := fe.aggregatorService.GetStoredTotalProfitBySubtotal(clientWithPrefix)
+	subtotalResults, quantityResults, err := fe.aggregatorService.GetStoredTotalItems(clientID)
 	if err != nil {
-		return fmt.Errorf("[TASK 2.1] failed to get results for client %s: %v", clientWithPrefix, err)
+		return fmt.Errorf("[TASK 2] failed to get results for client %s: %v", clientID, err)
 	}
-	for _, tpsData := range results {
-		if err := worker.SendDataToMiddleware(tpsData, enum.T2_1, clientID, processedDataQueue); err != nil {
+	for _, totalSubtotalData := range subtotalResults {
+		if err := worker.SendDataToMiddleware(totalSubtotalData, enum.T2_1, clientID, processedDataQueue); err != nil {
 			return fmt.Errorf("failed to send data to middleware: %v", err)
 		}
 	}
-	return worker.SendDone(clientID, enum.T2_1, processedDataQueue)
-}
+	worker.SendDone(clientID, enum.T2_1, processedDataQueue)
 
-func (fe *finishExecutor) finishTask2_2(clientID string) error {
-	processedDataQueue := middleware.GetProcessedDataExchange(fe.address, clientID)
-	clientWithPrefix := T2_2_PREFIX + clientID
-	defer func() {
-		processedDataQueue.Close()
-		fe.aggregatorService.RemoveData(clientWithPrefix)
-	}()
-	results, err := fe.aggregatorService.GetStoredTotalSoldByQuantity(clientWithPrefix)
-	if err != nil {
-		return fmt.Errorf("[TASK 2.2] failed to get results for client %s: %v", clientWithPrefix, err)
-	}
-	for _, tsqData := range results {
-		if err := worker.SendDataToMiddleware(tsqData, enum.T2_2, clientID, processedDataQueue); err != nil {
+	for _, totalQuantityData := range quantityResults {
+		if err := worker.SendDataToMiddleware(totalQuantityData, enum.T2_2, clientID, processedDataQueue); err != nil {
 			return fmt.Errorf("failed to send data to middleware: %v", err)
 		}
 	}

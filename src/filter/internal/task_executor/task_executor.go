@@ -219,13 +219,7 @@ func (fe *FilterExecutor) Close() error {
 	return nil
 }
 
-func (fe *FilterExecutor) HandleTask2_1(dataEnvelope *protocol.DataEnvelope, ackHandler func(bool, bool) error) error {
-	panic("The filter does not implement Task 2.1")
-}
 
-func (fe *FilterExecutor) HandleTask2_2(dataEnvelope *protocol.DataEnvelope, ackHandler func(bool, bool) error) error {
-	panic("The filter does not implement Task 2.2")
-}
 
 func (fe *FilterExecutor) HandleFinishClient(dataEnvelope *protocol.DataEnvelope, ackHandler func(bool, bool) error) error {
 	panic("Filter does not require client finishing handling")

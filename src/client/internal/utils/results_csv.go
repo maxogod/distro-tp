@@ -13,12 +13,12 @@ func TransactionToCsv(record *raw.Transaction) string {
 	return csvStr
 }
 
-func BestSellingItemsToCsv(record *reduced.TotalSoldByQuantity) string {
+func BestSellingItemsToCsv(record *reduced.TotalSumItem) string {
 	csvStr := fmt.Sprintf("%s,%s,%d\n", record.YearMonth, record.ItemId, record.Quantity)
 	return csvStr
 }
 
-func MostProfitableItemsToCsv(record *reduced.TotalProfitBySubtotal) string {
+func MostProfitableItemsToCsv(record *reduced.TotalSumItem) string {
 	csvStr := fmt.Sprintf("%s,%s,%.2f\n", record.YearMonth, record.ItemId, record.Subtotal)
 	return csvStr
 }

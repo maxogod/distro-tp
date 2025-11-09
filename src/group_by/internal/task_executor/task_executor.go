@@ -67,12 +67,7 @@ func (ge *GroupExecutor) HandleTask2(dataEnvelope *protocol.DataEnvelope, ackHan
 		groupBatch.GroupTransactionItems = append(groupBatch.GetGroupTransactionItems(), group)
 	}
 
-	err = worker.SendDataToMiddleware(groupBatch, enum.T2_1, clientID, ge.reducerQueue)
-	if err != nil {
-		shouldRequeue = true
-		return err
-	}
-	err = worker.SendDataToMiddleware(groupBatch, enum.T2_2, clientID, ge.reducerQueue)
+	err = worker.SendDataToMiddleware(groupBatch, enum.T2, clientID, ge.reducerQueue)
 	if err != nil {
 		shouldRequeue = true
 		return err
@@ -84,7 +79,7 @@ func (ge *GroupExecutor) HandleTask2(dataEnvelope *protocol.DataEnvelope, ackHan
 		ge.connectedClients[clientID] = middleware.GetCounterExchange(ge.url, clientID+"@"+string(enum.GroupbyWorker))
 	}
 	counterExchange := ge.connectedClients[clientID]
-	if err := worker.SendCounterMessage(clientID, 2, enum.GroupbyWorker, enum.ReducerWorker, counterExchange); err != nil {
+	if err := worker.SendCounterMessage(clientID, 1, enum.GroupbyWorker, enum.ReducerWorker, counterExchange); err != nil {
 		return err
 	}
 
@@ -186,14 +181,6 @@ func (ge *GroupExecutor) Close() error {
 
 func (ge *GroupExecutor) HandleTask1(dataEnvelope *protocol.DataEnvelope, ackHandler func(bool, bool) error) error {
 	panic("The group by worker does not implement Task 1")
-}
-
-func (ge *GroupExecutor) HandleTask2_1(dataEnvelope *protocol.DataEnvelope, ackHandler func(bool, bool) error) error {
-	panic("The group by worker does not implement Task 2.1")
-}
-
-func (ge *GroupExecutor) HandleTask2_2(dataEnvelope *protocol.DataEnvelope, ackHandler func(bool, bool) error) error {
-	panic("The group by worker does not implement Task 2.2")
 }
 
 // TODO: handle this to remove the client after finishing

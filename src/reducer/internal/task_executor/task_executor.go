@@ -32,13 +32,13 @@ func NewReducerExecutor(filterService business.ReducerService,
 	}
 }
 
-func (re *reducerExecutor) HandleTask2_1(dataEnvelope *protocol.DataEnvelope, ackHandler func(bool, bool) error) error {
+func (re *reducerExecutor) HandleTask2(dataEnvelope *protocol.DataEnvelope, ackHandler func(bool, bool) error) error {
 	shouldAck := false
 	shouldRequeue := false
 	defer ackHandler(shouldAck, shouldRequeue)
 
 	groupedItems := &group_by.GroupTransactionItemsBatch{}
-	reducedRes := &reduced.TotalProfitBySubtotalBatch{}
+	reducedResult := &reduced.TotalSumItemsBatch{}
 	payload := dataEnvelope.GetPayload()
 	clientID := dataEnvelope.GetClientId()
 
@@ -48,50 +48,11 @@ func (re *reducerExecutor) HandleTask2_1(dataEnvelope *protocol.DataEnvelope, ac
 	}
 	// === Business logic ===
 	for _, group := range groupedItems.GetGroupTransactionItems() {
-		reduced := re.service.SumTotalProfitBySubtotal(group)
-		reducedRes.TotalProfitBySubtotals = append(reducedRes.GetTotalProfitBySubtotals(), reduced)
+		reduced := re.service.SumTotalItems(group)
+		reducedResult.TotalSumItems = append(reducedResult.GetTotalSumItems(), reduced)
 	}
 
-	err = worker.SendDataToMiddleware(reducedRes, enum.T2_1, clientID, re.outputQueue)
-	if err != nil {
-		shouldRequeue = true
-		return err
-	}
-	shouldAck = true
-
-	_, exists := re.connectedClients[clientID]
-	if !exists {
-		re.connectedClients[clientID] = middleware.GetCounterExchange(re.url, clientID+"@"+string(enum.ReducerWorker))
-	}
-	counterExchange := re.connectedClients[clientID]
-	if err := worker.SendCounterMessage(clientID, 1, enum.ReducerWorker, enum.JoinerWorker, counterExchange); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (re *reducerExecutor) HandleTask2_2(dataEnvelope *protocol.DataEnvelope, ackHandler func(bool, bool) error) error {
-	shouldAck := false
-	shouldRequeue := false
-	defer ackHandler(shouldAck, shouldRequeue)
-
-	groupedItems := &group_by.GroupTransactionItemsBatch{}
-	reducedRes := &reduced.TotalSoldByQuantityBatch{}
-	payload := dataEnvelope.GetPayload()
-	clientID := dataEnvelope.GetClientId()
-
-	err := proto.Unmarshal(payload, groupedItems)
-	if err != nil {
-		return err
-	}
-	// === Business logic ===
-	for _, group := range groupedItems.GetGroupTransactionItems() {
-		reduced := re.service.SumTotalSoldByQuantity(group)
-		reducedRes.TotalSoldByQuantities = append(reducedRes.GetTotalSoldByQuantities(), reduced)
-	}
-
-	err = worker.SendDataToMiddleware(reducedRes, enum.T2_2, clientID, re.outputQueue)
+	err = worker.SendDataToMiddleware(reducedResult, enum.T2, clientID, re.outputQueue)
 	if err != nil {
 		shouldRequeue = true
 		return err
@@ -210,7 +171,13 @@ func (re *reducerExecutor) HandleTask1(dataEnvelope *protocol.DataEnvelope, ackH
 	panic("The reducer worker does not implement Task 1")
 }
 
-func (re *reducerExecutor) HandleTask2(dataEnvelope *protocol.DataEnvelope, ackHandler func(bool, bool) error) error {
+func (re *reducerExecutor) HandleTask2_1(dataEnvelope *protocol.DataEnvelope, ackHandler func(bool, bool) error) error {
 
-	panic("The reducer worker does not implement Task 2, but Task 2.1 and 2.2 separately")
+	panic("THIS WILL BE GONE SOON")
+
+}
+
+func (re *reducerExecutor) HandleTask2_2(dataEnvelope *protocol.DataEnvelope, ackHandler func(bool, bool) error) error {
+
+	panic("THIS WILL BE GONE SOON")
 }

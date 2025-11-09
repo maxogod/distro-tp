@@ -15,8 +15,6 @@ const FINISH enum.TaskType = 0
 type TaskExecutor interface {
 	HandleTask1(dataEnvelope *protocol.DataEnvelope, ackHandler func(bool, bool) error) error
 	HandleTask2(dataEnvelope *protocol.DataEnvelope, ackHandler func(bool, bool) error) error
-	HandleTask2_1(dataEnvelope *protocol.DataEnvelope, ackHandler func(bool, bool) error) error
-	HandleTask2_2(dataEnvelope *protocol.DataEnvelope, ackHandler func(bool, bool) error) error
 	HandleTask3(dataEnvelope *protocol.DataEnvelope, ackHandler func(bool, bool) error) error
 	HandleTask4(dataEnvelope *protocol.DataEnvelope, ackHandler func(bool, bool) error) error
 	HandleFinishClient(dataEnvelope *protocol.DataEnvelope, ackHandler func(bool, bool) error) error
@@ -38,12 +36,10 @@ func NewTaskHandler(
 	}
 
 	th.taskHandlers = map[enum.TaskType]func(*protocol.DataEnvelope, func(bool, bool) error) error{
-		enum.T1:   th.taskExecutor.HandleTask1,
-		enum.T2:   th.taskExecutor.HandleTask2,
-		enum.T2_1: th.taskExecutor.HandleTask2_1,
-		enum.T2_2: th.taskExecutor.HandleTask2_2,
-		enum.T3:   th.taskExecutor.HandleTask3,
-		enum.T4:   th.taskExecutor.HandleTask4,
+		enum.T1: th.taskExecutor.HandleTask1,
+		enum.T2: th.taskExecutor.HandleTask2,
+		enum.T3: th.taskExecutor.HandleTask3,
+		enum.T4: th.taskExecutor.HandleTask4,
 	}
 
 	return th

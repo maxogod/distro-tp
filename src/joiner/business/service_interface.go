@@ -22,13 +22,9 @@ type JoinerService interface {
 
 	/* --- Join Data --- */
 
-	// JoinTotalProfitBySubtotal is responsible for joining TotalProfitBySubtotal with MenuItem data
-	// as part of T2_1 task.
-	JoinTotalProfitBySubtotal(profit *reduced.TotalProfitBySubtotal, clientID string) (*reduced.TotalProfitBySubtotal, error)
-
-	// JoinTotalSoldByQuantity is responsible for joining TotalSoldByQuantity with MenuItem data
-	// as part of T2_2 task.
-	JoinTotalSoldByQuantity(sales *reduced.TotalSoldByQuantity, clientID string) (*reduced.TotalSoldByQuantity, error)
+	// JoinTotalSumItem is responsible for joining TotalSumItem with MenuItem data
+	// as part of T2 task.
+	JoinTotalSumItem(sales *reduced.TotalSumItem, clientID string) (*reduced.TotalSumItem, error)
 
 	// JoinTotalPaymentValue is responsible for joining TotalPaymentValue with Store and User data
 	// as part of T3 task.
