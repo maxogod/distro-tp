@@ -6,13 +6,13 @@ import (
 	"syscall"
 
 	"github.com/maxogod/distro-tp/src/aggregator/business"
-	cache "github.com/maxogod/distro-tp/src/aggregator/cache/disk_memory"
 	"github.com/maxogod/distro-tp/src/aggregator/config"
 	"github.com/maxogod/distro-tp/src/aggregator/internal/task_executor"
 	"github.com/maxogod/distro-tp/src/common/logger"
 	"github.com/maxogod/distro-tp/src/common/middleware"
 	"github.com/maxogod/distro-tp/src/common/models/enum"
 	"github.com/maxogod/distro-tp/src/common/worker"
+	cache "github.com/maxogod/distro-tp/src/common/worker/cache/disk_memory"
 )
 
 type Server struct {

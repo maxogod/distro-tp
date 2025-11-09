@@ -4,8 +4,8 @@ import (
 	"path/filepath"
 	"testing"
 
-	cache "github.com/maxogod/distro-tp/src/aggregator/cache/disk_memory"
 	"github.com/maxogod/distro-tp/src/common/models/raw"
+	cache "github.com/maxogod/distro-tp/src/common/worker/cache/disk_memory"
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/protobuf/proto"
 )

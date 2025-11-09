@@ -3,11 +3,11 @@ package business
 import (
 	"sort"
 
-	"github.com/maxogod/distro-tp/src/aggregator/cache"
 	"github.com/maxogod/distro-tp/src/common/logger"
 	"github.com/maxogod/distro-tp/src/common/models/raw"
 	"github.com/maxogod/distro-tp/src/common/models/reduced"
 	"github.com/maxogod/distro-tp/src/common/utils"
+	"github.com/maxogod/distro-tp/src/common/worker/cache"
 	"google.golang.org/protobuf/proto"
 )
 

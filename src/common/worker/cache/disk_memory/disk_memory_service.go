@@ -1,8 +1,8 @@
 package cache
 
 import (
-	"github.com/maxogod/distro-tp/src/aggregator/cache"
 	filehandler "github.com/maxogod/distro-tp/src/common/utils/file_handler"
+	"github.com/maxogod/distro-tp/src/common/worker/cache"
 )
 
 const CACHE_EXTENSION = ".cache"
