@@ -13,22 +13,23 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-const user_storage_groups = 1_000_000
 const MENU_ITEMS_REF = "MenuItems"
 const STORES_REF = "Stores"
 const USERS_REF = "Users"
 
 type joinerService struct {
-	inMemoryService cache.InMemoryService
-	storageService  storage.StorageService
-	fullRefClients  map[string]bool // Used as a set
+	inMemoryService      cache.InMemoryService
+	storageService       storage.StorageService
+	fullRefClients       map[string]bool // Used as a set
+	userStorageGroupSize int
 }
 
-func NewJoinerService(inMemoryService cache.InMemoryService, storageService storage.StorageService) JoinerService {
+func NewJoinerService(inMemoryService cache.InMemoryService, storageService storage.StorageService, userStorageGroupSize int) JoinerService {
 	return &joinerService{
-		inMemoryService: inMemoryService,
-		storageService:  storageService,
-		fullRefClients:  make(map[string]bool),
+		inMemoryService:      inMemoryService,
+		storageService:       storageService,
+		fullRefClients:       make(map[string]bool),
+		userStorageGroupSize: userStorageGroupSize,
 	}
 }
 
@@ -86,7 +87,7 @@ func (js *joinerService) getUsersGroup(userID string) (int, error) {
 	if err != nil {
 		return 0, fmt.Errorf("failed to parse userID: %w", err)
 	}
-	groupNum := ((int(userNum) / user_storage_groups) + 1) * user_storage_groups
+	groupNum := ((int(userNum) / js.userStorageGroupSize) + 1) * js.userStorageGroupSize
 	return groupNum, nil
 }
 

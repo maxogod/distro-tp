@@ -76,7 +76,7 @@ var CountedUserTransactionsData = []*reduced.CountedUserTransactions{
 	},
 	{
 		StoreId:             "store2",
-		UserId:              "2000000",
+		UserId:              "150",
 		TransactionQuantity: 7,
 	},
 }
@@ -95,32 +95,32 @@ var StoresList = []*raw.Store{
 var UsersList = []*raw.User{
 	{UserId: "1", Birthdate: "08/10/2000"},
 	{UserId: "2", Birthdate: "12/05/1995"},
-	{UserId: "2000000", Birthdate: "23/03/1988"},
+	{UserId: "150", Birthdate: "23/03/1988"},
 }
 
 // ====== Reference Data Maps ======
 
 var MenuItems = map[string]*raw.MenuItem{
-	"item1": {ItemId: "item1", ItemName: "Pizza"},
-	"item2": {ItemId: "item2", ItemName: "Burger"},
+	"item1": {ItemName: "Pizza"},
+	"item2": {ItemName: "Burger"},
 }
 
 var Stores = map[string]*raw.Store{
-	"store1": {StoreId: "store1", StoreName: "Main Street Store"},
-	"store2": {StoreId: "store2", StoreName: "Downtown Store"},
+	"store1": {StoreName: "Main Street Store"},
+	"store2": {StoreName: "Downtown Store"},
 }
 
 var Users = map[string]*raw.User{
-	"1":       {UserId: "1", Birthdate: "08/10/2000"},
-	"2":       {UserId: "2", Birthdate: "12/05/1995"},
-	"2000000": {UserId: "3", Birthdate: "23/03/1988"},
+	"1":   {Birthdate: "08/10/2000"},
+	"2":   {Birthdate: "12/05/1995"},
+	"150": {Birthdate: "23/03/1988"},
 }
 
 func TestJoinTotalSumItems(t *testing.T) {
 	logger.InitLogger(logger.LoggerEnvDevelopment)
 	cache_service := cache.NewInMemoryCache()
 	storage_service := disk_storage.NewDiskMemoryStorage()
-	service := business.NewJoinerService(cache_service, storage_service)
+	service := business.NewJoinerService(cache_service, storage_service, 100)
 
 	clientID := "client1"
 	defer service.DeleteClientRefData(clientID)
@@ -143,7 +143,7 @@ func TestJoinTotalPaymentValueData(t *testing.T) {
 	logger.InitLogger(logger.LoggerEnvDevelopment)
 	cache_service := cache.NewInMemoryCache()
 	storage_service := disk_storage.NewDiskMemoryStorage()
-	service := business.NewJoinerService(cache_service, storage_service)
+	service := business.NewJoinerService(cache_service, storage_service, 100)
 
 	clientID := "client2"
 	defer service.DeleteClientRefData(clientID)
@@ -166,10 +166,10 @@ func TestJoinCountedUserTransactionData(t *testing.T) {
 	logger.InitLogger(logger.LoggerEnvDevelopment)
 	cache_service := cache.NewInMemoryCache()
 	storage_service := disk_storage.NewDiskMemoryStorage()
-	service := business.NewJoinerService(cache_service, storage_service)
+	service := business.NewJoinerService(cache_service, storage_service, 100)
 
 	clientID := "client3"
-	//defer service.DeleteClientRefData(clientID)
+	defer service.DeleteClientRefData(clientID)
 
 	service.StoreShops(clientID, StoresList)
 	service.StoreUsers(clientID, UsersList)
@@ -185,5 +185,31 @@ func TestJoinCountedUserTransactionData(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Equal(t, Stores[originalStoreId].StoreName, item.StoreId)
 		assert.Equal(t, Users[originalUserId].Birthdate, item.Birthdate)
+	}
+}
+
+func TestDontJoinUntilAllDataIsPresent(t *testing.T) {
+	logger.InitLogger(logger.LoggerEnvDevelopment)
+	cache_service := cache.NewInMemoryCache()
+	storage_service := disk_storage.NewDiskMemoryStorage()
+	service := business.NewJoinerService(cache_service, storage_service, 100)
+
+	clientID := "client1"
+	defer service.DeleteClientRefData(clientID)
+
+	service.StoreMenuItems(clientID, MenuItemsList)
+
+	assert.Error(t, service.JoinTotalSumItem(TotalItemSumData[0], clientID))
+
+	service.FinishStoringRefData(clientID)
+
+	for _, item := range TotalItemSumData {
+
+		originalId := item.ItemId
+
+		err := service.JoinTotalSumItem(item, clientID)
+
+		assert.NoError(t, err)
+		assert.Equal(t, MenuItems[originalId].ItemName, item.ItemId)
 	}
 }

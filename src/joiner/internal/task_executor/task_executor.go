@@ -67,8 +67,8 @@ func (je *joinerExecutor) HandleTask2(dataEnvelope *protocol.DataEnvelope, ackHa
 		return err
 	}
 
-	for i, itemData := range reducedData.GetTotalSumItems() {
-		joinedData, err := je.joinerService.JoinTotalSumItem(itemData, clientID)
+	for _, itemData := range reducedData.GetTotalSumItems() {
+		err := je.joinerService.JoinTotalSumItem(itemData, clientID)
 		if err != nil {
 			// if the ref data is not present yet, requeue the message
 			payload, _ := proto.Marshal(dataEnvelope)
@@ -76,7 +76,6 @@ func (je *joinerExecutor) HandleTask2(dataEnvelope *protocol.DataEnvelope, ackHa
 			shouldAck = true
 			return nil
 		}
-		reducedData.TotalSumItems[i] = joinedData
 	}
 
 	err = worker.SendDataToMiddleware(reducedData, enum.T2, clientID, je.aggregatorQueue)
@@ -126,8 +125,8 @@ func (je *joinerExecutor) HandleTask3(dataEnvelope *protocol.DataEnvelope, ackHa
 		return err
 	}
 
-	for i, rData := range reducedData.GetTotalPaymentValues() {
-		joinedData, err := je.joinerService.JoinTotalPaymentValue(rData, clientID)
+	for _, rData := range reducedData.GetTotalPaymentValues() {
+		err := je.joinerService.JoinTotalPaymentValue(rData, clientID)
 		if err != nil {
 			// if the ref data is not present yet, requeue the message
 			payload, _ := proto.Marshal(dataEnvelope)
@@ -135,7 +134,6 @@ func (je *joinerExecutor) HandleTask3(dataEnvelope *protocol.DataEnvelope, ackHa
 			shouldAck = true
 			return nil
 		}
-		reducedData.TotalPaymentValues[i] = joinedData
 	}
 
 	err = worker.SendDataToMiddleware(reducedData, enum.T3, clientID, je.aggregatorQueue)
@@ -184,8 +182,8 @@ func (je *joinerExecutor) HandleTask4(dataEnvelope *protocol.DataEnvelope, ackHa
 	if err != nil {
 		return err
 	}
-	for i, countedData := range countedDataBatch.GetCountedUserTransactions() {
-		joinedData, err := je.joinerService.JoinCountedUserTransactions(countedData, clientID)
+	for _, countedData := range countedDataBatch.GetCountedUserTransactions() {
+		err := je.joinerService.JoinCountedUserTransactions(countedData, clientID)
 		if err != nil {
 			// if the ref data is not present yet, requeue the message
 			payload, _ := proto.Marshal(dataEnvelope)
@@ -193,7 +191,6 @@ func (je *joinerExecutor) HandleTask4(dataEnvelope *protocol.DataEnvelope, ackHa
 			shouldAck = true
 			return nil
 		}
-		countedDataBatch.CountedUserTransactions[i] = joinedData
 	}
 
 	err = worker.SendDataToMiddleware(countedDataBatch, enum.T4, clientID, je.aggregatorQueue)

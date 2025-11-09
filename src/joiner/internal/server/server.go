@@ -9,6 +9,7 @@ import (
 	"github.com/maxogod/distro-tp/src/common/middleware"
 	"github.com/maxogod/distro-tp/src/common/models/enum"
 	"github.com/maxogod/distro-tp/src/common/worker"
+	disk_storage "github.com/maxogod/distro-tp/src/common/worker/storage/disk_memory"
 	"github.com/maxogod/distro-tp/src/joiner/business"
 	"github.com/maxogod/distro-tp/src/joiner/cache"
 	"github.com/maxogod/distro-tp/src/joiner/config"
@@ -28,9 +29,10 @@ func InitServer(conf *config.Config) *Server {
 
 	// initiate internal components
 	cacheService := cache.NewInMemoryCache()
+	storageService := disk_storage.NewDiskMemoryStorage()
 	connectedClients := make(map[string]middleware.MessageMiddleware)
 
-	joinerService := business.NewJoinerService(cacheService, conf.ReferenceDatasets)
+	joinerService := business.NewJoinerService(cacheService, storageService, conf.AmountOfUsersPerFile)
 
 	taskExecutor := task_executor.NewJoinerExecutor(
 		conf,

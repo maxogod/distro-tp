@@ -8,28 +8,18 @@ import (
 	"github.com/spf13/viper"
 )
 
-type ReferenceDatasets struct {
-	MenuItem string
-	Store    string
-	User     string
-}
-
 type Config struct {
-	Address            string
-	LogLevel           string
-	PersistenceEnabled bool
-	ReferenceDatasets  ReferenceDatasets
+	Address              string
+	LogLevel             string
+	AmountOfUsersPerFile int
 }
 
 func (c Config) String() string {
 	return fmt.Sprintf(
-		"Address: %s | LogLevel: %s | PersistenceEnabled: %t | ReferenceDatasets: [MenuItem=%s, Store=%s, User=%s]",
+		"Address: %s | LogLevel: %s | AmountOfUsersPerFile: %d",
 		c.Address,
 		c.LogLevel,
-		c.PersistenceEnabled,
-		c.ReferenceDatasets.MenuItem,
-		c.ReferenceDatasets.Store,
-		c.ReferenceDatasets.User,
+		c.AmountOfUsersPerFile,
 	)
 }
 
@@ -51,14 +41,9 @@ func InitConfig(configFilePath string) (*Config, error) {
 	}
 
 	config := &Config{
-		Address:            v.GetString("gateway.address"),
-		LogLevel:           v.GetString("log.level"),
-		PersistenceEnabled: v.GetBool("persistence.enabled"),
-		ReferenceDatasets: ReferenceDatasets{
-			MenuItem: v.GetString("reference_datasets.menu_item"),
-			Store:    v.GetString("reference_datasets.store"),
-			User:     v.GetString("reference_datasets.user"),
-		},
+		Address:              v.GetString("gateway.address"),
+		LogLevel:             v.GetString("log.level"),
+		AmountOfUsersPerFile: v.GetInt("amount_of_users_per_file"),
 	}
 
 	return config, nil
