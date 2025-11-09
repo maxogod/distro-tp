@@ -1,8 +1,10 @@
 package cache
 
 import (
+	"github.com/maxogod/distro-tp/src/common/logger"
 	filehandler "github.com/maxogod/distro-tp/src/common/utils/file_handler"
-	"github.com/maxogod/distro-tp/src/common/worker/cache"
+	cache "github.com/maxogod/distro-tp/src/common/worker/storage"
+	"google.golang.org/protobuf/proto"
 )
 
 const CACHE_EXTENSION = ".cache"
@@ -11,7 +13,6 @@ const CACHE_EXTENSION = ".cache"
 type diskMemoryStorage struct {
 	fileHandler     filehandler.FileHandler
 	storageChannels map[string]chan []byte
-	doneChannels    map[string]chan string
 }
 
 func NewDiskMemoryStorage() cache.StorageService {
@@ -62,5 +63,24 @@ func (c *diskMemoryStorage) RemoveCache(cacheReference string) error {
 func (c *diskMemoryStorage) Close() error {
 
 	c.fileHandler.Close()
+	return nil
+}
+
+// ============ Helper methods ================
+
+func StoreBatch[T proto.Message](cs cache.StorageService, clientID string, data []T) error {
+	listBytes := make([][]byte, len(data))
+	for i := range data {
+		bytes, err := proto.Marshal(data[i])
+		if err != nil {
+			logger.Logger.Errorf("Error marshalling proto message: %v", err)
+			return err
+		}
+		listBytes[i] = bytes
+	}
+	err := cs.StoreData(clientID, listBytes)
+	if err != nil {
+		logger.Logger.Errorf("Error storing data for client [%s]: %v", clientID, err)
+	}
 	return nil
 }

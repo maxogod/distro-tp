@@ -12,7 +12,7 @@ import (
 	"github.com/maxogod/distro-tp/src/common/middleware"
 	"github.com/maxogod/distro-tp/src/common/models/enum"
 	"github.com/maxogod/distro-tp/src/common/worker"
-	cache "github.com/maxogod/distro-tp/src/common/worker/cache/disk_memory"
+	cache "github.com/maxogod/distro-tp/src/common/worker/storage/disk_memory"
 )
 
 type Server struct {

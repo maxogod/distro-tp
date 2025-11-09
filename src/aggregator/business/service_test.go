@@ -7,7 +7,7 @@ import (
 	"github.com/maxogod/distro-tp/src/common/logger"
 	"github.com/maxogod/distro-tp/src/common/models/raw"
 	"github.com/maxogod/distro-tp/src/common/models/reduced"
-	cache "github.com/maxogod/distro-tp/src/common/worker/cache/disk_memory"
+	cache "github.com/maxogod/distro-tp/src/common/worker/storage/disk_memory"
 	"github.com/stretchr/testify/assert"
 )
 

@@ -1,20 +1,13 @@
 package cache_test
 
 import (
-	"path/filepath"
 	"testing"
 
 	"github.com/maxogod/distro-tp/src/common/models/raw"
-	cache "github.com/maxogod/distro-tp/src/common/worker/cache/disk_memory"
+	cache "github.com/maxogod/distro-tp/src/common/worker/storage/disk_memory"
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/protobuf/proto"
 )
-
-func tmpCachePath(t *testing.T, name string) string {
-	t.Helper()
-	dir := t.TempDir()
-	return filepath.Join(dir, name)
-}
 
 // ===== INPUT DATA =====
 
