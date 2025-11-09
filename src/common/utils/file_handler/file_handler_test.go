@@ -3,6 +3,7 @@ package file_handler
 import (
 	"testing"
 
+	"github.com/maxogod/distro-tp/src/common/logger"
 	"github.com/maxogod/distro-tp/src/common/models/raw"
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/protobuf/proto"
@@ -33,6 +34,7 @@ var Transactions = []*raw.Transaction{
 }
 
 func TestSaveAndReadData(t *testing.T) {
+	logger.InitLogger(logger.LoggerEnvDevelopment)
 	fh := NewFileHandler()
 	path := "test-1"
 	ch := make(chan []byte)
@@ -78,6 +80,7 @@ func TestSaveAndReadData(t *testing.T) {
 }
 
 func TestSaveAndReadMultipleTimes(t *testing.T) {
+	logger.InitLogger(logger.LoggerEnvDevelopment)
 	fh := NewFileHandler()
 	path := "test-1"
 	ch := make(chan []byte)

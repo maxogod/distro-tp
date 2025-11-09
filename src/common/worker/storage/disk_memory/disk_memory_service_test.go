@@ -3,6 +3,7 @@ package cache_test
 import (
 	"testing"
 
+	"github.com/maxogod/distro-tp/src/common/logger"
 	"github.com/maxogod/distro-tp/src/common/models/raw"
 	cache "github.com/maxogod/distro-tp/src/common/worker/storage/disk_memory"
 	"github.com/stretchr/testify/assert"
@@ -69,6 +70,7 @@ var TransactionsMap = map[string]*raw.Transaction{
 // ===== TESTS =====
 
 func TestDiskMemoryCache_StoreAndReadData(t *testing.T) {
+	logger.InitLogger(logger.LoggerEnvDevelopment)
 	c := cache.NewDiskMemoryStorage()
 	defer c.Close()
 

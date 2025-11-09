@@ -39,9 +39,13 @@ func (fh *fileHandler) ReadData(
 	openFile, ok := fh.openFiles[path]
 
 	if ok {
-		logger.Logger.Debug("file already present!")
+		// logger.Logger.Debug("file already present!")
 		fh.finishWritingFile(path)
 		file = openFile.file
+		if _, err := file.Seek(0, 0); err != nil {
+			logger.Logger.Errorf("failed to seek to beginning of file: %v", err)
+			return err
+		}
 	} else {
 
 		newOpenFile, err := os.Open(path)
@@ -57,16 +61,10 @@ func (fh *fileHandler) ReadData(
 		file = newOpenFile
 	}
 
-	file, err := os.Open(path)
-	if err != nil {
-		logger.Logger.Errorf("failed to open file: %v", err)
-		return err
-	}
-
 	scanner := bufio.NewScanner(file)
 
 	go func() {
-		defer file.Close()
+		//defer file.Close()
 		defer close(proto_ch)
 		for scanner.Scan() {
 			line := scanner.Bytes()
@@ -90,7 +88,7 @@ func (fh *fileHandler) ReadData(
 
 func (fh *fileHandler) WriteData(path string, byte_ch chan []byte) error {
 
-	outputFile, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0644)
+	outputFile, err := os.OpenFile(path, os.O_CREATE|os.O_RDWR|os.O_TRUNC, 0644)
 
 	if err != nil {
 		return fmt.Errorf("failed to open file: %w", err)
@@ -99,6 +97,7 @@ func (fh *fileHandler) WriteData(path string, byte_ch chan []byte) error {
 	fh.openFiles[path] = fileStoreHandler{
 		finishCh: finishCh,
 		storeCh:  byte_ch,
+		file:     outputFile,
 	}
 
 	defer func() {
@@ -154,6 +153,10 @@ func (fh *fileHandler) Close() {
 
 func (fh *fileHandler) DeleteFile(path string) {
 	fh.finishWritingFile(path)
+	storeHandler, ok := fh.openFiles[path]
+	if ok {
+		storeHandler.file.Close()
+	}
 	delete(fh.openFiles, path)
 	os.Remove(path)
 }
