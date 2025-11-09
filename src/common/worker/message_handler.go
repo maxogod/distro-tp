@@ -159,9 +159,8 @@ func (mh *messageHandler) consumeFromQueue(inputQueue middleware.MessageMiddlewa
 /* --- MESSAGE HANDLER SEND DATA FUNCTION --- */
 
 // SendDataToMiddleware is a utility function to send data to a middleware queue
-func SendDataToMiddleware(data proto.Message, taskType enum.TaskType, clientID string, outputQueue middleware.MessageMiddleware) error {
-
-	envelope, err := utils.CreateSerializedEnvelope(data, int32(taskType), clientID)
+func SendDataToMiddleware(data proto.Message, taskType enum.TaskType, clientID string, seqNum int, outputQueue middleware.MessageMiddleware) error {
+	envelope, err := utils.CreateSerializedEnvelope(data, int32(taskType), clientID, seqNum)
 	if err != nil {
 		return fmt.Errorf("failed to envelope message: %v", err)
 	}
@@ -173,12 +172,13 @@ func SendDataToMiddleware(data proto.Message, taskType enum.TaskType, clientID s
 	return nil
 }
 
-func SendCounterMessage(clientID string, amount int, from, next enum.WorkerType, counterExchange middleware.MessageMiddleware) error {
+func SendCounterMessage(clientID string, amount, seq int, from, next enum.WorkerType, counterExchange middleware.MessageMiddleware) error {
 	counterMessage := &protocol.MessageCounter{
-		ClientId:   clientID,
-		AmountSent: int32(amount),
-		From:       string(from),
-		Next:       string(next),
+		ClientId:       clientID,
+		AmountSent:     int32(amount),
+		From:           string(from),
+		Next:           string(next),
+		SequenceNumber: int32(seq),
 	}
 	counterBytes, err := proto.Marshal(counterMessage)
 	if err != nil {
@@ -188,6 +188,32 @@ func SendCounterMessage(clientID string, amount int, from, next enum.WorkerType,
 	sendErr := counterExchange.Send(counterBytes)
 	if sendErr != middleware.MessageMiddlewareSuccess {
 		return fmt.Errorf("error sending message counter: %v", sendErr)
+	}
+	return nil
+}
+
+func SendPrepCounterMessage(clientID string, from enum.WorkerType, dataEnvelope *protocol.DataEnvelope, counterExchange middleware.MessageMiddleware) error {
+	return nil
+	payload, err := proto.Marshal(dataEnvelope)
+	if err != nil {
+		return err
+	}
+
+	counterMessage := &protocol.MessageCounter{
+		ClientId:       clientID,
+		From:           string(from),
+		IsPrepare:      true,
+		SequenceNumber: dataEnvelope.SequenceNumber,
+		Payload:        payload,
+	}
+	counterBytes, err := proto.Marshal(counterMessage)
+	if err != nil {
+		return fmt.Errorf("error marshaling message counter prep: %v", err)
+	}
+
+	sendErr := counterExchange.Send(counterBytes)
+	if sendErr != middleware.MessageMiddlewareSuccess {
+		return fmt.Errorf("error sending message counter prep: %v", sendErr)
 	}
 	return nil
 }

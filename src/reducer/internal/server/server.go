@@ -25,12 +25,10 @@ func InitServer(conf *config.Config) *Server {
 
 	// initiate internal components
 	service := business.NewReducerService()
-	connectedClients := make(map[string]middleware.MessageMiddleware)
 
 	taskExecutor := task_executor.NewReducerExecutor(
 		service,
 		conf.Address,
-		connectedClients,
 		joinerOutputQueue,
 	)
 

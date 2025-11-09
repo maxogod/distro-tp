@@ -2,6 +2,7 @@ package handler
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/maxogod/distro-tp/src/common/logger"
 	"github.com/maxogod/distro-tp/src/common/middleware"
@@ -16,10 +17,12 @@ type workerMonitor struct {
 }
 
 type controlHandler struct {
-	clientID string
+	clientID         string
+	pendingSequences map[int][]byte
 
 	// Node connections middleware
 	messagesSentToNextLayer  int
+	filterQueue              middleware.MessageMiddleware
 	joinerFinishExchange     middleware.MessageMiddleware
 	aggregatorFinishExchange middleware.MessageMiddleware
 	clientControlExchange    middleware.MessageMiddleware
@@ -29,11 +32,13 @@ type controlHandler struct {
 	counterCh         chan *protocol.MessageCounter
 }
 
-func NewControlHandler(middlewareUrl, clientID string) MessageHandler {
+func NewControlHandler(middlewareUrl, clientID string) ControlHandler {
 	h := &controlHandler{
-		clientID: clientID,
+		clientID:         clientID,
+		pendingSequences: make(map[int][]byte),
 
 		messagesSentToNextLayer:  1, // start with 1 message from gateway
+		filterQueue:              middleware.GetFilterQueue(middlewareUrl),
 		joinerFinishExchange:     middleware.GetFinishExchange(middlewareUrl, []string{string(enum.JoinerWorker)}),
 		aggregatorFinishExchange: middleware.GetFinishExchange(middlewareUrl, []string{string(enum.AggregatorWorker)}),
 		clientControlExchange:    middleware.GetClientControlExchange(middlewareUrl, clientID),
@@ -44,8 +49,7 @@ func NewControlHandler(middlewareUrl, clientID string) MessageHandler {
 	}
 
 	workers := []enum.WorkerType{
-		enum.Gateway, enum.FilterWorker, enum.GroupbyWorker,
-		enum.ReducerWorker, enum.JoinerWorker, enum.AggregatorWorker,
+		enum.Gateway, enum.FilterWorker, enum.AggregatorWorker,
 	}
 	for _, worker := range workers {
 		h.workersMonitoring[worker] = workerMonitor{
@@ -55,6 +59,7 @@ func NewControlHandler(middlewareUrl, clientID string) MessageHandler {
 		go h.startCounterListener(worker)
 		<-h.routineReadyCh
 	}
+	go h.resendPendingSequencesRoutine()
 
 	h.sendControllerReady()
 
@@ -70,6 +75,15 @@ func (ch *controlHandler) AwaitForWorkers() error {
 	ch.workersMonitoring[currentWorkerType].startOrFinishCh <- true
 	for currentWorkerType != enum.None {
 		counter := <-ch.counterCh
+
+		if counter.GetIsPrepare() {
+			// ch.pendingSequences[int(counter.GetSequenceNumber())] = nil // counter.GetPayload()
+			continue
+		} else if _, ok := ch.pendingSequences[int(counter.GetSequenceNumber())]; !ok && counter.GetFrom() == string(enum.FilterWorker) {
+			// logger.Logger.Warnf("[%s] Got sequence %d before preparation", int(counter.GetSequenceNumber()))
+		} else if counter.GetFrom() == string(enum.FilterWorker) {
+			// delete(ch.pendingSequences, int(counter.GetSequenceNumber()))
+		}
 
 		receivedFromCurrentLayer++
 		sentFromCurrentLayer += int(counter.GetAmountSent())
@@ -198,4 +212,22 @@ func (ch *controlHandler) startCounterListener(workerRoute enum.WorkerType) {
 	}
 
 	logger.Logger.Debugf("[%s] Counter listener for %s stopped", ch.clientID, workerRoute)
+}
+
+func (ch *controlHandler) resendPendingSequencesRoutine() {
+	return
+	ticker := time.NewTicker(10 * time.Second)
+	defer ticker.Stop()
+
+	for range ticker.C {
+		for seq, payload := range ch.pendingSequences {
+			logger.Logger.Infof("[%s] Resending pending sequence %d", ch.clientID, seq)
+			err := ch.filterQueue.Send(payload)
+			if err != middleware.MessageMiddlewareSuccess {
+				logger.Logger.Errorf("[%s] Failed to resend pending sequence %d: %d", ch.clientID, seq, err)
+			} else {
+				logger.Logger.Infof("[%s] Successfully resent pending sequence %d", ch.clientID, seq)
+			}
+		}
+	}
 }

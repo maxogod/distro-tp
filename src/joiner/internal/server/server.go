@@ -28,13 +28,11 @@ func InitServer(conf *config.Config) *Server {
 
 	// initiate internal components
 	cacheService := cache.NewInMemoryCache()
-	connectedClients := make(map[string]middleware.MessageMiddleware)
 
 	joinerService := business.NewJoinerService(cacheService, conf.ReferenceDatasets)
 
 	taskExecutor := task_executor.NewJoinerExecutor(
 		conf,
-		connectedClients,
 		joinerService,
 		aggregatorQueue,
 	)

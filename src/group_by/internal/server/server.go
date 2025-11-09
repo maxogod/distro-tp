@@ -24,12 +24,10 @@ func InitServer(conf *config.Config) *Server {
 
 	// initiate internal components
 	service := business.NewGroupService()
-	connectedClients := make(map[string]middleware.MessageMiddleware)
 
 	taskExecutor := task_executor.NewGroupExecutor(
 		service,
 		conf.Address,
-		connectedClients,
 		reducerOutputQueue,
 	)
 

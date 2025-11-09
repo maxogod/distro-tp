@@ -4,10 +4,10 @@ import (
 	"github.com/maxogod/distro-tp/src/common/models/enum"
 )
 
-// MessageHandler interface defines methods for forwarding tasks to be processed by workers
+// ControlHandler interface defines methods for forwarding tasks to be processed by workers
 // and managing client interactions.
 // Messaging methods need the current clientID to support multiclient environments.
-type MessageHandler interface {
+type ControlHandler interface {
 
 	// AwaitForWorkers blocks until all workers have signaled completion for the current clientID.
 	AwaitForWorkers() error
