@@ -5,6 +5,7 @@ import (
 	"strconv"
 
 	"github.com/maxogod/distro-tp/src/common/logger"
+	"github.com/maxogod/distro-tp/src/common/models/enum"
 	"github.com/maxogod/distro-tp/src/common/models/raw"
 	"github.com/maxogod/distro-tp/src/common/models/reduced"
 	storage "github.com/maxogod/distro-tp/src/common/worker/storage"
@@ -59,7 +60,6 @@ func (js *joinerService) StoreUsers(clientID string, items []*raw.User) error {
 		}
 		userGroups[groupNum] = append(userGroups[groupNum], user)
 	}
-	logger.Logger.Debugf("groups: %v", userGroups)
 	for groupNum, groupUsers := range userGroups {
 		referenceID := fmt.Sprintf("%s%s%d", clientID, USERS_REF, groupNum)
 		err := store_helper.StoreBatch(js.storageService, referenceID, groupUsers)
@@ -183,6 +183,8 @@ func (js *joinerService) getUserRef(clientID string, userId string) (*raw.User, 
 			logger.Logger.Debugf("Error loading users for client %s: %v", clientID, err)
 			return nil, err
 		}
+		// We first remove all data from the current cache, then store a new batch of users to the cache
+		js.inMemoryService.RemoveRefData(clientID, enum.Users)
 		js.inMemoryService.StoreUsers(clientID, usersList)
 		logger.Logger.Debugf("Amount of users loaded for client %s: %d", clientID, len(diskUsers))
 		return diskUsers[userId], nil

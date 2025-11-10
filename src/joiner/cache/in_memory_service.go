@@ -18,25 +18,24 @@ type storage struct {
 
 // inMemoryCache is a CacheService implementation provides fast in-memory storage of data.
 type inMemoryCache struct {
-	clientStorage map[string]storage
+	clientStorage map[string]*storage
 }
 
 func NewInMemoryCache() InMemoryService {
 	return &inMemoryCache{
-		clientStorage: make(map[string]storage),
+		clientStorage: make(map[string]*storage),
 	}
 }
 
 func (in *inMemoryCache) getClientStorage(clientID string) *storage {
 	if _, exists := in.clientStorage[clientID]; !exists {
-		in.clientStorage[clientID] = storage{
+		in.clientStorage[clientID] = &storage{
 			userReferenceData:      make(map[string]*raw.User),
 			menuItemsReferenceData: make(map[string]*raw.MenuItem),
 			storeReferenceData:     make(map[string]*raw.Store),
 		}
 	}
-	s := in.clientStorage[clientID]
-	return &s
+	return in.clientStorage[clientID] // return pointer to the real struct
 }
 
 func storeData[T proto.Message](mapData map[string]T, data []T, getRefKey func(T) string) {
@@ -102,18 +101,13 @@ func (in *inMemoryCache) RemoveRefData(clientID string, referenceType enum.Refer
 	clientStorage := in.getClientStorage(clientID)
 	switch referenceType {
 	case enum.MenuItems:
-		for k := range clientStorage.menuItemsReferenceData {
-			delete(clientStorage.menuItemsReferenceData, k)
-		}
+		clientStorage.menuItemsReferenceData = make(map[string]*raw.MenuItem)
 	case enum.Users:
-		for k := range clientStorage.userReferenceData {
-			delete(clientStorage.userReferenceData, k)
-		}
+		clientStorage.userReferenceData = make(map[string]*raw.User)
 	case enum.Stores:
-		for k := range clientStorage.storeReferenceData {
-			delete(clientStorage.storeReferenceData, k)
-		}
+		clientStorage.storeReferenceData = make(map[string]*raw.Store)
 	}
+	in.clientStorage[clientID] = clientStorage
 }
 
 func (in *inMemoryCache) Close() error {
