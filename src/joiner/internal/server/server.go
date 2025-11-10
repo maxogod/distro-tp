@@ -30,8 +30,6 @@ func InitServer(conf *config.Config) *Server {
 	// initiate internal components
 	cacheService := cache.NewInMemoryCache()
 	storageService := disk_storage.NewDiskMemoryStorage()
-	connectedClients := make(map[string]middleware.MessageMiddleware)
-
 
 	joinerService := business.NewJoinerService(cacheService, storageService, conf.AmountOfUsersPerFile)
 
