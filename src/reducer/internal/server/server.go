@@ -21,7 +21,7 @@ func InitServer(conf *config.Config) *Server {
 
 	// initiateOutputs
 	reducerInputQueue := middleware.GetReducerQueue(conf.Address)
-	joinerOutputQueue := middleware.GetJoinerQueue(conf.Address)
+	aggregatorOutputQueue := middleware.GetAggregatorQueue(conf.Address)
 
 	// initiate internal components
 	service := business.NewReducerService()
@@ -29,7 +29,7 @@ func InitServer(conf *config.Config) *Server {
 	taskExecutor := task_executor.NewReducerExecutor(
 		service,
 		conf.Address,
-		joinerOutputQueue,
+		aggregatorOutputQueue,
 	)
 
 	taskHandler := worker.NewTaskHandler(taskExecutor)

@@ -21,11 +21,11 @@ type reducerExecutor struct {
 
 func NewReducerExecutor(filterService business.ReducerService,
 	url string,
-	joinerQueue middleware.MessageMiddleware) worker.TaskExecutor {
+	outputQueue middleware.MessageMiddleware) worker.TaskExecutor {
 	return &reducerExecutor{
 		service:     filterService,
 		url:         url,
-		outputQueue: joinerQueue,
+		outputQueue: outputQueue,
 	}
 }
 
