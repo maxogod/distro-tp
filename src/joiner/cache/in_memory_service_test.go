@@ -39,8 +39,7 @@ func TestStoreAndGetMenuItems(t *testing.T) {
 	clientID := "client1"
 
 	// Store menu items
-	err := cacheService.StoreMenuItems(clientID, menuMock)
-	assert.NoError(t, err, "Storing menu items should not produce an error")
+	cacheService.StoreMenuItems(clientID, menuMock)
 
 	// Retrieve menu items
 	retrievedMenu, err := cacheService.GetMenuItem(clientID)
@@ -57,8 +56,7 @@ func TestStoreAndGetMenuItems(t *testing.T) {
 func TestStoreAndGetShops(t *testing.T) {
 	clientID := "client2"
 
-	err := cacheService.StoreShops(clientID, shopsMock)
-	assert.NoError(t, err, "Storing shops should not produce an error")
+	cacheService.StoreShops(clientID, shopsMock)
 
 	retrievedShops, err := cacheService.GetShop(clientID)
 	assert.NoError(t, err, "Retrieving shops should not produce an error")
@@ -74,8 +72,7 @@ func TestStoreAndGetShops(t *testing.T) {
 func TestStoreAndGetUsers(t *testing.T) {
 	clientID := "client3"
 
-	err := cacheService.StoreUsers(clientID, usersMock)
-	assert.NoError(t, err, "Storing users should not produce an error")
+	cacheService.StoreUsers(clientID, usersMock)
 
 	retrievedUsers, err := cacheService.GetUser(clientID)
 	assert.NoError(t, err, "Retrieving users should not produce an error")
@@ -99,14 +96,9 @@ func TestStoreMultipleReferences(t *testing.T) {
 
 	clientID := "client_multi"
 
-	err := cacheService.StoreMenuItems(clientID, menuMock)
-	assert.NoError(t, err, "Storing menu items should not produce an error")
-
-	err = cacheService.StoreShops(clientID, shopsMock)
-	assert.NoError(t, err, "Storing shops should not produce an error")
-
-	err = cacheService.StoreUsers(clientID, usersMock)
-	assert.NoError(t, err, "Storing users should not produce an error")
+	cacheService.StoreMenuItems(clientID, menuMock)
+	cacheService.StoreShops(clientID, shopsMock)
+	cacheService.StoreUsers(clientID, usersMock)
 
 	retrievedMenu, err := cacheService.GetMenuItem(clientID)
 	assert.NoError(t, err, "Retrieving menu items should not produce an error")
@@ -133,6 +125,7 @@ func TestRemoveRefData(t *testing.T) {
 	cacheService.RemoveRefData(clientID, enum.MenuItems)
 
 	_, err = cacheService.GetMenuItem(clientID)
+	
 	assert.Error(t, err, "Retrieving menu items after removal should produce an error")
 }
 

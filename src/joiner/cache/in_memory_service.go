@@ -11,7 +11,9 @@ import (
 // storage holds the data for each client.
 // It contains a map of reference IDs to their corresponding data.
 type storage struct {
-	referenceData map[enum.ReferenceType]map[string]proto.Message
+	userReferenceData      map[string]*raw.User
+	menuItemsReferenceData map[string]*raw.MenuItem
+	storeReferenceData     map[string]*raw.Store
 }
 
 // inMemoryCache is a CacheService implementation provides fast in-memory storage of data.
@@ -25,88 +27,92 @@ func NewInMemoryCache() InMemoryService {
 	}
 }
 
-func storeData[T proto.Message](in *inMemoryCache, clientID string, referenceType enum.ReferenceType, data []T, getRefKey func(T) string) error {
-	for _, item := range data {
-		// Initialize storage for the client if it doesn't exist
-		if _, exists := in.clientStorage[clientID]; !exists {
-			in.clientStorage[clientID] = storage{
-				referenceData: make(map[enum.ReferenceType]map[string]proto.Message),
-			}
+func (in *inMemoryCache) getClientStorage(clientID string) *storage {
+	if _, exists := in.clientStorage[clientID]; !exists {
+		in.clientStorage[clientID] = storage{
+			userReferenceData:      make(map[string]*raw.User),
+			menuItemsReferenceData: make(map[string]*raw.MenuItem),
+			storeReferenceData:     make(map[string]*raw.Store),
 		}
-		// Initialize storage for the reference type if it doesn't exist
-		if _, exists := in.clientStorage[clientID].referenceData[referenceType]; !exists {
-			in.clientStorage[clientID].referenceData[referenceType] = make(map[string]proto.Message)
-		}
-		// Store the item with the appropriate key
-		in.clientStorage[clientID].referenceData[referenceType][getRefKey(item)] = item
 	}
-	return nil
+	s := in.clientStorage[clientID]
+	return &s
 }
 
-func (in *inMemoryCache) StoreMenuItems(clientID string, data []*raw.MenuItem) error {
+func storeData[T proto.Message](mapData map[string]T, data []T, getRefKey func(T) string) {
+	for _, item := range data {
+		refKey := getRefKey(item)
+		mapData[refKey] = item
+	}
+}
+
+func (in *inMemoryCache) StoreMenuItems(clientID string, data []*raw.MenuItem) {
+	clientStorage := in.getClientStorage(clientID)
 	getRefKey := func(item *raw.MenuItem) string {
 		return item.GetItemId()
 	}
-	return storeData(in, clientID, enum.MenuItems, data, getRefKey)
+	storeData(clientStorage.menuItemsReferenceData, data, getRefKey)
 }
 
-func (in *inMemoryCache) StoreShops(clientID string, data []*raw.Store) error {
+func (in *inMemoryCache) StoreShops(clientID string, data []*raw.Store) {
+	clientStorage := in.getClientStorage(clientID)
 	getRefKey := func(item *raw.Store) string {
 		return item.GetStoreId()
 	}
-	return storeData(in, clientID, enum.Stores, data, getRefKey)
+	storeData(clientStorage.storeReferenceData, data, getRefKey)
 }
 
-func (in *inMemoryCache) StoreUsers(clientID string, data []*raw.User) error {
+func (in *inMemoryCache) StoreUsers(clientID string, data []*raw.User) {
+	clientStorage := in.getClientStorage(clientID)
 	getRefKey := func(item *raw.User) string {
 		return item.GetUserId()
 	}
-	// First, remove any existing users for the client to avoid stale data
-	in.RemoveRefData(clientID, enum.Users)
-	return storeData(in, clientID, enum.Users, data, getRefKey)
+	storeData(clientStorage.userReferenceData, data, getRefKey)
 }
 
 func (in *inMemoryCache) GetMenuItem(clientID string) (map[string]*raw.MenuItem, error) {
-	referenceData, ok := in.clientStorage[clientID].referenceData[enum.MenuItems]
-	if !ok {
-		return nil, fmt.Errorf("no menu items found for client %s", clientID)
+	clientStorage := in.getClientStorage(clientID)
+	if len(clientStorage.menuItemsReferenceData) == 0 {
+		return nil, fmt.Errorf("no menu item reference data found for client %s", clientID)
 	}
-	result := make(map[string]*raw.MenuItem)
-	for key, value := range referenceData {
-		result[key] = value.(*raw.MenuItem)
-	}
-	return result, nil
+	return clientStorage.menuItemsReferenceData, nil
+
 }
 
 func (in *inMemoryCache) GetShop(clientID string) (map[string]*raw.Store, error) {
-	referenceData, ok := in.clientStorage[clientID].referenceData[enum.Stores]
-	if !ok {
-		return nil, fmt.Errorf("no shops found for client %s", clientID)
+	clientStorage := in.getClientStorage(clientID)
+
+	if len(clientStorage.storeReferenceData) == 0 {
+		return nil, fmt.Errorf("no store reference data found for client %s", clientID)
 	}
-	result := make(map[string]*raw.Store)
-	for key, value := range referenceData {
-		result[key] = value.(*raw.Store)
-	}
-	return result, nil
+
+	return clientStorage.storeReferenceData, nil
 }
 
 func (in *inMemoryCache) GetUser(clientID string) (map[string]*raw.User, error) {
-	referenceData, ok := in.clientStorage[clientID].referenceData[enum.Users]
-	if !ok {
-		return nil, fmt.Errorf("no users found for client %s", clientID)
+	clientStorage := in.getClientStorage(clientID)
+	if len(clientStorage.userReferenceData) == 0 {
+		return nil, fmt.Errorf("no user reference data found for client %s", clientID)
 	}
-	result := make(map[string]*raw.User)
-	for key, value := range referenceData {
-		result[key] = value.(*raw.User)
-	}
-	return result, nil
+	return clientStorage.userReferenceData, nil
 }
 
 func (in *inMemoryCache) RemoveRefData(clientID string, referenceType enum.ReferenceType) {
-	if clientStorage, exists := in.clientStorage[clientID]; exists {
-		delete(clientStorage.referenceData, referenceType)
+	clientStorage := in.getClientStorage(clientID)
+	switch referenceType {
+	case enum.MenuItems:
+		for k := range clientStorage.menuItemsReferenceData {
+			delete(clientStorage.menuItemsReferenceData, k)
+		}
+	case enum.Users:
+		for k := range clientStorage.userReferenceData {
+			delete(clientStorage.userReferenceData, k)
+		}
+	case enum.Stores:
+		for k := range clientStorage.storeReferenceData {
+			delete(clientStorage.storeReferenceData, k)
+		}
 	}
-
 }
 
 func (in *inMemoryCache) Close() error {

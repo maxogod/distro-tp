@@ -15,17 +15,17 @@ type InMemoryService interface {
 	// StoreMenuItems stores a collection of menu items for a specific client.
 	// It takes the client ID and a slice of menu items to persist in the cache.
 	// Returns an error if the storage operation fails.
-	StoreMenuItems(clientID string, data []*raw.MenuItem) error
+	StoreMenuItems(clientID string, data []*raw.MenuItem)
 
 	// StoreShops stores a collection of shops for a specific client.
 	// It takes the client ID and a slice of shops to persist in the cache.
 	// Returns an error if the storage operation fails.
-	StoreShops(clientID string, data []*raw.Store) error
+	StoreShops(clientID string, data []*raw.Store)
 
 	// StoreUsers stores a collection of users for a specific client.
 	// It takes the client ID and a slice of users to persist in the cache.
 	// Returns an error if the storage operation fails.
-	StoreUsers(clientID string, data []*raw.User) error
+	StoreUsers(clientID string, data []*raw.User)
 
 	// GetMenuItem retrieves all menu items stored for a specific client.
 	// Returns a map of menu items indexed by their identifier and an error if the retrieval fails.
