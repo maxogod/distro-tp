@@ -1,20 +1,14 @@
 package cache_test
 
 import (
-	"path/filepath"
 	"testing"
 
-	cache "github.com/maxogod/distro-tp/src/aggregator/cache/disk_memory"
+	"github.com/maxogod/distro-tp/src/common/logger"
 	"github.com/maxogod/distro-tp/src/common/models/raw"
+	cache "github.com/maxogod/distro-tp/src/common/worker/storage/disk_memory"
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/protobuf/proto"
 )
-
-func tmpCachePath(t *testing.T, name string) string {
-	t.Helper()
-	dir := t.TempDir()
-	return filepath.Join(dir, name)
-}
 
 // ===== INPUT DATA =====
 
@@ -76,6 +70,7 @@ var TransactionsMap = map[string]*raw.Transaction{
 // ===== TESTS =====
 
 func TestDiskMemoryCache_StoreAndReadData(t *testing.T) {
+	logger.InitLogger(logger.LoggerEnvDevelopment)
 	c := cache.NewDiskMemoryStorage()
 	defer c.Close()
 

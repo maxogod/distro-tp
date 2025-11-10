@@ -2,9 +2,5 @@ gateway:
   address: "amqp://guest:guest@rabbitmq:5672/"
 log:
   level: "development"
-persistence:
-  enabled: true
-reference_datasets:
-  menu_item: "menu_item"
-  store: "store"
-  user: "user"
+amount_of_users_per_file: 3_000_000
+

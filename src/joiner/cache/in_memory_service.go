@@ -3,99 +3,116 @@ package cache
 import (
 	"fmt"
 
+	"github.com/maxogod/distro-tp/src/common/models/enum"
+	"github.com/maxogod/distro-tp/src/common/models/raw"
 	"google.golang.org/protobuf/proto"
 )
 
 // storage holds the data for each client.
 // It contains a map of reference IDs to their corresponding data.
 type storage struct {
-	referenceData    map[string]proto.Message   // key is the ID or reference
-	unreferencedData map[string][]proto.Message // data without a reference
+	userReferenceData      map[string]*raw.User
+	menuItemsReferenceData map[string]*raw.MenuItem
+	storeReferenceData     map[string]*raw.Store
 }
 
 // inMemoryCache is a CacheService implementation provides fast in-memory storage of data.
 type inMemoryCache struct {
-	memoryStorage map[string]storage
+	clientStorage map[string]*storage
 }
 
-func NewInMemoryCache() CacheService {
+func NewInMemoryCache() InMemoryService {
 	return &inMemoryCache{
-		memoryStorage: make(map[string]storage),
+		clientStorage: make(map[string]*storage),
 	}
 }
 
-/* --- REFERENCE DATA --- */
-
-func (c *inMemoryCache) StoreRefData(clientID string, referenceID string, data proto.Message) error {
-	if _, exists := c.memoryStorage[clientID]; !exists {
-		c.memoryStorage[clientID] = storage{
-			referenceData:    make(map[string]proto.Message),
-			unreferencedData: make(map[string][]proto.Message),
+func (in *inMemoryCache) getClientStorage(clientID string) *storage {
+	if _, exists := in.clientStorage[clientID]; !exists {
+		in.clientStorage[clientID] = &storage{
+			userReferenceData:      make(map[string]*raw.User),
+			menuItemsReferenceData: make(map[string]*raw.MenuItem),
+			storeReferenceData:     make(map[string]*raw.Store),
 		}
 	}
-	clientStorage := c.memoryStorage[clientID]
-	clientStorage.referenceData[referenceID] = data
-	c.memoryStorage[clientID] = clientStorage
-
-	return nil
+	return in.clientStorage[clientID] // return pointer to the real struct
 }
 
-func (c *inMemoryCache) GetRefData(clientID string, referenceID string) (proto.Message, error) {
-	clientStorage, clientExists := c.memoryStorage[clientID]
-	if !clientExists {
-		return nil, fmt.Errorf("clientID '%s' does not exist", clientID)
-	}
-	data, refExists := clientStorage.referenceData[referenceID]
-	if !refExists {
-		return nil, fmt.Errorf("referenceID '%s' does not exist for clientID '%s'", referenceID, clientID)
-	}
-	return data, nil
-}
-
-/* --- BUFFERED DATA BATCHES --- */
-
-func (c *inMemoryCache) BufferUnreferencedData(clientID string, bufferID string, data proto.Message) error {
-	if _, exists := c.memoryStorage[clientID]; !exists {
-		c.memoryStorage[clientID] = storage{
-			referenceData:    make(map[string]proto.Message),
-			unreferencedData: make(map[string][]proto.Message),
-		}
-	}
-	clientStorage := c.memoryStorage[clientID]
-	clientStorage.unreferencedData[bufferID] = append(clientStorage.unreferencedData[bufferID], data)
-	c.memoryStorage[clientID] = clientStorage
-	return nil
-}
-
-func (c *inMemoryCache) IterateUnreferencedData(clientID string, bufferID string, rmFn func(proto.Message) bool) error {
-	clientStorage, clientExists := c.memoryStorage[clientID]
-	if !clientExists {
-		return fmt.Errorf("clientID '%s' does not exist", clientID)
-	}
-	data, buffExists := clientStorage.unreferencedData[bufferID]
-	if !buffExists || len(data) == 0 {
-		return nil
-	}
-
-	// Filter and remove items based on rmFn
-	kept := []proto.Message{}
+func storeData[T proto.Message](mapData map[string]T, data []T, getRefKey func(T) string) {
 	for _, item := range data {
-		if !rmFn(item) {
-			kept = append(kept, item)
-		}
+		refKey := getRefKey(item)
+		mapData[refKey] = item
 	}
-	clientStorage.unreferencedData[bufferID] = kept
-	c.memoryStorage[clientID] = clientStorage
+}
 
+func (in *inMemoryCache) StoreMenuItems(clientID string, data []*raw.MenuItem) {
+	clientStorage := in.getClientStorage(clientID)
+	getRefKey := func(item *raw.MenuItem) string {
+		return item.GetItemId()
+	}
+	storeData(clientStorage.menuItemsReferenceData, data, getRefKey)
+}
+
+func (in *inMemoryCache) StoreShops(clientID string, data []*raw.Store) {
+	clientStorage := in.getClientStorage(clientID)
+	getRefKey := func(item *raw.Store) string {
+		return item.GetStoreId()
+	}
+	storeData(clientStorage.storeReferenceData, data, getRefKey)
+}
+
+func (in *inMemoryCache) StoreUsers(clientID string, data []*raw.User) {
+	clientStorage := in.getClientStorage(clientID)
+	getRefKey := func(item *raw.User) string {
+		return item.GetUserId()
+	}
+	storeData(clientStorage.userReferenceData, data, getRefKey)
+}
+
+func (in *inMemoryCache) GetMenuItem(clientID string, itemID string) (*raw.MenuItem, error) {
+	clientStorage := in.getClientStorage(clientID)
+	menuItem, exists := clientStorage.menuItemsReferenceData[itemID]
+	if !exists {
+		return nil, fmt.Errorf("menu item %s not found for client %s", itemID, clientID)
+	}
+	return menuItem, nil
+
+}
+
+func (in *inMemoryCache) GetShop(clientID string, shopID string) (*raw.Store, error) {
+	clientStorage := in.getClientStorage(clientID)
+	store, exists := clientStorage.storeReferenceData[shopID]
+	if !exists {
+		return nil, fmt.Errorf("store %s not found for client %s", shopID, clientID)
+	}
+	return store, nil
+}
+
+func (in *inMemoryCache) GetUser(clientID string, userID string) (*raw.User, error) {
+	clientStorage := in.getClientStorage(clientID)
+	user, exists := clientStorage.userReferenceData[userID]
+	if !exists {
+		return nil, fmt.Errorf("user %s not found for client %s", userID, clientID)
+	}
+	return user, nil
+}
+
+func (in *inMemoryCache) RemoveRefData(clientID string, referenceType enum.ReferenceType) {
+	clientStorage := in.getClientStorage(clientID)
+	switch referenceType {
+	case enum.MenuItems:
+		clientStorage.menuItemsReferenceData = make(map[string]*raw.MenuItem)
+	case enum.Users:
+		clientStorage.userReferenceData = make(map[string]*raw.User)
+	case enum.Stores:
+		clientStorage.storeReferenceData = make(map[string]*raw.Store)
+	}
+	in.clientStorage[clientID] = clientStorage
+}
+
+func (in *inMemoryCache) Close() error {
+	for clientID := range in.clientStorage {
+		delete(in.clientStorage, clientID)
+	}
 	return nil
-}
-
-/* --- RELEASE RESOURCES --- */
-
-func (c *inMemoryCache) RemoveRefData(clientID string) {
-	delete(c.memoryStorage, clientID)
-}
-
-func (c *inMemoryCache) Close() error {
-	return nil // No resources to clean up in in-memory cache
 }

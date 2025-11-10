@@ -3,13 +3,13 @@ package cache_test
 import (
 	"testing"
 
+	"github.com/maxogod/distro-tp/src/common/models/enum"
 	"github.com/maxogod/distro-tp/src/common/models/raw"
 	"github.com/maxogod/distro-tp/src/joiner/cache"
 	"github.com/stretchr/testify/assert"
-	"google.golang.org/protobuf/proto"
 )
 
-var cacheService cache.CacheService
+var cacheService cache.InMemoryService
 
 var menuMock = []*raw.MenuItem{
 	{ItemId: "item1", ItemName: "Burger"},
@@ -17,207 +17,122 @@ var menuMock = []*raw.MenuItem{
 	{ItemId: "item3", ItemName: "Soda"},
 }
 
-var transactionItemsMock = []*raw.TransactionItem{
-	{ItemId: "item1", Quantity: 1},
-	{ItemId: "item2", Quantity: 2},
-	{ItemId: "item3", Quantity: 3},
+var shopsMock = []*raw.Store{
+	{StoreId: "store1", StoreName: "FastFood Inc."},
+	{StoreId: "store2", StoreName: "Healthy Eats"},
+}
+
+var usersMock = []*raw.User{
+	{UserId: "user1", Birthdate: "08/10/2000"},
+	{UserId: "user2", Birthdate: "20/06/2004"},
 }
 
 // TestMain sets up the in-memory cache service and mock data before running the tests.
 func TestMain(m *testing.M) {
+
 	cacheService = cache.NewInMemoryCache()
-
-	cacheService.StoreRefData("sharedClient", "sharedItem", menuMock[0])
-
 	m.Run()
 }
 
 // TestStoreAndGetRefData tests the success case for the store and retrieve reference data methods.
-func TestStoreAndGetRefData(t *testing.T) {
-	for _, item := range menuMock {
-		refID := item.ItemId + "@" + "menu_item"
-		err := cacheService.StoreRefData("client1", refID, item)
-		assert.NoError(t, err)
-	}
+func TestStoreAndGetMenuItems(t *testing.T) {
+	clientID := "client1"
 
-	for _, item := range menuMock {
-		refID := item.ItemId + "@" + "menu_item"
-		retrieved, err := cacheService.GetRefData("client1", refID)
-		assert.NoError(t, err)
-		assert.NotNil(t, retrieved)
-		retrievedItem, ok := retrieved.(*raw.MenuItem)
-		assert.True(t, ok)
-		assert.Equal(t, item.ItemId, retrievedItem.ItemId)
-		assert.Equal(t, item.ItemName, retrievedItem.ItemName)
+	// Store menu items
+	cacheService.StoreMenuItems(clientID, menuMock)
+
+	// Verify each item
+	for i, item := range menuMock {
+		expectedItem := menuMock[i]
+
+		retrievedItem, err := cacheService.GetMenuItem(clientID, item.ItemId)
+		assert.NoError(t, err, "Retrieving menu item should not produce an error")
+		assert.Equal(t, expectedItem.ItemName, retrievedItem.ItemName, "Menu item name should match")
 	}
 }
-
-// TestStoreAndGetRefData_Errors tests the error cases for the store and retrieve reference data methods.
-func TestStoreAndGetRefData_Errors(t *testing.T) {
-	// Attempt to retrieve data for a non-existent client
-	retrieved, err := cacheService.GetRefData("nonExistentClient", "someRefID")
-	assert.Error(t, err)
-	assert.Nil(t, retrieved)
-
-	// Attempt to retrieve data for a non-existent reference ID
-	retrieved, err = cacheService.GetRefData("sharedClient", "nonExistentRefID")
-	assert.Error(t, err)
-	assert.Nil(t, retrieved)
-
-	// Attempt to store data with an empty client ID (create if not exists behavior)
-	err = cacheService.StoreRefData("", "someRefID", menuMock[0])
-	assert.NoError(t, err)
-	retrieved, err = cacheService.GetRefData("", "someRefID")
-	assert.NoError(t, err)
-	assert.NotNil(t, retrieved)
-}
-
-// TestBufferAndGetData tests the success case for the buffer and retrieve unreferenced data methods.
-func TestBufferAndGetData(t *testing.T) {
+func TestStoreAndGetShops(t *testing.T) {
 	clientID := "client2"
-	bufferID := "bufferClient2"
-	for _, item := range transactionItemsMock {
-		err := cacheService.BufferUnreferencedData(clientID, bufferID, item)
-		assert.NoError(t, err)
-	}
 
-	for _, item := range menuMock {
-		refID := item.ItemId + "@" + "menu_item"
-		err := cacheService.StoreRefData("client2", refID, item)
-		assert.NoError(t, err)
-	}
+	cacheService.StoreShops(clientID, shopsMock)
 
-	collected := []*raw.TransactionItem{}
-	err := cacheService.IterateUnreferencedData(clientID, bufferID, func(m proto.Message) bool {
-		ti, ok := m.(*raw.TransactionItem)
-		assert.True(t, ok)
+	for i, item := range shopsMock {
+		expectedItem := shopsMock[i]
 
-		refID := ti.ItemId + "@" + "menu_item"
-		retrieved, err := cacheService.GetRefData(clientID, refID)
-		assert.NoError(t, err)
-		menuItem, ok := retrieved.(*raw.MenuItem)
-		assert.True(t, ok)
-		assert.Equal(t, ti.ItemId, menuItem.ItemId)
-		assert.NotEmpty(t, menuItem.ItemName)
-		ti.ItemId = menuItem.ItemName // Join operation
-
-		collected = append(collected, ti)
-		return true // Remove after processing
-	})
-	assert.NoError(t, err)
-	assert.Equal(t, len(transactionItemsMock), len(collected))
-
-	for _, item := range collected {
-		switch item.Quantity {
-		case 1:
-			assert.Equal(t, "Burger", item.ItemId)
-		case 2:
-			assert.Equal(t, "Fries", item.ItemId)
-		case 3:
-			assert.Equal(t, "Soda", item.ItemId)
-		default:
-			t.Errorf("Unexpected quantity: %d", item.Quantity)
-		}
+		retrievedItem, err := cacheService.GetShop(clientID, item.StoreId)
+		assert.NoError(t, err, "Retrieving shop should not produce an error")
+		assert.Equal(t, expectedItem.StoreName, retrievedItem.StoreName, "Shop name should match")
 	}
 }
 
-// TestBufferAndGetData_Errors tests the error cases for the buffer and retrieve unreferenced data methods.
-func TestBufferAndGetData_Errors(t *testing.T) {
+func TestStoreAndGetUsers(t *testing.T) {
 	clientID := "client3"
-	bufferID := "bufferClient3"
 
-	// Buffer data and read without reference data stored
-	for _, item := range transactionItemsMock {
-		err := cacheService.BufferUnreferencedData(clientID, bufferID, item)
-		assert.NoError(t, err)
-	}
-	err := cacheService.IterateUnreferencedData(clientID, bufferID, func(m proto.Message) bool {
-		ti, ok := m.(*raw.TransactionItem)
-		assert.True(t, ok)
-		assert.NotEmpty(t, ti.ItemId)
+	cacheService.StoreUsers(clientID, usersMock)
 
-		refID := ti.ItemId + "@" + "menu_item"
-		retrieved, err := cacheService.GetRefData(clientID, refID)
-		assert.Error(t, err)
-		assert.Nil(t, retrieved)
+	for i, item := range usersMock {
+		expectedItem := usersMock[i]
 
-		return true // Remove after processing
-	})
-	assert.NoError(t, err)
-
-	// Inexistent clientID
-	err = cacheService.IterateUnreferencedData("nonExistentClient", bufferID, func(m proto.Message) bool {
-		panic("Should not be called")
-	})
-	assert.Error(t, err)
-
-	// Inexistent bufferID
-	err = cacheService.IterateUnreferencedData(clientID, "nonExistentBuffer", func(m proto.Message) bool {
-		panic("Should not be called")
-	})
-	assert.NoError(t, err)
-}
-
-// TestCantJoinWithOtherClientData tests that data from one client cannot be accessed by another client.
-// Also tests that if callback returns false, data is not removed.
-func TestCantJoinWithOtherClientData(t *testing.T) {
-	clientRefID := "client4"
-	clientBuffID := "client4-prime"
-	bufferID := "bufferClient4-prime"
-
-	// Buffer data and read without reference data stored
-	for _, item := range transactionItemsMock {
-		err := cacheService.BufferUnreferencedData(clientBuffID, bufferID, item)
-		assert.NoError(t, err)
-	}
-
-	for _, item := range menuMock {
-		refID := item.ItemId + "@" + "menu_item"
-		err := cacheService.StoreRefData(clientRefID, refID, item)
-		assert.NoError(t, err)
-	}
-
-	// Try reading twice, and ensure buff data is still there (not removed)
-	for range 2 {
-		err := cacheService.IterateUnreferencedData(clientBuffID, bufferID, func(m proto.Message) bool {
-			ti, ok := m.(*raw.TransactionItem)
-			assert.True(t, ok)
-			assert.NotEmpty(t, ti.ItemId)
-
-			refID := ti.ItemId + "@" + "menu_item"
-			retrieved, err := cacheService.GetRefData(clientBuffID, refID)
-			assert.Error(t, err)
-			assert.Nil(t, retrieved)
-
-			return false // Dont remove
-		})
-		assert.NoError(t, err)
+		retrievedItem, err := cacheService.GetUser(clientID, item.UserId)
+		assert.NoError(t, err, "Retrieving user should not produce an error")
+		assert.Equal(t, expectedItem.Birthdate, retrievedItem.Birthdate, "User birthdate should match")
 	}
 }
 
-// TestClearClientData tests that the data cant be accessed after being cleared.
-func TestClearClientData(t *testing.T) {
+func TestGetMenuItemNotFound(t *testing.T) {
+	clientID := "nonexistent"
+
+	_, err := cacheService.GetMenuItem(clientID, "NON EXISTING ITEM")
+	assert.Error(t, err, "Retrieving menu items for non-existent client should produce an error")
+}
+
+func TestStoreMultipleReferences(t *testing.T) {
+
+	clientID := "client_multi"
+
+	cacheService.StoreMenuItems(clientID, menuMock)
+	cacheService.StoreShops(clientID, shopsMock)
+	cacheService.StoreUsers(clientID, usersMock)
+
+	for i, item := range shopsMock {
+		expectedItem := shopsMock[i]
+
+		retrievedItem, err := cacheService.GetShop(clientID, item.StoreId)
+		assert.NoError(t, err, "Retrieving shop should not produce an error")
+		assert.Equal(t, expectedItem.StoreName, retrievedItem.StoreName, "Shop name should match")
+	}
+	for i, item := range usersMock {
+		expectedItem := usersMock[i]
+
+		retrievedItem, err := cacheService.GetUser(clientID, item.UserId)
+		assert.NoError(t, err, "Retrieving user should not produce an error")
+		assert.Equal(t, expectedItem.Birthdate, retrievedItem.Birthdate, "User birthdate should match")
+	}
+}
+
+func TestRemoveRefData(t *testing.T) {
+	clientID := "client4"
+
+	cacheService.StoreMenuItems(clientID, menuMock)
+
+	menuitem := menuMock[0]
+
+	retrievedMenu, err := cacheService.GetMenuItem(clientID, menuitem.ItemId)
+	assert.NoError(t, err, "Retrieving menu items should not produce an error")
+	assert.Equal(t, menuitem.ItemName, retrievedMenu.ItemName, "Retrieved menu item name should match requested item name")
+	cacheService.RemoveRefData(clientID, enum.MenuItems)
+
+	_, err = cacheService.GetMenuItem(clientID, menuitem.ItemId)
+
+	assert.Error(t, err, "Retrieving menu items after removal should produce an error")
+}
+
+func TestClose(t *testing.T) {
 	clientID := "client5"
-	bufferID := "bufferClient5"
 
-	// Buffer data
-	for _, item := range transactionItemsMock {
-		err := cacheService.BufferUnreferencedData(clientID, bufferID, item)
-		assert.NoError(t, err)
-	}
+	cacheService.StoreMenuItems(clientID, menuMock)
+	err := cacheService.Close()
+	assert.NoError(t, err, "Closing cache service should not produce an error")
 
-	// Store reference data
-	for _, item := range menuMock {
-		refID := item.ItemId + "@" + "menu_item"
-		err := cacheService.StoreRefData(clientID, refID, item)
-		assert.NoError(t, err)
-	}
-
-	// Remove client data REF + BUFF
-	cacheService.RemoveRefData(clientID)
-
-	err := cacheService.IterateUnreferencedData(clientID, bufferID, func(m proto.Message) bool {
-		panic("Should not be called")
-	})
-	assert.Error(t, err)
+	_, err = cacheService.GetMenuItem(clientID, "")
+	assert.Error(t, err, "Retrieving data after close should produce an error")
 }

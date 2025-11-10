@@ -15,9 +15,6 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-// To differentiate between Task 2.1 and Task 2.2 results in the DB
-const T2_1_PREFIX = "T2_1@"
-const T2_2_PREFIX = "T2_2@"
 
 type AggregatorExecutor struct {
 	config            *config.Config

@@ -29,7 +29,6 @@ func TestMain(m *testing.M) {
 func TestSequentialRun(t *testing.T) {
 	tests := []func(t *testing.T){
 		t1AggregateMock,
-		t2AggregateMock,
 		t3AggregateMock,
 		t4AggregateMock,
 	}
@@ -107,107 +106,6 @@ func t1AggregateMock(t *testing.T) {
 	assert.Equal(t, MockTransactionsBatch.GetTransactions()[1].TransactionId, transactions[1].TransactionId)
 	assert.Equal(t, MockTransactionsBatch.GetTransactions()[2].TransactionId, transactions[2].TransactionId)
 
-	processedDataQueue.StopConsuming()
-	processedDataQueue.Close()
-	aggregatorInputQueue.Close()
-	finishExchange.Close()
-}
-
-func t2AggregateMock(t *testing.T) {
-	aggregatorInputQueue := middleware.GetAggregatorQueue(url)
-	finishExchange := middleware.GetFinishExchange(url, []string{string(enum.AggregatorWorker)})
-	clientID := "test-client-2"
-	processedDataQueue := middleware.GetProcessedDataExchange(url, clientID)
-
-	// Send T2 data to aggregator
-
-	// This is T2_1
-	for _, ts := range MockTotalProfit {
-		serializedTS, _ := proto.Marshal(ts)
-		dataEnvelope := protocol.DataEnvelope{
-			ClientId: clientID,
-			TaskType: int32(enum.T2_1),
-			Payload:  serializedTS,
-		}
-		serializedDataEnvelope, _ := proto.Marshal(&dataEnvelope)
-		aggregatorInputQueue.Send(serializedDataEnvelope)
-	}
-
-	// This is T2_2
-	for _, tq := range MockTotalSales {
-		serializedTS, _ := proto.Marshal(tq)
-		dataEnvelope := protocol.DataEnvelope{
-			ClientId: clientID,
-			TaskType: int32(enum.T2_2),
-			Payload:  serializedTS,
-		}
-		serializedDataEnvelope, _ := proto.Marshal(&dataEnvelope)
-		aggregatorInputQueue.Send(serializedDataEnvelope)
-	}
-
-	// Send done message to aggregator
-	doneMessage := &protocol.DataEnvelope{
-		ClientId: clientID,
-		IsDone:   true,
-	}
-	doneBytes, _ := proto.Marshal(doneMessage)
-	time.Sleep(3 * time.Second)
-	err := finishExchange.Send(doneBytes)
-	assert.Equal(t, err, middleware.MessageMiddlewareSuccess)
-
-	tsItems := []*reduced.TotalProfitBySubtotal{}
-	tqItems := []*reduced.TotalSoldByQuantity{}
-
-	doneCounter := 0
-
-	done := make(chan bool, 1)
-	e := processedDataQueue.StartConsuming(func(consumeChannel middleware.ConsumeChannel, d chan error) {
-		t.Log("Starting to consume messages for T2")
-		for msg := range consumeChannel {
-			msg.Ack(false)
-			dataBatch, _ := utils.GetDataEnvelope(msg.Body)
-
-			if doneCounter == 1 && !dataBatch.IsDone {
-				tq := &reduced.TotalSoldByQuantity{}
-				err := proto.Unmarshal(dataBatch.Payload, tq)
-				assert.Nil(t, err)
-				tqItems = append(tqItems, tq)
-			} else if !dataBatch.IsDone {
-				ts := &reduced.TotalProfitBySubtotal{}
-				err := proto.Unmarshal(dataBatch.Payload, ts)
-				assert.Nil(t, err)
-				tsItems = append(tsItems, ts)
-			}
-
-			if dataBatch.IsDone {
-				doneCounter++
-			}
-
-			if doneCounter == 2 {
-				break
-			}
-		}
-		done <- true
-	})
-	select {
-	case <-done:
-	case <-time.After(5 * time.Second):
-		t.Error("Test timed out waiting for results")
-	}
-	assert.Equal(t, 0, int(e))
-
-	assert.Equal(t, len(MockTotalProfitOutput), len(tsItems), "Expected 3 Total profit items after aggregating")
-	assert.Equal(t, len(MockTotalQuantityOutput), len(tqItems), "Expected 3 Total quantity items after aggregating")
-	for i, ts := range tsItems {
-		assert.Equal(t, MockTotalProfitOutput[i].ItemId, ts.ItemId)
-		assert.Equal(t, MockTotalProfitOutput[i].YearMonth, ts.YearMonth)
-		assert.Equal(t, MockTotalProfitOutput[i].Subtotal, ts.Subtotal)
-	}
-	for i, tq := range tqItems {
-		assert.Equal(t, MockTotalQuantityOutput[i].ItemId, tq.ItemId)
-		assert.Equal(t, MockTotalQuantityOutput[i].YearMonth, tq.YearMonth)
-		assert.Equal(t, MockTotalQuantityOutput[i].Quantity, tq.Quantity)
-	}
 	processedDataQueue.StopConsuming()
 	processedDataQueue.Close()
 	aggregatorInputQueue.Close()

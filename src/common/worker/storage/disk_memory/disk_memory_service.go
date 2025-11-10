@@ -1,8 +1,12 @@
 package cache
 
 import (
-	"github.com/maxogod/distro-tp/src/aggregator/cache"
+	"path/filepath"
+
+	"github.com/maxogod/distro-tp/src/common/logger"
 	filehandler "github.com/maxogod/distro-tp/src/common/utils/file_handler"
+	cache "github.com/maxogod/distro-tp/src/common/worker/storage"
+	"google.golang.org/protobuf/proto"
 )
 
 const CACHE_EXTENSION = ".cache"
@@ -11,7 +15,6 @@ const CACHE_EXTENSION = ".cache"
 type diskMemoryStorage struct {
 	fileHandler     filehandler.FileHandler
 	storageChannels map[string]chan []byte
-	doneChannels    map[string]chan string
 }
 
 func NewDiskMemoryStorage() cache.StorageService {
@@ -54,13 +57,40 @@ func (c *diskMemoryStorage) ReadData(cacheReference string, read_ch chan []byte)
 }
 
 func (c *diskMemoryStorage) RemoveCache(cacheReference string) error {
-	fileName := cacheReference + CACHE_EXTENSION
-	c.fileHandler.DeleteFile(fileName)
+	// Find all files starting with cacheReference
+	files, err := filepath.Glob(cacheReference + "*")
+	if err != nil {
+		logger.Logger.Errorf("Error globbing files for %s: %v", cacheReference, err)
+		return err
+	}
+	// Delete each matching file
+	for _, file := range files {
+		c.fileHandler.DeleteFile(file)
+	}
 	return nil
 }
 
 func (c *diskMemoryStorage) Close() error {
 
 	c.fileHandler.Close()
+	return nil
+}
+
+// ============ Helper methods ================
+
+func StoreBatch[T proto.Message](cs cache.StorageService, cacheReference string, data []T) error {
+	listBytes := make([][]byte, len(data))
+	for i := range data {
+		bytes, err := proto.Marshal(data[i])
+		if err != nil {
+			logger.Logger.Errorf("Error marshalling proto message: %v", err)
+			return err
+		}
+		listBytes[i] = bytes
+	}
+	err := cs.StoreData(cacheReference, listBytes)
+	if err != nil {
+		logger.Logger.Errorf("Error storing data for client [%s]: %v", cacheReference, err)
+	}
 	return nil
 }

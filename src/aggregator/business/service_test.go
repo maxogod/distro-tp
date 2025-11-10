@@ -4,10 +4,10 @@ import (
 	"testing"
 
 	"github.com/maxogod/distro-tp/src/aggregator/business"
-	cache "github.com/maxogod/distro-tp/src/aggregator/cache/disk_memory"
 	"github.com/maxogod/distro-tp/src/common/logger"
 	"github.com/maxogod/distro-tp/src/common/models/raw"
 	"github.com/maxogod/distro-tp/src/common/models/reduced"
+	cache "github.com/maxogod/distro-tp/src/common/worker/storage/disk_memory"
 	"github.com/stretchr/testify/assert"
 )
 
