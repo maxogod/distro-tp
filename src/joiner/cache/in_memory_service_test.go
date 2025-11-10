@@ -41,16 +41,13 @@ func TestStoreAndGetMenuItems(t *testing.T) {
 	// Store menu items
 	cacheService.StoreMenuItems(clientID, menuMock)
 
-	// Retrieve menu items
-	retrievedMenu, err := cacheService.GetMenuItem(clientID)
-	assert.NoError(t, err, "Retrieving menu items should not produce an error")
-	assert.Equal(t, len(menuMock), len(retrievedMenu), "Number of retrieved menu items should match stored items")
-
 	// Verify each item
-	for _, item := range menuMock {
-		retrievedItem, exists := retrievedMenu[item.ItemId]
-		assert.True(t, exists, "Menu item should exist in retrieved data")
-		assert.Equal(t, item.ItemName, retrievedItem.ItemName, "Menu item name should match")
+	for i, item := range menuMock {
+		expectedItem := menuMock[i]
+
+		retrievedItem, err := cacheService.GetMenuItem(clientID, item.ItemId)
+		assert.NoError(t, err, "Retrieving menu item should not produce an error")
+		assert.Equal(t, expectedItem.ItemName, retrievedItem.ItemName, "Menu item name should match")
 	}
 }
 func TestStoreAndGetShops(t *testing.T) {
@@ -58,14 +55,12 @@ func TestStoreAndGetShops(t *testing.T) {
 
 	cacheService.StoreShops(clientID, shopsMock)
 
-	retrievedShops, err := cacheService.GetShop(clientID)
-	assert.NoError(t, err, "Retrieving shops should not produce an error")
-	assert.Equal(t, len(shopsMock), len(retrievedShops), "Number of retrieved shops should match stored items")
+	for i, item := range shopsMock {
+		expectedItem := shopsMock[i]
 
-	for _, item := range shopsMock {
-		retrievedItem, exists := retrievedShops[item.StoreId]
-		assert.True(t, exists, "Shop should exist in retrieved data")
-		assert.Equal(t, item.StoreName, retrievedItem.StoreName, "Shop name should match")
+		retrievedItem, err := cacheService.GetShop(clientID, item.StoreId)
+		assert.NoError(t, err, "Retrieving shop should not produce an error")
+		assert.Equal(t, expectedItem.StoreName, retrievedItem.StoreName, "Shop name should match")
 	}
 }
 
@@ -74,21 +69,19 @@ func TestStoreAndGetUsers(t *testing.T) {
 
 	cacheService.StoreUsers(clientID, usersMock)
 
-	retrievedUsers, err := cacheService.GetUser(clientID)
-	assert.NoError(t, err, "Retrieving users should not produce an error")
-	assert.Equal(t, len(usersMock), len(retrievedUsers), "Number of retrieved users should match stored items")
+	for i, item := range usersMock {
+		expectedItem := usersMock[i]
 
-	for _, item := range usersMock {
-		retrievedItem, exists := retrievedUsers[item.UserId]
-		assert.True(t, exists, "User should exist in retrieved data")
-		assert.Equal(t, item.Birthdate, retrievedItem.Birthdate, "User birthdate should match")
+		retrievedItem, err := cacheService.GetUser(clientID, item.UserId)
+		assert.NoError(t, err, "Retrieving user should not produce an error")
+		assert.Equal(t, expectedItem.Birthdate, retrievedItem.Birthdate, "User birthdate should match")
 	}
 }
 
 func TestGetMenuItemNotFound(t *testing.T) {
 	clientID := "nonexistent"
 
-	_, err := cacheService.GetMenuItem(clientID)
+	_, err := cacheService.GetMenuItem(clientID, "NON EXISTING ITEM")
 	assert.Error(t, err, "Retrieving menu items for non-existent client should produce an error")
 }
 
@@ -100,17 +93,20 @@ func TestStoreMultipleReferences(t *testing.T) {
 	cacheService.StoreShops(clientID, shopsMock)
 	cacheService.StoreUsers(clientID, usersMock)
 
-	retrievedMenu, err := cacheService.GetMenuItem(clientID)
-	assert.NoError(t, err, "Retrieving menu items should not produce an error")
-	assert.Equal(t, len(menuMock), len(retrievedMenu), "Number of retrieved menu items should match stored items")
+	for i, item := range shopsMock {
+		expectedItem := shopsMock[i]
 
-	retrievedShops, err := cacheService.GetShop(clientID)
-	assert.NoError(t, err, "Retrieving shops should not produce an error")
-	assert.Equal(t, len(shopsMock), len(retrievedShops), "Number of retrieved shops should match stored items")
+		retrievedItem, err := cacheService.GetShop(clientID, item.StoreId)
+		assert.NoError(t, err, "Retrieving shop should not produce an error")
+		assert.Equal(t, expectedItem.StoreName, retrievedItem.StoreName, "Shop name should match")
+	}
+	for i, item := range usersMock {
+		expectedItem := usersMock[i]
 
-	retrievedUsers, err := cacheService.GetUser(clientID)
-	assert.NoError(t, err, "Retrieving users should not produce an error")
-	assert.Equal(t, len(usersMock), len(retrievedUsers), "Number of retrieved users should match stored items")
+		retrievedItem, err := cacheService.GetUser(clientID, item.UserId)
+		assert.NoError(t, err, "Retrieving user should not produce an error")
+		assert.Equal(t, expectedItem.Birthdate, retrievedItem.Birthdate, "User birthdate should match")
+	}
 }
 
 func TestRemoveRefData(t *testing.T) {
@@ -118,14 +114,15 @@ func TestRemoveRefData(t *testing.T) {
 
 	cacheService.StoreMenuItems(clientID, menuMock)
 
-	retrievedMenu, err := cacheService.GetMenuItem(clientID)
-	assert.NoError(t, err, "Retrieving menu items should not produce an error")
-	assert.Equal(t, len(menuMock), len(retrievedMenu), "Number of retrieved menu items should match stored items")
+	menuitem := menuMock[0]
 
+	retrievedMenu, err := cacheService.GetMenuItem(clientID, menuitem.ItemId)
+	assert.NoError(t, err, "Retrieving menu items should not produce an error")
+	assert.Equal(t, menuitem.ItemName, retrievedMenu.ItemName, "Retrieved menu item name should match requested item name")
 	cacheService.RemoveRefData(clientID, enum.MenuItems)
 
-	_, err = cacheService.GetMenuItem(clientID)
-	
+	_, err = cacheService.GetMenuItem(clientID, menuitem.ItemId)
+
 	assert.Error(t, err, "Retrieving menu items after removal should produce an error")
 }
 
@@ -136,6 +133,6 @@ func TestClose(t *testing.T) {
 	err := cacheService.Close()
 	assert.NoError(t, err, "Closing cache service should not produce an error")
 
-	_, err = cacheService.GetMenuItem(clientID)
+	_, err = cacheService.GetMenuItem(clientID, "")
 	assert.Error(t, err, "Retrieving data after close should produce an error")
 }

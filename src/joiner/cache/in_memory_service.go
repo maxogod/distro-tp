@@ -70,31 +70,32 @@ func (in *inMemoryCache) StoreUsers(clientID string, data []*raw.User) {
 	storeData(clientStorage.userReferenceData, data, getRefKey)
 }
 
-func (in *inMemoryCache) GetMenuItem(clientID string) (map[string]*raw.MenuItem, error) {
+func (in *inMemoryCache) GetMenuItem(clientID string, itemID string) (*raw.MenuItem, error) {
 	clientStorage := in.getClientStorage(clientID)
-	if len(clientStorage.menuItemsReferenceData) == 0 {
-		return nil, fmt.Errorf("no menu item reference data found for client %s", clientID)
+	menuItem, exists := clientStorage.menuItemsReferenceData[itemID]
+	if !exists {
+		return nil, fmt.Errorf("menu item %s not found for client %s", itemID, clientID)
 	}
-	return clientStorage.menuItemsReferenceData, nil
+	return menuItem, nil
 
 }
 
-func (in *inMemoryCache) GetShop(clientID string) (map[string]*raw.Store, error) {
+func (in *inMemoryCache) GetShop(clientID string, shopID string) (*raw.Store, error) {
 	clientStorage := in.getClientStorage(clientID)
-
-	if len(clientStorage.storeReferenceData) == 0 {
-		return nil, fmt.Errorf("no store reference data found for client %s", clientID)
+	store, exists := clientStorage.storeReferenceData[shopID]
+	if !exists {
+		return nil, fmt.Errorf("store %s not found for client %s", shopID, clientID)
 	}
-
-	return clientStorage.storeReferenceData, nil
+	return store, nil
 }
 
-func (in *inMemoryCache) GetUser(clientID string) (map[string]*raw.User, error) {
+func (in *inMemoryCache) GetUser(clientID string, userID string) (*raw.User, error) {
 	clientStorage := in.getClientStorage(clientID)
-	if len(clientStorage.userReferenceData) == 0 {
-		return nil, fmt.Errorf("no user reference data found for client %s", clientID)
+	user, exists := clientStorage.userReferenceData[userID]
+	if !exists {
+		return nil, fmt.Errorf("user %s not found for client %s", userID, clientID)
 	}
-	return clientStorage.userReferenceData, nil
+	return user, nil
 }
 
 func (in *inMemoryCache) RemoveRefData(clientID string, referenceType enum.ReferenceType) {

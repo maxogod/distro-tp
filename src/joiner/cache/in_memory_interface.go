@@ -29,15 +29,15 @@ type InMemoryService interface {
 
 	// GetMenuItem retrieves all menu items stored for a specific client.
 	// Returns a map of menu items indexed by their identifier and an error if the retrieval fails.
-	GetMenuItem(clientID string) (map[string]*raw.MenuItem, error)
+	GetMenuItem(clientID string, itemID string) (*raw.MenuItem, error)
 
 	// GetShop retrieves all shops stored for a specific client.
 	// Returns a map of shops indexed by their identifier and an error if the retrieval fails.
-	GetShop(clientID string) (map[string]*raw.Store, error)
+	GetShop(clientID string, shopID string) (*raw.Store, error)
 
 	// GetUser retrieves all users stored for a specific client.
 	// Returns a map of users indexed by their identifier and an error if the retrieval fails.
-	GetUser(clientID string) (map[string]*raw.User, error)
+	GetUser(clientID string, userID string) (*raw.User, error)
 
 	// RemoveRefData removes all reference data of a specific type for a given client.
 	// The referenceType parameter specifies which type of data to remove (menu items, shops, or users).
