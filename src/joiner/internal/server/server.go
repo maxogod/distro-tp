@@ -32,11 +32,11 @@ func InitServer(conf *config.Config) *Server {
 	storageService := disk_storage.NewDiskMemoryStorage()
 	connectedClients := make(map[string]middleware.MessageMiddleware)
 
+
 	joinerService := business.NewJoinerService(cacheService, storageService, conf.AmountOfUsersPerFile)
 
 	taskExecutor := task_executor.NewJoinerExecutor(
 		conf,
-		connectedClients,
 		joinerService,
 		aggregatorQueue,
 	)

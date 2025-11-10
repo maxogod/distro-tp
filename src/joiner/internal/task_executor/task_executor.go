@@ -18,23 +18,20 @@ import (
 const SEND_LIMIT = 1000
 
 type joinerExecutor struct {
-	config           *config.Config
-	connectedClients map[string]middleware.MessageMiddleware
-	joinerService    business.JoinerService
-	aggregatorQueue  middleware.MessageMiddleware
-	joinerQueue      middleware.MessageMiddleware
+	config          *config.Config
+	joinerService   business.JoinerService
+	aggregatorQueue middleware.MessageMiddleware
+	joinerQueue     middleware.MessageMiddleware
 }
 
 func NewJoinerExecutor(config *config.Config,
-	connectedClients map[string]middleware.MessageMiddleware,
 	joinerService business.JoinerService,
 	aggregatorQueue middleware.MessageMiddleware) worker.TaskExecutor {
 	return &joinerExecutor{
-		config:           config,
-		connectedClients: connectedClients,
-		joinerService:    joinerService,
-		aggregatorQueue:  aggregatorQueue,
-		joinerQueue:      middleware.GetJoinerQueue(config.Address), // TODO: MOVE THIS OUT LATER!!
+		config:          config,
+		joinerService:   joinerService,
+		aggregatorQueue: aggregatorQueue,
+		joinerQueue:     middleware.GetJoinerQueue(config.Address), // TODO: MOVE THIS OUT LATER!!
 	}
 }
 
@@ -78,22 +75,12 @@ func (je *joinerExecutor) HandleTask2(dataEnvelope *protocol.DataEnvelope, ackHa
 		}
 	}
 
-	err = worker.SendDataToMiddleware(reducedData, enum.T2, clientID, je.aggregatorQueue)
+	err = worker.SendDataToMiddleware(reducedData, enum.T2, clientID, int(dataEnvelope.GetSequenceNumber()), je.aggregatorQueue)
 	if err != nil {
 		shouldRequeue = true
 		return err
 	}
 	shouldAck = true
-
-	_, exists := je.connectedClients[clientID]
-	if !exists {
-		je.connectedClients[clientID] = middleware.GetCounterExchange(je.config.Address, clientID+"@"+string(enum.JoinerWorker))
-	}
-	counterExchange := je.connectedClients[clientID]
-	if err := worker.SendCounterMessage(clientID, 1, enum.JoinerWorker, enum.AggregatorWorker, counterExchange); err != nil {
-		return err
-	}
-
 	return nil
 }
 
@@ -136,22 +123,12 @@ func (je *joinerExecutor) HandleTask3(dataEnvelope *protocol.DataEnvelope, ackHa
 		}
 	}
 
-	err = worker.SendDataToMiddleware(reducedData, enum.T3, clientID, je.aggregatorQueue)
+	err = worker.SendDataToMiddleware(reducedData, enum.T3, clientID, int(dataEnvelope.GetSequenceNumber()), je.aggregatorQueue)
 	if err != nil {
 		shouldRequeue = true
 		return err
 	}
 	shouldAck = true
-
-	_, exists := je.connectedClients[clientID]
-	if !exists {
-		je.connectedClients[clientID] = middleware.GetCounterExchange(je.config.Address, clientID+"@"+string(enum.JoinerWorker))
-	}
-	counterExchange := je.connectedClients[clientID]
-	if err := worker.SendCounterMessage(clientID, 1, enum.JoinerWorker, enum.AggregatorWorker, counterExchange); err != nil {
-		return err
-	}
-
 	return nil
 }
 
@@ -193,23 +170,13 @@ func (je *joinerExecutor) HandleTask4(dataEnvelope *protocol.DataEnvelope, ackHa
 		}
 	}
 
-	err = worker.SendDataToMiddleware(countedDataBatch, enum.T4, clientID, je.aggregatorQueue)
+	err = worker.SendDataToMiddleware(countedDataBatch, enum.T4, clientID, int(dataEnvelope.GetSequenceNumber()), je.aggregatorQueue)
 	if err != nil {
 		shouldRequeue = true
 		logger.Logger.Debugf("An error occurred: %s", err)
 		return err
 	}
 	shouldAck = true
-
-	_, exists := je.connectedClients[clientID]
-	if !exists {
-		je.connectedClients[clientID] = middleware.GetCounterExchange(je.config.Address, clientID+"@"+string(enum.JoinerWorker))
-	}
-	counterExchange := je.connectedClients[clientID]
-	if err := worker.SendCounterMessage(clientID, 1, enum.JoinerWorker, enum.AggregatorWorker, counterExchange); err != nil {
-		return err
-	}
-
 	return nil
 }
 
@@ -237,13 +204,6 @@ func (je *joinerExecutor) Close() error {
 	if err := je.aggregatorQueue.Close(); err != middleware.MessageMiddlewareSuccess {
 		return fmt.Errorf("failed to close aggregator queue: %v", err)
 	}
-
-	for clientID, exchange := range je.connectedClients {
-		if e := exchange.Close(); e != middleware.MessageMiddlewareSuccess {
-			return fmt.Errorf("failed to close counter exchange for client %s: %v", clientID, e)
-		}
-	}
-
 	return nil
 }
 

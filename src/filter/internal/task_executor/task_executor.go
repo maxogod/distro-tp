@@ -45,6 +45,14 @@ func (fe *FilterExecutor) HandleTask1(dataEnvelope *protocol.DataEnvelope, ackHa
 	transactionBatch := &raw.TransactionBatch{}
 	payload := dataEnvelope.GetPayload()
 	clientID := dataEnvelope.GetClientId()
+	_, exists := fe.connectedClients[clientID]
+	if !exists {
+		fe.connectedClients[clientID] = middleware.GetCounterExchange(fe.url, clientID+"@"+string(enum.FilterWorker))
+	}
+	counterExchange := fe.connectedClients[clientID]
+	if err := worker.SendPrepCounterMessage(clientID, enum.FilterWorker, dataEnvelope, counterExchange); err != nil {
+		return err
+	}
 
 	err := proto.Unmarshal(payload, transactionBatch)
 	if err != nil {
@@ -57,7 +65,7 @@ func (fe *FilterExecutor) HandleTask1(dataEnvelope *protocol.DataEnvelope, ackHa
 
 	amountSent := 0
 	if len(transactionBatch.Transactions) != 0 {
-		err = worker.SendDataToMiddleware(transactionBatch, enum.T1, clientID, fe.aggregatorQueue)
+		err = worker.SendDataToMiddleware(transactionBatch, enum.T1, clientID, int(dataEnvelope.GetSequenceNumber()), fe.aggregatorQueue)
 		if err != nil {
 			shouldRequeue = true
 			return err
@@ -66,12 +74,7 @@ func (fe *FilterExecutor) HandleTask1(dataEnvelope *protocol.DataEnvelope, ackHa
 	}
 	shouldAck = true
 
-	_, exists := fe.connectedClients[clientID]
-	if !exists {
-		fe.connectedClients[clientID] = middleware.GetCounterExchange(fe.url, clientID+"@"+string(enum.FilterWorker))
-	}
-	counterExchange := fe.connectedClients[clientID]
-	if err := worker.SendCounterMessage(clientID, amountSent, enum.FilterWorker, enum.AggregatorWorker, counterExchange); err != nil {
+	if err := worker.SendCounterMessage(clientID, amountSent, int(dataEnvelope.SequenceNumber), enum.FilterWorker, enum.AggregatorWorker, counterExchange); err != nil {
 		return err
 	}
 
@@ -86,6 +89,14 @@ func (fe *FilterExecutor) HandleTask2(dataEnvelope *protocol.DataEnvelope, ackHa
 	transactionBatch := &raw.TransactionItemsBatch{}
 	payload := dataEnvelope.GetPayload()
 	clientID := dataEnvelope.GetClientId()
+	_, exists := fe.connectedClients[clientID]
+	if !exists {
+		fe.connectedClients[clientID] = middleware.GetCounterExchange(fe.url, clientID+"@"+string(enum.FilterWorker))
+	}
+	counterExchange := fe.connectedClients[clientID]
+	if err := worker.SendPrepCounterMessage(clientID, enum.FilterWorker, dataEnvelope, counterExchange); err != nil {
+		return err
+	}
 
 	err := proto.Unmarshal(payload, transactionBatch)
 	if err != nil {
@@ -96,7 +107,7 @@ func (fe *FilterExecutor) HandleTask2(dataEnvelope *protocol.DataEnvelope, ackHa
 
 	amountSent := 0
 	if len(transactionBatch.TransactionItems) != 0 {
-		err = worker.SendDataToMiddleware(transactionBatch, enum.T2, clientID, fe.groupByQueue)
+		err = worker.SendDataToMiddleware(transactionBatch, enum.T2, clientID, int(dataEnvelope.GetSequenceNumber()), fe.groupByQueue)
 		if err != nil {
 			shouldRequeue = true
 			return err
@@ -105,12 +116,7 @@ func (fe *FilterExecutor) HandleTask2(dataEnvelope *protocol.DataEnvelope, ackHa
 	}
 	shouldAck = true
 
-	_, exists := fe.connectedClients[clientID]
-	if !exists {
-		fe.connectedClients[clientID] = middleware.GetCounterExchange(fe.url, clientID+"@"+string(enum.FilterWorker))
-	}
-	counterExchange := fe.connectedClients[clientID]
-	if err := worker.SendCounterMessage(clientID, amountSent, enum.FilterWorker, enum.GroupbyWorker, counterExchange); err != nil {
+	if err := worker.SendCounterMessage(clientID, amountSent, int(dataEnvelope.SequenceNumber), enum.FilterWorker, enum.AggregatorWorker, counterExchange); err != nil {
 		return err
 	}
 
@@ -125,6 +131,14 @@ func (fe *FilterExecutor) HandleTask3(dataEnvelope *protocol.DataEnvelope, ackHa
 	transactionBatch := &raw.TransactionBatch{}
 	payload := dataEnvelope.GetPayload()
 	clientID := dataEnvelope.GetClientId()
+	_, exists := fe.connectedClients[clientID]
+	if !exists {
+		fe.connectedClients[clientID] = middleware.GetCounterExchange(fe.url, clientID+"@"+string(enum.FilterWorker))
+	}
+	counterExchange := fe.connectedClients[clientID]
+	if err := worker.SendPrepCounterMessage(clientID, enum.FilterWorker, dataEnvelope, counterExchange); err != nil {
+		return err
+	}
 
 	err := proto.Unmarshal(payload, transactionBatch)
 	if err != nil {
@@ -136,7 +150,7 @@ func (fe *FilterExecutor) HandleTask3(dataEnvelope *protocol.DataEnvelope, ackHa
 
 	amountSent := 0
 	if len(transactionBatch.Transactions) != 0 {
-		err = worker.SendDataToMiddleware(transactionBatch, enum.T3, clientID, fe.groupByQueue)
+		err = worker.SendDataToMiddleware(transactionBatch, enum.T3, clientID, int(dataEnvelope.GetSequenceNumber()), fe.groupByQueue)
 		if err != nil {
 			shouldRequeue = true
 			return err
@@ -145,12 +159,7 @@ func (fe *FilterExecutor) HandleTask3(dataEnvelope *protocol.DataEnvelope, ackHa
 	}
 	shouldAck = true
 
-	_, exists := fe.connectedClients[clientID]
-	if !exists {
-		fe.connectedClients[clientID] = middleware.GetCounterExchange(fe.url, clientID+"@"+string(enum.FilterWorker))
-	}
-	counterExchange := fe.connectedClients[clientID]
-	if err := worker.SendCounterMessage(clientID, amountSent, enum.FilterWorker, enum.GroupbyWorker, counterExchange); err != nil {
+	if err := worker.SendCounterMessage(clientID, amountSent, int(dataEnvelope.SequenceNumber), enum.FilterWorker, enum.AggregatorWorker, counterExchange); err != nil {
 		return err
 	}
 
@@ -165,6 +174,14 @@ func (fe *FilterExecutor) HandleTask4(dataEnvelope *protocol.DataEnvelope, ackHa
 	transactionBatch := &raw.TransactionBatch{}
 	payload := dataEnvelope.GetPayload()
 	clientID := dataEnvelope.GetClientId()
+	_, exists := fe.connectedClients[clientID]
+	if !exists {
+		fe.connectedClients[clientID] = middleware.GetCounterExchange(fe.url, clientID+"@"+string(enum.FilterWorker))
+	}
+	counterExchange := fe.connectedClients[clientID]
+	if err := worker.SendPrepCounterMessage(clientID, enum.FilterWorker, dataEnvelope, counterExchange); err != nil {
+		return err
+	}
 
 	err := proto.Unmarshal(payload, transactionBatch)
 	if err != nil {
@@ -176,7 +193,7 @@ func (fe *FilterExecutor) HandleTask4(dataEnvelope *protocol.DataEnvelope, ackHa
 
 	amountSent := 0
 	if len(transactionBatch.Transactions) != 0 {
-		err = worker.SendDataToMiddleware(transactionBatch, enum.T4, clientID, fe.groupByQueue)
+		err = worker.SendDataToMiddleware(transactionBatch, enum.T4, clientID, int(dataEnvelope.GetSequenceNumber()), fe.groupByQueue)
 		if err != nil {
 			shouldRequeue = true
 			return err
@@ -185,12 +202,7 @@ func (fe *FilterExecutor) HandleTask4(dataEnvelope *protocol.DataEnvelope, ackHa
 	}
 	shouldAck = true
 
-	_, exists := fe.connectedClients[clientID]
-	if !exists {
-		fe.connectedClients[clientID] = middleware.GetCounterExchange(fe.url, clientID+"@"+string(enum.FilterWorker))
-	}
-	counterExchange := fe.connectedClients[clientID]
-	if err := worker.SendCounterMessage(clientID, amountSent, enum.FilterWorker, enum.GroupbyWorker, counterExchange); err != nil {
+	if err := worker.SendCounterMessage(clientID, amountSent, int(dataEnvelope.SequenceNumber), enum.FilterWorker, enum.AggregatorWorker, counterExchange); err != nil {
 		return err
 	}
 
@@ -218,8 +230,6 @@ func (fe *FilterExecutor) Close() error {
 
 	return nil
 }
-
-
 
 func (fe *FilterExecutor) HandleFinishClient(dataEnvelope *protocol.DataEnvelope, ackHandler func(bool, bool) error) error {
 	panic("Filter does not require client finishing handling")

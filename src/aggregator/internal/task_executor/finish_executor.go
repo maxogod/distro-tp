@@ -64,7 +64,7 @@ func (fe *finishExecutor) finishTask1(clientID string) error {
 		transactionBatch := &raw.TransactionBatch{
 			Transactions: results[index:endIndex],
 		}
-		if err := worker.SendDataToMiddleware(transactionBatch, enum.T1, clientID, processedDataQueue); err != nil {
+		if err := worker.SendDataToMiddleware(transactionBatch, enum.T1, clientID, 0, processedDataQueue); err != nil {
 			return fmt.Errorf("failed to send data to middleware: %v", err)
 		}
 		index = endIndex
@@ -84,14 +84,14 @@ func (fe *finishExecutor) finishTask2(clientID string) error {
 		return fmt.Errorf("[TASK 2] failed to get results for client %s: %v", clientID, err)
 	}
 	for _, totalSubtotalData := range subtotalResults {
-		if err := worker.SendDataToMiddleware(totalSubtotalData, enum.T2_1, clientID, processedDataQueue); err != nil {
+		if err := worker.SendDataToMiddleware(totalSubtotalData, enum.T2_1, clientID, 0, processedDataQueue); err != nil {
 			return fmt.Errorf("failed to send data to middleware: %v", err)
 		}
 	}
 	worker.SendDone(clientID, enum.T2_1, processedDataQueue)
 
 	for _, totalQuantityData := range quantityResults {
-		if err := worker.SendDataToMiddleware(totalQuantityData, enum.T2_2, clientID, processedDataQueue); err != nil {
+		if err := worker.SendDataToMiddleware(totalQuantityData, enum.T2_2, clientID, 0, processedDataQueue); err != nil {
 			return fmt.Errorf("failed to send data to middleware: %v", err)
 		}
 	}
@@ -110,7 +110,7 @@ func (fe *finishExecutor) finishTask3(clientID string) error {
 	}
 
 	for _, tpvData := range results {
-		if err := worker.SendDataToMiddleware(tpvData, enum.T3, clientID, processedDataQueue); err != nil {
+		if err := worker.SendDataToMiddleware(tpvData, enum.T3, clientID, 0, processedDataQueue); err != nil {
 			return fmt.Errorf("failed to send data to middleware: %v", err)
 		}
 	}
@@ -118,7 +118,6 @@ func (fe *finishExecutor) finishTask3(clientID string) error {
 }
 
 func (fe *finishExecutor) finishTask4(clientID string) error {
-
 	processedDataQueue := middleware.GetProcessedDataExchange(fe.address, clientID)
 	defer func() {
 		processedDataQueue.Close()
@@ -131,7 +130,7 @@ func (fe *finishExecutor) finishTask4(clientID string) error {
 	for _, orderedList := range topUsersPerStore {
 		amountToSend := min(len(orderedList), fe.limits.MaxAmountToSend)
 		for _, user := range orderedList[:amountToSend] {
-			if err := worker.SendDataToMiddleware(user, enum.T4, clientID, processedDataQueue); err != nil {
+			if err := worker.SendDataToMiddleware(user, enum.T4, clientID, 0, processedDataQueue); err != nil {
 				return fmt.Errorf("failed to send data for store %s: %v", user.GetStoreId(), err)
 			}
 		}

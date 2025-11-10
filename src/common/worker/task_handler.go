@@ -3,6 +3,7 @@ package worker
 import (
 	"fmt"
 
+	// "github.com/maxogod/distro-tp/src/common/logger"
 	"github.com/maxogod/distro-tp/src/common/models/enum"
 	"github.com/maxogod/distro-tp/src/common/models/protocol"
 )
@@ -25,14 +26,16 @@ type TaskExecutor interface {
 // This is not required for every worker, but highly recommended to use it
 // You only create this struct and pass it to the MessageHandler
 type taskHandler struct {
-	taskHandlers map[enum.TaskType]func(*protocol.DataEnvelope, func(bool, bool) error) error
-	taskExecutor TaskExecutor
+	taskHandlers       map[enum.TaskType]func(*protocol.DataEnvelope, func(bool, bool) error) error
+	sequencesPerClient map[string]map[int]bool
+	taskExecutor       TaskExecutor
 }
 
 func NewTaskHandler(
 	taskExecutor TaskExecutor) DataHandler {
 	th := &taskHandler{
-		taskExecutor: taskExecutor,
+		taskExecutor:       taskExecutor,
+		sequencesPerClient: make(map[string]map[int]bool),
 	}
 
 	th.taskHandlers = map[enum.TaskType]func(*protocol.DataEnvelope, func(bool, bool) error) error{
@@ -46,6 +49,22 @@ func NewTaskHandler(
 }
 
 func (th *taskHandler) HandleData(dataEnvelope *protocol.DataEnvelope, ackHandler func(bool, bool) error) error {
+	// clientID := dataEnvelope.GetClientId()
+	// seqNum := int(dataEnvelope.GetSequenceNumber())
+
+	// seqs, ok := th.sequencesPerClient[clientID]
+	// if !ok || seqs == nil {
+	// 	seqs = make(map[int]bool)
+	// 	th.sequencesPerClient[clientID] = seqs
+	// }
+
+	// if seqs[seqNum] {
+	// 	logger.Logger.Warnf("[%s] Duplicate sequence number %d. Ignoring message.", clientID, seqNum)
+	// 	return ackHandler(false, false)
+	// }
+
+	// seqs[seqNum] = true
+
 	taskType := enum.TaskType(dataEnvelope.GetTaskType())
 	return th.handleTask(taskType, dataEnvelope, ackHandler)
 }

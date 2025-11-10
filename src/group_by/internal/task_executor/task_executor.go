@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/maxogod/distro-tp/src/common/logger"
 	"github.com/maxogod/distro-tp/src/common/middleware"
 	"github.com/maxogod/distro-tp/src/common/models/enum"
 	"github.com/maxogod/distro-tp/src/common/models/group_by"
@@ -28,19 +27,16 @@ type groupAccumulator struct {
 type GroupExecutor struct {
 	service          business.GroupService
 	url              string
-	connectedClients map[string]middleware.MessageMiddleware
 	reducerQueue     middleware.MessageMiddleware
 	groupAccumulator map[string]groupAccumulator
 }
 
 func NewGroupExecutor(groupService business.GroupService,
 	url string,
-	connectedClients map[string]middleware.MessageMiddleware,
 	reducerQueue middleware.MessageMiddleware) worker.TaskExecutor {
 	return &GroupExecutor{
 		service:          groupService,
 		url:              url,
-		connectedClients: connectedClients,
 		reducerQueue:     reducerQueue,
 		groupAccumulator: make(map[string]groupAccumulator),
 	}
@@ -67,22 +63,12 @@ func (ge *GroupExecutor) HandleTask2(dataEnvelope *protocol.DataEnvelope, ackHan
 		groupBatch.GroupTransactionItems = append(groupBatch.GetGroupTransactionItems(), group)
 	}
 
-	err = worker.SendDataToMiddleware(groupBatch, enum.T2, clientID, ge.reducerQueue)
+	err = worker.SendDataToMiddleware(groupBatch, enum.T2, clientID, int(dataEnvelope.GetSequenceNumber()), ge.reducerQueue)
 	if err != nil {
 		shouldRequeue = true
 		return err
 	}
 	shouldAck = true
-
-	_, exists := ge.connectedClients[clientID]
-	if !exists {
-		ge.connectedClients[clientID] = middleware.GetCounterExchange(ge.url, clientID+"@"+string(enum.GroupbyWorker))
-	}
-	counterExchange := ge.connectedClients[clientID]
-	if err := worker.SendCounterMessage(clientID, 1, enum.GroupbyWorker, enum.ReducerWorker, counterExchange); err != nil {
-		return err
-	}
-
 	return nil
 }
 
@@ -107,22 +93,12 @@ func (ge *GroupExecutor) HandleTask3(dataEnvelope *protocol.DataEnvelope, ackHan
 		groupBatch.GroupedTransactions = append(groupBatch.GetGroupedTransactions(), group)
 	}
 
-	err = worker.SendDataToMiddleware(groupBatch, enum.T3, clientID, ge.reducerQueue)
+	err = worker.SendDataToMiddleware(groupBatch, enum.T3, clientID, int(dataEnvelope.GetSequenceNumber()), ge.reducerQueue)
 	if err != nil {
 		shouldRequeue = true
 		return err
 	}
 	shouldAck = true
-
-	_, exists := ge.connectedClients[clientID]
-	if !exists {
-		ge.connectedClients[clientID] = middleware.GetCounterExchange(ge.url, clientID+"@"+string(enum.GroupbyWorker))
-	}
-	counterExchange := ge.connectedClients[clientID]
-	if err := worker.SendCounterMessage(clientID, 1, enum.GroupbyWorker, enum.ReducerWorker, counterExchange); err != nil {
-		return err
-	}
-
 	return nil
 }
 
@@ -147,34 +123,18 @@ func (ge *GroupExecutor) HandleTask4(dataEnvelope *protocol.DataEnvelope, ackHan
 		groupTransactionBatch.GroupedTransactions = append(groupTransactionBatch.GetGroupedTransactions(), group)
 	}
 
-	err = worker.SendDataToMiddleware(groupTransactionBatch, enum.T4, clientID, ge.reducerQueue)
+	err = worker.SendDataToMiddleware(groupTransactionBatch, enum.T4, clientID, int(dataEnvelope.GetSequenceNumber()), ge.reducerQueue)
 	if err != nil {
 		shouldRequeue = true
 		return err
 	}
 	shouldAck = true
-
-	_, exists := ge.connectedClients[clientID]
-	if !exists {
-		ge.connectedClients[clientID] = middleware.GetCounterExchange(ge.url, clientID+"@"+string(enum.GroupbyWorker))
-	}
-	counterExchange := ge.connectedClients[clientID]
-	if err := worker.SendCounterMessage(clientID, 1, enum.GroupbyWorker, enum.ReducerWorker, counterExchange); err != nil {
-		return err
-	}
-
 	return nil
 }
 
 func (ge *GroupExecutor) Close() error {
 	if e := ge.reducerQueue.Close(); e != middleware.MessageMiddlewareSuccess {
 		return fmt.Errorf("failed to close reducer queue: %v", e)
-	}
-
-	for clientID, q := range ge.connectedClients {
-		if e := q.Close(); e != middleware.MessageMiddlewareSuccess {
-			logger.Logger.Errorf("failed to close middleware for client %s: %v", clientID, e)
-		}
 	}
 	return nil
 }

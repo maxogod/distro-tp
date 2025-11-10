@@ -9,4 +9,7 @@ message MessageCounter {
   int32 amount_sent = 2;
   string from = 3;
   string next = 4;
+  bool isPrepare = 5;
+  int32 sequence_number = 6;
+  bytes payload = 7;
 }

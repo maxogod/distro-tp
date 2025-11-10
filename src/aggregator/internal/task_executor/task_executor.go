@@ -65,7 +65,7 @@ func (ae *AggregatorExecutor) HandleTask1(dataEnvelope *protocol.DataEnvelope, a
 		ae.connectedClients[clientID] = middleware.GetCounterExchange(ae.config.Address, clientID+"@"+string(enum.AggregatorWorker))
 	}
 	counterExchange := ae.connectedClients[clientID]
-	if err := worker.SendCounterMessage(clientID, 0, enum.AggregatorWorker, enum.None, counterExchange); err != nil {
+	if err := worker.SendCounterMessage(clientID, 0, int(dataEnvelope.SequenceNumber), enum.AggregatorWorker, enum.None, counterExchange); err != nil {
 		return err
 	}
 
@@ -100,7 +100,7 @@ func (ae *AggregatorExecutor) HandleTask2(dataEnvelope *protocol.DataEnvelope, a
 		ae.connectedClients[clientID] = middleware.GetCounterExchange(ae.config.Address, clientID+"@"+string(enum.AggregatorWorker))
 	}
 	counterExchange := ae.connectedClients[clientID]
-	if err := worker.SendCounterMessage(clientID, 0, enum.AggregatorWorker, enum.None, counterExchange); err != nil {
+	if err := worker.SendCounterMessage(clientID, 0, int(dataEnvelope.SequenceNumber), enum.AggregatorWorker, enum.None, counterExchange); err != nil {
 		return err
 	}
 
@@ -135,7 +135,7 @@ func (ae *AggregatorExecutor) HandleTask3(dataEnvelope *protocol.DataEnvelope, a
 		ae.connectedClients[clientID] = middleware.GetCounterExchange(ae.config.Address, clientID+"@"+string(enum.AggregatorWorker))
 	}
 	counterExchange := ae.connectedClients[clientID]
-	if err := worker.SendCounterMessage(clientID, 0, enum.AggregatorWorker, enum.None, counterExchange); err != nil {
+	if err := worker.SendCounterMessage(clientID, 0, int(dataEnvelope.SequenceNumber), enum.AggregatorWorker, enum.None, counterExchange); err != nil {
 		return err
 	}
 
@@ -169,7 +169,7 @@ func (ae *AggregatorExecutor) HandleTask4(dataEnvelope *protocol.DataEnvelope, a
 		ae.connectedClients[clientID] = middleware.GetCounterExchange(ae.config.Address, clientID+"@"+string(enum.AggregatorWorker))
 	}
 	counterExchange := ae.connectedClients[clientID]
-	if err := worker.SendCounterMessage(clientID, 0, enum.AggregatorWorker, enum.None, counterExchange); err != nil {
+	if err := worker.SendCounterMessage(clientID, 0, int(dataEnvelope.SequenceNumber), enum.AggregatorWorker, enum.None, counterExchange); err != nil {
 		return err
 	}
 	return nil

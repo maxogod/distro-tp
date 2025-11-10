@@ -10,11 +10,11 @@ import (
 
 type clientSession struct {
 	Id             string
-	controlHandler handler.MessageHandler
+	controlHandler handler.ControlHandler
 	running        atomic.Bool
 }
 
-func NewClientSession(id string, controlHandler handler.MessageHandler) ClientSession {
+func NewClientSession(id string, controlHandler handler.ControlHandler) ClientSession {
 	s := &clientSession{
 		Id:             id,
 		controlHandler: controlHandler,
