@@ -2,5 +2,5 @@ gateway:
   address: "amqp://guest:guest@rabbitmq:5672/"
 log:
   level: "development"
-amount_of_users_per_file: 1_000_000
+amount_of_users_per_file: 2_000_000
 

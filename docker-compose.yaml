@@ -171,50 +171,50 @@ services:
       rabbitmq:
         condition: service_healthy
 
-  # client1:
-  #   container_name: client1
-  #   entrypoint: ["/app/app", "t1"]
-  #   build:
-  #     dockerfile: ./src/client/Dockerfile
-  #   image: client:latest
-  #   networks:
-  #     - tp_net
-  #   volumes:
-  #     - ./.data:/app/.data
-  #     - ./.output1:/app/.output
-  #   depends_on:
-  #     gateway:
-  #       condition: service_healthy
+  client1:
+    container_name: client1
+    entrypoint: ["/app/app", "t4"]
+    build:
+      dockerfile: ./src/client/Dockerfile
+    image: client:latest
+    networks:
+      - tp_net
+    volumes:
+      - ./.data:/app/.data
+      - ./.output1:/app/.output
+    depends_on:
+      gateway:
+        condition: service_healthy
 
-  # client2:
-  #   container_name: client2
-  #   entrypoint: ["/app/app", "t2"]
-  #   build:
-  #     dockerfile: ./src/client/Dockerfile
-  #   image: client:latest
-  #   networks:
-  #     - tp_net
-  #   volumes:
-  #     - ./.data:/app/.data
-  #     - ./.output2:/app/.output
-  #   depends_on:
-  #     gateway:
-  #       condition: service_healthy
+  client2:
+    container_name: client2
+    entrypoint: ["/app/app", "t4"]
+    build:
+      dockerfile: ./src/client/Dockerfile
+    image: client:latest
+    networks:
+      - tp_net
+    volumes:
+      - ./.data:/app/.data
+      - ./.output2:/app/.output
+    depends_on:
+      gateway:
+        condition: service_healthy
 
-  # client3:
-  #   container_name: client3
-  #   entrypoint: ["/app/app", "t3"]
-  #   build:
-  #     dockerfile: ./src/client/Dockerfile
-  #   image: client:latest
-  #   networks:
-  #     - tp_net
-  #   volumes:
-  #     - ./.data:/app/.data
-  #     - ./.output3:/app/.output
-  #   depends_on:
-  #     gateway:
-  #       condition: service_healthy
+  client3:
+    container_name: client3
+    entrypoint: ["/app/app", "t4"]
+    build:
+      dockerfile: ./src/client/Dockerfile
+    image: client:latest
+    networks:
+      - tp_net
+    volumes:
+      - ./.data:/app/.data
+      - ./.output3:/app/.output
+    depends_on:
+      gateway:
+        condition: service_healthy
 
   client4:
     container_name: client4

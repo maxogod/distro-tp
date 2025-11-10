@@ -88,7 +88,7 @@ func (js *joinerService) getUsersGroup(userID string) (int, error) {
 	if err != nil {
 		return 0, fmt.Errorf("failed to parse userID: %w", err)
 	}
-	groupNum := ((int(userNum) / js.userStorageGroupSize) + 1) * js.userStorageGroupSize
+	groupNum := ((int(userNum)-1)/js.userStorageGroupSize + 1) * js.userStorageGroupSize
 	return groupNum, nil
 }
 

@@ -191,8 +191,6 @@ func (je *joinerExecutor) HandleTask4(dataEnvelope *protocol.DataEnvelope, ackHa
 			shouldAck = true
 			return nil
 		}
-		logger.Logger.Debugf("Joined counted transactions for user %s of client %s and store %s", countedData.GetUserId(), clientID, countedData.GetStoreId())
-
 	}
 
 	err = worker.SendDataToMiddleware(countedDataBatch, enum.T4, clientID, je.aggregatorQueue)
