@@ -96,6 +96,7 @@ var UsersList = []*raw.User{
 	{UserId: "1", Birthdate: "08/10/2000"},
 	{UserId: "2", Birthdate: "12/05/1995"},
 	{UserId: "150", Birthdate: "23/03/1988"},
+	{UserId: "120", Birthdate: "24/04/1988"},
 }
 
 // ====== Reference Data Maps ======
@@ -113,6 +114,7 @@ var Stores = map[string]*raw.Store{
 var Users = map[string]*raw.User{
 	"1":   {Birthdate: "08/10/2000"},
 	"2":   {Birthdate: "12/05/1995"},
+	"120": {Birthdate: "24/04/1988"},
 	"150": {Birthdate: "23/03/1988"},
 }
 

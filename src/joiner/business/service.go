@@ -50,7 +50,7 @@ func (js *joinerService) StoreUsers(clientID string, items []*raw.User) error {
 
 	// since the users dataset is too big to load in memory, we store them in multiple files
 	// each file will contain users from a specific group determined by their user ID
-	// the amount of users per group is defined by user_storage_groups constant ( TODO: change to config value )
+	// the amount of users per group is defined by user_storage_groups config parameter
 	userGroups := make(map[int][]*raw.User)
 	for _, user := range items {
 		groupNum, err := js.getUsersGroup(user.GetUserId())
@@ -59,6 +59,7 @@ func (js *joinerService) StoreUsers(clientID string, items []*raw.User) error {
 		}
 		userGroups[groupNum] = append(userGroups[groupNum], user)
 	}
+	logger.Logger.Debugf("groups: %v", userGroups)
 	for groupNum, groupUsers := range userGroups {
 		referenceID := fmt.Sprintf("%s%s%d", clientID, USERS_REF, groupNum)
 		err := store_helper.StoreBatch(js.storageService, referenceID, groupUsers)
@@ -116,72 +117,54 @@ func loadReferenceData[T proto.Message](js *joinerService, referenceID string, f
 // ======== Get reference data ========
 
 func (js *joinerService) getMenuItemRef(clientID string, menuItemId string) (*raw.MenuItem, error) {
-	var menuItems map[string]*raw.MenuItem
-	cacheMenuItems, err := js.inMemoryService.GetMenuItem(clientID)
-	menuItems = cacheMenuItems
+	inMemoryMenuItemRef, err := js.inMemoryService.GetMenuItem(clientID, menuItemId)
 	if err != nil { // no data in in-memory, so now we load from persistent storage
-		referenceID := clientID + MENU_ITEMS_REF
+		logger.Logger.Debugf("DATA MISS for menuItemID: %s Loading menu items for client %s from disk", menuItemId, clientID)
 		factory := func() *raw.MenuItem {
 			return &raw.MenuItem{}
 		}
 		getRefKey := func(item *raw.MenuItem) string {
 			return item.GetItemId()
 		}
+		referenceID := clientID + MENU_ITEMS_REF
 		diskMenuItems, menuItemsList, err := loadReferenceData(js, referenceID, factory, getRefKey)
 		if err != nil {
 			logger.Logger.Debugf("Error loading menu items for client %s: %v", clientID, err)
 			return nil, err
 		}
-		err = js.inMemoryService.StoreMenuItems(clientID, menuItemsList)
-		if err != nil {
-			logger.Logger.Debugf("Error storing menu items in in-memory for client %s: %v", clientID, err)
-			return nil, err
-		}
-		menuItems = diskMenuItems
+		js.inMemoryService.StoreMenuItems(clientID, menuItemsList)
+		logger.Logger.Debugf("Amount of menu items loaded for client %s: %d", clientID, len(diskMenuItems))
+		return diskMenuItems[menuItemId], nil
 	}
-	return menuItems[menuItemId], nil
+	return inMemoryMenuItemRef, nil
 }
 
 func (js *joinerService) getShopRef(clientID string, shopId string) (*raw.Store, error) {
-	var stores map[string]*raw.Store
-	cacheStores, err := js.inMemoryService.GetShop(clientID)
-	stores = cacheStores
+	inMemoryStoreRef, err := js.inMemoryService.GetShop(clientID, shopId)
 	if err != nil { // no data in in-memory, so now we load from persistent storage
-		referenceID := clientID + STORES_REF
+		logger.Logger.Debugf("DATA MISS for storeID: %s Loading stores for client %s from disk", shopId, clientID)
 		factory := func() *raw.Store {
 			return &raw.Store{}
 		}
 		getRefKey := func(item *raw.Store) string {
 			return item.GetStoreId()
 		}
+		referenceID := clientID + STORES_REF
 		diskStores, storesList, err := loadReferenceData(js, referenceID, factory, getRefKey)
 		if err != nil {
 			logger.Logger.Debugf("Error loading menu items for client %s: %v", clientID, err)
 			return nil, err
 		}
-		err = js.inMemoryService.StoreShops(clientID, storesList)
-		if err != nil {
-			logger.Logger.Debugf("Error storing menu items in in-memory for client %s: %v", clientID, err)
-			return nil, err
-		}
-		stores = diskStores
+		js.inMemoryService.StoreShops(clientID, storesList)
+		logger.Logger.Debugf("Amount of stores loaded for client %s: %d", clientID, len(diskStores))
+		return diskStores[shopId], nil
 	}
-	return stores[shopId], nil
+	return inMemoryStoreRef, nil
 }
 
 func (js *joinerService) getUserRef(clientID string, userId string) (*raw.User, error) {
 
-	// determine which group the user belongs to
-	// since we stored users in multiple files based on their ID groups
-	groupNum, err := js.getUsersGroup(userId)
-	if err != nil {
-		return nil, fmt.Errorf("error getting user group for user %s: %w", userId, err)
-	}
-	referenceID := fmt.Sprintf("%s%s%d", clientID, USERS_REF, groupNum)
-
-	var users map[string]*raw.User
-	cacheUsers, err := js.inMemoryService.GetUser(referenceID)
-	users = cacheUsers
+	inMemoryUserRef, err := js.inMemoryService.GetUser(clientID, userId)
 	if err != nil { // no data in in-memory, so now we load from persistent storage
 		factory := func() *raw.User {
 			return &raw.User{}
@@ -189,19 +172,22 @@ func (js *joinerService) getUserRef(clientID string, userId string) (*raw.User, 
 		getRefKey := func(item *raw.User) string {
 			return item.GetUserId()
 		}
+		groupNum, err := js.getUsersGroup(userId)
+		if err != nil {
+			return nil, fmt.Errorf("error getting user group for user %s: %w", userId, err)
+		}
+		referenceID := fmt.Sprintf("%s%s%d", clientID, USERS_REF, groupNum)
+		logger.Logger.Debugf("DATA MISS for userID: %s Loading users for client %s from disk, group %d", userId, clientID, groupNum)
 		diskUsers, usersList, err := loadReferenceData(js, referenceID, factory, getRefKey)
 		if err != nil {
 			logger.Logger.Debugf("Error loading users for client %s: %v", clientID, err)
 			return nil, err
 		}
-		err = js.inMemoryService.StoreUsers(clientID, usersList)
-		if err != nil {
-			logger.Logger.Debugf("Error storing users in in-memory for client %s: %v", clientID, err)
-			return nil, err
-		}
-		users = diskUsers
+		js.inMemoryService.StoreUsers(clientID, usersList)
+		logger.Logger.Debugf("Amount of users loaded for client %s: %d", clientID, len(diskUsers))
+		return diskUsers[userId], nil
 	}
-	return users[userId], nil
+	return inMemoryUserRef, nil
 }
 
 // ======= JOINING FUNCTIONS =======
