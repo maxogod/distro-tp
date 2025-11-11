@@ -64,6 +64,8 @@ func (je *joinerExecutor) HandleTask2(dataEnvelope *protocol.DataEnvelope, ackHa
 		return err
 	}
 
+	// TODO: refactor this to just send 1 message and have client just split in different files from 1 message
+
 	// here we join the data
 	for _, itemData := range reportData.GetTotalSumItemsBySubtotal() {
 		if err := je.joinerService.JoinTotalSumItem(itemData, clientID); err != nil {
@@ -79,7 +81,6 @@ func (je *joinerExecutor) HandleTask2(dataEnvelope *protocol.DataEnvelope, ackHa
 		shouldRequeue = true
 		return err
 	}
-	worker.SendDone(clientID, enum.T2_1, processedDataQueue)
 
 	for _, itemData := range reportData.GetTotalSumItemsByQuantity() {
 		if err := je.joinerService.JoinTotalSumItem(itemData, clientID); err != nil {
@@ -92,7 +93,6 @@ func (je *joinerExecutor) HandleTask2(dataEnvelope *protocol.DataEnvelope, ackHa
 		shouldRequeue = true
 		return err
 	}
-	worker.SendDone(clientID, enum.T2_2, processedDataQueue)
 
 	shouldAck = true
 	return nil
@@ -145,7 +145,6 @@ func (je *joinerExecutor) HandleTask3(dataEnvelope *protocol.DataEnvelope, ackHa
 		shouldRequeue = true
 		return err
 	}
-	worker.SendDone(clientID, enum.T3, processedDataQueue)
 	shouldAck = true
 	return nil
 }
@@ -197,7 +196,6 @@ func (je *joinerExecutor) HandleTask4(dataEnvelope *protocol.DataEnvelope, ackHa
 		logger.Logger.Debugf("An error occurred: %s", err)
 		return err
 	}
-	worker.SendDone(clientID, enum.T4, processedDataQueue)
 	shouldAck = true
 	return nil
 }

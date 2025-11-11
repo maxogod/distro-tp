@@ -106,8 +106,6 @@ services:
       rabbitmq:
         condition: service_healthy
 
-
-
   reducer1:
     container_name: reducer1
     build:
