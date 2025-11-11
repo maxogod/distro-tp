@@ -8,6 +8,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/maxogod/distro-tp/src/common/heartbeat"
 	"github.com/maxogod/distro-tp/src/common/logger"
 	"github.com/maxogod/distro-tp/src/gateway/config"
 	"github.com/maxogod/distro-tp/src/gateway/internal/healthcheck"
@@ -21,6 +22,7 @@ type Server struct {
 	connectionManager network.ConnectionManager
 	clientManager     manager.ClientManager
 	pingServer        healthcheck.PingServer // for service health checks
+	heartbeatSender   heartbeat.HeartBeatSender
 }
 
 func NewServer(conf *config.Config) *Server {
@@ -29,6 +31,7 @@ func NewServer(conf *config.Config) *Server {
 		connectionManager: network.NewConnectionManager(conf.Port),
 		clientManager:     manager.NewClientManager(conf),
 		pingServer:        healthcheck.NewPingServer(int(conf.HealthCheckPort)), // for health check
+		heartbeatSender:   heartbeat.NewHeartBeatSender(conf.Heartbeat.Host, conf.Heartbeat.Port, conf.Heartbeat.Interval),
 	}
 	s.running.Store(true)
 
@@ -46,6 +49,10 @@ func (s *Server) Run() error {
 	}
 
 	go s.pingServer.Run() // Start health check server
+	err = s.heartbeatSender.Start()
+	if err != nil {
+		logger.Logger.Errorf("action: start_heartbeat_sender | result: failed | error: %s", err.Error())
+	}
 
 	for s.running.Load() {
 		s.clientManager.ReapStaleClients()
@@ -84,5 +91,6 @@ func (s *Server) Shutdown() {
 	defer cancel()
 	s.pingServer.Shutdown(ctx)
 
+	s.heartbeatSender.Close()
 	logger.Logger.Infof("action: shutdown | result: success")
 }

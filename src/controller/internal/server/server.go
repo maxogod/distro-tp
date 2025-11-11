@@ -6,6 +6,7 @@ import (
 	"sync/atomic"
 	"syscall"
 
+	"github.com/maxogod/distro-tp/src/common/heartbeat"
 	"github.com/maxogod/distro-tp/src/common/logger"
 	"github.com/maxogod/distro-tp/src/common/middleware"
 	"github.com/maxogod/distro-tp/src/common/models/protocol"
@@ -22,6 +23,7 @@ type Server struct {
 	newClientsChan        chan string
 	initControlMiddleware middleware.MessageMiddleware
 	finishAcceptingChan   chan bool
+	heartbeatSender       heartbeat.HeartBeatSender
 }
 
 func NewServer(conf *config.Config) *Server {
@@ -31,6 +33,7 @@ func NewServer(conf *config.Config) *Server {
 		newClientsChan:        make(chan string, conf.MaxClients),
 		initControlMiddleware: middleware.GetInitControlQueue(conf.MiddlewareAddress),
 		finishAcceptingChan:   make(chan bool),
+		heartbeatSender:       heartbeat.NewHeartBeatSender(conf.Heartbeat.Host, conf.Heartbeat.Port, conf.Heartbeat.Interval),
 	}
 	s.running.Store(true)
 
@@ -42,6 +45,11 @@ func NewServer(conf *config.Config) *Server {
 func (s *Server) Run() error {
 	s.setupGracefulShutdown()
 	defer s.Shutdown()
+
+	err := s.heartbeatSender.Start()
+	if err != nil {
+		logger.Logger.Errorf("action: start_heartbeat_sender | result: failed | error: %s", err.Error())
+	}
 
 	for clientID := range s.newClientsChan {
 		if !s.running.Load() {
@@ -69,6 +77,7 @@ func (s *Server) Shutdown() {
 	s.finishAcceptingChan <- true // Stop accepting new clients
 	s.initControlMiddleware.Close()
 
+	s.heartbeatSender.Close()
 	logger.Logger.Infof("action: shutdown | result: success")
 }
 
