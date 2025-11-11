@@ -36,17 +36,17 @@ func (cs *clientSession) InitiateControlSequence() error {
 		return err
 	}
 
-	logger.Logger.Debugf("[%s] EOF control finished, sending done signal to task handler", cs.Id)
-	err = cs.controlHandler.SendDone(enum.AggregatorWorker)
-	if err != nil {
-		logger.Logger.Errorf("[%s] Error sending done signal to task handler for client: %v", cs.Id, err)
-		return err
-	}
+	logger.Logger.Debugf("[%s] EOF control finished, sending done signal to workers", cs.Id)
 
-	err = cs.controlHandler.SendDone(enum.JoinerWorker)
-	if err != nil {
-		logger.Logger.Errorf("[%s] Error sending done signal to joiner for client: %v", cs.Id, err)
-		return err
+	workersToNotify := []enum.WorkerType{
+		enum.FilterWorker, enum.GroupbyWorker, enum.ReducerWorker,
+		enum.AggregatorWorker, enum.JoinerWorker,
+	}
+	for _, worker := range workersToNotify {
+		if err = cs.controlHandler.SendDone(worker); err != nil {
+			logger.Logger.Errorf("[%s] Error sending done signal to %s for client: %v", cs.Id, string(worker), err)
+			return err
+		}
 	}
 
 	cs.Close()

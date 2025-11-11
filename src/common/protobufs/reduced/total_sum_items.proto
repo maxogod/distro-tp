@@ -14,3 +14,8 @@ message TotalSumItem {
 message TotalSumItemsBatch {
   repeated TotalSumItem totalSumItems = 1;
 }
+
+message TotalSumItemsReport {
+  repeated TotalSumItem totalSumItemsByQuantity = 1;
+  repeated TotalSumItem totalSumItemsBySubtotal = 2;
+}

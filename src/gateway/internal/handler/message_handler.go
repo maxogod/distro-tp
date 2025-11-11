@@ -12,8 +12,7 @@ import (
 )
 
 type messageHandler struct {
-	clientID       string
-	sequenceNumber int
+	clientID string
 
 	// Data forwarding middlewares
 	messagesSentToNextLayer int
@@ -106,7 +105,7 @@ func (mh *messageHandler) NotifyClientMessagesCount() error {
 
 func (mh *messageHandler) ForwardData(dataBatch *protocol.DataEnvelope) error {
 	dataBatch.ClientId = mh.clientID
-	dataBatch.SequenceNumber = int32(mh.sequenceNumber)
+	dataBatch.SequenceNumber = int32(mh.messagesSentToNextLayer)
 
 	dateBytes, err := proto.Marshal(dataBatch)
 	if err != nil {
@@ -118,13 +117,11 @@ func (mh *messageHandler) ForwardData(dataBatch *protocol.DataEnvelope) error {
 		return fmt.Errorf("error sending data batch to filters queue")
 	}
 	mh.messagesSentToNextLayer++
-	mh.sequenceNumber++
 	return nil
 }
 
 func (mh *messageHandler) ForwardReferenceData(dataBatch *protocol.DataEnvelope) error {
 	dataBatch.ClientId = mh.clientID
-	dataBatch.SequenceNumber = int32(mh.sequenceNumber)
 
 	dateBytes, err := proto.Marshal(dataBatch)
 	if err != nil {
@@ -135,7 +132,6 @@ func (mh *messageHandler) ForwardReferenceData(dataBatch *protocol.DataEnvelope)
 	if sendErr := mh.joinerRefExchange.Send(dateBytes); sendErr != middleware.MessageMiddlewareSuccess {
 		return fmt.Errorf("error sending reference data batch to joiner exchange")
 	}
-	mh.sequenceNumber++
 	return nil
 }
 

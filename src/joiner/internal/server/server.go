@@ -25,7 +25,6 @@ func InitServer(conf *config.Config) *Server {
 	joinerInputQueue := middleware.GetJoinerQueue(conf.Address)
 	refDataExchange := middleware.GetRefDataExchange(conf.Address)
 	finishExchange := middleware.GetFinishExchange(conf.Address, []string{string(enum.JoinerWorker)})
-	aggregatorQueue := middleware.GetAggregatorQueue(conf.Address)
 
 	// initiate internal components
 	cacheService := cache.NewInMemoryCache()
@@ -36,10 +35,9 @@ func InitServer(conf *config.Config) *Server {
 	taskExecutor := task_executor.NewJoinerExecutor(
 		conf,
 		joinerService,
-		aggregatorQueue,
 	)
 
-	taskHandler := worker.NewTaskHandler(taskExecutor)
+	taskHandler := worker.NewTaskHandler(taskExecutor, false)
 
 	messageHandler := worker.NewMessageHandler(
 		taskHandler,

@@ -102,33 +102,36 @@ func (t *taskExecutor) Task2() error {
 		return err
 	}
 
-	t.receiveAndSaveResults(
+	t.receiveAndSaveEntireResults(
 		filepath.Join(t.outputPath, t.conf.OutputFiles.T2_1),
 		t.conf.Headers.T2_1,
 		func(dataBatch *protocol.DataEnvelope, ch chan string) {
-			data := &reduced.TotalSumItem{}
+			data := &reduced.TotalSumItemsReport{}
 			if err := proto.Unmarshal(dataBatch.Payload, data); err != nil {
-				logger.Logger.Errorf("failed to unmarshal transaction items batch from server: %v", err)
+				logger.Logger.Errorf("failed to unmarshal counted user transactions batch from server: %v", err)
 				return
 			}
-
-			line := utils.MostProfitableItemsToCsv(data)
-			ch <- line
+			for _, item := range data.GetTotalSumItemsBySubtotal() {
+				line := utils.MostProfitableItemsToCsv(item)
+				ch <- line
+			}
 		},
 	)
 
-	t.receiveAndSaveResults(
+	t.receiveAndSaveEntireResults(
 		filepath.Join(t.outputPath, t.conf.OutputFiles.T2_2),
 		t.conf.Headers.T2_2,
 		func(dataBatch *protocol.DataEnvelope, ch chan string) {
-			data := &reduced.TotalSumItem{}
+			data := &reduced.TotalSumItemsReport{}
 			if err := proto.Unmarshal(dataBatch.Payload, data); err != nil {
-				logger.Logger.Errorf("failed to unmarshal transaction items batch from server: %v", err)
+				logger.Logger.Errorf("failed to unmarshal counted user transactions batch from server: %v", err)
 				return
 			}
+			for _, item := range data.GetTotalSumItemsByQuantity() {
+				line := utils.BestSellingItemsToCsv(item)
+				ch <- line
+			}
 
-			line := utils.BestSellingItemsToCsv(data)
-			ch <- line
 		},
 	)
 
@@ -164,18 +167,19 @@ func (t *taskExecutor) Task3() error {
 		return err
 	}
 
-	t.receiveAndSaveResults(
+	t.receiveAndSaveEntireResults(
 		filepath.Join(t.outputPath, t.conf.OutputFiles.T3),
 		t.conf.Headers.T3,
 		func(dataBatch *protocol.DataEnvelope, ch chan string) {
-			data := &reduced.TotalPaymentValue{}
+			data := &reduced.TotalPaymentValueBatch{}
 			if err := proto.Unmarshal(dataBatch.Payload, data); err != nil {
-				logger.Logger.Errorf("failed to unmarshal store tpv batch from server: %v", err)
+				logger.Logger.Errorf("failed to unmarshal counted user transactions batch from server: %v", err)
 				return
 			}
-
-			line := utils.TopStoresByTPVToCsv(data)
-			ch <- line
+			for _, countedUserTransaction := range data.GetTotalPaymentValues() {
+				line := utils.TopStoresByTPVToCsv(countedUserTransaction)
+				ch <- line
+			}
 		},
 	)
 
@@ -225,18 +229,21 @@ func (t *taskExecutor) Task4() error {
 		return err
 	}
 
-	t.receiveAndSaveResults(
+	// Receive and save results
+
+	t.receiveAndSaveEntireResults(
 		filepath.Join(t.outputPath, t.conf.OutputFiles.T4),
 		t.conf.Headers.T4,
 		func(dataBatch *protocol.DataEnvelope, ch chan string) {
-			data := &reduced.CountedUserTransactions{}
+			data := &reduced.CountedUserTransactionBatch{}
 			if err := proto.Unmarshal(dataBatch.Payload, data); err != nil {
-				logger.Logger.Errorf("failed to unmarshal most purchases user batch from server: %v", err)
+				logger.Logger.Errorf("failed to unmarshal counted user transactions batch from server: %v", err)
 				return
 			}
-
-			line := utils.TopUsersByPurchasesToCsv(data)
-			ch <- line
+			for _, countedUserTransaction := range data.CountedUserTransactions {
+				line := utils.TopUsersByPurchasesToCsv(countedUserTransaction)
+				ch <- line
+			}
 		},
 	)
 
@@ -325,6 +332,35 @@ func (t taskExecutor) receiveAndSaveResults(
 
 			generateStringObject(dataBatch, batchesCh)
 		}
+	}()
+
+	t.fs.SaveCsvAsBatches(path, batchesCh, header)
+	logger.Logger.Debug("Finished saving data")
+
+	return nil
+}
+
+func (t taskExecutor) receiveAndSaveEntireResults(
+	path,
+	header string,
+	generateStringObject func(*protocol.DataEnvelope, chan string),
+) error {
+	batchesCh := make(chan string)
+
+	res, err := t.conn.ReceiveData()
+	if err != nil {
+		logger.Logger.Debugf("connection with server closed")
+		return nil
+	}
+	dataEnvelope := &protocol.DataEnvelope{}
+	if err := proto.Unmarshal(res, dataEnvelope); err != nil {
+		logger.Logger.Errorf("failed to unmarshal response from server: %v", err)
+		return nil
+	}
+
+	go func() {
+		defer close(batchesCh)
+		generateStringObject(dataEnvelope, batchesCh)
 	}()
 
 	t.fs.SaveCsvAsBatches(path, batchesCh, header)

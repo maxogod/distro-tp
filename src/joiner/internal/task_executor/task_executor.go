@@ -1,8 +1,6 @@
 package task_executor
 
 import (
-	"fmt"
-
 	"github.com/maxogod/distro-tp/src/common/logger"
 	"github.com/maxogod/distro-tp/src/common/middleware"
 	"github.com/maxogod/distro-tp/src/common/models/enum"
@@ -18,20 +16,18 @@ import (
 const SEND_LIMIT = 1000
 
 type joinerExecutor struct {
-	config          *config.Config
-	joinerService   business.JoinerService
-	aggregatorQueue middleware.MessageMiddleware
-	joinerQueue     middleware.MessageMiddleware
+	config        *config.Config
+	joinerService business.JoinerService
+	joinerQueue   middleware.MessageMiddleware
 }
 
 func NewJoinerExecutor(config *config.Config,
 	joinerService business.JoinerService,
-	aggregatorQueue middleware.MessageMiddleware) worker.TaskExecutor {
+) worker.TaskExecutor {
 	return &joinerExecutor{
-		config:          config,
-		joinerService:   joinerService,
-		aggregatorQueue: aggregatorQueue,
-		joinerQueue:     middleware.GetJoinerQueue(config.Address), // TODO: MOVE THIS OUT LATER!!
+		config:        config,
+		joinerService: joinerService,
+		joinerQueue:   middleware.GetJoinerQueue(config.Address),
 	}
 }
 
@@ -39,9 +35,13 @@ func NewJoinerExecutor(config *config.Config,
 func (je *joinerExecutor) HandleTask2(dataEnvelope *protocol.DataEnvelope, ackHandler func(bool, bool) error) error {
 	shouldAck := false
 	shouldRequeue := false
-	defer ackHandler(shouldAck, shouldRequeue)
-
 	clientID := dataEnvelope.GetClientId()
+
+	processedDataQueue := middleware.GetProcessedDataExchange(je.config.Address, clientID)
+	defer func() {
+		ackHandler(shouldAck, shouldRequeue)
+		processedDataQueue.Close()
+	}()
 
 	if dataEnvelope.GetIsRef() {
 		var err error
@@ -58,15 +58,17 @@ func (je *joinerExecutor) HandleTask2(dataEnvelope *protocol.DataEnvelope, ackHa
 		return nil
 	}
 
-	reducedData := &reduced.TotalSumItemsBatch{}
-	err := proto.Unmarshal(dataEnvelope.GetPayload(), reducedData)
+	reportData := &reduced.TotalSumItemsReport{}
+	err := proto.Unmarshal(dataEnvelope.GetPayload(), reportData)
 	if err != nil {
 		return err
 	}
 
-	for _, itemData := range reducedData.GetTotalSumItems() {
-		err := je.joinerService.JoinTotalSumItem(itemData, clientID)
-		if err != nil {
+	// TODO: refactor this to just send 1 message and have client just split in different files from 1 message
+
+	// here we join the data
+	for _, itemData := range reportData.GetTotalSumItemsBySubtotal() {
+		if err := je.joinerService.JoinTotalSumItem(itemData, clientID); err != nil {
 			// if the ref data is not present yet, requeue the message
 			payload, _ := proto.Marshal(dataEnvelope)
 			je.joinerQueue.Send(payload)
@@ -74,12 +76,24 @@ func (je *joinerExecutor) HandleTask2(dataEnvelope *protocol.DataEnvelope, ackHa
 			return nil
 		}
 	}
-
-	err = worker.SendDataToMiddleware(reducedData, enum.T2, clientID, int(dataEnvelope.GetSequenceNumber()), je.aggregatorQueue)
+	err = worker.SendDataToMiddleware(reportData, enum.T2_1, clientID, 0, processedDataQueue)
 	if err != nil {
 		shouldRequeue = true
 		return err
 	}
+
+	for _, itemData := range reportData.GetTotalSumItemsByQuantity() {
+		if err := je.joinerService.JoinTotalSumItem(itemData, clientID); err != nil {
+			// in the first for-loop we already checked for missing ref data, so if we error here it's another issue
+			return err
+		}
+	}
+	err = worker.SendDataToMiddleware(reportData, enum.T2_2, clientID, 0, processedDataQueue)
+	if err != nil {
+		shouldRequeue = true
+		return err
+	}
+
 	shouldAck = true
 	return nil
 }
@@ -87,9 +101,12 @@ func (je *joinerExecutor) HandleTask2(dataEnvelope *protocol.DataEnvelope, ackHa
 func (je *joinerExecutor) HandleTask3(dataEnvelope *protocol.DataEnvelope, ackHandler func(bool, bool) error) error {
 	shouldAck := false
 	shouldRequeue := false
-	defer ackHandler(shouldAck, shouldRequeue)
-
 	clientID := dataEnvelope.GetClientId()
+	processedDataQueue := middleware.GetProcessedDataExchange(je.config.Address, clientID)
+	defer func() {
+		ackHandler(shouldAck, shouldRequeue)
+		processedDataQueue.Close()
+	}()
 
 	if dataEnvelope.GetIsRef() {
 		var err error
@@ -123,7 +140,7 @@ func (je *joinerExecutor) HandleTask3(dataEnvelope *protocol.DataEnvelope, ackHa
 		}
 	}
 
-	err = worker.SendDataToMiddleware(reducedData, enum.T3, clientID, int(dataEnvelope.GetSequenceNumber()), je.aggregatorQueue)
+	err = worker.SendDataToMiddleware(reducedData, enum.T3, clientID, 0, processedDataQueue)
 	if err != nil {
 		shouldRequeue = true
 		return err
@@ -135,8 +152,12 @@ func (je *joinerExecutor) HandleTask3(dataEnvelope *protocol.DataEnvelope, ackHa
 func (je *joinerExecutor) HandleTask4(dataEnvelope *protocol.DataEnvelope, ackHandler func(bool, bool) error) error {
 	shouldAck := false
 	shouldRequeue := false
-	defer ackHandler(shouldAck, shouldRequeue)
 	clientID := dataEnvelope.GetClientId()
+	processedDataQueue := middleware.GetProcessedDataExchange(je.config.Address, clientID)
+	defer func() {
+		ackHandler(shouldAck, shouldRequeue)
+		processedDataQueue.Close()
+	}()
 
 	if dataEnvelope.GetIsRef() {
 		var err error
@@ -149,7 +170,6 @@ func (je *joinerExecutor) HandleTask4(dataEnvelope *protocol.DataEnvelope, ackHa
 		if err != nil {
 			return err
 		}
-
 		shouldAck = true
 		return nil
 	}
@@ -170,7 +190,7 @@ func (je *joinerExecutor) HandleTask4(dataEnvelope *protocol.DataEnvelope, ackHa
 		}
 	}
 
-	err = worker.SendDataToMiddleware(countedDataBatch, enum.T4, clientID, int(dataEnvelope.GetSequenceNumber()), je.aggregatorQueue)
+	err = worker.SendDataToMiddleware(countedDataBatch, enum.T4, clientID, 0, processedDataQueue)
 	if err != nil {
 		shouldRequeue = true
 		logger.Logger.Debugf("An error occurred: %s", err)
@@ -181,30 +201,12 @@ func (je *joinerExecutor) HandleTask4(dataEnvelope *protocol.DataEnvelope, ackHa
 }
 
 func (je *joinerExecutor) HandleFinishClient(dataEnvelope *protocol.DataEnvelope, ackHandler func(bool, bool) error) error {
-	shouldAck := false
-	defer ackHandler(shouldAck, false)
-
-	clientID := dataEnvelope.GetClientId()
-	logger.Logger.Debug("Finishing client: ", clientID)
-
-	err := je.joinerService.DeleteClientRefData(clientID)
-	if err != nil {
-		return err
-	}
-	shouldAck = true
-
+	ackHandler(true, false)
 	return nil
 }
 
 func (je *joinerExecutor) Close() error {
-	if err := je.joinerService.Close(); err != nil {
-		return err
-	}
-
-	if err := je.aggregatorQueue.Close(); err != middleware.MessageMiddlewareSuccess {
-		return fmt.Errorf("failed to close aggregator queue: %v", err)
-	}
-	return nil
+	return je.joinerService.Close()
 }
 
 func (je *joinerExecutor) HandleTask1(dataEnvelope *protocol.DataEnvelope, ackHandler func(bool, bool) error) error {
