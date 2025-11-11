@@ -21,8 +21,9 @@ type Server struct {
 
 func InitServer(conf *config.Config) *Server {
 
-	// initiateOutputs
+	// initiate Queues and Exchanges
 	aggregatorInputQueue := middleware.GetAggregatorQueue(conf.Address)
+	joinerOutputQueue := middleware.GetJoinerQueue(conf.Address)
 	finishExchange := middleware.GetFinishExchange(conf.Address, []string{string(enum.AggregatorWorker)})
 
 	// initiate internal components
@@ -35,6 +36,7 @@ func InitServer(conf *config.Config) *Server {
 		conf,
 		connectedClients,
 		aggregatorService,
+		joinerOutputQueue,
 	)
 
 	taskHandler := worker.NewTaskHandler(taskExecutor)
