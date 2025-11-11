@@ -8,12 +8,19 @@ import (
 	"github.com/spf13/viper"
 )
 
+type HeartbeatConfig struct {
+	Host     string
+	Port     int
+	Interval int
+}
+
 type Config struct {
 	MiddlewareAddress string
 	Port              int32
 	HealthCheckPort   int
 	LogLevel          string
 	ReceivingTimeout  int
+	Heartbeat         HeartbeatConfig
 }
 
 func (c Config) String() string {
@@ -44,12 +51,19 @@ func InitConfig() (*Config, error) {
 	v.BindEnv("log.level", "LOG_LEVEL")
 	v.BindEnv("receiving.timeout", "RECEIVING_TIMEOUT")
 
+	heatbeatConf := HeartbeatConfig{
+		Host:     v.GetString("heartbeat.host"),
+		Port:     v.GetInt("heartbeat.port"),
+		Interval: v.GetInt("heartbeat.interval"),
+	}
+
 	config := &Config{
 		MiddlewareAddress: v.GetString("middleware.address"),
 		Port:              int32(v.GetInt("port")),
 		HealthCheckPort:   v.GetInt("healthcheck.port"),
 		LogLevel:          v.GetString("log.level"),
 		ReceivingTimeout:  v.GetInt("receiving.timeout"),
+		Heartbeat:         heatbeatConf,
 	}
 
 	return config, nil

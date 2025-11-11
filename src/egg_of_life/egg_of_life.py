@@ -99,6 +99,8 @@ class RevivalChansey:
 
     def _update_timestamp(self, hostname):
         with self._heartbeat_lock:
+            if not hostname in self._last_heartbeat:
+                print(f"Registering {hostname}")
             self._last_heartbeat[hostname] = time.time()
 
     def _on_timeout(self, hostname):
