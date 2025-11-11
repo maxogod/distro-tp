@@ -50,9 +50,6 @@ func (fe *FilterExecutor) HandleTask1(dataEnvelope *protocol.DataEnvelope, ackHa
 		fe.connectedClients[clientID] = middleware.GetCounterExchange(fe.url, clientID+"@"+string(enum.FilterWorker))
 	}
 	counterExchange := fe.connectedClients[clientID]
-	if err := worker.SendPrepCounterMessage(clientID, enum.FilterWorker, dataEnvelope, counterExchange); err != nil {
-		return err
-	}
 
 	err := proto.Unmarshal(payload, transactionBatch)
 	if err != nil {
@@ -94,9 +91,6 @@ func (fe *FilterExecutor) HandleTask2(dataEnvelope *protocol.DataEnvelope, ackHa
 		fe.connectedClients[clientID] = middleware.GetCounterExchange(fe.url, clientID+"@"+string(enum.FilterWorker))
 	}
 	counterExchange := fe.connectedClients[clientID]
-	if err := worker.SendPrepCounterMessage(clientID, enum.FilterWorker, dataEnvelope, counterExchange); err != nil {
-		return err
-	}
 
 	err := proto.Unmarshal(payload, transactionBatch)
 	if err != nil {
@@ -136,9 +130,6 @@ func (fe *FilterExecutor) HandleTask3(dataEnvelope *protocol.DataEnvelope, ackHa
 		fe.connectedClients[clientID] = middleware.GetCounterExchange(fe.url, clientID+"@"+string(enum.FilterWorker))
 	}
 	counterExchange := fe.connectedClients[clientID]
-	if err := worker.SendPrepCounterMessage(clientID, enum.FilterWorker, dataEnvelope, counterExchange); err != nil {
-		return err
-	}
 
 	err := proto.Unmarshal(payload, transactionBatch)
 	if err != nil {
@@ -179,9 +170,6 @@ func (fe *FilterExecutor) HandleTask4(dataEnvelope *protocol.DataEnvelope, ackHa
 		fe.connectedClients[clientID] = middleware.GetCounterExchange(fe.url, clientID+"@"+string(enum.FilterWorker))
 	}
 	counterExchange := fe.connectedClients[clientID]
-	if err := worker.SendPrepCounterMessage(clientID, enum.FilterWorker, dataEnvelope, counterExchange); err != nil {
-		return err
-	}
 
 	err := proto.Unmarshal(payload, transactionBatch)
 	if err != nil {

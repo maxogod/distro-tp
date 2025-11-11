@@ -2,7 +2,6 @@ package handler
 
 import (
 	"fmt"
-	"time"
 
 	"github.com/maxogod/distro-tp/src/common/logger"
 	"github.com/maxogod/distro-tp/src/common/middleware"
@@ -17,15 +16,14 @@ type workerMonitor struct {
 }
 
 type controlHandler struct {
-	clientID         string
-	pendingSequences map[int][]byte
+	clientID      string
+	middlewareUrl string
+	sequencesSeen map[int32]bool
 
 	// Node connections middleware
-	messagesSentToNextLayer  int
-	filterQueue              middleware.MessageMiddleware
-	joinerFinishExchange     middleware.MessageMiddleware
-	aggregatorFinishExchange middleware.MessageMiddleware
-	clientControlExchange    middleware.MessageMiddleware
+	messagesSentToNextLayer int
+	filterQueue             middleware.MessageMiddleware
+	clientControlExchange   middleware.MessageMiddleware
 
 	workersMonitoring map[enum.WorkerType]workerMonitor
 	routineReadyCh    chan bool
@@ -34,14 +32,13 @@ type controlHandler struct {
 
 func NewControlHandler(middlewareUrl, clientID string) ControlHandler {
 	h := &controlHandler{
-		clientID:         clientID,
-		pendingSequences: make(map[int][]byte),
+		clientID:      clientID,
+		middlewareUrl: middlewareUrl,
+		sequencesSeen: make(map[int32]bool),
 
-		messagesSentToNextLayer:  1, // start with 1 message from gateway
-		filterQueue:              middleware.GetFilterQueue(middlewareUrl),
-		joinerFinishExchange:     middleware.GetFinishExchange(middlewareUrl, []string{string(enum.JoinerWorker)}),
-		aggregatorFinishExchange: middleware.GetFinishExchange(middlewareUrl, []string{string(enum.AggregatorWorker)}),
-		clientControlExchange:    middleware.GetClientControlExchange(middlewareUrl, clientID),
+		messagesSentToNextLayer: 1, // start with 1 message from gateway
+		filterQueue:             middleware.GetFilterQueue(middlewareUrl),
+		clientControlExchange:   middleware.GetClientControlExchange(middlewareUrl, clientID),
 
 		workersMonitoring: make(map[enum.WorkerType]workerMonitor),
 		routineReadyCh:    make(chan bool),
@@ -59,7 +56,6 @@ func NewControlHandler(middlewareUrl, clientID string) ControlHandler {
 		go h.startCounterListener(worker)
 		<-h.routineReadyCh
 	}
-	go h.resendPendingSequencesRoutine()
 
 	h.sendControllerReady()
 
@@ -76,26 +72,27 @@ func (ch *controlHandler) AwaitForWorkers() error {
 	for currentWorkerType != enum.None {
 		counter := <-ch.counterCh
 
-		if counter.GetIsPrepare() {
-			// ch.pendingSequences[int(counter.GetSequenceNumber())] = nil // counter.GetPayload()
-			continue
-		} else if _, ok := ch.pendingSequences[int(counter.GetSequenceNumber())]; !ok && counter.GetFrom() == string(enum.FilterWorker) {
-			// logger.Logger.Warnf("[%s] Got sequence %d before preparation", int(counter.GetSequenceNumber()))
-		} else if counter.GetFrom() == string(enum.FilterWorker) {
-			// delete(ch.pendingSequences, int(counter.GetSequenceNumber()))
-		}
-
 		receivedFromCurrentLayer++
 		sentFromCurrentLayer += int(counter.GetAmountSent())
+		seqNum := counter.GetSequenceNumber()
+
+		if _, ok := ch.sequencesSeen[seqNum]; ok {
+			logger.Logger.Warnf("[%s] Duplicate counter message received from %s workers with seq num %d, dropping",
+				ch.clientID, currentWorkerType, seqNum)
+			continue // Drop duplicated
+		} else {
+			ch.sequencesSeen[seqNum] = true // Save seq num
+		}
 
 		if receivedFromCurrentLayer == ch.messagesSentToNextLayer {
 			nextLayer := enum.WorkerType(counter.GetNext())
 			logger.Logger.Debugf("[%s] All %d messages received from %s workers, next layer %s with msgs: %d",
 				ch.clientID, receivedFromCurrentLayer, currentWorkerType, nextLayer, sentFromCurrentLayer)
 
-			ch.workersMonitoring[currentWorkerType].startOrFinishCh <- false // finish
+			clear(ch.sequencesSeen)
+			ch.workersMonitoring[currentWorkerType].startOrFinishCh <- false // finish current layer
 			if nextLayer != enum.None {
-				ch.workersMonitoring[nextLayer].startOrFinishCh <- true // start
+				ch.workersMonitoring[nextLayer].startOrFinishCh <- true // start next layer
 			}
 			currentWorkerType = nextLayer
 			ch.messagesSentToNextLayer = sentFromCurrentLayer
@@ -121,16 +118,10 @@ func (ch *controlHandler) SendDone(worker enum.WorkerType) error {
 		return err
 	}
 
-	var sendErr middleware.MessageMiddlewareError
-	switch worker {
-	case enum.JoinerWorker:
-		sendErr = ch.joinerFinishExchange.Send(dataBytes)
-	case enum.AggregatorWorker:
-		sendErr = ch.aggregatorFinishExchange.Send(dataBytes)
-	default:
-		return fmt.Errorf("unknown worker type: %s", worker)
-	}
+	m := middleware.GetFinishExchange(ch.middlewareUrl, []string{string(worker)})
+	defer m.Close()
 
+	sendErr := m.Send(dataBytes)
 	if sendErr != middleware.MessageMiddlewareSuccess {
 		return fmt.Errorf("error sending done message to %s exchange", worker)
 	}
@@ -138,8 +129,6 @@ func (ch *controlHandler) SendDone(worker enum.WorkerType) error {
 }
 
 func (ch *controlHandler) Close() {
-	ch.joinerFinishExchange.Close()
-	ch.aggregatorFinishExchange.Close()
 	for _, monitor := range ch.workersMonitoring {
 		monitor.startOrFinishCh <- false
 		monitor.queue.Close()
@@ -212,22 +201,4 @@ func (ch *controlHandler) startCounterListener(workerRoute enum.WorkerType) {
 	}
 
 	logger.Logger.Debugf("[%s] Counter listener for %s stopped", ch.clientID, workerRoute)
-}
-
-func (ch *controlHandler) resendPendingSequencesRoutine() {
-	return
-	ticker := time.NewTicker(10 * time.Second)
-	defer ticker.Stop()
-
-	for range ticker.C {
-		for seq, payload := range ch.pendingSequences {
-			logger.Logger.Infof("[%s] Resending pending sequence %d", ch.clientID, seq)
-			err := ch.filterQueue.Send(payload)
-			if err != middleware.MessageMiddlewareSuccess {
-				logger.Logger.Errorf("[%s] Failed to resend pending sequence %d: %d", ch.clientID, seq, err)
-			} else {
-				logger.Logger.Infof("[%s] Successfully resent pending sequence %d", ch.clientID, seq)
-			}
-		}
-	}
 }
