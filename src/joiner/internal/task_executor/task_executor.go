@@ -65,7 +65,7 @@ func (je *joinerExecutor) HandleTask2(dataEnvelope *protocol.DataEnvelope, ackHa
 	}
 
 	// here we join the data
-	for _, itemData := range reportData.GetTotalSumItemsByQuantity() {
+	for _, itemData := range reportData.GetTotalSumItemsBySubtotal() {
 		if err := je.joinerService.JoinTotalSumItem(itemData, clientID); err != nil {
 			// if the ref data is not present yet, requeue the message
 			payload, _ := proto.Marshal(dataEnvelope)
@@ -74,19 +74,26 @@ func (je *joinerExecutor) HandleTask2(dataEnvelope *protocol.DataEnvelope, ackHa
 			return nil
 		}
 	}
+	err = worker.SendDataToMiddleware(reportData, enum.T2_1, clientID, 0, processedDataQueue)
+	if err != nil {
+		shouldRequeue = true
+		return err
+	}
+	worker.SendDone(clientID, enum.T2_1, processedDataQueue)
 
-	for _, itemData := range reportData.GetTotalSumItemsBySubtotal() {
+	for _, itemData := range reportData.GetTotalSumItemsByQuantity() {
 		if err := je.joinerService.JoinTotalSumItem(itemData, clientID); err != nil {
 			// in the first for-loop we already checked for missing ref data, so if we error here it's another issue
 			return err
 		}
 	}
-
-	err = worker.SendDataToMiddleware(reportData, enum.T2, clientID, int(dataEnvelope.GetSequenceNumber()), processedDataQueue)
+	err = worker.SendDataToMiddleware(reportData, enum.T2_2, clientID, 0, processedDataQueue)
 	if err != nil {
 		shouldRequeue = true
 		return err
 	}
+	worker.SendDone(clientID, enum.T2_2, processedDataQueue)
+
 	shouldAck = true
 	return nil
 }
@@ -133,11 +140,12 @@ func (je *joinerExecutor) HandleTask3(dataEnvelope *protocol.DataEnvelope, ackHa
 		}
 	}
 
-	err = worker.SendDataToMiddleware(reducedData, enum.T3, clientID, int(dataEnvelope.GetSequenceNumber()), processedDataQueue)
+	err = worker.SendDataToMiddleware(reducedData, enum.T3, clientID, 0, processedDataQueue)
 	if err != nil {
 		shouldRequeue = true
 		return err
 	}
+	worker.SendDone(clientID, enum.T3, processedDataQueue)
 	shouldAck = true
 	return nil
 }
@@ -163,7 +171,6 @@ func (je *joinerExecutor) HandleTask4(dataEnvelope *protocol.DataEnvelope, ackHa
 		if err != nil {
 			return err
 		}
-
 		shouldAck = true
 		return nil
 	}
@@ -184,12 +191,13 @@ func (je *joinerExecutor) HandleTask4(dataEnvelope *protocol.DataEnvelope, ackHa
 		}
 	}
 
-	err = worker.SendDataToMiddleware(countedDataBatch, enum.T4, clientID, int(dataEnvelope.GetSequenceNumber()), processedDataQueue)
+	err = worker.SendDataToMiddleware(countedDataBatch, enum.T4, clientID, 0, processedDataQueue)
 	if err != nil {
 		shouldRequeue = true
 		logger.Logger.Debugf("An error occurred: %s", err)
 		return err
 	}
+	worker.SendDone(clientID, enum.T4, processedDataQueue)
 	shouldAck = true
 	return nil
 }
