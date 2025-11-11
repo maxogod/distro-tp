@@ -22,7 +22,7 @@ lines = []
 # ==============================
 # Header
 # ==============================
-lines.append("name: tp1")
+lines.append("name: distro")
 lines.append("services:")
 
 # ==============================
@@ -65,7 +65,7 @@ lines.append(
     networks:
       - tp_net
     environment:
-      - NETWORK=tp_net
+      - NETWORK=distro_tp_net
     """
 )
 

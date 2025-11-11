@@ -53,12 +53,13 @@ class RevivalChansey:
         while self.running.is_set():
             hostname = self._get_heartbeat()
             if hostname:
-                self._update_timestamp(hostname)
+                nodename = hostname.split(".")[0]
+                self._update_timestamp(nodename)
 
     def shutdown(self):
-        print("Revival Chansey shutting down...")
         self.running.clear() # Sets flag to false
         self._server.close()
+        print("Revival Chansey finished")
 
     def _get_heartbeat(self) -> str:
         data, hostname = self._server.receive()
@@ -84,10 +85,10 @@ class RevivalChansey:
             f"--label {CREATOR_LABEL} "
             f"{image}"
         )
-        out = run_cmd(cmd)
-        if out:
+        try:
+            out = run_cmd(cmd)
             print(f"New container {name} created (ID: {out.strip()})")
-        else:
+        except:
             print(f"Error creating container {name}")
 
     def _cleanup_container(self, container_name):
