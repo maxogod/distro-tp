@@ -102,15 +102,28 @@ func (t *taskExecutor) Task2() error {
 		return err
 	}
 
-	t.receiveAndSaveEntireResults(
+	// Receive and save results
+
+	res, err := t.conn.ReceiveData()
+	if err != nil {
+		logger.Logger.Debugf("connection with server closed")
+		return nil
+	}
+	dataEnvelope := &protocol.DataEnvelope{}
+	if err := proto.Unmarshal(res, dataEnvelope); err != nil {
+		logger.Logger.Errorf("failed to unmarshal response from server: %v", err)
+		return nil
+	}
+	data := &reduced.TotalSumItemsReport{}
+	if err := proto.Unmarshal(dataEnvelope.Payload, data); err != nil {
+		logger.Logger.Errorf("failed to unmarshal counted user transactions batch from server: %v", err)
+		return nil
+	}
+
+	t.saveEntireResults(
 		filepath.Join(t.outputPath, t.conf.OutputFiles.T2_1),
 		t.conf.Headers.T2_1,
-		func(dataBatch *protocol.DataEnvelope, ch chan string) {
-			data := &reduced.TotalSumItemsReport{}
-			if err := proto.Unmarshal(dataBatch.Payload, data); err != nil {
-				logger.Logger.Errorf("failed to unmarshal counted user transactions batch from server: %v", err)
-				return
-			}
+		func(ch chan string) {
 			for _, item := range data.GetTotalSumItemsBySubtotal() {
 				line := utils.MostProfitableItemsToCsv(item)
 				ch <- line
@@ -118,20 +131,14 @@ func (t *taskExecutor) Task2() error {
 		},
 	)
 
-	t.receiveAndSaveEntireResults(
+	t.saveEntireResults(
 		filepath.Join(t.outputPath, t.conf.OutputFiles.T2_2),
 		t.conf.Headers.T2_2,
-		func(dataBatch *protocol.DataEnvelope, ch chan string) {
-			data := &reduced.TotalSumItemsReport{}
-			if err := proto.Unmarshal(dataBatch.Payload, data); err != nil {
-				logger.Logger.Errorf("failed to unmarshal counted user transactions batch from server: %v", err)
-				return
-			}
+		func(ch chan string) {
 			for _, item := range data.GetTotalSumItemsByQuantity() {
 				line := utils.BestSellingItemsToCsv(item)
 				ch <- line
 			}
-
 		},
 	)
 
@@ -366,6 +373,21 @@ func (t taskExecutor) receiveAndSaveEntireResults(
 	t.fs.SaveCsvAsBatches(path, batchesCh, header)
 	logger.Logger.Debug("Finished saving data")
 
+	return nil
+}
+
+func (t taskExecutor) saveEntireResults(
+	path,
+	header string,
+	generateStringObject func(chan string),
+) error {
+	batchesCh := make(chan string)
+	go func() {
+		defer close(batchesCh)
+		generateStringObject(batchesCh)
+	}()
+	t.fs.SaveCsvAsBatches(path, batchesCh, header)
+	logger.Logger.Debug("Finished saving data")
 	return nil
 }
 

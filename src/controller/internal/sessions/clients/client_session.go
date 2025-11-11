@@ -48,7 +48,6 @@ func (cs *clientSession) InitiateControlSequence() error {
 			return err
 		}
 	}
-
 	cs.Close()
 	logger.Logger.Debugf("[%s] EOF delivered, and session closed", cs.Id)
 
