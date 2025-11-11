@@ -51,6 +51,25 @@ lines.append(
 )
 
 # ==============================
+# Egg of life
+# ==============================
+lines.append(
+    """  egg_of_life:
+    container_name: egg_of_life
+    build:
+      dockerfile: ./src/egg_of_life/Dockerfile
+    image: egg_of_life:latest
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./config.yaml:/app/config.yaml
+    networks:
+      - tp_net
+    environment:
+      - NETWORK=tp_net
+    """
+)
+
+# ==============================
 # Gateway
 # ==============================
 lines.append(
