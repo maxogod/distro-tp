@@ -248,6 +248,7 @@ func (js *joinerService) JoinCountedUserTransactions(countedTransaction *reduced
 /* --- Resource release --- */
 
 func (js *joinerService) DeleteClientRefData(clientID string) error {
+	js.inMemoryService.RemoveAllRefData(clientID)
 	js.storageService.RemoveCache(clientID)
 	return nil
 }

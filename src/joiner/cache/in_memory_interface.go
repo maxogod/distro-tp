@@ -43,6 +43,10 @@ type InMemoryService interface {
 	// The referenceType parameter specifies which type of data to remove (menu items, shops, or users).
 	RemoveRefData(clientID string, referenceType enum.ReferenceType)
 
+	// RemoveRefData removes all reference data of a specific type for a given client.
+	// The referenceType parameter specifies which type of data to remove (menu items, shops, or users).
+	RemoveAllRefData(clientID string)
+
 	// Close releases all resources held by the in-memory service.
 	// Returns an error if the cleanup operation fails.
 	Close() error
