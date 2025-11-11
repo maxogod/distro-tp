@@ -8,6 +8,7 @@ import (
 	"github.com/maxogod/distro-tp/src/common/middleware"
 	"github.com/maxogod/distro-tp/src/common/models/enum"
 	"github.com/maxogod/distro-tp/src/common/models/raw"
+	"github.com/maxogod/distro-tp/src/common/models/reduced"
 	"github.com/maxogod/distro-tp/src/common/worker"
 )
 
@@ -15,13 +16,15 @@ type finishExecutor struct {
 	address           string
 	aggregatorService business.AggregatorService
 	finishExecutors   map[enum.TaskType]func(clientID string) error
+	outputQueue       middleware.MessageMiddleware
 	limits            config.Limits
 }
 
-func NewFinishExecutor(address string, aggregatorService business.AggregatorService, limits config.Limits) FinishExecutor {
+func NewFinishExecutor(address string, aggregatorService business.AggregatorService, outputQueue middleware.MessageMiddleware, limits config.Limits) FinishExecutor {
 	fe := finishExecutor{
 		address:           address,
 		aggregatorService: aggregatorService,
+		outputQueue:       outputQueue,
 		limits:            limits,
 	}
 
@@ -74,34 +77,24 @@ func (fe *finishExecutor) finishTask1(clientID string) error {
 }
 
 func (fe *finishExecutor) finishTask2(clientID string) error {
-	processedDataQueue := middleware.GetProcessedDataExchange(fe.address, clientID)
 	defer func() {
-		processedDataQueue.Close()
 		fe.aggregatorService.RemoveData(clientID)
 	}()
 	subtotalResults, quantityResults, err := fe.aggregatorService.GetStoredTotalItems(clientID)
 	if err != nil {
 		return fmt.Errorf("[TASK 2] failed to get results for client %s: %v", clientID, err)
 	}
-	for _, totalSubtotalData := range subtotalResults {
-		if err := worker.SendDataToMiddleware(totalSubtotalData, enum.T2_1, clientID, 0, processedDataQueue); err != nil {
-			return fmt.Errorf("failed to send data to middleware: %v", err)
-		}
-	}
-	worker.SendDone(clientID, enum.T2_1, processedDataQueue)
 
-	for _, totalQuantityData := range quantityResults {
-		if err := worker.SendDataToMiddleware(totalQuantityData, enum.T2_2, clientID, 0, processedDataQueue); err != nil {
-			return fmt.Errorf("failed to send data to middleware: %v", err)
-		}
+	reportData := &reduced.TotalSumItemsReport{
+		TotalSumItemsBySubtotal: subtotalResults,
+		TotalSumItemsByQuantity: quantityResults,
 	}
-	return worker.SendDone(clientID, enum.T2_2, processedDataQueue)
+	// we send 1 message to the joiner
+	return worker.SendDataToMiddleware(reportData, enum.T2, clientID, 0, fe.outputQueue)
 }
 
 func (fe *finishExecutor) finishTask3(clientID string) error {
-	processedDataQueue := middleware.GetProcessedDataExchange(fe.address, clientID)
 	defer func() {
-		processedDataQueue.Close()
 		fe.aggregatorService.RemoveData(clientID)
 	}()
 	results, err := fe.aggregatorService.GetStoredTotalPaymentValue(clientID)
@@ -109,31 +102,34 @@ func (fe *finishExecutor) finishTask3(clientID string) error {
 		return fmt.Errorf("[TASK 3] failed to get results for client %s: %v", clientID, err)
 	}
 
-	for _, tpvData := range results {
-		if err := worker.SendDataToMiddleware(tpvData, enum.T3, clientID, 0, processedDataQueue); err != nil {
-			return fmt.Errorf("failed to send data to middleware: %v", err)
-		}
+	reportData := &reduced.TotalPaymentValueBatch{
+		TotalPaymentValues: results,
 	}
-	return worker.SendDone(clientID, enum.T3, processedDataQueue)
+	// we send 1 message to the joiner
+	return worker.SendDataToMiddleware(reportData, enum.T3, clientID, 0, fe.outputQueue)
 }
 
 func (fe *finishExecutor) finishTask4(clientID string) error {
-	processedDataQueue := middleware.GetProcessedDataExchange(fe.address, clientID)
 	defer func() {
-		processedDataQueue.Close()
 		fe.aggregatorService.RemoveData(clientID)
 	}()
 	topUsersPerStore, err := fe.aggregatorService.GetStoredCountedUserTransactions(clientID)
 	if err != nil {
 		return fmt.Errorf("[TASK 4] failed to get results for client %s: %v", clientID, err)
 	}
+
+	topUsersResult := make([]*reduced.CountedUserTransactions, 0)
+
+	// we get the top N users per store
 	for _, orderedList := range topUsersPerStore {
 		amountToSend := min(len(orderedList), fe.limits.MaxAmountToSend)
-		for _, user := range orderedList[:amountToSend] {
-			if err := worker.SendDataToMiddleware(user, enum.T4, clientID, 0, processedDataQueue); err != nil {
-				return fmt.Errorf("failed to send data for store %s: %v", user.GetStoreId(), err)
-			}
-		}
+		topUsersResult = append(topUsersResult, orderedList[:amountToSend]...)
 	}
-	return worker.SendDone(clientID, enum.T4, processedDataQueue)
+
+	reportData := &reduced.CountedUserTransactionBatch{
+		CountedUserTransactions: topUsersResult,
+	}
+	// we send 1 message to the joiner
+	return worker.SendDataToMiddleware(reportData, enum.T4, clientID, 0, fe.outputQueue)
+
 }

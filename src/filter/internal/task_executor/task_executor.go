@@ -220,5 +220,6 @@ func (fe *FilterExecutor) Close() error {
 }
 
 func (fe *FilterExecutor) HandleFinishClient(dataEnvelope *protocol.DataEnvelope, ackHandler func(bool, bool) error) error {
-	panic("Filter does not require client finishing handling")
+	ackHandler(true, false)
+	return nil
 }

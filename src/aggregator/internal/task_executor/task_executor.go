@@ -15,9 +15,8 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-
 type AggregatorExecutor struct {
-	config            *config.Config
+	config            *config.Config // TODO: maybe remove config from here
 	connectedClients  map[string]middleware.MessageMiddleware
 	aggregatorService business.AggregatorService
 	finishExecutor    FinishExecutor
@@ -26,12 +25,14 @@ type AggregatorExecutor struct {
 
 func NewAggregatorExecutor(config *config.Config,
 	connectedClients map[string]middleware.MessageMiddleware,
-	aggregatorService business.AggregatorService) worker.TaskExecutor {
+	aggregatorService business.AggregatorService,
+	outputQueue middleware.MessageMiddleware,
+) worker.TaskExecutor {
 	return &AggregatorExecutor{
 		config:            config,
 		connectedClients:  connectedClients,
 		aggregatorService: aggregatorService,
-		finishExecutor:    NewFinishExecutor(config.Address, aggregatorService, config.Limits),
+		finishExecutor:    NewFinishExecutor(config.Address, aggregatorService, outputQueue, config.Limits),
 		clientTasks:       make(map[string]enum.TaskType),
 	}
 }
@@ -173,7 +174,6 @@ func (ae *AggregatorExecutor) HandleTask4(dataEnvelope *protocol.DataEnvelope, a
 }
 
 func (ae *AggregatorExecutor) HandleFinishClient(dataEnvelope *protocol.DataEnvelope, ackHandler func(bool, bool) error) error {
-	// TODO: IMPORTANT: HAVE  THE SORT AND SEND DATA BE IN A SEPERATE GO ROUTINE!
 	shouldAck := false
 	defer ackHandler(shouldAck, false)
 
@@ -185,6 +185,7 @@ func (ae *AggregatorExecutor) HandleFinishClient(dataEnvelope *protocol.DataEnve
 		return nil
 	}
 
+	// TODO: track finishing clients just in case the aggregaror crashes during sending data
 	err := ae.finishExecutor.SendAllData(clientID, enum.TaskType(taskType))
 	if err != nil {
 		return err

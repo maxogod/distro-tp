@@ -106,46 +106,6 @@ services:
       rabbitmq:
         condition: service_healthy
 
-  joiner2:
-    container_name: joiner2
-    build:
-      dockerfile: ./src/joiner/Dockerfile
-    image: joiner:latest
-    networks:
-      - tp_net
-    volumes:
-      - ./src/joiner/config.yaml:/config.yaml
-    depends_on:
-      rabbitmq:
-        condition: service_healthy
-
-  joiner3:
-    container_name: joiner3
-    build:
-      dockerfile: ./src/joiner/Dockerfile
-    image: joiner:latest
-    networks:
-      - tp_net
-    volumes:
-      - ./src/joiner/config.yaml:/config.yaml
-    depends_on:
-      rabbitmq:
-        condition: service_healthy
-
-  joiner4:
-    container_name: joiner4
-    build:
-      dockerfile: ./src/joiner/Dockerfile
-    image: joiner:latest
-    networks:
-      - tp_net
-    volumes:
-      - ./src/joiner/config.yaml:/config.yaml
-    depends_on:
-      rabbitmq:
-        condition: service_healthy
-
-
   reducer1:
     container_name: reducer1
     build:

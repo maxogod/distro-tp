@@ -21,11 +21,11 @@ type reducerExecutor struct {
 
 func NewReducerExecutor(filterService business.ReducerService,
 	url string,
-	joinerQueue middleware.MessageMiddleware) worker.TaskExecutor {
+	outputQueue middleware.MessageMiddleware) worker.TaskExecutor {
 	return &reducerExecutor{
 		service:     filterService,
 		url:         url,
-		outputQueue: joinerQueue,
+		outputQueue: outputQueue,
 	}
 }
 
@@ -138,6 +138,6 @@ func (re *reducerExecutor) HandleTask2_1(dataEnvelope *protocol.DataEnvelope, ac
 }
 
 func (re *reducerExecutor) HandleTask2_2(dataEnvelope *protocol.DataEnvelope, ackHandler func(bool, bool) error) error {
-
-	panic("THIS WILL BE GONE SOON")
+	ackHandler(true, false)
+	return nil
 }

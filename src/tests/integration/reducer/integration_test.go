@@ -27,8 +27,6 @@ func TestMain(m *testing.M) {
 // avoid consuming conflicts on the same queues.
 func TestSequentialRun(t *testing.T) {
 	tests := []func(t *testing.T){
-		reduceTask2_1,
-		reduceTask2_2,
 		reduceTask3,
 		reduceTask4,
 	}
@@ -81,109 +79,6 @@ func reduceTask3(t *testing.T) {
 				assert.Equal(t, ReducedTransactionMock1.GetSemester(), item.GetSemester())
 			}
 
-			break
-		}
-		done <- true
-	})
-	select {
-	case <-done:
-	case <-time.After(5 * time.Second):
-		t.Error("Test timed out waiting for results")
-	}
-	assert.Equal(t, 0, int(e))
-
-	joinerOutputQueue.StopConsuming()
-	reducerInputQueue.Close()
-	joinerOutputQueue.Close()
-}
-
-func reduceTask2_1(t *testing.T) {
-	reducerInputQueue := middleware.GetReducerQueue(url)
-	joinerOutputQueue := middleware.GetJoinerQueue(url)
-
-	serializedTransactions, _ := proto.Marshal(&GroupTransactionMock2)
-
-	dataEnvelope := protocol.DataEnvelope{
-		ClientId: "test-client",
-		TaskType: int32(enum.T2_1),
-		Payload:  serializedTransactions,
-	}
-
-	serializedDataEnvelope, _ := proto.Marshal(&dataEnvelope)
-
-	reducerInputQueue.Send(serializedDataEnvelope)
-
-	done := make(chan bool, 1)
-
-	e := joinerOutputQueue.StartConsuming(func(consumeChannel middleware.ConsumeChannel, d chan error) {
-		for msg := range consumeChannel {
-			msg.Ack(false)
-			dataBatch, _ := utils.GetDataEnvelope(msg.Body)
-			assert.True(t, enum.TaskType(dataBatch.TaskType) == enum.T2_1)
-
-			reducedData := &reduced.TotalProfitBySubtotalBatch{}
-			err := proto.Unmarshal(dataBatch.Payload, reducedData)
-
-			assert.Nil(t, err)
-
-			for _, item := range reducedData.TotalProfitBySubtotals {
-				assert.Equal(t, ReducedTransactionMock2_1.GetItemId(), item.GetItemId())
-				assert.Equal(t, ReducedTransactionMock2_1.GetYearMonth(), item.GetYearMonth())
-				assert.Equal(t, ReducedTransactionMock2_1.GetSubtotal(), item.GetSubtotal())
-			}
-
-			break
-		}
-		done <- true
-	})
-	select {
-	case <-done:
-	case <-time.After(5 * time.Second):
-		t.Error("Test timed out waiting for results")
-	}
-	assert.Equal(t, 0, int(e))
-
-	joinerOutputQueue.StopConsuming()
-	reducerInputQueue.Close()
-	joinerOutputQueue.Close()
-}
-
-func reduceTask2_2(t *testing.T) {
-	reducerInputQueue := middleware.GetReducerQueue(url)
-	joinerOutputQueue := middleware.GetJoinerQueue(url)
-
-	serializedTransactions, _ := proto.Marshal(&GroupTransactionMock2)
-
-	dataEnvelope := protocol.DataEnvelope{
-		ClientId: "test-client",
-		TaskType: int32(enum.T2_2),
-		Payload:  serializedTransactions,
-	}
-
-	serializedDataEnvelope, _ := proto.Marshal(&dataEnvelope)
-
-	reducerInputQueue.Send(serializedDataEnvelope)
-
-	done := make(chan bool, 1)
-
-	e := joinerOutputQueue.StartConsuming(func(consumeChannel middleware.ConsumeChannel, d chan error) {
-		for msg := range consumeChannel {
-			msg.Ack(false)
-			dataBatch, _ := utils.GetDataEnvelope(msg.Body)
-			assert.True(t, enum.TaskType(dataBatch.TaskType) == enum.T2_2)
-
-			reducedData := &reduced.TotalSoldByQuantityBatch{}
-			err := proto.Unmarshal(dataBatch.Payload, reducedData)
-
-			assert.Nil(t, err)
-
-			for _, item := range reducedData.TotalSoldByQuantities {
-				assert.Equal(t, ReducedTransactionMock2_2.GetItemId(), item.GetItemId())
-				assert.Equal(t, ReducedTransactionMock2_2.GetYearMonth(), item.GetYearMonth())
-				assert.Equal(t, ReducedTransactionMock2_2.GetQuantity(), item.GetQuantity())
-			}
-
-			break
 		}
 		done <- true
 	})
@@ -234,7 +129,6 @@ func reduceTask4(t *testing.T) {
 				assert.Equal(t, ReducedTransactionMock4.GetTransactionQuantity(), countedUserTransaction.GetTransactionQuantity())
 			}
 
-			break
 		}
 		done <- true
 	})
