@@ -40,7 +40,11 @@ func (je *joinerExecutor) HandleTask2(dataEnvelope *protocol.DataEnvelope, ackHa
 	processedDataQueue := middleware.GetProcessedDataExchange(je.config.Address, clientID)
 	defer func() {
 		ackHandler(shouldAck, shouldRequeue)
-		processedDataQueue.Close()
+		if !dataEnvelope.GetIsRef() {
+			processedDataQueue.Close()
+			je.joinerService.DeleteClientRefData(clientID)
+			logger.Logger.Debugf("Finished & Deleted ref data for client %s", clientID)
+		}
 	}()
 
 	if dataEnvelope.GetIsRef() {
@@ -64,8 +68,6 @@ func (je *joinerExecutor) HandleTask2(dataEnvelope *protocol.DataEnvelope, ackHa
 		return err
 	}
 
-	// TODO: refactor this to just send 1 message and have client just split in different files from 1 message
-
 	// here we join the data
 	for _, itemData := range reportData.GetTotalSumItemsBySubtotal() {
 		if err := je.joinerService.JoinTotalSumItem(itemData, clientID); err != nil {
@@ -76,19 +78,13 @@ func (je *joinerExecutor) HandleTask2(dataEnvelope *protocol.DataEnvelope, ackHa
 			return nil
 		}
 	}
-	err = worker.SendDataToMiddleware(reportData, enum.T2_1, clientID, 0, processedDataQueue)
-	if err != nil {
-		shouldRequeue = true
-		return err
-	}
-
 	for _, itemData := range reportData.GetTotalSumItemsByQuantity() {
 		if err := je.joinerService.JoinTotalSumItem(itemData, clientID); err != nil {
 			// in the first for-loop we already checked for missing ref data, so if we error here it's another issue
 			return err
 		}
 	}
-	err = worker.SendDataToMiddleware(reportData, enum.T2_2, clientID, 0, processedDataQueue)
+	err = worker.SendDataToMiddleware(reportData, enum.T2, clientID, 0, processedDataQueue)
 	if err != nil {
 		shouldRequeue = true
 		return err
@@ -105,7 +101,11 @@ func (je *joinerExecutor) HandleTask3(dataEnvelope *protocol.DataEnvelope, ackHa
 	processedDataQueue := middleware.GetProcessedDataExchange(je.config.Address, clientID)
 	defer func() {
 		ackHandler(shouldAck, shouldRequeue)
-		processedDataQueue.Close()
+		if !dataEnvelope.GetIsRef() {
+			processedDataQueue.Close()
+			je.joinerService.DeleteClientRefData(clientID)
+			logger.Logger.Debugf("Finished & Deleted ref data for client %s", clientID)
+		}
 	}()
 
 	if dataEnvelope.GetIsRef() {
@@ -156,7 +156,11 @@ func (je *joinerExecutor) HandleTask4(dataEnvelope *protocol.DataEnvelope, ackHa
 	processedDataQueue := middleware.GetProcessedDataExchange(je.config.Address, clientID)
 	defer func() {
 		ackHandler(shouldAck, shouldRequeue)
-		processedDataQueue.Close()
+		if !dataEnvelope.GetIsRef() {
+			processedDataQueue.Close()
+			je.joinerService.DeleteClientRefData(clientID)
+			logger.Logger.Debugf("Finished & Deleted ref data for client %s", clientID)
+		}
 	}()
 
 	if dataEnvelope.GetIsRef() {
@@ -201,18 +205,7 @@ func (je *joinerExecutor) HandleTask4(dataEnvelope *protocol.DataEnvelope, ackHa
 }
 
 func (je *joinerExecutor) HandleFinishClient(dataEnvelope *protocol.DataEnvelope, ackHandler func(bool, bool) error) error {
-	shouldAck := false
-	defer ackHandler(shouldAck, false)
-
-	clientID := dataEnvelope.GetClientId()
-	logger.Logger.Debug("Finishing client: ", clientID)
-
-	err := je.joinerService.DeleteClientRefData(clientID)
-	if err != nil {
-		return err
-	}
-	shouldAck = true
-
+	ackHandler(true, false)
 	return nil
 }
 

@@ -43,13 +43,6 @@ func (cs *clientSession) InitiateControlSequence() error {
 		return err
 	}
 
-	// TODO: this should execute AFTER the data is sent to the client
-	// err = cs.controlHandler.SendDone(enum.JoinerWorker)
-	// if err != nil {
-	// 	logger.Logger.Errorf("[%s] Error sending done signal to joiner for client: %v", cs.Id, err)
-	// 	return err
-	// }
-
 	cs.Close()
 	logger.Logger.Debugf("[%s] EOF delivered, and session closed", cs.Id)
 
