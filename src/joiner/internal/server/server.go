@@ -37,7 +37,7 @@ func InitServer(conf *config.Config) *Server {
 		joinerService,
 	)
 
-	taskHandler := worker.NewTaskHandler(taskExecutor)
+	taskHandler := worker.NewTaskHandler(taskExecutor, false)
 
 	messageHandler := worker.NewMessageHandler(
 		taskHandler,

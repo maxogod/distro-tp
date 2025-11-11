@@ -143,7 +143,7 @@ func (ge *GroupExecutor) HandleTask1(dataEnvelope *protocol.DataEnvelope, ackHan
 	panic("The group by worker does not implement Task 1")
 }
 
-// TODO: handle this to remove the client after finishing
 func (ge *GroupExecutor) HandleFinishClient(dataEnvelope *protocol.DataEnvelope, ackHandler func(bool, bool) error) error {
-	panic("The group by worker does not require client finishing handling")
+	ackHandler(true, false)
+	return nil
 }

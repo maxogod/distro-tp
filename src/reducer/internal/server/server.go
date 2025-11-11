@@ -32,7 +32,7 @@ func InitServer(conf *config.Config) *Server {
 		aggregatorOutputQueue,
 	)
 
-	taskHandler := worker.NewTaskHandler(taskExecutor)
+	taskHandler := worker.NewTaskHandler(taskExecutor, true)
 
 	messageHandler := worker.NewMessageHandler(
 		taskHandler,

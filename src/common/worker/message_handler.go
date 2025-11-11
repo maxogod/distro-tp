@@ -172,6 +172,7 @@ func SendDataToMiddleware(data proto.Message, taskType enum.TaskType, clientID s
 	return nil
 }
 
+// SendCounterMessage is a utility function to send counter messages to a middleware.
 func SendCounterMessage(clientID string, amount, seq int, from, next enum.WorkerType, counterExchange middleware.MessageMiddleware) error {
 	counterMessage := &protocol.MessageCounter{
 		ClientId:       clientID,
@@ -192,32 +193,7 @@ func SendCounterMessage(clientID string, amount, seq int, from, next enum.Worker
 	return nil
 }
 
-func SendPrepCounterMessage(clientID string, from enum.WorkerType, dataEnvelope *protocol.DataEnvelope, counterExchange middleware.MessageMiddleware) error {
-	return nil
-	payload, err := proto.Marshal(dataEnvelope)
-	if err != nil {
-		return err
-	}
-
-	counterMessage := &protocol.MessageCounter{
-		ClientId:       clientID,
-		From:           string(from),
-		IsPrepare:      true,
-		SequenceNumber: dataEnvelope.SequenceNumber,
-		Payload:        payload,
-	}
-	counterBytes, err := proto.Marshal(counterMessage)
-	if err != nil {
-		return fmt.Errorf("error marshaling message counter prep: %v", err)
-	}
-
-	sendErr := counterExchange.Send(counterBytes)
-	if sendErr != middleware.MessageMiddlewareSuccess {
-		return fmt.Errorf("error sending message counter prep: %v", sendErr)
-	}
-	return nil
-}
-
+// SendDone is a utility function to send a done message to a middleware.
 func SendDone(clientID string, taskType enum.TaskType, outputQueue middleware.MessageMiddleware) error {
 	dataEnvelope := &protocol.DataEnvelope{
 		ClientId: clientID,
@@ -238,6 +214,7 @@ func SendDone(clientID string, taskType enum.TaskType, outputQueue middleware.Me
 	return nil
 }
 
+// ackHandler returns a function that can be used to ack/nack a message.
 func ackHandler(msg middleware.MessageDelivery) func(bool, bool) error {
 	return func(ack, requeue bool) error {
 		if ack {

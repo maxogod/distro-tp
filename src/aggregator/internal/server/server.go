@@ -39,7 +39,7 @@ func InitServer(conf *config.Config) *Server {
 		joinerOutputQueue,
 	)
 
-	taskHandler := worker.NewTaskHandler(taskExecutor)
+	taskHandler := worker.NewTaskHandler(taskExecutor, true)
 
 	messageHandler := worker.NewMessageHandler(
 		taskHandler,

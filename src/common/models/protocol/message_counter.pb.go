@@ -27,7 +27,6 @@ type MessageCounter struct {
 	AmountSent     int32                  `protobuf:"varint,2,opt,name=amount_sent,json=amountSent,proto3" json:"amount_sent,omitempty"`
 	From           string                 `protobuf:"bytes,3,opt,name=from,proto3" json:"from,omitempty"`
 	Next           string                 `protobuf:"bytes,4,opt,name=next,proto3" json:"next,omitempty"`
-	IsPrepare      bool                   `protobuf:"varint,5,opt,name=isPrepare,proto3" json:"isPrepare,omitempty"`
 	SequenceNumber int32                  `protobuf:"varint,6,opt,name=sequence_number,json=sequenceNumber,proto3" json:"sequence_number,omitempty"`
 	Payload        []byte                 `protobuf:"bytes,7,opt,name=payload,proto3" json:"payload,omitempty"`
 	unknownFields  protoimpl.UnknownFields
@@ -92,13 +91,6 @@ func (x *MessageCounter) GetNext() string {
 	return ""
 }
 
-func (x *MessageCounter) GetIsPrepare() bool {
-	if x != nil {
-		return x.IsPrepare
-	}
-	return false
-}
-
 func (x *MessageCounter) GetSequenceNumber() int32 {
 	if x != nil {
 		return x.SequenceNumber
@@ -117,14 +109,13 @@ var File_protocol_message_counter_proto protoreflect.FileDescriptor
 
 const file_protocol_message_counter_proto_rawDesc = "" +
 	"\n" +
-	"\x1eprotocol/message_counter.proto\x12\bprotocol\"\xd7\x01\n" +
+	"\x1eprotocol/message_counter.proto\x12\bprotocol\"\xb9\x01\n" +
 	"\x0eMessageCounter\x12\x1b\n" +
 	"\tclient_id\x18\x01 \x01(\tR\bclientId\x12\x1f\n" +
 	"\vamount_sent\x18\x02 \x01(\x05R\n" +
 	"amountSent\x12\x12\n" +
 	"\x04from\x18\x03 \x01(\tR\x04from\x12\x12\n" +
-	"\x04next\x18\x04 \x01(\tR\x04next\x12\x1c\n" +
-	"\tisPrepare\x18\x05 \x01(\bR\tisPrepare\x12'\n" +
+	"\x04next\x18\x04 \x01(\tR\x04next\x12'\n" +
 	"\x0fsequence_number\x18\x06 \x01(\x05R\x0esequenceNumber\x12\x18\n" +
 	"\apayload\x18\a \x01(\fR\apayloadB\fZ\n" +
 	"./protocolb\x06proto3"
