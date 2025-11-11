@@ -42,6 +42,7 @@ func (c *diskMemoryStorage) StoreData(cacheReference string, data [][]byte) erro
 		if err := c.fileHandler.WriteData(fileName, storageCh); err != nil {
 			logger.Logger.Warn("The file [%s] was deleted when writing: %v", fileName, err)
 		}
+
 	}()
 	c.storageChannels[fileName] = storageCh
 	for _, entry := range data {
@@ -65,9 +66,8 @@ func (c *diskMemoryStorage) RemoveCache(cacheReference string) error {
 		logger.Logger.Errorf("Error globbing files for %s: %v", cacheReference, err)
 		return err
 	}
-	store_ch, exists := c.storageChannels[cacheReference+CACHE_EXTENSION]
+	_, exists := c.storageChannels[cacheReference+CACHE_EXTENSION]
 	if exists {
-		close(store_ch)
 		delete(c.storageChannels, cacheReference+CACHE_EXTENSION)
 	}
 	// Delete each matching file
