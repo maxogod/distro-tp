@@ -95,7 +95,7 @@ func (le *leader_election) Start(
 	resetUpdates()
 
 	// send that im alive to the world
-	le.connMiddleware.Send([]byte{})
+	le.sendDiscoveryMessage()
 
 	// begin recv data loop / heartbeat monitoring / election handleing
 	for le.running.Load() {
@@ -140,6 +140,24 @@ func (le *leader_election) Close() error {
 
 /* --- Private Methods --- */
 
+func (le *leader_election) sendDiscoveryMessage() {
+	discoveryMsg := &protocol.SyncMessage{
+		NodeId: int32(le.id),
+		Action: int32(enum.DISCOVER),
+	}
+
+	msgBytes, err := proto.Marshal(discoveryMsg)
+	if err != nil {
+		logger.Logger.Errorf("Failed to marshal discovery message: %v", err)
+		return
+	}
+
+	e := le.connMiddleware.Send(msgBytes)
+	if e != middleware.MessageMiddlewareSuccess {
+		logger.Logger.Errorf("Failed to send discovery message: %d", int(e))
+	}
+}
+
 func (le *leader_election) nodeQueueListener(readyCh chan bool) {
 	e := le.nodeMiddleware.StartConsuming(func(consumeChannel middleware.ConsumeChannel, d chan error) {
 		readyCh <- true
@@ -154,14 +172,8 @@ func (le *leader_election) nodeQueueListener(readyCh chan bool) {
 				continue
 			}
 
-			dataBatch, err := utils.GetDataEnvelope(msg.Body)
-			if err != nil {
-				logger.Logger.Errorf("Failed to unmarshal message: %v", err)
-				return
-			}
-
 			syncMessage := &protocol.SyncMessage{}
-			err = proto.Unmarshal(dataBatch.GetPayload(), syncMessage)
+			err := proto.Unmarshal(msg.Body, syncMessage)
 			if err != nil {
 				logger.Logger.Errorf("Failed to unmarshal sync message: %v", err)
 				return
