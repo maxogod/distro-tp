@@ -24,7 +24,7 @@ const (
 type SyncMessage struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	NodeId        int32                  `protobuf:"varint,1,opt,name=node_id,json=nodeId,proto3" json:"node_id,omitempty"`
-	LeaderId      int32                  `protobuf:"varint,2,opt,name=leader_id,json=leaderId,proto3" json:"leader_id,omitempty"`
+	IsLeader      bool                   `protobuf:"varint,2,opt,name=is_leader,json=isLeader,proto3" json:"is_leader,omitempty"`
 	Action        int32                  `protobuf:"varint,3,opt,name=action,proto3" json:"action,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -67,11 +67,11 @@ func (x *SyncMessage) GetNodeId() int32 {
 	return 0
 }
 
-func (x *SyncMessage) GetLeaderId() int32 {
+func (x *SyncMessage) GetIsLeader() bool {
 	if x != nil {
-		return x.LeaderId
+		return x.IsLeader
 	}
-	return 0
+	return false
 }
 
 func (x *SyncMessage) GetAction() int32 {
@@ -88,7 +88,7 @@ const file_protocol_sync_message_proto_rawDesc = "" +
 	"\x1bprotocol/sync_message.proto\x12\bprotocol\"[\n" +
 	"\vSyncMessage\x12\x17\n" +
 	"\anode_id\x18\x01 \x01(\x05R\x06nodeId\x12\x1b\n" +
-	"\tleader_id\x18\x02 \x01(\x05R\bleaderId\x12\x16\n" +
+	"\tis_leader\x18\x02 \x01(\bR\bisLeader\x12\x16\n" +
 	"\x06action\x18\x03 \x01(\x05R\x06actionB\fZ\n" +
 	"./protocolb\x06proto3"
 

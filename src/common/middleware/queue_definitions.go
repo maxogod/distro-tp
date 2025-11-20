@@ -101,7 +101,19 @@ func GetFinishExchange(url string, topic []string) MessageMiddleware {
 
 /* --- Leader Election Exchanges --- */
 
-func GetLeaderElectionExchange(url string, workerType enum.WorkerType, route string) MessageMiddleware {
+func GetLeaderElectionCoordExchange(url string, workerType enum.WorkerType) MessageMiddleware {
+	return retryMiddlewareCreation(MIDDLEWARE_CONNECTION_RETRIES, WAIT_INTERVAL, func() (MessageMiddleware, error) {
+		return NewExchangeMiddleware(url, "leader_election_exchange@"+string(workerType), "direct", []string{"coord"})
+	})
+}
+
+func GetLeaderElectionConnExchange(url string, workerType enum.WorkerType) MessageMiddleware {
+	return retryMiddlewareCreation(MIDDLEWARE_CONNECTION_RETRIES, WAIT_INTERVAL, func() (MessageMiddleware, error) {
+		return NewExchangeMiddleware(url, "leader_election_exchange@"+string(workerType), "direct", []string{"conn"})
+	})
+}
+
+func GetLeaderElectionNodeExchange(url string, workerType enum.WorkerType, route string) MessageMiddleware {
 	return retryMiddlewareCreation(MIDDLEWARE_CONNECTION_RETRIES, WAIT_INTERVAL, func() (MessageMiddleware, error) {
 		return NewExchangeMiddleware(url, "leader_election_exchange@"+string(workerType), "direct", []string{route})
 	})
