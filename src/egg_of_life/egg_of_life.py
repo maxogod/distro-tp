@@ -15,6 +15,7 @@ from google.protobuf.message import DecodeError
 # Config
 CREATOR_LABEL = "revived_by=revival_chansey"
 CONFIG_PATH="/app/config.yaml"
+PROJECT="distro"
 
 def run_cmd(cmd_str):
     arg_list = cmd_str.split(" ")
@@ -44,11 +45,10 @@ class RevivalChansey:
         self._last_heartbeat: dict[str, float] = {}
         self._heartbeat_lock = threading.Lock()
 
-        self._monitor_thread = threading.Thread(target=self._monitor_timeouts, daemon=True)
-        self._monitor_thread.start()
-
     def start(self):
         print("Revival Chansey ready")
+        self._monitor_thread = threading.Thread(target=self._monitor_timeouts, daemon=True)
+        self._monitor_thread.start()
 
         while self.running.is_set():
             hostname = self._get_heartbeat()
@@ -59,6 +59,8 @@ class RevivalChansey:
     def shutdown(self):
         self.running.clear() # Sets flag to false
         self._server.close()
+        self._monitor_thread.join()
+        self._stop_created_containers()
         print("Revival Chansey finished")
 
     def _get_heartbeat(self) -> str:
@@ -83,6 +85,7 @@ class RevivalChansey:
             f"docker run -d --name {name} "
             f"--network {self._network} "
             f"--label {CREATOR_LABEL} "
+            f"--label com.docker.compose.project={PROJECT} "
             f"{image}"
         )
         try:
@@ -90,6 +93,16 @@ class RevivalChansey:
             print(f"New container {name} created (ID: {out.strip()})")
         except:
             print(f"Error creating container {name}")
+
+    def _stop_created_containers(self):
+        print("Stopping created containers...")
+        try:
+            out = run_cmd(f"docker ps -a --filter label={CREATOR_LABEL} --format {"{{.Names}}"}")
+            container_names = out.splitlines()
+            for name in container_names:
+                self._cleanup_container(name)
+        except:
+            print("Error stopping created containers")
 
     def _cleanup_container(self, container_name):
         try:
@@ -131,7 +144,6 @@ class RevivalChansey:
 def setup_signal_handlers(rc: RevivalChansey):
     def signal_handler(_sig, _frame):
         rc.shutdown()
-        sys.exit(0)
 
     signal.signal(signal.SIGINT, signal_handler)
     signal.signal(signal.SIGTERM, signal_handler)
