@@ -51,10 +51,14 @@ class RevivalChansey:
         self._monitor_thread.start()
 
         while self.running.is_set():
-            hostname = self._get_heartbeat()
-            if hostname:
-                nodename = hostname.split(".")[0]
-                self._update_timestamp(nodename)
+            try:
+                hostname = self._get_heartbeat()
+                if hostname:
+                    nodename = hostname.split(".")[0]
+                    self._update_timestamp(nodename)
+            except OSError:
+                print(f"Socket closed, shutting down")
+                self.shutdown()
 
     def shutdown(self):
         self.running.clear() # Sets flag to false
