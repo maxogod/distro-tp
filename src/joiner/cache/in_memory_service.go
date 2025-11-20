@@ -110,6 +110,10 @@ func (in *inMemoryCache) RemoveRefData(clientID string, referenceType enum.Refer
 	in.clientStorage[clientID] = clientStorage
 }
 
+func (in *inMemoryCache) RemoveAllRefData(clientID string) {
+	delete(in.clientStorage, clientID)
+}
+
 func (in *inMemoryCache) Close() error {
 	for clientID := range in.clientStorage {
 		delete(in.clientStorage, clientID)

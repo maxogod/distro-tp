@@ -8,6 +8,7 @@ import (
 	"github.com/maxogod/distro-tp/src/aggregator/business"
 	"github.com/maxogod/distro-tp/src/aggregator/config"
 	"github.com/maxogod/distro-tp/src/aggregator/internal/task_executor"
+	"github.com/maxogod/distro-tp/src/common/heartbeat"
 	"github.com/maxogod/distro-tp/src/common/logger"
 	"github.com/maxogod/distro-tp/src/common/middleware"
 	"github.com/maxogod/distro-tp/src/common/models/enum"
@@ -17,6 +18,7 @@ import (
 
 type Server struct {
 	messageHandler worker.MessageHandler
+	heatbeatSender heartbeat.HeartBeatSender
 }
 
 func InitServer(conf *config.Config) *Server {
@@ -49,12 +51,18 @@ func InitServer(conf *config.Config) *Server {
 
 	return &Server{
 		messageHandler: messageHandler,
+		heatbeatSender: heartbeat.NewHeartBeatSender(conf.Heartbeat.Host, conf.Heartbeat.Port, conf.Heartbeat.Interval),
 	}
 }
 
 func (s *Server) Run() error {
 	logger.Logger.Info("Starting aggregator server...")
 	s.setupGracefulShutdown()
+
+	err := s.heatbeatSender.Start()
+	if err != nil {
+		logger.Logger.Errorf("action: start_heartbeat_sender | result: failed | error: %s", err.Error())
+	}
 
 	// This is a blocking call, it will run until an error occurs or
 	// the Close() method is called via a signal
@@ -86,5 +94,6 @@ func (s *Server) Shutdown() {
 		logger.Logger.Errorf("Error closing message handler: %v", err)
 	}
 
+	s.heatbeatSender.Close()
 	logger.Logger.Debug("aggregator Worker server shut down successfully.")
 }

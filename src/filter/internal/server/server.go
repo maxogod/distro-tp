@@ -5,6 +5,7 @@ import (
 	"os/signal"
 	"syscall"
 
+	"github.com/maxogod/distro-tp/src/common/heartbeat"
 	"github.com/maxogod/distro-tp/src/common/logger"
 	"github.com/maxogod/distro-tp/src/common/middleware"
 	"github.com/maxogod/distro-tp/src/common/worker"
@@ -14,7 +15,8 @@ import (
 )
 
 type Server struct {
-	messageHandler worker.MessageHandler
+	messageHandler  worker.MessageHandler
+	heartbeatSender heartbeat.HeartBeatSender
 }
 
 func InitServer(conf *config.Config) *Server {
@@ -51,13 +53,19 @@ func InitServer(conf *config.Config) *Server {
 	)
 
 	return &Server{
-		messageHandler: messageHandler,
+		messageHandler:  messageHandler,
+		heartbeatSender: heartbeat.NewHeartBeatSender(conf.Heartbeat.Host, conf.Heartbeat.Port, conf.Heartbeat.Interval),
 	}
 }
 
 func (s *Server) Run() error {
 	logger.Logger.Info("Starting Filter server...")
 	s.setupGracefulShutdown()
+
+	err := s.heartbeatSender.Start()
+	if err != nil {
+		logger.Logger.Errorf("action: start_heartbeat_sender | result: failed | error: %s", err.Error())
+	}
 
 	// This is a blocking call, it will run until an error occurs or
 	// the Close() method is called via a signal
@@ -89,5 +97,6 @@ func (s *Server) Shutdown() {
 		logger.Logger.Errorf("Error closing message handler: %v", err)
 	}
 
+	s.heartbeatSender.Close()
 	logger.Logger.Debug("Filter Worker server shut down successfully.")
 }

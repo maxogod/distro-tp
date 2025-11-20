@@ -39,7 +39,10 @@ func (c *diskMemoryStorage) StoreData(cacheReference string, data [][]byte) erro
 	// else, we initialize the storage channel and start the goroutine to store the data
 	storageCh := make(chan []byte)
 	go func() {
-		c.fileHandler.WriteData(fileName, storageCh)
+		if err := c.fileHandler.WriteData(fileName, storageCh); err != nil {
+			logger.Logger.Warn("The file [%s] was deleted when writing: %v", fileName, err)
+		}
+
 	}()
 	c.storageChannels[fileName] = storageCh
 	for _, entry := range data {
@@ -62,6 +65,10 @@ func (c *diskMemoryStorage) RemoveCache(cacheReference string) error {
 	if err != nil {
 		logger.Logger.Errorf("Error globbing files for %s: %v", cacheReference, err)
 		return err
+	}
+	_, exists := c.storageChannels[cacheReference+CACHE_EXTENSION]
+	if exists {
+		delete(c.storageChannels, cacheReference+CACHE_EXTENSION)
 	}
 	// Delete each matching file
 	for _, file := range files {

@@ -1,4 +1,4 @@
-name: tp1
+name: distro
 services:
   rabbitmq:
     container_name: rabbitmq
@@ -18,6 +18,19 @@ services:
       retries: 5
     networks:
       - tp_net
+    
+  egg_of_life:
+    container_name: egg_of_life
+    build:
+      dockerfile: ./src/egg_of_life/Dockerfile
+    image: egg_of_life:latest
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./config.yaml:/app/config.yaml
+    networks:
+      - tp_net
+    environment:
+      - NETWORK=distro_tp_net
     
   gateway:
     container_name: gateway
@@ -227,66 +240,6 @@ services:
     volumes:
       - ./.data:/app/.data
       - ./.output4:/app/.output
-    depends_on:
-      gateway:
-        condition: service_healthy
-        
-  client5:
-    container_name: client5
-    entrypoint: ["/app/app", "t1"]
-    build:
-      dockerfile: ./src/client/Dockerfile
-    image: client:latest
-    networks:
-      - tp_net
-    volumes:
-      - ./.data:/app/.data
-      - ./.output5:/app/.output
-    depends_on:
-      gateway:
-        condition: service_healthy
-        
-  client6:
-    container_name: client6
-    entrypoint: ["/app/app", "t2"]
-    build:
-      dockerfile: ./src/client/Dockerfile
-    image: client:latest
-    networks:
-      - tp_net
-    volumes:
-      - ./.data:/app/.data
-      - ./.output6:/app/.output
-    depends_on:
-      gateway:
-        condition: service_healthy
-        
-  client7:
-    container_name: client7
-    entrypoint: ["/app/app", "t3"]
-    build:
-      dockerfile: ./src/client/Dockerfile
-    image: client:latest
-    networks:
-      - tp_net
-    volumes:
-      - ./.data:/app/.data
-      - ./.output7:/app/.output
-    depends_on:
-      gateway:
-        condition: service_healthy
-        
-  client8:
-    container_name: client8
-    entrypoint: ["/app/app", "t4"]
-    build:
-      dockerfile: ./src/client/Dockerfile
-    image: client:latest
-    networks:
-      - tp_net
-    volumes:
-      - ./.data:/app/.data
-      - ./.output8:/app/.output
     depends_on:
       gateway:
         condition: service_healthy

@@ -126,6 +126,41 @@ func TestRemoveRefData(t *testing.T) {
 	assert.Error(t, err, "Retrieving menu items after removal should produce an error")
 }
 
+func TestRemoveAllRefData(t *testing.T) {
+	clientID := "client_all"
+
+	cacheService.StoreMenuItems(clientID, menuMock)
+	cacheService.StoreShops(clientID, shopsMock)
+	cacheService.StoreUsers(clientID, usersMock)
+
+	menuitem := menuMock[0]
+	shopitem := shopsMock[0]
+	useritem := usersMock[0]
+
+	retrievedMenu, err := cacheService.GetMenuItem(clientID, menuitem.ItemId)
+	assert.NoError(t, err, "Retrieving menu items should not produce an error")
+	assert.Equal(t, menuitem.ItemName, retrievedMenu.ItemName, "Retrieved menu item name should match requested item name")
+
+	retrievedShop, err := cacheService.GetShop(clientID, shopitem.StoreId)
+	assert.NoError(t, err, "Retrieving shops should not produce an error")
+	assert.Equal(t, shopitem.StoreName, retrievedShop.StoreName, "Retrieved shop name should match requested shop name")
+
+	retrievedUser, err := cacheService.GetUser(clientID, useritem.UserId)
+	assert.NoError(t, err, "Retrieving users should not produce an error")
+	assert.Equal(t, useritem.Birthdate, retrievedUser.Birthdate, "Retrieved user birthdate should match requested user birthdate")
+
+	cacheService.RemoveAllRefData(clientID)
+
+	_, err = cacheService.GetMenuItem(clientID, menuitem.ItemId)
+	assert.Error(t, err, "Retrieving menu items after removal should produce an error")
+
+	_, err = cacheService.GetShop(clientID, shopitem.StoreId)
+	assert.Error(t, err, "Retrieving shops after removal should produce an error")
+
+	_, err = cacheService.GetUser(clientID, useritem.UserId)
+	assert.Error(t, err, "Retrieving users after removal should produce an error")
+}
+
 func TestClose(t *testing.T) {
 	clientID := "client5"
 
