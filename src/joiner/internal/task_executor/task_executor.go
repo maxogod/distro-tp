@@ -37,16 +37,6 @@ func (je *joinerExecutor) HandleTask2(dataEnvelope *protocol.DataEnvelope, ackHa
 	shouldRequeue := false
 	clientID := dataEnvelope.GetClientId()
 
-	processedDataQueue := middleware.GetProcessedDataExchange(je.config.Address, clientID)
-	defer func() {
-		ackHandler(shouldAck, shouldRequeue)
-		if !dataEnvelope.GetIsRef() {
-			processedDataQueue.Close()
-			je.joinerService.DeleteClientRefData(clientID)
-			logger.Logger.Debugf("Finished & Deleted ref data for client %s", clientID)
-		}
-	}()
-
 	if dataEnvelope.GetIsRef() {
 		var err error
 		if !dataEnvelope.GetIsDone() {
@@ -61,6 +51,16 @@ func (je *joinerExecutor) HandleTask2(dataEnvelope *protocol.DataEnvelope, ackHa
 		shouldAck = true
 		return nil
 	}
+
+	processedDataQueue := middleware.GetProcessedDataExchange(je.config.Address, clientID)
+	defer func() {
+		ackHandler(shouldAck, shouldRequeue)
+		if !dataEnvelope.GetIsRef() {
+			processedDataQueue.Close()
+			je.joinerService.DeleteClientRefData(clientID)
+			logger.Logger.Debugf("Finished & Deleted ref data for client %s", clientID)
+		}
+	}()
 
 	reportData := &reduced.TotalSumItemsReport{}
 	err := proto.Unmarshal(dataEnvelope.GetPayload(), reportData)
@@ -98,15 +98,6 @@ func (je *joinerExecutor) HandleTask3(dataEnvelope *protocol.DataEnvelope, ackHa
 	shouldAck := false
 	shouldRequeue := false
 	clientID := dataEnvelope.GetClientId()
-	processedDataQueue := middleware.GetProcessedDataExchange(je.config.Address, clientID)
-	defer func() {
-		ackHandler(shouldAck, shouldRequeue)
-		if !dataEnvelope.GetIsRef() {
-			processedDataQueue.Close()
-			je.joinerService.DeleteClientRefData(clientID)
-			logger.Logger.Debugf("Finished & Deleted ref data for client %s", clientID)
-		}
-	}()
 
 	if dataEnvelope.GetIsRef() {
 		var err error
@@ -122,6 +113,16 @@ func (je *joinerExecutor) HandleTask3(dataEnvelope *protocol.DataEnvelope, ackHa
 		shouldAck = true
 		return nil
 	}
+
+	processedDataQueue := middleware.GetProcessedDataExchange(je.config.Address, clientID)
+	defer func() {
+		ackHandler(shouldAck, shouldRequeue)
+		if !dataEnvelope.GetIsRef() {
+			processedDataQueue.Close()
+			je.joinerService.DeleteClientRefData(clientID)
+			logger.Logger.Debugf("Finished & Deleted ref data for client %s", clientID)
+		}
+	}()
 
 	reducedData := &reduced.TotalPaymentValueBatch{}
 	err := proto.Unmarshal(dataEnvelope.GetPayload(), reducedData)
@@ -153,15 +154,6 @@ func (je *joinerExecutor) HandleTask4(dataEnvelope *protocol.DataEnvelope, ackHa
 	shouldAck := false
 	shouldRequeue := false
 	clientID := dataEnvelope.GetClientId()
-	processedDataQueue := middleware.GetProcessedDataExchange(je.config.Address, clientID)
-	defer func() {
-		ackHandler(shouldAck, shouldRequeue)
-		if !dataEnvelope.GetIsRef() {
-			processedDataQueue.Close()
-			je.joinerService.DeleteClientRefData(clientID)
-			logger.Logger.Debugf("Finished & Deleted ref data for client %s", clientID)
-		}
-	}()
 
 	if dataEnvelope.GetIsRef() {
 		var err error
@@ -177,6 +169,16 @@ func (je *joinerExecutor) HandleTask4(dataEnvelope *protocol.DataEnvelope, ackHa
 		shouldAck = true
 		return nil
 	}
+
+	processedDataQueue := middleware.GetProcessedDataExchange(je.config.Address, clientID)
+	defer func() {
+		ackHandler(shouldAck, shouldRequeue)
+		if !dataEnvelope.GetIsRef() {
+			processedDataQueue.Close()
+			je.joinerService.DeleteClientRefData(clientID)
+			logger.Logger.Debugf("Finished & Deleted ref data for client %s", clientID)
+		}
+	}()
 
 	countedDataBatch := &reduced.CountedUserTransactionBatch{}
 	err := proto.Unmarshal(dataEnvelope.GetPayload(), countedDataBatch)
