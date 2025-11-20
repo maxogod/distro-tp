@@ -1,19 +1,20 @@
-.PHONY: docker-up docker-up-build
+build:
+	docker compose build
 
-docker-up:
+up:
 	docker compose up
 
-docker-up-build:
+up-build:
 	docker compose up --build
 
-docker-down:
+down:
 	docker compose down
 
-docker-reset:
+reset:
 	docker compose down -v
 
-compare-full:
+compare:
 	./compare_all_outputs.sh .expected_full/
 
-remove-outputs:
+clean:
 	sudo rm -rf .output*
