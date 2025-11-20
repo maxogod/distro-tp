@@ -39,7 +39,7 @@ func NewLeaderElection(
 		url:             middlewareUrl,
 		workerType:      workerType,
 		coordMiddleware: middleware.GetLeaderElectionCoordExchange(middlewareUrl, workerType),
-		connMiddleware:  middleware.GetLeaderElectionConnExchange(middlewareUrl, workerType),
+		connMiddleware:  middleware.GetLeaderElectionDiscoveryExchange(middlewareUrl, workerType),
 		nodeMiddleware:  middleware.GetLeaderElectionNodeExchange(middlewareUrl, workerType, strconv.Itoa(id)),
 
 		updateChan:     make(chan *protocol.DataEnvelope),
@@ -102,7 +102,7 @@ func (le *leader_election) Start(
 		msg := <-le.messagesCh
 		nodeID := int(msg.GetNodeId())
 		switch msg.GetAction() {
-		case int32(enum.ACK):
+		case int32(enum.DISCOVER):
 			if _, exists := le.connectedNodes[nodeID]; !exists {
 				le.connectedNodes[nodeID] = middleware.GetLeaderElectionNodeExchange(le.url, le.workerType, strconv.Itoa(nodeID))
 			}
