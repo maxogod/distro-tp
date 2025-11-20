@@ -86,8 +86,8 @@ func (le *leader_election) FinishClient(clientID string) error {
 
 func (le *leader_election) Start(
 	resetUpdates func(),
-	get_updates chan *protocol.DataEnvelope,
-	send_updates func(chan *protocol.DataEnvelope),
+	getUpdates chan *protocol.DataEnvelope,
+	sendUpdates func(chan *protocol.DataEnvelope),
 ) error {
 	le.running.Store(true)
 
@@ -105,6 +105,17 @@ func (le *leader_election) Start(
 		case int32(enum.DISCOVER):
 			if _, exists := le.connectedNodes[nodeID]; !exists {
 				le.connectedNodes[nodeID] = middleware.GetLeaderElectionNodeExchange(le.url, le.workerType, strconv.Itoa(nodeID))
+			}
+		case int32(enum.COORDINATOR):
+			le.leaderId = nodeID
+			logger.Logger.Infof("Node %d recognized as coordinator", nodeID)
+		case int32(enum.ELECTION):
+			// TODO: implement election logic
+		case int32(enum.ACK):
+			// TODO: implement ack logic
+		case int32(enum.REQUEST_UPDATES):
+			if le.IsLeader() {
+				// TODO: send updates to requesting node
 			}
 		default:
 			logger.Logger.Warnf("Unknown leader election action received: %d", msg.GetAction())
