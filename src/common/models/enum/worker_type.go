@@ -4,6 +4,7 @@ type WorkerType string
 
 const (
 	Gateway          WorkerType = "gateway"
+	Controller       WorkerType = "controller"
 	FilterWorker     WorkerType = "filter"
 	GroupbyWorker    WorkerType = "groupby"
 	ReducerWorker    WorkerType = "reducer"
