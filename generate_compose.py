@@ -82,7 +82,7 @@ lines.append(
       - '8080:8080'
       - '8081:8081'
     volumes:
-      - ./src/gateway/config.yaml:/config.yaml
+      - ./src/gateway/config.yaml:/app/config.yaml
     depends_on:
       rabbitmq:
         condition: service_healthy
@@ -107,7 +107,7 @@ lines.append(
       dockerfile: ./src/controller/Dockerfile
     image: controller:latest
     volumes:
-      - ./src/controller/config.yaml:/config.yaml
+      - ./src/controller/config.yaml:/app/config.yaml
     depends_on:
       rabbitmq:
         condition: service_healthy
