@@ -128,7 +128,7 @@ lines.append(
     networks:
       - tp_net
     volumes:
-      - ./src/aggregator/config.yaml:/config.yaml
+      - ./src/aggregator/config.yaml:/app/config.yaml
     depends_on:
       rabbitmq:
         condition: service_healthy
@@ -151,7 +151,7 @@ def add_services(name, count):
     networks:
       - tp_net
     volumes:
-      - ./src/{name}/config.yaml:/config.yaml
+      - ./src/{name}/config.yaml:/app/config.yaml
     depends_on:
       rabbitmq:
         condition: service_healthy
@@ -185,6 +185,7 @@ for i in range(gw_count):
     volumes:
       - ./.data:/app/.data
       - ./.output{i+1}:/app/.output
+      - ./src/client/config.yaml:/app/config.yaml
     depends_on:
       gateway:
         condition: service_healthy
