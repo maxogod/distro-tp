@@ -1,40 +1,25 @@
 #!/bin/python3
 
-import subprocess
 import threading
 import re
 import signal
 import time
-import sys
 import yaml
 import os
 from udp_server import UDPServer
+from docker_runner import DockerRunner
 from protocol.heartbeat_pb2 import HeartBeat
 from google.protobuf.message import DecodeError
 
 # Config
-CREATOR_LABEL = "revived_by=revival_chansey"
 CONFIG_PATH="/app/config.yaml"
-PROJECT="distro"
-
-def run_cmd(cmd_str):
-    arg_list = cmd_str.split(" ")
-    res = subprocess.run(
-            arg_list,
-            capture_output=True,
-            text=True,
-        )
-    if res.stderr and res.stderr.strip():
-        print(res.stderr.strip())
-    if res.returncode != 0:
-        raise RuntimeError(f"Command failed: {cmd_str}\n{res.stderr}")
-    return res.stdout.strip()
 
 
 class RevivalChansey:
-    def __init__(self, port: int, timeout_interval: int, check_interval: int, docker_network: str):
+    def __init__(self, port: int, timeout_interval: int, check_interval: int, docker_network: str, host_path: str):
         self._server = UDPServer(port=port)
-        self._network = docker_network
+        self._docker_runner = DockerRunner(docker_network, host_path)
+
         self._timeout_interval = timeout_interval
         self._check_interval = check_interval
 
@@ -49,6 +34,7 @@ class RevivalChansey:
         print("Revival Chansey ready")
         self._monitor_thread = threading.Thread(target=self._monitor_timeouts, daemon=True)
         self._monitor_thread.start()
+        self._docker_runner.start()
 
         while self.running.is_set():
             try:
@@ -64,7 +50,7 @@ class RevivalChansey:
         self.running.clear() # Sets flag to false
         self._server.close()
         self._monitor_thread.join()
-        self._stop_created_containers()
+        self._docker_runner.shutdown()
         print("Revival Chansey finished")
 
     def _get_heartbeat(self) -> str:
@@ -82,39 +68,6 @@ class RevivalChansey:
     def _get_image_name(self, container_name) -> str:
         return re.sub(r'\d+$', '', container_name) + ":latest"
 
-    def _restart_container(self, name, image):
-        print(f"Launching new container {name} (image: {image}) on network {self._network}")
-
-        cmd = (
-            f"docker run -d --name {name} "
-            f"--network {self._network} "
-            f"--label {CREATOR_LABEL} "
-            f"--label com.docker.compose.project={PROJECT} "
-            f"{image}"
-        )
-        try:
-            out = run_cmd(cmd)
-            print(f"New container {name} created (ID: {out.strip()})")
-        except:
-            print(f"Error creating container {name}")
-
-    def _stop_created_containers(self):
-        print("Stopping created containers...")
-        try:
-            out = run_cmd(f"docker ps -a --filter label={CREATOR_LABEL} --format {"{{.Names}}"}")
-            container_names = out.splitlines()
-            for name in container_names:
-                self._cleanup_container(name)
-        except:
-            print("Error stopping created containers")
-
-    def _cleanup_container(self, container_name):
-        try:
-            run_cmd(f"docker stop {container_name}")
-            run_cmd(f"docker rm {container_name}")
-        except:
-            pass
-
     def _update_timestamp(self, hostname):
         with self._heartbeat_lock:
             if not hostname in self._last_heartbeat:
@@ -126,10 +79,11 @@ class RevivalChansey:
         
         # Cleanup and restart
         image = self._get_image_name(hostname)
-        self._cleanup_container(hostname)
-        self._restart_container(hostname, image)
+        self._docker_runner.cleanup_container(hostname)
+        self._docker_runner.restart_container(hostname, image)
 
     def _monitor_timeouts(self):
+        """ Monitor heartbeats and handle timeouts on another Thread """
         while self.running.is_set():
             current_time = time.time()
             timed_out = []
@@ -160,7 +114,8 @@ def main():
     port = 7777
     timeout_interval = 10
     check_interval = 5
-    docker_network = os.getenv("NETWORK") or "bridge"
+    docker_network = os.getenv("NETWORK", "bridge")
+    host_path = os.getenv("HOST_PROJECT_PATH", "")
     if os.path.exists(CONFIG_PATH):
         with open(CONFIG_PATH, "r") as f:
             cfg = yaml.safe_load(f)
@@ -168,7 +123,7 @@ def main():
             cfg.get("timeout_interval", timeout_interval)
             cfg.get("check_interval", check_interval)
 
-    rc = RevivalChansey(port, timeout_interval, check_interval, docker_network)
+    rc = RevivalChansey(port, timeout_interval, check_interval, docker_network, host_path)
 
     setup_signal_handlers(rc)
 
