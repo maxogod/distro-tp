@@ -24,6 +24,5 @@ WORKDIR /app
 RUN apk --no-cache add curl
 
 COPY --from=builder /app/app ./app
-COPY --from=builder /app/src/controller/config.yaml ./config.yaml
 
 ENTRYPOINT ["./app"]
