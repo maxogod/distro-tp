@@ -54,7 +54,7 @@ lines.append(
 # Egg of life
 # ==============================
 lines.append(
-    """  egg_of_life:
+    f"""  egg_of_life:
     container_name: egg_of_life
     build:
       dockerfile: ./src/egg_of_life/Dockerfile
@@ -66,6 +66,7 @@ lines.append(
       - tp_net
     environment:
       - NETWORK=distro_tp_net
+      - HOST_PROJECT_PATH={"${PWD}"}
     """
 )
 

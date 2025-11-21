@@ -31,6 +31,7 @@ services:
       - tp_net
     environment:
       - NETWORK=distro_tp_net
+      - HOST_PROJECT_PATH=${PWD}
     
   gateway:
     container_name: gateway
