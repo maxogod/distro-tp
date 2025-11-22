@@ -18,7 +18,7 @@ import (
 
 type Server struct {
 	messageHandler worker.MessageHandler
-	heatbeatSender heartbeat.HeartBeatSender
+	heatbeatSender heartbeat.HeartBeatHandler
 }
 
 func InitServer(conf *config.Config) *Server {
@@ -51,7 +51,7 @@ func InitServer(conf *config.Config) *Server {
 
 	return &Server{
 		messageHandler: messageHandler,
-		heatbeatSender: heartbeat.NewHeartBeatSender(conf.Heartbeat.Host, conf.Heartbeat.Port, conf.Heartbeat.Interval),
+		heatbeatSender: heartbeat.NewHeartBeatHandler(conf.Heartbeat.Host, conf.Heartbeat.Port, conf.Heartbeat.Interval),
 	}
 }
 
@@ -59,7 +59,7 @@ func (s *Server) Run() error {
 	logger.Logger.Info("Starting aggregator server...")
 	s.setupGracefulShutdown()
 
-	err := s.heatbeatSender.Start()
+	err := s.heatbeatSender.StartSending()
 	if err != nil {
 		logger.Logger.Errorf("action: start_heartbeat_sender | result: failed | error: %s", err.Error())
 	}

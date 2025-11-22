@@ -23,7 +23,7 @@ type Server struct {
 	newClientsChan        chan string
 	initControlMiddleware middleware.MessageMiddleware
 	finishAcceptingChan   chan bool
-	heartbeatSender       heartbeat.HeartBeatSender
+	heartbeatSender       heartbeat.HeartBeatHandler
 }
 
 func NewServer(conf *config.Config) *Server {
@@ -33,7 +33,7 @@ func NewServer(conf *config.Config) *Server {
 		newClientsChan:        make(chan string, conf.MaxClients),
 		initControlMiddleware: middleware.GetInitControlQueue(conf.MiddlewareAddress),
 		finishAcceptingChan:   make(chan bool),
-		heartbeatSender:       heartbeat.NewHeartBeatSender(conf.Heartbeat.Host, conf.Heartbeat.Port, conf.Heartbeat.Interval),
+		heartbeatSender:       heartbeat.NewHeartBeatHandler(conf.Heartbeat.Host, conf.Heartbeat.Port, conf.Heartbeat.Interval),
 	}
 	s.running.Store(true)
 
@@ -46,7 +46,7 @@ func (s *Server) Run() error {
 	s.setupGracefulShutdown()
 	defer s.Shutdown()
 
-	err := s.heartbeatSender.Start()
+	err := s.heartbeatSender.StartSending()
 	if err != nil {
 		logger.Logger.Errorf("action: start_heartbeat_sender | result: failed | error: %s", err.Error())
 	}

@@ -1,0 +1,146 @@
+package heartbeat
+
+import (
+	"context"
+	"fmt"
+	"net"
+	"time"
+
+	"github.com/maxogod/distro-tp/src/common/logger"
+	"github.com/maxogod/distro-tp/src/common/models/protocol"
+	"google.golang.org/protobuf/proto"
+)
+
+const BUFFER_SIZE = 1024
+
+type heartbeatHandler struct {
+	host     string
+	port     int
+	interval int
+
+	ctx    context.Context
+	cancel context.CancelFunc
+	conn   *net.UDPConn
+}
+
+// NewHeartBeatHandler creates a new instance of HeartBeatSender.
+func NewHeartBeatHandler(host string, port int, interval int) HeartBeatHandler {
+	ctx, cancel := context.WithCancel(context.Background())
+	return &heartbeatHandler{
+		host:     host,
+		port:     port,
+		interval: interval,
+
+		ctx:    ctx,
+		cancel: cancel,
+	}
+}
+
+func (h *heartbeatHandler) StartSending() error {
+	addr := fmt.Sprintf("%s:%d", h.host, h.port)
+	udpAddr, err := net.ResolveUDPAddr("udp", addr)
+	if err != nil {
+		return fmt.Errorf("failed to resolve UDP address: %w", err)
+	}
+
+	// No retries are needed, as udp is connectionless
+	conn, err := net.DialUDP("udp", nil, udpAddr)
+	if err != nil {
+		return fmt.Errorf("failed to dial UDP: %w", err)
+	}
+	h.conn = conn
+
+	go h.sendAtIntervals()
+	return nil
+}
+
+func (h *heartbeatHandler) Close() {
+	h.Stop()
+	if h.conn != nil {
+		h.conn.Close()
+	}
+}
+
+func (h *heartbeatHandler) Stop() {
+	if h.cancel != nil {
+		h.cancel()
+	}
+}
+
+func (h *heartbeatHandler) sendAtIntervals() {
+	ticker := time.NewTicker(time.Duration(h.interval) * time.Second)
+	defer ticker.Stop()
+
+	if err := h.sendHeartbeat(); err != nil {
+		logger.Logger.Errorf("Error sending initial heartbeat: %v\n", err)
+	}
+
+	for {
+		select {
+		case <-h.ctx.Done():
+			return
+		case <-ticker.C:
+			if err := h.sendHeartbeat(); err != nil {
+				logger.Logger.Errorf("Error sending heartbeat: %v\n", err)
+			}
+		}
+	}
+}
+
+func (h *heartbeatHandler) sendHeartbeat() error {
+	hb := &protocol.HeartBeat{
+		Timestamp: time.Now().Unix(),
+	}
+
+	data, err := proto.Marshal(hb)
+	if err != nil {
+		return fmt.Errorf("failed to marshal heartbeat: %w", err)
+	}
+
+	_, err = h.conn.Write(data)
+	if err != nil {
+		return fmt.Errorf("failed to send UDP packet: %w", err)
+	}
+
+	return nil
+}
+
+func (h *heartbeatHandler) StartReceiving(onTimeoutFunc func(), timeoutAmount int) error {
+	addr := fmt.Sprintf("%s:%d", h.host, h.port)
+	udpAddr, err := net.ResolveUDPAddr("udp", addr)
+	if err != nil {
+		return fmt.Errorf("failed to resolve UDP address: %w", err)
+	}
+
+	// No retries are needed, as udp is connectionless
+	conn, err := net.DialUDP("udp", nil, udpAddr)
+	if err != nil {
+		return fmt.Errorf("failed to dial UDP: %w", err)
+	}
+	h.conn = conn
+
+	go h.recieveHeartbeats(timeoutAmount, onTimeoutFunc)
+	return nil
+}
+
+func (h *heartbeatHandler) recieveHeartbeats(timeoutAmount int, onTimeoutFunc func()) {
+	buf := make([]byte, BUFFER_SIZE)
+
+	for {
+		h.conn.SetReadDeadline(time.Now().Add(time.Duration(timeoutAmount) * time.Second))
+		n, _, err := h.conn.ReadFromUDP(buf)
+		if err != nil { // timeout or no data
+			logger.Logger.Warn("Heartbeat Timeout Detected!")
+			onTimeoutFunc()
+			return
+		}
+
+		var hb protocol.HeartBeat
+		if err := proto.Unmarshal(buf[:n], &hb); err != nil {
+			logger.Logger.Warn("Failed to unmarshal heartbeat:", err)
+			continue
+		}
+
+		logger.Logger.Infof("Heartbeat received: %d", hb.Timestamp)
+	}
+}

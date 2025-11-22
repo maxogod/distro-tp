@@ -16,7 +16,7 @@ import (
 
 type Server struct {
 	messageHandler  worker.MessageHandler
-	heartbeatSender heartbeat.HeartBeatSender
+	heartbeatSender heartbeat.HeartBeatHandler
 }
 
 func InitServer(conf *config.Config) *Server {
@@ -54,7 +54,7 @@ func InitServer(conf *config.Config) *Server {
 
 	return &Server{
 		messageHandler:  messageHandler,
-		heartbeatSender: heartbeat.NewHeartBeatSender(conf.Heartbeat.Host, conf.Heartbeat.Port, conf.Heartbeat.Interval),
+		heartbeatSender: heartbeat.NewHeartBeatHandler(conf.Heartbeat.Host, conf.Heartbeat.Port, conf.Heartbeat.Interval),
 	}
 }
 
@@ -62,7 +62,7 @@ func (s *Server) Run() error {
 	logger.Logger.Info("Starting Filter server...")
 	s.setupGracefulShutdown()
 
-	err := s.heartbeatSender.Start()
+	err := s.heartbeatSender.StartSending()
 	if err != nil {
 		logger.Logger.Errorf("action: start_heartbeat_sender | result: failed | error: %s", err.Error())
 	}
