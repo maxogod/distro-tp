@@ -109,7 +109,8 @@ func (le *leader_election) Start(
 			le.leaderId = nodeID
 			logger.Logger.Infof("Node %d recognized as coordinator", nodeID)
 		case int32(enum.ELECTION):
-			// TODO: implement election logic
+			logger.Logger.Infof("Node %d received ELECTION from node %d", le.id, nodeID)
+			le.handleElectionMsg(nodeID)
 		case int32(enum.ACK):
 			// TODO: implement ack logic
 		case int32(enum.REQUEST_UPDATES):
@@ -198,4 +199,68 @@ func (le *leader_election) nodeQueueListener(readyCh chan bool) {
 		logger.Logger.Errorf("an error occurred while starting consumption: %d", int(e))
 	}
 
+}
+
+func (le *leader_election) handleElectionMsg(nodeId int) {
+	le.sendAckMessage(nodeId)
+
+	electionMsg := &protocol.SyncMessage{
+		NodeId: int32(le.id),
+		Action: int32(enum.ELECTION),
+	}
+
+	electionBytes, err := proto.Marshal(electionMsg)
+	if err != nil {
+		logger.Logger.Errorf("Failed to marshal ELECTION message: %v", err)
+		return
+	}
+
+	foundHigher := false
+	for id, connMiddleware := range le.connectedNodes {
+		if id > le.id {
+			foundHigher = true
+
+			if e := connMiddleware.Send(electionBytes); e != middleware.MessageMiddlewareSuccess {
+				logger.Logger.Errorf("Failed to send ELECTION to node %d: %d", id, int(e))
+			}
+		}
+	}
+
+	if !foundHigher {
+		coordMsg := &protocol.SyncMessage{
+			NodeId: int32(le.id),
+			Action: int32(enum.COORDINATOR),
+		}
+		coordBytes, errMarshal := proto.Marshal(coordMsg)
+		if errMarshal != nil {
+			logger.Logger.Errorf("Failed to marshal COORDINATOR message: %v", errMarshal)
+			return
+		}
+
+		if e := le.coordMiddleware.Send(coordBytes); e != middleware.MessageMiddlewareSuccess {
+			logger.Logger.Errorf("Failed to send COORDINATOR message")
+		}
+
+		le.leaderId = le.id
+		logger.Logger.Infof("Node %d became coordinator", le.id)
+	}
+}
+
+func (le *leader_election) sendAckMessage(nodeId int) {
+	senderMiddleware, _ := le.connectedNodes[nodeId]
+
+	ackMsg := &protocol.SyncMessage{
+		NodeId: int32(le.id),
+		Action: int32(enum.ACK),
+	}
+
+	ackBytes, err := proto.Marshal(ackMsg)
+	if err != nil {
+		logger.Logger.Errorf("Failed to marshal ACK message: %v", err)
+		return
+	}
+
+	if e := senderMiddleware.Send(ackBytes); e != middleware.MessageMiddlewareSuccess {
+		logger.Logger.Errorf("Failed to send ACK to node %d: %d", nodeId, int(e))
+	}
 }
