@@ -3,7 +3,7 @@ gateway:
 heartbeat:
   host: "egg_of_life"
   port: 7777
-  interval: 5
+  interval: 1
 log:
   level: "development"
 filter:
