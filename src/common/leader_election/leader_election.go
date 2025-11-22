@@ -9,7 +9,6 @@ import (
 	"github.com/maxogod/distro-tp/src/common/middleware"
 	"github.com/maxogod/distro-tp/src/common/models/enum"
 	"github.com/maxogod/distro-tp/src/common/models/protocol"
-	"github.com/maxogod/distro-tp/src/common/utils"
 	"google.golang.org/protobuf/proto"
 )
 
