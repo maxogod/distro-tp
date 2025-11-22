@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strconv"
 	"sync/atomic"
+	"time"
 
 	"github.com/maxogod/distro-tp/src/common/logger"
 	"github.com/maxogod/distro-tp/src/common/middleware"
@@ -26,6 +27,12 @@ type leader_election struct {
 	messagesCh chan *protocol.SyncMessage
 	shutdownCh chan bool
 	running    atomic.Bool
+
+	round        uint64
+	ackCh        chan uint64
+	coordCh      chan uint64
+	ackTimeout   time.Duration
+	coordTimeout time.Duration
 }
 
 func NewLeaderElection(
@@ -46,6 +53,12 @@ func NewLeaderElection(
 
 		messagesCh: make(chan *protocol.SyncMessage),
 		shutdownCh: make(chan bool),
+
+		ackCh:   make(chan uint64, 16),
+		coordCh: make(chan uint64, 16),
+
+		ackTimeout:   2 * time.Second,
+		coordTimeout: 5 * time.Second,
 	}
 
 	routineReadyCh := make(chan bool)
@@ -108,11 +121,18 @@ func (le *leader_election) Start(
 		case int32(enum.COORDINATOR):
 			le.leaderId = nodeID
 			logger.Logger.Infof("Node %d recognized as coordinator", nodeID)
+			select {
+			case le.coordCh <- atomic.LoadUint64(&le.round):
+			default:
+			}
 		case int32(enum.ELECTION):
 			logger.Logger.Infof("Node %d received ELECTION from node %d", le.id, nodeID)
 			le.handleElectionMsg(nodeID)
 		case int32(enum.ACK):
-			// TODO: implement ack logic
+			select {
+			case le.ackCh <- atomic.LoadUint64(&le.round):
+			default:
+			}
 		case int32(enum.REQUEST_UPDATES):
 			if le.IsLeader() {
 				// TODO: send updates to requesting node
@@ -216,33 +236,79 @@ func (le *leader_election) handleElectionMsg(nodeId int) {
 	}
 
 	foundHigher := false
-	for id, connMiddleware := range le.connectedNodes {
+	higherIDs := make([]int, 0)
+	for id := range le.connectedNodes {
 		if id > le.id {
 			foundHigher = true
-
-			if e := connMiddleware.Send(electionBytes); e != middleware.MessageMiddlewareSuccess {
-				logger.Logger.Errorf("Failed to send ELECTION to node %d: %d", id, int(e))
-			}
+			higherIDs = append(higherIDs, id)
 		}
 	}
 
 	if !foundHigher {
-		coordMsg := &protocol.SyncMessage{
-			NodeId: int32(le.id),
-			Action: int32(enum.COORDINATOR),
-		}
-		coordBytes, errMarshal := proto.Marshal(coordMsg)
-		if errMarshal != nil {
-			logger.Logger.Errorf("Failed to marshal COORDINATOR message: %v", errMarshal)
-			return
-		}
-
-		if e := le.coordMiddleware.Send(coordBytes); e != middleware.MessageMiddlewareSuccess {
-			logger.Logger.Errorf("Failed to send COORDINATOR message")
-		}
+		le.sendCoordinatorMessage()
 
 		le.leaderId = le.id
 		logger.Logger.Infof("Node %d became coordinator", le.id)
+		return
+	}
+
+	for _, id := range higherIDs {
+		if conn, ok := le.connectedNodes[id]; ok {
+			if e := conn.Send(electionBytes); e != middleware.MessageMiddlewareSuccess {
+				logger.Logger.Errorf("Failed to forward ELECTION to node %d: %d", id, int(e))
+			}
+		}
+	}
+
+	myRound := atomic.AddUint64(&le.round, 1)
+	go le.runElectionTimeout(myRound, nodeId)
+}
+
+func (le *leader_election) runElectionTimeout(roundID uint64, nodeId int) {
+	timer := time.NewTimer(le.ackTimeout)
+	defer timer.Stop()
+	gotAck := false
+
+	for {
+		select {
+		case r := <-le.ackCh:
+			if r != roundID {
+				// outdated ack for previous round; ignore
+				continue
+			}
+
+			gotAck = true
+
+			if !timer.Stop() {
+				select {
+				case <-timer.C:
+				default:
+				}
+			}
+
+			timer.Reset(le.coordTimeout)
+
+		case cr := <-le.coordCh:
+			if cr != roundID {
+				// outdated coordinator for previous round
+				continue
+			}
+			logger.Logger.Debugf("Node %d received COORDINATOR for round %d", le.id, roundID)
+			return
+
+		case <-timer.C:
+			if gotAck {
+				logger.Logger.Infof("Coordinator timeout expired on node %d; restarting election", le.id)
+				go le.handleElectionMsg(nodeId)
+				return
+			} else {
+				logger.Logger.Infof("ACK timeout expired on node %d; no higher nodes responded, becoming leader", le.id)
+				le.sendCoordinatorMessage()
+				le.leaderId = le.id
+				logger.Logger.Infof("Node %d became coordinator", le.id)
+				return
+			}
+		}
 	}
 }
 
@@ -262,5 +328,21 @@ func (le *leader_election) sendAckMessage(nodeId int) {
 
 	if e := senderMiddleware.Send(ackBytes); e != middleware.MessageMiddlewareSuccess {
 		logger.Logger.Errorf("Failed to send ACK to node %d: %d", nodeId, int(e))
+	}
+}
+
+func (le *leader_election) sendCoordinatorMessage() {
+	coordMsg := &protocol.SyncMessage{
+		NodeId: int32(le.id),
+		Action: int32(enum.COORDINATOR),
+	}
+	coordBytes, errMarshal := proto.Marshal(coordMsg)
+	if errMarshal != nil {
+		logger.Logger.Errorf("Failed to marshal COORDINATOR message: %v", errMarshal)
+		return
+	}
+
+	if e := le.coordMiddleware.Send(coordBytes); e != middleware.MessageMiddlewareSuccess {
+		logger.Logger.Errorf("Failed to send COORDINATOR message")
 	}
 }
