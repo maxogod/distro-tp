@@ -8,7 +8,12 @@ import (
 )
 
 func (le *leaderElection) awaitUpdates() {
+	le.updateCallbacks.ResetUpdates()
+
 	le.sendRequestUpdate()
+
+	savingCh := make(chan *protocol.DataEnvelope)
+	le.updateCallbacks.GetUpdates(savingCh)
 }
 
 func (le *leaderElection) sendRequestUpdate() {

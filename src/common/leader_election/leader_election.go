@@ -25,11 +25,12 @@ type leaderElection struct {
 	running          atomic.Bool
 	readyForElection atomic.Bool
 
-	id            int32
-	leaderId      atomic.Int32
-	middlewareUrl string
-	workerType    enum.WorkerType
-	maxNodes      int
+	id              int32
+	leaderId        atomic.Int32
+	middlewareUrl   string
+	workerType      enum.WorkerType
+	maxNodes        int
+	updateCallbacks *UpdateCallbacks
 
 	// Middlewares
 	coordMiddleware middleware.MessageMiddleware
@@ -56,12 +57,14 @@ func NewLeaderElection(
 	middlewareUrl string,
 	workerType enum.WorkerType,
 	maxNodes int,
+	updateCallbacks *UpdateCallbacks,
 ) LeaderElection {
 	le := &leaderElection{
-		id:            id,
-		middlewareUrl: middlewareUrl,
-		workerType:    workerType,
-		maxNodes:      maxNodes,
+		id:              id,
+		middlewareUrl:   middlewareUrl,
+		workerType:      workerType,
+		maxNodes:        maxNodes,
+		updateCallbacks: updateCallbacks,
 
 		coordMiddleware: middleware.GetLeaderElectionCoordExchange(middlewareUrl, workerType),
 		connMiddleware:  middleware.GetLeaderElectionDiscoveryExchange(middlewareUrl, workerType),
@@ -126,7 +129,7 @@ func (le *leaderElection) FinishClient(clientID string) error {
 	return nil
 }
 
-func (le *leaderElection) Start(updateCallbacks *UpdateCallbacks) error {
+func (le *leaderElection) Start() error {
 	le.running.Store(true)
 	le.readyForElection.Store(false)
 
