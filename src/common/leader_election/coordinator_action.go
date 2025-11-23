@@ -7,6 +7,12 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
+func (le *leaderElection) handleCoordinatorMsg(nodeId int32) {
+	le.leaderId.Store(nodeId)
+	le.beginHeartbeatHandler()
+	logger.Logger.Infof("Node %d recognized Node %d as leader", le.id, nodeId)
+}
+
 func (le *leaderElection) becomeLeader() {
 	le.leaderId.Store(le.id)
 	le.sendCoordinatorMessage()
@@ -24,9 +30,4 @@ func (le *leaderElection) sendCoordinatorMessage() {
 	}
 
 	le.coordMiddleware.Send(payload) // Broadcast to all nodes
-}
-
-func (le *leaderElection) handleCoordinatorMsg(nodeId int32) {
-	le.leaderId.Store(nodeId)
-	logger.Logger.Infof("Node %d recognized Node %d as leader", le.id, nodeId)
 }

@@ -146,7 +146,6 @@ func (le *leaderElection) Start(updateCallbacks *UpdateCallbacks) error {
 		case int32(enum.DISCOVER):
 			le.handleDiscoverMsg(nodeID, msg.GetLeaderId(), leaderSearchTimerCh)
 		case int32(enum.COORDINATOR):
-			le.beginHeartbeatHandler()
 			le.handleCoordinatorMsg(nodeID)
 			// select {
 			// case le.coordCh <- atomic.LoadUint64(&le.round):
