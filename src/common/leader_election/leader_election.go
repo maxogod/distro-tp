@@ -160,7 +160,6 @@ func (le *leaderElection) Start(updateCallbacks *UpdateCallbacks) error {
 		case int32(enum.COORDINATOR):
 			le.leaderId.Store(nodeID)
 			logger.Logger.Infof("Node %d recognized as coordinator", nodeID)
-			le.haltHeartbeatHandler() // just in case we were receiving heartbeats
 			le.beginHeartbeatHandler()
 			select {
 			case le.coordCh <- atomic.LoadUint64(&le.round):
@@ -274,15 +273,12 @@ func (le *leaderElection) nodeQueueListener(readyCh chan bool) {
 /* --- Heartbeat Handler --- */
 
 func (le *leaderElection) beginHeartbeatHandler() {
+	le.heartbeatHandler.Stop() // Stop any ongoing heartbeat process
 	if le.IsLeader() {
 		le.startSendingHeartbeats()
 	} else {
 		le.startRecievingHeartbeats()
 	}
-}
-
-func (le *leaderElection) haltHeartbeatHandler() {
-	le.heartbeatHandler.Stop()
 }
 
 func (le *leaderElection) startRecievingHeartbeats() {
@@ -296,7 +292,7 @@ func (le *leaderElection) startRecievingHeartbeats() {
 
 	initElectionFunc := func(timeoutAmount int) {
 		logger.Logger.Infof("Node %d: Leader Heartbeat Timeout Detected! Starting Election...", le.id)
-		le.haltHeartbeatHandler()
+		le.heartbeatHandler.Stop() // Stop receiving heartbeats
 		le.startElection()
 	}
 
