@@ -24,7 +24,8 @@ type heartbeatHandler struct {
 	cancel context.CancelFunc
 }
 
-// NewHeartBeatHandler creates a new instance of HeartBeatSender.
+// NewHeartBeatHandler creates a new instance of HeartBeatHandler.
+// The single receiver is in charge of monitoring the multiple sender nodes
 func NewHeartBeatHandler(host string, port int, interval int) HeartBeatHandler {
 	ctx, cancel := context.WithCancel(context.Background())
 	return &heartbeatHandler{
@@ -37,6 +38,8 @@ func NewHeartBeatHandler(host string, port int, interval int) HeartBeatHandler {
 	}
 }
 
+// NewReverseHeartBeatHandler creates a new instance of HeartBeatHandler.
+// The multiple receivers are in charge of monitoring the single sender node
 func NewReverseHeartBeatHandler(interval int) HeartBeatHandler {
 	ctx, cancel := context.WithCancel(context.Background())
 	return &heartbeatHandler{
