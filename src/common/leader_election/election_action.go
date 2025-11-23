@@ -13,7 +13,7 @@ import (
 
 /* --- ELECTION ACTION HANDLING FOR LEADER ELECTION --- */
 
-func (le *leaderElection) handleElectionMsg(nodeId int) {
+func (le *leaderElection) handleElectionMsg(nodeId int32) {
 	le.sendAckMessage(nodeId)
 
 	electionMsg := &protocol.SyncMessage{
@@ -28,7 +28,7 @@ func (le *leaderElection) handleElectionMsg(nodeId int) {
 	}
 
 	foundHigher := false
-	higherIDs := make([]int, 0)
+	higherIDs := make([]int32, 0)
 	for id := range le.connectedNodes {
 		if id > le.id {
 			foundHigher = true
@@ -39,7 +39,7 @@ func (le *leaderElection) handleElectionMsg(nodeId int) {
 	if !foundHigher {
 		le.sendCoordinatorMessage()
 
-		le.leaderId = le.id
+		le.leaderId.Store(le.id)
 		logger.Logger.Infof("Node %d became coordinator", le.id)
 		return
 	}
@@ -56,7 +56,7 @@ func (le *leaderElection) handleElectionMsg(nodeId int) {
 	go le.runElectionTimeout(myRound, nodeId)
 }
 
-func (le *leaderElection) runElectionTimeout(roundID uint64, nodeId int) {
+func (le *leaderElection) runElectionTimeout(roundID uint64, nodeId int32) {
 	timer := time.NewTimer(le.ackTimeout)
 	defer timer.Stop()
 	gotAck := false
@@ -96,7 +96,7 @@ func (le *leaderElection) runElectionTimeout(roundID uint64, nodeId int) {
 			} else {
 				logger.Logger.Infof("ACK timeout expired on node %d; no higher nodes responded, becoming leader", le.id)
 				le.sendCoordinatorMessage()
-				le.leaderId = le.id
+				le.leaderId.Store(le.id)
 				logger.Logger.Infof("Node %d became coordinator", le.id)
 				return
 			}
@@ -104,7 +104,7 @@ func (le *leaderElection) runElectionTimeout(roundID uint64, nodeId int) {
 	}
 }
 
-func (le *leaderElection) sendAckMessage(nodeId int) {
+func (le *leaderElection) sendAckMessage(nodeId int32) {
 	senderMiddleware, _ := le.connectedNodes[nodeId]
 
 	ackMsg := &protocol.SyncMessage{

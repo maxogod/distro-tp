@@ -14,15 +14,15 @@ import (
 )
 
 type leaderElection struct {
-	id              int
-	leaderId        int
+	id              int32
+	leaderId        atomic.Int32
 	url             string
 	workerType      enum.WorkerType
 	coordMiddleware middleware.MessageMiddleware
 	connMiddleware  middleware.MessageMiddleware
 	nodeMiddleware  middleware.MessageMiddleware
 	updateChan      chan *protocol.DataEnvelope
-	connectedNodes  map[int]middleware.MessageMiddleware
+	connectedNodes  map[int32]middleware.MessageMiddleware
 
 	messagesCh chan *protocol.SyncMessage
 	shutdownCh chan bool
@@ -36,7 +36,7 @@ type leaderElection struct {
 }
 
 func NewLeaderElection(
-	id int,
+	id int32,
 	middlewareUrl string,
 	workerType enum.WorkerType,
 ) LeaderElection {
@@ -46,10 +46,10 @@ func NewLeaderElection(
 		workerType:      workerType,
 		coordMiddleware: middleware.GetLeaderElectionCoordExchange(middlewareUrl, workerType),
 		connMiddleware:  middleware.GetLeaderElectionDiscoveryExchange(middlewareUrl, workerType),
-		nodeMiddleware:  middleware.GetLeaderElectionReceivingNodeExchange(middlewareUrl, workerType, strconv.Itoa(id)),
+		nodeMiddleware:  middleware.GetLeaderElectionReceivingNodeExchange(middlewareUrl, workerType, strconv.Itoa(int(id))),
 
 		updateChan:     make(chan *protocol.DataEnvelope),
-		connectedNodes: make(map[int]middleware.MessageMiddleware),
+		connectedNodes: make(map[int32]middleware.MessageMiddleware),
 
 		messagesCh: make(chan *protocol.SyncMessage),
 		shutdownCh: make(chan bool),
@@ -69,7 +69,7 @@ func NewLeaderElection(
 }
 
 func (le *leaderElection) IsLeader() bool {
-	return le.leaderId == le.id
+	return le.leaderId.Load() == le.id
 }
 
 func (le *leaderElection) FinishClient(clientID string) error {
@@ -99,20 +99,18 @@ func (le *leaderElection) FinishClient(clientID string) error {
 func (le *leaderElection) Start(updateCallbacks *UpdateCallbacks) error {
 	le.running.Store(true)
 
-	// send that im alive to the world
 	le.sendDiscoveryMessage()
 
-	// begin recv data loop / heartbeat monitoring / election handleing
 	for le.running.Load() {
 		msg := <-le.messagesCh
-		nodeID := int(msg.GetNodeId())
+		nodeID := msg.GetNodeId()
 		switch msg.GetAction() {
 		case int32(enum.DISCOVER):
 			if _, exists := le.connectedNodes[nodeID]; !exists {
-				le.connectedNodes[nodeID] = middleware.GetLeaderElectionSendingNodeExchange(le.url, le.workerType, strconv.Itoa(nodeID))
+				le.connectedNodes[nodeID] = middleware.GetLeaderElectionSendingNodeExchange(le.url, le.workerType, strconv.Itoa(int(nodeID)))
 			}
 		case int32(enum.COORDINATOR):
-			le.leaderId = nodeID
+			le.leaderId.Store(nodeID)
 			logger.Logger.Infof("Node %d recognized as coordinator", nodeID)
 			select {
 			case le.coordCh <- atomic.LoadUint64(&le.round):
