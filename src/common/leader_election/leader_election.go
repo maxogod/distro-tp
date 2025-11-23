@@ -137,11 +137,6 @@ func (le *leaderElection) Start(updateCallbacks *UpdateCallbacks) error {
 		le.startElection()
 	})
 
-	//---------------------
-	//TODO: implement update data logic here!!
-
-	// ---------------------
-
 	le.readyForElection.Store(true)
 
 	for le.running.Load() {
