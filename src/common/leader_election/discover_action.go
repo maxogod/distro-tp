@@ -9,11 +9,16 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
+// handleDiscoverMsg handles the discovery message whether its the broadcast message on a node connection (marked by leaderID = -1)
+// or a response message to that new node and check if the leader is known.
 func (le *leaderElection) handleDiscoverMsg(nodeID, leaderID int32, leaderSearchTimerCh chan bool) {
 	if leaderID > 0 && !le.readyForElection.Load() { // there is already a leader
 		le.leaderId.Store(leaderID)
 		leaderSearchTimerCh <- true // stop leader search timer
-		le.awaitUpdates()
+
+		le.awaitUpdates() // TODO: if timeout, redo the discovery phase
+
+		le.readyForElection.Store(true)
 		le.beginHeartbeatHandler()
 		logger.Logger.Infof("Node %d recognized node %d as coordinator", le.id, leaderID)
 	} else if leaderID == -1 { // discovery message
@@ -21,6 +26,8 @@ func (le *leaderElection) handleDiscoverMsg(nodeID, leaderID int32, leaderSearch
 	}
 }
 
+// sendDiscoveryMessage sends the connection message as a new node in the cluster.
+// discovery msg && leaderID = -1 -> new node.
 func (le *leaderElection) sendDiscoveryMessage() {
 	discoveryMsg := &protocol.SyncMessage{
 		NodeId:   int32(le.id),
@@ -40,6 +47,7 @@ func (le *leaderElection) sendDiscoveryMessage() {
 	}
 }
 
+// respondDiscoveryMessage handles the sending of the response message to the new node, along with the known leaderID (or 0).
 func (le *leaderElection) respondDiscoveryMessage(nodeId int32) {
 	responseMsg := &protocol.SyncMessage{
 		NodeId:   int32(le.id),

@@ -58,6 +58,8 @@ type leaderElection struct {
 	heartbeatHandler heartbeat.HeartBeatHandler
 }
 
+// NewLeaderElection instantiates a new `Bully algorithm` leader election object
+// and connects to necessary middlewares.
 func NewLeaderElection(
 	id int32,
 	middlewareUrl string,
@@ -242,6 +244,8 @@ func (le *leaderElection) initLeaderSearchTimer(onTimeoutFunc func()) chan bool 
 
 /* --- LISTENERS --- */
 
+// nodeQueueListener should run in a go routine and will get the messages from the middleware
+// and forward them into the messages channel.
 func (le *leaderElection) nodeQueueListener(readyCh chan bool) {
 	e := le.nodeMiddleware.StartConsuming(func(consumeChannel middleware.ConsumeChannel, d chan error) {
 		readyCh <- true

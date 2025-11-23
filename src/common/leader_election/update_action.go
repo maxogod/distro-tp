@@ -7,11 +7,14 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
+// awaitUpdates blocks waiting and saving updates until DONE message is received or server is closed.
+// It has a timeout after which it assumes no more updates are comming, likely the leader fell.
 func (le *leaderElection) awaitUpdates() {
 	le.updateCallbacks.ResetUpdates()
 
 	le.sendRequestUpdate()
 
+	// TODO: timeout
 	savingCh := make(chan *protocol.DataEnvelope)
 	go le.updateCallbacks.GetUpdates(savingCh)
 	for envelope := range le.updatesCh {
@@ -23,6 +26,7 @@ func (le *leaderElection) awaitUpdates() {
 	close(savingCh)
 }
 
+// sendRequestUpdate constructs and sends the leader a request for updates.
 func (le *leaderElection) sendRequestUpdate() {
 	msg := &protocol.SyncMessage{
 		NodeId: le.id,
@@ -40,6 +44,7 @@ func (le *leaderElection) sendRequestUpdate() {
 	m.Send(payload)
 }
 
+// handleUpdateMsg handles the receiving of update payload messages.
 func (le *leaderElection) handleUpdateMsg(payload []byte) {
 	dataEnvelope := &protocol.DataEnvelope{}
 	if err := proto.Unmarshal(payload, dataEnvelope); err != nil {
