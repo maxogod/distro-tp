@@ -185,16 +185,21 @@ func TestStartRecieverWithNoSender(t *testing.T) {
 	receiverHandler := heartbeat.NewListeningHeartBeatHandler("localhost", receiverPort, 1)
 	defer receiverHandler.Close()
 
-	recieveChannel := make(chan int)
+	// this is to ensure that the StartReceiving can be called multiple times
+	for i := range 3 {
+		t.Logf("Attempt [%d] to recieve data ", i+1)
 
-	// Start receiver with a 1 second timeout
-	err := receiverHandler.StartReceiving(func(amountOfHeartbeats int) {
-		recieveChannel <- amountOfHeartbeats
-	}, 1)
-	assert.NoError(t, err)
+		recieveChannel := make(chan int)
 
-	// Wait for timeout to occur
-	recievedCount := <-recieveChannel
-	assert.Equal(t, 0, recievedCount, "Should receive 0 heartbeats before timeout")
-	t.Log("Amount of heartbeats received before timeout: ", recievedCount)
+		// Start receiver with a 1 second timeout
+		err := receiverHandler.StartReceiving(func(amountOfHeartbeats int) {
+			recieveChannel <- amountOfHeartbeats
+		}, 1)
+		assert.NoError(t, err)
+
+		// Wait for timeout to occur
+		recievedCount := <-recieveChannel
+		assert.Equal(t, 0, recievedCount, "Should receive 0 heartbeats before timeout")
+		t.Log("Amount of heartbeats received before timeout: ", recievedCount)
+	}
 }

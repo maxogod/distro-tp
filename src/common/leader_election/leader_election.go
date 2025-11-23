@@ -19,7 +19,7 @@ const TIMEOUT_INTERVAL = 5
 const HEARTBEAT_INTERVAL = 1
 const ELECTION_TIMEOUT = 10
 
-const DEAFULT_PORT = 9090
+const DEFAULT_PORT_PREFIX = 909
 
 type leaderElection struct {
 	running          atomic.Bool
@@ -78,9 +78,11 @@ func NewLeaderElection(
 		ackTimeout:          2 * time.Second,
 		coordTimeout:        5 * time.Second,
 		leaderFinderTimeout: 10 * time.Second,
-
-		heartbeatHandler: heartbeat.NewReverseHeartBeatHandler(TIMEOUT_INTERVAL),
 	}
+
+	host := fmt.Sprintf("%s%d", workerType, id)
+	port := DEFAULT_PORT_PREFIX + int(id)
+	le.heartbeatHandler = heartbeat.NewListeningHeartBeatHandler(host, port, HEARTBEAT_INTERVAL)
 
 	for i := range int32(maxNodes) {
 		if i == id {
@@ -270,13 +272,6 @@ func (le *leaderElection) beginHeartbeatHandler() {
 }
 
 func (le *leaderElection) startRecievingHeartbeats() {
-	// non-leader nodes receive heartbeats from the leader
-	if le.IsLeader() {
-		return
-	}
-	host := fmt.Sprintf("%s%d", le.workerType, le.leaderId.Load())
-	port := DEAFULT_PORT + int(le.leaderId.Load())
-	le.heartbeatHandler.ChangeAddress(host, port)
 
 	initElectionFunc := func(timeoutAmount int) {
 		logger.Logger.Infof("Node %d: Leader Heartbeat Timeout Detected! Starting Election...", le.id)
@@ -292,18 +287,14 @@ func (le *leaderElection) startRecievingHeartbeats() {
 }
 
 func (le *leaderElection) startSendingHeartbeats() {
-	// Only the leader sends heartbeats
-	if !le.IsLeader() {
-		return
-	}
 
 	addrs := []string{}
 	for i := range le.maxNodes {
-		addr := fmt.Sprintf("%s%d:%d", string(le.workerType), i, DEAFULT_PORT+i)
+		addr := fmt.Sprintf("%s%d:%d", string(le.workerType), i, DEFAULT_PORT_PREFIX+i)
 		addrs = append(addrs, addr)
 	}
 
-	err := le.heartbeatHandler.StartSendingToAll(addrs, ELECTION_TIMEOUT)
+	err := le.heartbeatHandler.StartSendingToAll(addrs)
 	if err != nil {
 		logger.Logger.Errorf("Error starting to send heartbeats: %v", err)
 	}
