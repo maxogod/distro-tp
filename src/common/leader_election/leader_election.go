@@ -42,9 +42,10 @@ type leaderElection struct {
 	nodeMiddleware  middleware.MessageMiddleware
 	connectedNodes  map[int32]middleware.MessageMiddleware
 
-	messagesCh         chan *protocol.SyncMessage
-	updatesCh          chan *protocol.DataEnvelope
-	listenerShutdownCh chan bool
+	messagesCh        chan *protocol.SyncMessage
+	updatesCh         chan *protocol.DataEnvelope
+	isSendingUpdates  atomic.Bool
+	routineShutdownCh chan bool
 
 	round               uint64
 	ackCh               chan uint64
@@ -76,9 +77,9 @@ func NewLeaderElection(
 		nodeMiddleware:  middleware.GetLeaderElectionReceivingNodeExchange(middlewareUrl, workerType, strconv.Itoa(int(id))),
 		connectedNodes:  make(map[int32]middleware.MessageMiddleware),
 
-		messagesCh:         make(chan *protocol.SyncMessage, MAX_CHAN_BUFFER),
-		updatesCh:          make(chan *protocol.DataEnvelope, MAX_CHAN_BUFFER),
-		listenerShutdownCh: make(chan bool),
+		messagesCh:        make(chan *protocol.SyncMessage, MAX_CHAN_BUFFER),
+		updatesCh:         make(chan *protocol.DataEnvelope, MAX_CHAN_BUFFER),
+		routineShutdownCh: make(chan bool),
 
 		ackCh:   make(chan uint64, 16),
 		coordCh: make(chan uint64, 16),
@@ -188,8 +189,12 @@ func (le *leaderElection) Start() error {
 
 func (le *leaderElection) Close() error {
 	le.running.Store(false)
-	le.listenerShutdownCh <- true // Close node listener
-	le.listenerShutdownCh <- true // Close leader search timer
+	close(le.updatesCh)
+	le.routineShutdownCh <- true // Close node listener
+	le.routineShutdownCh <- true // Close leader search timer
+	if le.isSendingUpdates.Load() {
+		le.routineShutdownCh <- true // Close sending routine
+	}
 	le.heartbeatHandler.Close()
 
 	if err := le.coordMiddleware.Close(); err != middleware.MessageMiddlewareSuccess {
@@ -224,7 +229,7 @@ func (le *leaderElection) initLeaderSearchTimer(onTimeoutFunc func()) chan bool 
 		select {
 		case <-leaderFoundCh:
 			return
-		case <-le.listenerShutdownCh:
+		case <-le.routineShutdownCh:
 			return
 		case <-timer.C:
 			logger.Logger.Debug("Leader Not Found - Timeout!")
@@ -246,7 +251,7 @@ func (le *leaderElection) nodeQueueListener(readyCh chan bool) {
 			select {
 			case m := <-consumeChannel:
 				msg = m
-			case <-le.listenerShutdownCh:
+			case <-le.routineShutdownCh:
 				running = false
 				continue
 			}

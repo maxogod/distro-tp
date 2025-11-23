@@ -13,10 +13,14 @@ func (le *leaderElection) awaitUpdates() {
 	le.sendRequestUpdate()
 
 	savingCh := make(chan *protocol.DataEnvelope)
-	le.updateCallbacks.GetUpdates(savingCh)
+	go le.updateCallbacks.GetUpdates(savingCh)
 	for envelope := range le.updatesCh {
+		if envelope.GetIsDone() {
+			break
+		}
 		savingCh <- envelope
 	}
+	close(savingCh)
 }
 
 func (le *leaderElection) sendRequestUpdate() {
@@ -42,12 +46,7 @@ func (le *leaderElection) handleUpdateMsg(payload []byte) {
 		logger.Logger.Warn("Received a bad data envelope in an update message")
 		return
 	}
-
-	if dataEnvelope.GetIsDone() {
-		close(le.updatesCh)
-	} else {
-		le.updatesCh <- dataEnvelope
-	}
+	le.updatesCh <- dataEnvelope // updateCh closed at le.Close()
 }
 
 // startSendingUpdates should be run as a go routine and it will send the envelopes that gets
@@ -60,12 +59,8 @@ func (le *leaderElection) startSendingUpdates(nodeID int32) {
 	}
 
 	sendingCh := make(chan *protocol.DataEnvelope)
-	le.updateCallbacks.SendUpdates(sendingCh)
-	for envelope := range sendingCh {
-		if !le.running.Load() {
-			return
-		}
-
+	go le.updateCallbacks.SendUpdates(sendingCh, le.routineShutdownCh)
+	for envelope := range sendingCh { // Finishes when sending stops or routine shutdown
 		payload, err := proto.Marshal(envelope)
 		if err != nil {
 			logger.Logger.Warn("Couldnt marshal envelope when sending updates")

@@ -5,8 +5,8 @@ import "github.com/maxogod/distro-tp/src/common/models/protocol"
 // UpdateCallbacks is a wrapper for nullable callbacks
 type UpdateCallbacks struct {
 	ResetUpdates func()
-	GetUpdates   func(chan *protocol.DataEnvelope)
-	SendUpdates  func(chan *protocol.DataEnvelope)
+	GetUpdates   func(receivingCh chan *protocol.DataEnvelope)
+	SendUpdates  func(sendingCh chan *protocol.DataEnvelope, done chan bool)
 }
 
 // LeaderElection interface defines the methods required for implementing
