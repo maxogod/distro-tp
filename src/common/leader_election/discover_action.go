@@ -13,7 +13,7 @@ func (le *leaderElection) handleDiscoverMsg(nodeID, leaderID int32, leaderSearch
 	if leaderID > 0 && !le.readyForElection.Load() { // there is already a leader
 		le.leaderId.Store(leaderID)
 		leaderSearchTimerCh <- true // stop leader search timer
-		// TODO: request updates from leader
+		le.awaitUpdates()
 		le.beginHeartbeatHandler()
 		logger.Logger.Infof("Node %d recognized node %d as coordinator", le.id, leaderID)
 	} else if leaderID == -1 { // discovery message

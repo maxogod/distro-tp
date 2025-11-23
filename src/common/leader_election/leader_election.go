@@ -161,9 +161,11 @@ func (le *leaderElection) Start(updateCallbacks *UpdateCallbacks) error {
 			case le.ackCh <- atomic.LoadUint64(&le.round):
 			default:
 			}
-		case int32(enum.REQUEST_UPDATES):
+		case int32(enum.UPDATE):
 			if le.IsLeader() {
 				// TODO: send updates to requesting node
+			} else {
+				// TODO: save updates
 			}
 		default:
 			logger.Logger.Warnf("Unknown leader election action received: %d", msg.GetAction())
