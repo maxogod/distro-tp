@@ -19,6 +19,9 @@ type HeartBeatHandler interface {
 	// This also halts any ongoing sending / receiving process.
 	ChangeAddress(host string, port int)
 
-	// Close stops the heartbeat sending process and cleans up resources.
+	// Close finishes the heartbeat sending process and cleans up resources.
 	Close()
+
+	// Stop halts the heartbeat sending or receiving process, allowing for a potential restart.
+	Stop()
 }

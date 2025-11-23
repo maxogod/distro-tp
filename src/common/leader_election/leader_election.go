@@ -6,12 +6,20 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/maxogod/distro-tp/src/common/heartbeat"
 	"github.com/maxogod/distro-tp/src/common/logger"
 	"github.com/maxogod/distro-tp/src/common/middleware"
 	"github.com/maxogod/distro-tp/src/common/models/enum"
 	"github.com/maxogod/distro-tp/src/common/models/protocol"
 	"google.golang.org/protobuf/proto"
 )
+
+// TODO: THIS MUST BE BACKED UP WITH FACTS!!!
+const TIMEOUT_INTERVAL = 5
+const HEARTBEAT_INTERVAL = 1
+const ELECTION_TIMEOUT = 10
+
+const DEAFULT_PORT = 9090
 
 type leaderElection struct {
 	running          atomic.Bool
@@ -38,6 +46,9 @@ type leaderElection struct {
 	ackTimeout          time.Duration
 	coordTimeout        time.Duration
 	leaderFinderTimeout time.Duration
+
+	// Heartbeat handler
+	heartbeatHandler heartbeat.HeartBeatHandler
 }
 
 func NewLeaderElection(
@@ -67,6 +78,8 @@ func NewLeaderElection(
 		ackTimeout:          2 * time.Second,
 		coordTimeout:        5 * time.Second,
 		leaderFinderTimeout: 10 * time.Second,
+
+		heartbeatHandler: heartbeat.NewReverseHeartBeatHandler(TIMEOUT_INTERVAL),
 	}
 
 	for i := range int32(maxNodes) {
@@ -124,6 +137,13 @@ func (le *leaderElection) Start(updateCallbacks *UpdateCallbacks) error {
 		le.startElection()
 	})
 
+	//---------------------
+	//TODO: implement update data logic here!!
+
+	// ---------------------
+
+	le.readyForElection.Store(true)
+
 	for le.running.Load() {
 		msg := <-le.messagesCh
 		nodeID := msg.GetNodeId()
@@ -133,12 +153,15 @@ func (le *leaderElection) Start(updateCallbacks *UpdateCallbacks) error {
 				le.leaderId.Store(msg.GetLeaderId())
 				if !le.readyForElection.Load() {
 					leaderSearchTimerCh <- true // stop leader search timer
+					le.beginHeartbeatHandler()
 				}
 				logger.Logger.Infof("Node %d recognized node %d as coordinator", le.id, msg.GetLeaderId())
 			}
 		case int32(enum.COORDINATOR):
 			le.leaderId.Store(nodeID)
 			logger.Logger.Infof("Node %d recognized as coordinator", nodeID)
+			le.haltHeartbeatHandler() // just in case we were receiving heartbeats
+			le.beginHeartbeatHandler()
 			select {
 			case le.coordCh <- atomic.LoadUint64(&le.round):
 			default:
@@ -169,6 +192,7 @@ func (le *leaderElection) Close() error {
 	le.running.Store(false)
 	le.listenerShutdownCh <- true // Close node listener
 	le.listenerShutdownCh <- true // Close leader search timer
+	le.heartbeatHandler.Close()
 
 	if err := le.coordMiddleware.Close(); err != middleware.MessageMiddlewareSuccess {
 		return fmt.Errorf("error closing coord middleware: %d", int(err))
@@ -245,4 +269,58 @@ func (le *leaderElection) nodeQueueListener(readyCh chan bool) {
 		logger.Logger.Errorf("an error occurred while starting consumption: %d", int(e))
 	}
 
+}
+
+/* --- Heartbeat Handler --- */
+
+func (le *leaderElection) beginHeartbeatHandler() {
+	if le.IsLeader() {
+		le.startSendingHeartbeats()
+	} else {
+		le.startRecievingHeartbeats()
+	}
+}
+
+func (le *leaderElection) haltHeartbeatHandler() {
+	le.heartbeatHandler.Stop()
+}
+
+func (le *leaderElection) startRecievingHeartbeats() {
+	// non-leader nodes receive heartbeats from the leader
+	if le.IsLeader() {
+		return
+	}
+	host := fmt.Sprintf("%s%d", le.workerType, le.leaderId.Load())
+	port := DEAFULT_PORT + int(le.leaderId.Load())
+	le.heartbeatHandler.ChangeAddress(host, port)
+
+	initElectionFunc := func(timeoutAmount int) {
+		logger.Logger.Infof("Node %d: Leader Heartbeat Timeout Detected! Starting Election...", le.id)
+		le.haltHeartbeatHandler()
+		le.startElection()
+	}
+
+	err := le.heartbeatHandler.StartReceiving(initElectionFunc, TIMEOUT_INTERVAL)
+	if err != nil {
+		logger.Logger.Errorf("Error starting to receive heartbeats: %v", err)
+	}
+
+}
+
+func (le *leaderElection) startSendingHeartbeats() {
+	// Only the leader sends heartbeats
+	if !le.IsLeader() {
+		return
+	}
+
+	addrs := []string{}
+	for i := range le.maxNodes {
+		addr := fmt.Sprintf("%s%d:%d", string(le.workerType), i, DEAFULT_PORT+i)
+		addrs = append(addrs, addr)
+	}
+
+	err := le.heartbeatHandler.StartSendingToAll(addrs, ELECTION_TIMEOUT)
+	if err != nil {
+		logger.Logger.Errorf("Error starting to send heartbeats: %v", err)
+	}
 }

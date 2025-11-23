@@ -96,6 +96,15 @@ func (h *heartbeatHandler) ChangeAddress(host string, port int) {
 func (h *heartbeatHandler) Close() {
 	if h.cancel != nil {
 		h.cancel()
+		h.cancel = nil
+	}
+}
+
+func (h *heartbeatHandler) Stop() {
+	if h.cancel != nil {
+		h.cancel()
+		// Creates a new context for potential restart
+		h.ctx, h.cancel = context.WithCancel(context.Background())
 	}
 }
 
