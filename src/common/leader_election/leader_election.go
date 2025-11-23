@@ -165,6 +165,7 @@ func (le *leaderElection) Start(updateCallbacks *UpdateCallbacks) error {
 func (le *leaderElection) Close() error {
 	le.running.Store(false)
 	le.listenerShutdownCh <- true
+	le.listenerShutdownCh <- true
 
 	if err := le.coordMiddleware.Close(); err != middleware.MessageMiddlewareSuccess {
 		return fmt.Errorf("error closing coord middleware: %d", int(err))
