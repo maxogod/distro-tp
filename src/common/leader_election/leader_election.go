@@ -30,11 +30,13 @@ type leaderElection struct {
 	messagesCh         chan *protocol.SyncMessage
 	listenerShutdownCh chan bool
 
-	round        uint64
-	ackCh        chan uint64
-	coordCh      chan uint64
-	ackTimeout   time.Duration
-	coordTimeout time.Duration
+	readyForElection    atomic.Bool
+	round               uint64
+	ackCh               chan uint64
+	coordCh             chan uint64
+	ackTimeout          time.Duration
+	coordTimeout        time.Duration
+	leaderFinderTimeout time.Duration
 }
 
 func NewLeaderElection(
@@ -58,8 +60,10 @@ func NewLeaderElection(
 		ackCh:   make(chan uint64, 16),
 		coordCh: make(chan uint64, 16),
 
-		ackTimeout:   2 * time.Second,
-		coordTimeout: 5 * time.Second,
+		//TODO: This has to be backed up with facts
+		ackTimeout:          2 * time.Second,
+		coordTimeout:        5 * time.Second,
+		leaderFinderTimeout: 10 * time.Second,
 	}
 
 	routineReadyCh := make(chan bool)
@@ -79,7 +83,7 @@ func (le *leaderElection) FinishClient(clientID string) error {
 	}
 	// Notify other nodes about client finish
 	for _, connMiddleware := range le.connectedNodes {
-		msg := protocol.DataEnvelope{
+		msg := protocol.DataEnvelope{ // TODO: ADD FINISH CLIENT ACTION
 			IsDone:   true,
 			ClientId: clientID,
 		}
@@ -99,8 +103,18 @@ func (le *leaderElection) FinishClient(clientID string) error {
 
 func (le *leaderElection) Start(updateCallbacks *UpdateCallbacks) error {
 	le.running.Store(true)
+	le.readyForElection.Store(false)
 
 	le.sendDiscoveryMessage()
+
+	leaderTimerCh := le.initLeaderTimer(func() {
+		le.readyForElection.Store(true)
+		electionMsg := &protocol.SyncMessage{
+			NodeId: int32(le.id),
+			Action: int32(enum.ELECTION),
+		}
+		le.messagesCh <- electionMsg
+	})
 
 	for le.running.Load() {
 		msg := <-le.messagesCh
@@ -109,6 +123,12 @@ func (le *leaderElection) Start(updateCallbacks *UpdateCallbacks) error {
 		case int32(enum.DISCOVER):
 			if _, exists := le.connectedNodes[nodeID]; !exists {
 				le.connectedNodes[nodeID] = middleware.GetLeaderElectionSendingNodeExchange(le.middlewareUrl, le.workerType, strconv.Itoa(int(nodeID)))
+			}
+			// When a new node connects, and finds out who is the leader,
+			// it updates its leaderId and stops the leader timer
+			if msg.GetIsLeader() {
+				le.leaderId.Store(nodeID)
+				leaderTimerCh <- true // Stop the leader timer
 			}
 		case int32(enum.COORDINATOR):
 			le.leaderId.Store(nodeID)
@@ -119,7 +139,9 @@ func (le *leaderElection) Start(updateCallbacks *UpdateCallbacks) error {
 			}
 		case int32(enum.ELECTION):
 			logger.Logger.Infof("Node %d received ELECTION from node %d", le.id, nodeID)
-			le.handleElectionMsg(nodeID)
+			if le.readyForElection.Load() { // The node is ready for election after loading all of the data
+				le.handleElectionMsg(nodeID)
+			}
 		case int32(enum.ACK):
 			select {
 			case le.ackCh <- atomic.LoadUint64(&le.round):
@@ -158,6 +180,33 @@ func (le *leaderElection) Close() error {
 	}
 
 	return nil
+}
+
+/* --- PRIVATE METHODS --- */
+
+func (le *leaderElection) initLeaderTimer(onTimeoutFunc func()) chan any {
+	timerCh := make(chan any)
+
+	go func() {
+		defer close(timerCh)
+		timer := time.NewTimer(le.leaderFinderTimeout)
+		defer timer.Stop()
+
+		select {
+		case <-timerCh:
+			logger.Logger.Debug("Leader Found!")
+			return
+		case <-timer.C:
+			// Timeout occurred - run the timeout function
+			logger.Logger.Debug("Leader Not Found - Timeout!")
+			onTimeoutFunc()
+		case <-le.listenerShutdownCh:
+			logger.Logger.Warn("Timer cancelled due to shutdown")
+			return
+		}
+	}()
+
+	return timerCh
 }
 
 /* --- LISTENERS --- */
