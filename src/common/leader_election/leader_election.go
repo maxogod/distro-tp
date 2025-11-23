@@ -146,8 +146,6 @@ func (le *leaderElection) Start(updateCallbacks *UpdateCallbacks) error {
 		case int32(enum.DISCOVER):
 			le.handleDiscoverMsg(nodeID, msg.GetLeaderId(), leaderSearchTimerCh)
 		case int32(enum.COORDINATOR):
-			le.leaderId.Store(nodeID)
-			logger.Logger.Infof("Node %d recognized as coordinator", nodeID)
 			le.beginHeartbeatHandler()
 			le.handleCoordinatorMsg(nodeID)
 			// select {
