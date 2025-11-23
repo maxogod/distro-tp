@@ -88,7 +88,7 @@ func (h *heartbeatHandler) StartReceiving(onTimeoutFunc func(amountOfHeartbeats 
 }
 
 func (h *heartbeatHandler) ChangeAddress(host string, port int) {
-	h.Close()
+	h.Stop()
 	h.host = host
 	h.port = port
 }
