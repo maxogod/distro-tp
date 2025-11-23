@@ -73,7 +73,7 @@ func NewLeaderElection(
 		if i == id {
 			continue
 		}
-		le.connectedNodes[i] = middleware.GetLeaderElectionSendingNodeExchange(le.middlewareUrl, le.workerType, strconv.Itoa(int(i)))
+		le.connectedNodes[i] = middleware.GetLeaderElectionSendingNodeExchange(middlewareUrl, workerType, strconv.Itoa(int(i)))
 	}
 
 	routineReadyCh := make(chan bool)
