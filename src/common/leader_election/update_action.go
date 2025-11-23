@@ -14,6 +14,9 @@ func (le *leaderElection) awaitUpdates() {
 
 	savingCh := make(chan *protocol.DataEnvelope)
 	le.updateCallbacks.GetUpdates(savingCh)
+	for envelope := range le.updatesCh {
+		savingCh <- envelope
+	}
 }
 
 func (le *leaderElection) sendRequestUpdate() {
@@ -31,4 +34,43 @@ func (le *leaderElection) sendRequestUpdate() {
 		logger.Logger.Errorf("Node %d is not connected to leader", le.id)
 	}
 	m.Send(payload)
+}
+
+func (le *leaderElection) handleUpdateMsg(payload []byte) {
+	dataEnvelope := &protocol.DataEnvelope{}
+	if err := proto.Unmarshal(payload, dataEnvelope); err != nil {
+		logger.Logger.Warn("Received a bad data envelope in an update message")
+		return
+	}
+
+	if dataEnvelope.GetIsDone() {
+		close(le.updatesCh)
+	} else {
+		le.updatesCh <- dataEnvelope
+	}
+}
+
+// startSendingUpdates should be run as a go routine and it will send the envelopes that gets
+// from the send updates callback for a given nodeID.
+func (le *leaderElection) startSendingUpdates(nodeID int32) {
+	middleware, exists := le.connectedNodes[nodeID]
+	if !exists {
+		logger.Logger.Errorf("NodeID %d is not in connected map", nodeID)
+		return
+	}
+
+	sendingCh := make(chan *protocol.DataEnvelope)
+	le.updateCallbacks.SendUpdates(sendingCh)
+	for envelope := range sendingCh {
+		if !le.running.Load() {
+			return
+		}
+
+		payload, err := proto.Marshal(envelope)
+		if err != nil {
+			logger.Logger.Warn("Couldnt marshal envelope when sending updates")
+			continue
+		}
+		middleware.Send(payload)
+	}
 }

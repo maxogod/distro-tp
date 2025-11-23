@@ -15,11 +15,15 @@ import (
 )
 
 // TODO: THIS MUST BE BACKED UP WITH FACTS!!!
-const TIMEOUT_INTERVAL = 5
-const HEARTBEAT_INTERVAL = 1
-const ELECTION_TIMEOUT = 10
+const (
+	TIMEOUT_INTERVAL   = 5
+	HEARTBEAT_INTERVAL = 1
+	ELECTION_TIMEOUT   = 10
 
-const DEFAULT_PORT_PREFIX = 909
+	DEFAULT_PORT_PREFIX = 909
+
+	MAX_CHAN_BUFFER = 2000
+)
 
 type leaderElection struct {
 	running          atomic.Bool
@@ -39,6 +43,7 @@ type leaderElection struct {
 	connectedNodes  map[int32]middleware.MessageMiddleware
 
 	messagesCh         chan *protocol.SyncMessage
+	updatesCh          chan *protocol.DataEnvelope
 	listenerShutdownCh chan bool
 
 	round               uint64
@@ -71,7 +76,8 @@ func NewLeaderElection(
 		nodeMiddleware:  middleware.GetLeaderElectionReceivingNodeExchange(middlewareUrl, workerType, strconv.Itoa(int(id))),
 		connectedNodes:  make(map[int32]middleware.MessageMiddleware),
 
-		messagesCh:         make(chan *protocol.SyncMessage),
+		messagesCh:         make(chan *protocol.SyncMessage, MAX_CHAN_BUFFER),
+		updatesCh:          make(chan *protocol.DataEnvelope, MAX_CHAN_BUFFER),
 		listenerShutdownCh: make(chan bool),
 
 		ackCh:   make(chan uint64, 16),
@@ -168,9 +174,9 @@ func (le *leaderElection) Start() error {
 			}
 		case int32(enum.UPDATE):
 			if le.IsLeader() {
-				// TODO: send updates to requesting node
+				go le.startSendingUpdates(nodeID)
 			} else {
-				// TODO: save updates
+				le.handleUpdateMsg(msg.GetEnvelope())
 			}
 		default:
 			logger.Logger.Warnf("Unknown leader election action received: %d", msg.GetAction())
