@@ -141,18 +141,4 @@ func (le *leaderElection) sendAckMessage(nodeId int32) {
 	}
 }
 
-func (le *leaderElection) sendCoordinatorMessage() {
-	coordMsg := &protocol.SyncMessage{
-		NodeId: int32(le.id),
-		Action: int32(enum.COORDINATOR),
-	}
-	coordBytes, errMarshal := proto.Marshal(coordMsg)
-	if errMarshal != nil {
-		logger.Logger.Errorf("Failed to marshal COORDINATOR message: %v", errMarshal)
-		return
-	}
 
-	if e := le.coordMiddleware.Send(coordBytes); e != middleware.MessageMiddlewareSuccess {
-		logger.Logger.Errorf("Failed to send COORDINATOR message")
-	}
-}
