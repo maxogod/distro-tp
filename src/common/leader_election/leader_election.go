@@ -112,9 +112,11 @@ func (le *leaderElection) Start(updateCallbacks *UpdateCallbacks) error {
 			if _, exists := le.connectedNodes[nodeID]; !exists {
 				le.connectedNodes[nodeID] = middleware.GetLeaderElectionSendingNodeExchange(le.middlewareUrl, le.workerType, strconv.Itoa(int(nodeID)))
 			}
-			if msg.GetLeaderId() > 0 {
+			if msg.GetLeaderId() > 0 { // there is already a leader
 				le.leaderId.Store(msg.GetLeaderId())
-				// TODO: stop search leader timer
+				if !le.isEligible {
+					// TODO: stop search leader timer
+				}
 				logger.Logger.Infof("Node %d recognized node %d as coordinator", le.id, msg.GetLeaderId())
 			}
 		case int32(enum.COORDINATOR):
