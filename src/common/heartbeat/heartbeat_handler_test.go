@@ -1,7 +1,8 @@
 package heartbeat_test
 
 import (
-	"os"
+	"fmt"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -15,16 +16,8 @@ func init() {
 	logger.InitLogger(logger.LoggerEnvDevelopment)
 }
 
-func TestMain(m *testing.M) {
-	logger.InitLogger(logger.LoggerEnvDevelopment)
-	exitCode := m.Run()
-	os.Exit(exitCode)
-}
-
-// ----- Initialization Tests -----
-
 func TestNewHeartBeatHandler(t *testing.T) {
-	handler := heartbeat.NewHeartBeatHandler("localhost", 8080, 1)
+	handler := heartbeat.NewListeningHeartBeatHandler("localhost", 8080, 1)
 	assert.NotNil(t, handler)
 
 	// Clean up
@@ -32,7 +25,7 @@ func TestNewHeartBeatHandler(t *testing.T) {
 }
 
 func TestStartSending_InvalidAddress(t *testing.T) {
-	handler := heartbeat.NewHeartBeatHandler("invalid-host", 8080, 1)
+	handler := heartbeat.NewListeningHeartBeatHandler("invalid-host", 8080, 1)
 	defer handler.Close()
 
 	err := handler.StartSending()
@@ -44,7 +37,7 @@ func TestSendAndReceiveHeartbeats(t *testing.T) {
 	receiverPort := 9090
 
 	// Create receiver that will LISTEN on port 9090
-	receiverHandler := heartbeat.NewHeartBeatHandler("localhost", receiverPort, 1)
+	receiverHandler := heartbeat.NewListeningHeartBeatHandler("localhost", receiverPort, 1)
 
 	// Create sender that will SEND to port 9090
 	senderHandler := heartbeat.NewHeartBeatHandler("localhost", receiverPort, 1)
@@ -52,23 +45,18 @@ func TestSendAndReceiveHeartbeats(t *testing.T) {
 
 	recieveChannel := make(chan int)
 
-	// Start receiver FIRST (it needs to bind to the port)
+	// Start receiver with a 1 second timeout
 	err := receiverHandler.StartReceiving(func(amountOfHeartbeats int) {
 		recieveChannel <- amountOfHeartbeats
-	}, 5)
+	}, 1)
 	assert.NoError(t, err)
 
-	// Give receiver time to start listening
-	time.Sleep(100 * time.Millisecond)
-
-	// Start sender AFTER receiver is listening
+	// Start Sender
 	err = senderHandler.StartSending()
 	assert.NoError(t, err)
 
-	// Allow enough time for at least 3 heartbeats (1 second interval + buffer)
-	time.Sleep(4 * time.Second)
-
-	// Simulate a timeout by closing the sender
+	// Simulate a timeout by closing the Sender
+	time.Sleep(100 * time.Millisecond)
 	senderHandler.Close()
 
 	// Check how many heartbeats were received before timeout
@@ -80,58 +68,133 @@ func TestSendAndReceiveHeartbeats(t *testing.T) {
 func TestSendMultipleHeartBeatsAndReceiveHeartbeats(t *testing.T) {
 	receiverPort := 9090
 	// Create receiver that will LISTEN on port 9090
-	receiverHandler1 := heartbeat.NewHeartBeatHandler("localhost", receiverPort, 1)
-	receiverHandler2 := heartbeat.NewHeartBeatHandler("localhost", receiverPort+1, 1)
-	receiverHandler3 := heartbeat.NewHeartBeatHandler("localhost", receiverPort+2, 1)
+	receiverHandler1 := heartbeat.NewListeningHeartBeatHandler("localhost", receiverPort, 1)
+	receiverHandler2 := heartbeat.NewListeningHeartBeatHandler("localhost", receiverPort+1, 1)
+	receiverHandler3 := heartbeat.NewListeningHeartBeatHandler("localhost", receiverPort+2, 1)
 
-	recieveHandlers := map[string]heartbeat.HeartBeatHandler{
-		"handler1": receiverHandler1,
-		"handler2": receiverHandler2,
-		"handler3": receiverHandler3,
+	recieveHandlers := []heartbeat.HeartBeatHandler{
+		receiverHandler1,
+		receiverHandler2,
+		receiverHandler3,
 	}
 
 	addrs := []string{
-		"localhost:" + string(rune(receiverPort)),
-		"localhost:" + string(rune(receiverPort+1)),
-		"localhost:" + string(rune(receiverPort+2)),
+		fmt.Sprintf("localhost:%d", receiverPort),
+		fmt.Sprintf("localhost:%d", receiverPort+1),
+		fmt.Sprintf("localhost:%d", receiverPort+2),
 	}
 
 	// Create sender that will SEND to ports 9090, 9091, 9092
-	senderHandler := heartbeat.NewReverseHeartBeatHandler(1)
+	senderHandler := heartbeat.NewHeartBeatHandler("localhost", 8080, 1)
 
 	defer receiverHandler1.Close()
 	defer receiverHandler2.Close()
 	defer receiverHandler3.Close()
+	defer senderHandler.Close()
 
-	handlerChan := make(chan string)
+	var handlerCounter atomic.Int64
 
 	for i, handler := range recieveHandlers {
 		err := handler.StartReceiving(func(amountOfHeartbeats int) {
-			// We ensure that each handler reports its own name upon timeout
-			handlerChan <- i
-		}, 5)
+			// if a timeout occurs, record which handler timed out
+			t.Logf("Handler [%d] timed out", i)
+			handlerCounter.Add(1)
+		}, 1)
 		assert.NoError(t, err)
 	}
 
-	// Give receiver time to start listening
-	time.Sleep(100 * time.Millisecond)
-
-	// Start sender AFTER receiver is listening
-	err := senderHandler.StartSendingToAll(addrs, 3)
+	// Start Sender
+	err := senderHandler.StartSendingToAll(addrs)
 	assert.NoError(t, err)
 
-	// Allow enough time for at least 3 heartbeats (1 second interval + buffer)
-	time.Sleep(4 * time.Second)
+	// Stop sending after some time to allow receivers to timeout
+	time.Sleep(100 * time.Second)
+	senderHandler.Stop()
 
-	presentCounter := 0
-	for i := range handlerChan {
-		if _, exists := recieveHandlers[i]; exists {
-			presentCounter++
-		}
-		if presentCounter >= len(recieveHandlers) {
+	for {
+		if handlerCounter.Load() >= int64(len(recieveHandlers)) {
 			break
 		}
 	}
+	assert.Equal(t, len(recieveHandlers), int(handlerCounter.Load()), "All handlers should receive heartbeats before timeout")
+}
 
-	senderHandler.Close()
+func TestStopAndSwapSendReadActions(t *testing.T) {
+	receiverPort := 9095
+
+	// This handler will begin as a receiver
+	handler1 := heartbeat.NewListeningHeartBeatHandler("localhost", receiverPort, 1)
+	defer handler1.Close()
+
+	// This handler will begin as a sender
+	handler2 := heartbeat.NewListeningHeartBeatHandler("localhost", receiverPort+1, 1)
+	defer handler2.Close()
+
+	handlerChan := make(chan int)
+
+	// Start receiver with a 2 second timeout
+	err := handler1.StartReceiving(func(amountOfHeartbeats int) {
+		t.Logf("Receiver timed out after %d heartbeats", amountOfHeartbeats)
+		handlerChan <- 1
+	}, 2)
+	assert.NoError(t, err)
+
+	// Start sending
+	t.Log("Phase 1: Starting sender...")
+	err = handler2.StartSendingToAll([]string{fmt.Sprintf("localhost:%d", receiverPort)})
+	assert.NoError(t, err)
+
+	// Send a few heartbeats then stop sending heartbeats to allow timeout
+	t.Log("Phase 1: Stopping sender to allow timeout...")
+	time.Sleep(1500 * time.Millisecond)
+	handler2.Stop()
+
+	// Wait for receiver to get heartbeats
+	<-handlerChan
+	t.Log("Phase 1: Heartbeats received by receiver.")
+
+	t.Log("Phase 2: Swapping roles...")
+
+	// Start handler2 as receiver with a 2 second timeout
+	err = handler2.StartReceiving(func(amountOfHeartbeats int) {
+		t.Logf("New Receiver timed out after %d heartbeats", amountOfHeartbeats)
+		handlerChan <- 1
+	}, 2)
+	assert.NoError(t, err)
+
+	// Start handler1 as sender
+	err = handler1.StartSendingToAll([]string{fmt.Sprintf("localhost:%d", receiverPort+1)})
+	assert.NoError(t, err)
+
+	// Send a few heartbeats then stop sending heartbeats to allow timeout
+	time.Sleep(1500 * time.Millisecond)
+	handler1.Stop()
+
+	// Wait for new receiver to get heartbeats
+	<-handlerChan
+	t.Log("Phase 2: Heartbeats received by new receiver.")
+
+	t.Log("Test completed successfully.")
+
+}
+
+func TestStartRecieverWithNoSender(t *testing.T) {
+	receiverPort := 9100
+
+	// Create receiver that will LISTEN on port 9100
+	receiverHandler := heartbeat.NewListeningHeartBeatHandler("localhost", receiverPort, 1)
+	defer receiverHandler.Close()
+
+	recieveChannel := make(chan int)
+
+	// Start receiver with a 1 second timeout
+	err := receiverHandler.StartReceiving(func(amountOfHeartbeats int) {
+		recieveChannel <- amountOfHeartbeats
+	}, 1)
+	assert.NoError(t, err)
+
+	// Wait for timeout to occur
+	recievedCount := <-recieveChannel
+	assert.Equal(t, 0, recievedCount, "Should receive 0 heartbeats before timeout")
+	t.Log("Amount of heartbeats received before timeout: ", recievedCount)
 }
