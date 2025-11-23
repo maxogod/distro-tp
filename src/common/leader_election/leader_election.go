@@ -14,19 +14,21 @@ import (
 )
 
 type leaderElection struct {
-	id              int32
-	leaderId        atomic.Int32
-	url             string
-	workerType      enum.WorkerType
+	running atomic.Bool
+
+	id            int32
+	leaderId      atomic.Int32
+	middlewareUrl string
+	workerType    enum.WorkerType
+
+	// Middlewares
 	coordMiddleware middleware.MessageMiddleware
 	connMiddleware  middleware.MessageMiddleware
 	nodeMiddleware  middleware.MessageMiddleware
-	updateChan      chan *protocol.DataEnvelope
 	connectedNodes  map[int32]middleware.MessageMiddleware
 
-	messagesCh chan *protocol.SyncMessage
-	shutdownCh chan bool
-	running    atomic.Bool
+	messagesCh         chan *protocol.SyncMessage
+	listenerShutdownCh chan bool
 
 	round        uint64
 	ackCh        chan uint64
@@ -41,18 +43,17 @@ func NewLeaderElection(
 	workerType enum.WorkerType,
 ) LeaderElection {
 	le := &leaderElection{
-		id:              id,
-		url:             middlewareUrl,
-		workerType:      workerType,
+		id:            id,
+		middlewareUrl: middlewareUrl,
+		workerType:    workerType,
+
 		coordMiddleware: middleware.GetLeaderElectionCoordExchange(middlewareUrl, workerType),
 		connMiddleware:  middleware.GetLeaderElectionDiscoveryExchange(middlewareUrl, workerType),
 		nodeMiddleware:  middleware.GetLeaderElectionReceivingNodeExchange(middlewareUrl, workerType, strconv.Itoa(int(id))),
+		connectedNodes:  make(map[int32]middleware.MessageMiddleware),
 
-		updateChan:     make(chan *protocol.DataEnvelope),
-		connectedNodes: make(map[int32]middleware.MessageMiddleware),
-
-		messagesCh: make(chan *protocol.SyncMessage),
-		shutdownCh: make(chan bool),
+		messagesCh:         make(chan *protocol.SyncMessage),
+		listenerShutdownCh: make(chan bool),
 
 		ackCh:   make(chan uint64, 16),
 		coordCh: make(chan uint64, 16),
@@ -107,7 +108,7 @@ func (le *leaderElection) Start(updateCallbacks *UpdateCallbacks) error {
 		switch msg.GetAction() {
 		case int32(enum.DISCOVER):
 			if _, exists := le.connectedNodes[nodeID]; !exists {
-				le.connectedNodes[nodeID] = middleware.GetLeaderElectionSendingNodeExchange(le.url, le.workerType, strconv.Itoa(int(nodeID)))
+				le.connectedNodes[nodeID] = middleware.GetLeaderElectionSendingNodeExchange(le.middlewareUrl, le.workerType, strconv.Itoa(int(nodeID)))
 			}
 		case int32(enum.COORDINATOR):
 			le.leaderId.Store(nodeID)
@@ -137,9 +138,8 @@ func (le *leaderElection) Start(updateCallbacks *UpdateCallbacks) error {
 }
 
 func (le *leaderElection) Close() error {
-	close(le.updateChan)
 	le.running.Store(false)
-	le.shutdownCh <- true
+	le.listenerShutdownCh <- true
 
 	if err := le.coordMiddleware.Close(); err != middleware.MessageMiddlewareSuccess {
 		return fmt.Errorf("error closing coord middleware: %d", int(err))
@@ -171,7 +171,7 @@ func (le *leaderElection) nodeQueueListener(readyCh chan bool) {
 			select {
 			case m := <-consumeChannel:
 				msg = m
-			case <-le.shutdownCh:
+			case <-le.listenerShutdownCh:
 				running = false
 				continue
 			}
