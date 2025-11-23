@@ -16,7 +16,10 @@ func (le *leaderElection) handleDiscoverMsg(nodeID, leaderID int32, leaderSearch
 		le.leaderId.Store(leaderID)
 		leaderSearchTimerCh <- true // stop leader search timer
 
-		le.awaitUpdates() // TODO: if timeout, redo the discovery phase
+		err := le.awaitUpdates()
+		if err != nil {
+			// TODO: if timeout, redo the discovery phase
+		}
 
 		le.readyForElection.Store(true)
 		le.beginHeartbeatHandler()

@@ -1,6 +1,9 @@
 package leader_election
 
 import (
+	"fmt"
+	"time"
+
 	"github.com/maxogod/distro-tp/src/common/logger"
 	"github.com/maxogod/distro-tp/src/common/models/enum"
 	"github.com/maxogod/distro-tp/src/common/models/protocol"
@@ -8,22 +11,42 @@ import (
 )
 
 // awaitUpdates blocks waiting and saving updates until DONE message is received or server is closed.
-// It has a timeout after which it assumes no more updates are comming, likely the leader fell.
-func (le *leaderElection) awaitUpdates() {
+// It has a timeout after which it assumes no more updates are comming, likely the leader fell (returns it as error).
+func (le *leaderElection) awaitUpdates() error {
 	le.updateCallbacks.ResetUpdates()
 
 	le.sendRequestUpdate()
 
-	// TODO: timeout
+	timer := time.NewTimer(TIMEOUT_INTERVAL)
+	defer timer.Stop()
+
 	savingCh := make(chan *protocol.DataEnvelope)
+	defer close(savingCh)
+
 	go le.updateCallbacks.GetUpdates(savingCh)
-	for envelope := range le.updatesCh {
+
+	for {
+		var envelope *protocol.DataEnvelope
+		select {
+		case e := <-le.updatesCh:
+			envelope = e
+		case <-timer.C:
+			return fmt.Errorf("Leader did not finish sending updates on time")
+		}
+
 		if envelope.GetIsDone() {
 			break
 		}
 		savingCh <- envelope
+
+		// Reset timer
+		if !timer.Stop() {
+			<-timer.C
+		}
+		timer.Reset(TIMEOUT_INTERVAL)
 	}
-	close(savingCh)
+
+	return nil
 }
 
 // sendRequestUpdate constructs and sends the leader a request for updates.
