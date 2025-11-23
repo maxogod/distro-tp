@@ -14,7 +14,8 @@ import (
 )
 
 type leaderElection struct {
-	running atomic.Bool
+	running    atomic.Bool
+	isEligible bool
 
 	id            int32
 	leaderId      atomic.Int32
@@ -106,6 +107,7 @@ func (le *leaderElection) Start(updateCallbacks *UpdateCallbacks) error {
 	le.readyForElection.Store(false)
 
 	le.sendDiscoveryMessage()
+	// TODO: Begin search leader timer
 
 	leaderTimerCh := le.initLeaderTimer(func() {
 		le.readyForElection.Store(true)
@@ -124,11 +126,12 @@ func (le *leaderElection) Start(updateCallbacks *UpdateCallbacks) error {
 			if _, exists := le.connectedNodes[nodeID]; !exists {
 				le.connectedNodes[nodeID] = middleware.GetLeaderElectionSendingNodeExchange(le.middlewareUrl, le.workerType, strconv.Itoa(int(nodeID)))
 			}
-			// When a new node connects, and finds out who is the leader,
-			// it updates its leaderId and stops the leader timer
-			if msg.GetIsLeader() {
-				le.leaderId.Store(nodeID)
-				leaderTimerCh <- true // Stop the leader timer
+			if msg.GetLeaderId() > 0 { // there is already a leader
+				le.leaderId.Store(msg.GetLeaderId())
+				if !le.isEligible {
+					leaderTimerCh <- true // stop leader search timer
+				}
+				logger.Logger.Infof("Node %d recognized node %d as coordinator", le.id, msg.GetLeaderId())
 			}
 		case int32(enum.COORDINATOR):
 			le.leaderId.Store(nodeID)
