@@ -13,6 +13,24 @@ import (
 
 /* --- ELECTION ACTION HANDLING FOR LEADER ELECTION --- */
 
+func (le *leaderElection) startElection() {
+	electionMsg := &protocol.SyncMessage{
+		NodeId: int32(le.id),
+		Action: int32(enum.ELECTION),
+	}
+	payload, err := proto.Marshal(electionMsg)
+	if err != nil {
+		logger.Logger.Errorf("Failed to marshal ELECTION message: %v", err)
+		return
+	}
+	for nodeID, middleware := range le.connectedNodes {
+		if le.id > nodeID {
+			continue
+		}
+		middleware.Send(payload)
+	}
+}
+
 func (le *leaderElection) handleElectionMsg(nodeId int32) {
 	le.sendAckMessage(nodeId)
 

@@ -14,13 +14,14 @@ import (
 )
 
 type leaderElection struct {
-	running    atomic.Bool
-	isEligible bool
+	running          atomic.Bool
+	readyForElection atomic.Bool
 
 	id            int32
 	leaderId      atomic.Int32
 	middlewareUrl string
 	workerType    enum.WorkerType
+	maxNodes      int
 
 	// Middlewares
 	coordMiddleware middleware.MessageMiddleware
@@ -31,7 +32,6 @@ type leaderElection struct {
 	messagesCh         chan *protocol.SyncMessage
 	listenerShutdownCh chan bool
 
-	readyForElection    atomic.Bool
 	round               uint64
 	ackCh               chan uint64
 	coordCh             chan uint64
@@ -44,11 +44,13 @@ func NewLeaderElection(
 	id int32,
 	middlewareUrl string,
 	workerType enum.WorkerType,
+	maxNodes int,
 ) LeaderElection {
 	le := &leaderElection{
 		id:            id,
 		middlewareUrl: middlewareUrl,
 		workerType:    workerType,
+		maxNodes:      maxNodes,
 
 		coordMiddleware: middleware.GetLeaderElectionCoordExchange(middlewareUrl, workerType),
 		connMiddleware:  middleware.GetLeaderElectionDiscoveryExchange(middlewareUrl, workerType),
@@ -65,6 +67,13 @@ func NewLeaderElection(
 		ackTimeout:          2 * time.Second,
 		coordTimeout:        5 * time.Second,
 		leaderFinderTimeout: 10 * time.Second,
+	}
+
+	for i := range int32(maxNodes) {
+		if i == id {
+			continue
+		}
+		le.connectedNodes[i] = middleware.GetLeaderElectionSendingNodeExchange(le.middlewareUrl, le.workerType, strconv.Itoa(int(i)))
 	}
 
 	routineReadyCh := make(chan bool)
@@ -107,15 +116,12 @@ func (le *leaderElection) Start(updateCallbacks *UpdateCallbacks) error {
 	le.readyForElection.Store(false)
 
 	le.sendDiscoveryMessage()
-	// TODO: Begin search leader timer
 
-	leaderTimerCh := le.initLeaderTimer(func() {
+	// This should only timeout at startup
+	leaderSearchTimerCh := le.initLeaderSearchTimer(func() {
+		// There is no leader -> start election
 		le.readyForElection.Store(true)
-		electionMsg := &protocol.SyncMessage{
-			NodeId: int32(le.id),
-			Action: int32(enum.ELECTION),
-		}
-		le.messagesCh <- electionMsg
+		le.startElection()
 	})
 
 	for le.running.Load() {
@@ -123,13 +129,10 @@ func (le *leaderElection) Start(updateCallbacks *UpdateCallbacks) error {
 		nodeID := msg.GetNodeId()
 		switch msg.GetAction() {
 		case int32(enum.DISCOVER):
-			if _, exists := le.connectedNodes[nodeID]; !exists {
-				le.connectedNodes[nodeID] = middleware.GetLeaderElectionSendingNodeExchange(le.middlewareUrl, le.workerType, strconv.Itoa(int(nodeID)))
-			}
 			if msg.GetLeaderId() > 0 { // there is already a leader
 				le.leaderId.Store(msg.GetLeaderId())
-				if !le.isEligible {
-					leaderTimerCh <- true // stop leader search timer
+				if !le.readyForElection.Load() {
+					leaderSearchTimerCh <- true // stop leader search timer
 				}
 				logger.Logger.Infof("Node %d recognized node %d as coordinator", le.id, msg.GetLeaderId())
 			}
@@ -164,8 +167,8 @@ func (le *leaderElection) Start(updateCallbacks *UpdateCallbacks) error {
 
 func (le *leaderElection) Close() error {
 	le.running.Store(false)
-	le.listenerShutdownCh <- true
-	le.listenerShutdownCh <- true
+	le.listenerShutdownCh <- true // Close node listener
+	le.listenerShutdownCh <- true // Close leader search timer
 
 	if err := le.coordMiddleware.Close(); err != middleware.MessageMiddlewareSuccess {
 		return fmt.Errorf("error closing coord middleware: %d", int(err))
@@ -188,29 +191,26 @@ func (le *leaderElection) Close() error {
 
 /* --- PRIVATE METHODS --- */
 
-func (le *leaderElection) initLeaderTimer(onTimeoutFunc func()) chan any {
-	timerCh := make(chan any)
+func (le *leaderElection) initLeaderSearchTimer(onTimeoutFunc func()) chan bool {
+	leaderFoundCh := make(chan bool)
 
 	go func() {
-		defer close(timerCh)
+		defer close(leaderFoundCh)
 		timer := time.NewTimer(le.leaderFinderTimeout)
 		defer timer.Stop()
 
 		select {
-		case <-timerCh:
-			logger.Logger.Debug("Leader Found!")
+		case <-leaderFoundCh:
+			return
+		case <-le.listenerShutdownCh:
 			return
 		case <-timer.C:
-			// Timeout occurred - run the timeout function
 			logger.Logger.Debug("Leader Not Found - Timeout!")
 			onTimeoutFunc()
-		case <-le.listenerShutdownCh:
-			logger.Logger.Warn("Timer cancelled due to shutdown")
-			return
 		}
 	}()
 
-	return timerCh
+	return leaderFoundCh
 }
 
 /* --- LISTENERS --- */
