@@ -144,17 +144,7 @@ func (le *leaderElection) Start(updateCallbacks *UpdateCallbacks) error {
 		nodeID := msg.GetNodeId()
 		switch msg.GetAction() {
 		case int32(enum.DISCOVER):
-			if msg.GetLeaderId() > 0 { // there is already a leader
-				if !le.readyForElection.Load() {
-					le.leaderId.Store(msg.GetLeaderId())
-					leaderSearchTimerCh <- true // stop leader search timer
-					le.beginHeartbeatHandler()
-					// TODO: request updates from leader
-				}
-				logger.Logger.Infof("Node %d recognized node %d as coordinator", le.id, msg.GetLeaderId())
-			} else if msg.GetLeaderId() == -1 { // discovery message
-				le.respondDiscoveryMessage(nodeID)
-			}
+			le.handleDiscoverMsg(nodeID, msg.GetLeaderId(), leaderSearchTimerCh)
 		case int32(enum.COORDINATOR):
 			le.leaderId.Store(nodeID)
 			logger.Logger.Infof("Node %d recognized as coordinator", nodeID)

@@ -9,6 +9,20 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
+func (le *leaderElection) handleDiscoverMsg(nodeID, leaderID int32, leaderSearchTimerCh chan bool) {
+	if leaderID > 0 { // there is already a leader
+		if !le.readyForElection.Load() {
+			le.leaderId.Store(leaderID)
+			leaderSearchTimerCh <- true // stop leader search timer
+			le.beginHeartbeatHandler()
+			// TODO: request updates from leader
+		}
+		logger.Logger.Infof("Node %d recognized node %d as coordinator", le.id, leaderID)
+	} else if leaderID == -1 { // discovery message
+		le.respondDiscoveryMessage(nodeID)
+	}
+}
+
 func (le *leaderElection) sendDiscoveryMessage() {
 	discoveryMsg := &protocol.SyncMessage{
 		NodeId:   int32(le.id),
