@@ -13,7 +13,7 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-type leader_election struct {
+type leaderElection struct {
 	id              int
 	leaderId        int
 	url             string
@@ -40,7 +40,7 @@ func NewLeaderElection(
 	middlewareUrl string,
 	workerType enum.WorkerType,
 ) LeaderElection {
-	le := &leader_election{
+	le := &leaderElection{
 		id:              id,
 		url:             middlewareUrl,
 		workerType:      workerType,
@@ -68,11 +68,11 @@ func NewLeaderElection(
 	return le
 }
 
-func (le *leader_election) IsLeader() bool {
+func (le *leaderElection) IsLeader() bool {
 	return le.leaderId == le.id
 }
 
-func (le *leader_election) FinishClient(clientID string) error {
+func (le *leaderElection) FinishClient(clientID string) error {
 	if !le.IsLeader() {
 		return nil
 	}
@@ -96,15 +96,8 @@ func (le *leader_election) FinishClient(clientID string) error {
 	return nil
 }
 
-func (le *leader_election) Start(
-	resetUpdates func(),
-	getUpdates chan *protocol.DataEnvelope,
-	sendUpdates func(chan *protocol.DataEnvelope),
-) error {
+func (le *leaderElection) Start(updateCallbacks *UpdateCallbacks) error {
 	le.running.Store(true)
-
-	// reset any previous updates
-	resetUpdates()
 
 	// send that im alive to the world
 	le.sendDiscoveryMessage()
@@ -145,7 +138,7 @@ func (le *leader_election) Start(
 	return nil
 }
 
-func (le *leader_election) Close() error {
+func (le *leaderElection) Close() error {
 	close(le.updateChan)
 	le.running.Store(false)
 	le.shutdownCh <- true
@@ -169,27 +162,9 @@ func (le *leader_election) Close() error {
 	return nil
 }
 
-/* --- Private Methods --- */
+/* --- LISTENERS --- */
 
-func (le *leader_election) sendDiscoveryMessage() {
-	discoveryMsg := &protocol.SyncMessage{
-		NodeId: int32(le.id),
-		Action: int32(enum.DISCOVER),
-	}
-
-	msgBytes, err := proto.Marshal(discoveryMsg)
-	if err != nil {
-		logger.Logger.Errorf("Failed to marshal discovery message: %v", err)
-		return
-	}
-
-	e := le.connMiddleware.Send(msgBytes)
-	if e != middleware.MessageMiddlewareSuccess {
-		logger.Logger.Errorf("Failed to send discovery message: %d", int(e))
-	}
-}
-
-func (le *leader_election) nodeQueueListener(readyCh chan bool) {
+func (le *leaderElection) nodeQueueListener(readyCh chan bool) {
 	e := le.nodeMiddleware.StartConsuming(func(consumeChannel middleware.ConsumeChannel, d chan error) {
 		readyCh <- true
 		running := true
@@ -219,130 +194,4 @@ func (le *leader_election) nodeQueueListener(readyCh chan bool) {
 		logger.Logger.Errorf("an error occurred while starting consumption: %d", int(e))
 	}
 
-}
-
-func (le *leader_election) handleElectionMsg(nodeId int) {
-	le.sendAckMessage(nodeId)
-
-	electionMsg := &protocol.SyncMessage{
-		NodeId: int32(le.id),
-		Action: int32(enum.ELECTION),
-	}
-
-	electionBytes, err := proto.Marshal(electionMsg)
-	if err != nil {
-		logger.Logger.Errorf("Failed to marshal ELECTION message: %v", err)
-		return
-	}
-
-	foundHigher := false
-	higherIDs := make([]int, 0)
-	for id := range le.connectedNodes {
-		if id > le.id {
-			foundHigher = true
-			higherIDs = append(higherIDs, id)
-		}
-	}
-
-	if !foundHigher {
-		le.sendCoordinatorMessage()
-
-		le.leaderId = le.id
-		logger.Logger.Infof("Node %d became coordinator", le.id)
-		return
-	}
-
-	for _, id := range higherIDs {
-		if conn, ok := le.connectedNodes[id]; ok {
-			if e := conn.Send(electionBytes); e != middleware.MessageMiddlewareSuccess {
-				logger.Logger.Errorf("Failed to forward ELECTION to node %d: %d", id, int(e))
-			}
-		}
-	}
-
-	myRound := atomic.AddUint64(&le.round, 1)
-	go le.runElectionTimeout(myRound, nodeId)
-}
-
-func (le *leader_election) runElectionTimeout(roundID uint64, nodeId int) {
-	timer := time.NewTimer(le.ackTimeout)
-	defer timer.Stop()
-	gotAck := false
-
-	for {
-		select {
-		case r := <-le.ackCh:
-			if r != roundID {
-				// outdated ack for previous round; ignore
-				continue
-			}
-
-			gotAck = true
-
-			if !timer.Stop() {
-				select {
-				case <-timer.C:
-				default:
-				}
-			}
-
-			timer.Reset(le.coordTimeout)
-
-		case cr := <-le.coordCh:
-			if cr != roundID {
-				// outdated coordinator for previous round
-				continue
-			}
-			logger.Logger.Debugf("Node %d received COORDINATOR for round %d", le.id, roundID)
-			return
-
-		case <-timer.C:
-			if gotAck {
-				logger.Logger.Infof("Coordinator timeout expired on node %d; restarting election", le.id)
-				go le.handleElectionMsg(nodeId)
-				return
-			} else {
-				logger.Logger.Infof("ACK timeout expired on node %d; no higher nodes responded, becoming leader", le.id)
-				le.sendCoordinatorMessage()
-				le.leaderId = le.id
-				logger.Logger.Infof("Node %d became coordinator", le.id)
-				return
-			}
-		}
-	}
-}
-
-func (le *leader_election) sendAckMessage(nodeId int) {
-	senderMiddleware, _ := le.connectedNodes[nodeId]
-
-	ackMsg := &protocol.SyncMessage{
-		NodeId: int32(le.id),
-		Action: int32(enum.ACK),
-	}
-
-	ackBytes, err := proto.Marshal(ackMsg)
-	if err != nil {
-		logger.Logger.Errorf("Failed to marshal ACK message: %v", err)
-		return
-	}
-
-	if e := senderMiddleware.Send(ackBytes); e != middleware.MessageMiddlewareSuccess {
-		logger.Logger.Errorf("Failed to send ACK to node %d: %d", nodeId, int(e))
-	}
-}
-
-func (le *leader_election) sendCoordinatorMessage() {
-	coordMsg := &protocol.SyncMessage{
-		NodeId: int32(le.id),
-		Action: int32(enum.COORDINATOR),
-	}
-	coordBytes, errMarshal := proto.Marshal(coordMsg)
-	if errMarshal != nil {
-		logger.Logger.Errorf("Failed to marshal COORDINATOR message: %v", errMarshal)
-		return
-	}
-
-	if e := le.coordMiddleware.Send(coordBytes); e != middleware.MessageMiddlewareSuccess {
-		logger.Logger.Errorf("Failed to send COORDINATOR message")
-	}
 }
