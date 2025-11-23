@@ -137,11 +137,6 @@ func (le *leaderElection) Start(updateCallbacks *UpdateCallbacks) error {
 		le.startElection()
 	})
 
-	//---------------------
-	//TODO: implement update data logic here!!
-
-	// ---------------------
-
 	le.readyForElection.Store(true)
 
 	for le.running.Load() {
@@ -150,21 +145,25 @@ func (le *leaderElection) Start(updateCallbacks *UpdateCallbacks) error {
 		switch msg.GetAction() {
 		case int32(enum.DISCOVER):
 			if msg.GetLeaderId() > 0 { // there is already a leader
-				le.leaderId.Store(msg.GetLeaderId())
 				if !le.readyForElection.Load() {
+					le.leaderId.Store(msg.GetLeaderId())
 					leaderSearchTimerCh <- true // stop leader search timer
 					le.beginHeartbeatHandler()
+					// TODO: request updates from leader
 				}
 				logger.Logger.Infof("Node %d recognized node %d as coordinator", le.id, msg.GetLeaderId())
+			} else if msg.GetLeaderId() == -1 { // discovery message
+				le.respondDiscoveryMessage(nodeID)
 			}
 		case int32(enum.COORDINATOR):
 			le.leaderId.Store(nodeID)
 			logger.Logger.Infof("Node %d recognized as coordinator", nodeID)
 			le.beginHeartbeatHandler()
-			select {
-			case le.coordCh <- atomic.LoadUint64(&le.round):
-			default:
-			}
+			le.handleCoordinatorMsg(nodeID)
+			// select {
+			// case le.coordCh <- atomic.LoadUint64(&le.round):
+			// default:
+			// }
 		case int32(enum.ELECTION):
 			logger.Logger.Infof("Node %d received ELECTION from node %d", le.id, nodeID)
 			if le.readyForElection.Load() { // The node is ready for election after loading all of the data
