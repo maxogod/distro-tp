@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/maxogod/distro-tp/src/common/heartbeat"
+	"github.com/maxogod/distro-tp/src/common/leader_election/handlers"
 	"github.com/maxogod/distro-tp/src/common/logger"
 	"github.com/maxogod/distro-tp/src/common/middleware"
 	"github.com/maxogod/distro-tp/src/common/models/enum"
@@ -16,11 +17,11 @@ import (
 
 // TODO: THIS MUST BE BACKED UP WITH FACTS!!!
 const (
-	TIMEOUT_INTERVAL   = 5
+	TIMEOUT_INTERVAL   = 2
 	HEARTBEAT_INTERVAL = 1
-	ELECTION_TIMEOUT   = 10
+	ELECTION_TIMEOUT   = 5
 
-	DEFAULT_PORT_PREFIX = 909
+	DEFAULT_PORT = 9090
 
 	MAX_CHAN_BUFFER = 2000
 )
@@ -47,15 +48,9 @@ type leaderElection struct {
 	isSendingUpdates  atomic.Bool
 	routineShutdownCh chan bool
 
-	round               uint64
-	ackCh               chan uint64
-	coordCh             chan uint64
-	ackTimeout          time.Duration
-	coordTimeout        time.Duration
-	leaderFinderTimeout time.Duration
-
-	// Heartbeat handler
+	// Handlers
 	heartbeatHandler heartbeat.HeartBeatHandler
+	electionHandler  handlers.ElectionHandler
 }
 
 // NewLeaderElection instantiates a new `Bully algorithm` leader election object
@@ -82,19 +77,7 @@ func NewLeaderElection(
 		messagesCh:        make(chan *protocol.SyncMessage, MAX_CHAN_BUFFER),
 		updatesCh:         make(chan *protocol.DataEnvelope, MAX_CHAN_BUFFER),
 		routineShutdownCh: make(chan bool),
-
-		ackCh:   make(chan uint64, 16),
-		coordCh: make(chan uint64, 16),
-
-		//TODO: This has to be backed up with facts
-		ackTimeout:          2 * time.Second,
-		coordTimeout:        5 * time.Second,
-		leaderFinderTimeout: 10 * time.Second,
 	}
-
-	host := fmt.Sprintf("%s%d", workerType, id)
-	port := DEFAULT_PORT_PREFIX + int(id)
-	le.heartbeatHandler = heartbeat.NewListeningHeartBeatHandler(host, port, HEARTBEAT_INTERVAL)
 
 	for i := range int32(maxNodes) {
 		if i == id {
@@ -102,6 +85,10 @@ func NewLeaderElection(
 		}
 		le.connectedNodes[i] = middleware.GetLeaderElectionSendingNodeExchange(middlewareUrl, workerType, strconv.Itoa(int(i)))
 	}
+
+	host := fmt.Sprintf("%s%d", workerType, id) // Service name
+	le.heartbeatHandler = heartbeat.NewListeningHeartBeatHandler(host, DEFAULT_PORT, HEARTBEAT_INTERVAL)
+	le.electionHandler = handlers.NewElectionHandler(id, le.connectedNodes, le.coordMiddleware, TIMEOUT_INTERVAL, TIMEOUT_INTERVAL)
 
 	routineReadyCh := make(chan bool)
 	go le.nodeQueueListener(routineReadyCh)
@@ -150,21 +137,15 @@ func (le *leaderElection) Start() error {
 		case int32(enum.DISCOVER):
 			le.handleDiscoverMsg(nodeID, msg.GetLeaderId(), &leaderSearchTimerCh)
 		case int32(enum.COORDINATOR):
+			le.electionHandler.HandleCoordinatorMessage(msg.GetRoundId())
 			le.handleCoordinatorMsg(nodeID)
-			// select {
-			// case le.coordCh <- atomic.LoadUint64(&le.round):
-			// default:
-			// }
 		case int32(enum.ELECTION):
 			logger.Logger.Infof("Node %d received ELECTION from node %d", le.id, nodeID)
 			if le.readyForElection.Load() { // The node is ready for election after loading all of the data
-				le.handleElectionMsg(nodeID)
+				le.electionHandler.HandleElectionMessage(nodeID)
 			}
 		case int32(enum.ACK):
-			select {
-			case le.ackCh <- atomic.LoadUint64(&le.round):
-			default:
-			}
+			le.electionHandler.HandleAckMessage(msg.GetRoundId())
 		case int32(enum.UPDATE):
 			if le.IsLeader() {
 				go le.startSendingUpdates(nodeID)
@@ -215,7 +196,7 @@ func (le *leaderElection) initLeaderSearchTimer(onTimeoutFunc func()) chan bool 
 
 	go func() {
 		defer close(leaderFoundCh)
-		timer := time.NewTimer(le.leaderFinderTimeout)
+		timer := time.NewTimer(TIMEOUT_INTERVAL)
 		defer timer.Stop()
 
 		select {
@@ -275,16 +256,15 @@ func (le *leaderElection) beginHeartbeatHandler() {
 	if le.IsLeader() {
 		le.startSendingHeartbeats()
 	} else {
-		le.startRecievingHeartbeats()
+		le.startReceivingHeartbeats()
 	}
 }
 
-func (le *leaderElection) startRecievingHeartbeats() {
-
+func (le *leaderElection) startReceivingHeartbeats() {
 	initElectionFunc := func(timeoutAmount int) {
 		logger.Logger.Infof("Node %d: Leader Heartbeat Timeout Detected! Starting Election...", le.id)
 		le.heartbeatHandler.Stop() // Stop receiving heartbeats
-		le.startElection()
+		le.electionHandler.StartElection()
 	}
 
 	err := le.heartbeatHandler.StartReceiving(initElectionFunc, TIMEOUT_INTERVAL)
@@ -295,10 +275,12 @@ func (le *leaderElection) startRecievingHeartbeats() {
 }
 
 func (le *leaderElection) startSendingHeartbeats() {
-
 	addrs := []string{}
-	for i := range le.maxNodes {
-		addr := fmt.Sprintf("%s%d:%d", string(le.workerType), i, DEFAULT_PORT_PREFIX+i)
+	for i := 1; i <= le.maxNodes; i++ {
+		if i == int(le.id) {
+			continue
+		}
+		addr := fmt.Sprintf("%s%d:%d", string(le.workerType), i, DEFAULT_PORT)
 		addrs = append(addrs, addr)
 	}
 
@@ -310,8 +292,6 @@ func (le *leaderElection) startSendingHeartbeats() {
 
 func (le *leaderElection) handleCoordinatorMsg(nodeId int32) {
 	le.leaderId.Store(nodeId)
-	if le.IsLeader() {
-		le.beginHeartbeatHandler()
-	}
+	le.beginHeartbeatHandler()
 	logger.Logger.Infof("Node %d recognized Node %d as leader", le.id, nodeId)
 }

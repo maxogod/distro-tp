@@ -20,7 +20,7 @@ func (le *leaderElection) startDiscoveryPhase() chan bool {
 	leaderSearchTimerCh := le.initLeaderSearchTimer(func() {
 		// There is no leader -> start election
 		le.readyForElection.Store(true)
-		le.startElection()
+		le.electionHandler.StartElection()
 	})
 
 	return leaderSearchTimerCh
@@ -29,6 +29,10 @@ func (le *leaderElection) startDiscoveryPhase() chan bool {
 // handleDiscoverMsg handles the discovery message whether its the broadcast message on a node connection (marked by leaderID = -1)
 // or a response message to that new node and check if the leader is known.
 func (le *leaderElection) handleDiscoverMsg(nodeID, leaderID int32, leaderSearchTimerCh *chan bool) {
+	if nodeID == le.id {
+		return
+	}
+
 	if leaderID > 0 && !le.readyForElection.Load() { // there is already a leader
 		le.leaderId.Store(leaderID)
 		*leaderSearchTimerCh <- true // stop leader search timer
