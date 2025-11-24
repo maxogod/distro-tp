@@ -18,8 +18,8 @@ import (
 
 // TODO: THIS MUST BE BACKED UP WITH FACTS!!!
 const (
-	ACK_TIMEOUT         = 5 * time.Second
-	COORDINATOR_TIMEOUT = 10 * time.Second
+	ACK_TIMEOUT         = 2 * time.Second
+	COORDINATOR_TIMEOUT = 6 * time.Second
 	HEARTBEAT_INTERVAL  = 100 * time.Millisecond
 
 	DEFAULT_HOST = "localhost"
