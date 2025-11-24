@@ -60,7 +60,6 @@ func NewListeningHeartBeatHandler(host string, port int, interval time.Duration)
 }
 
 func (h *heartbeatHandler) StartSending() error {
-
 	addr := fmt.Sprintf("%s:%d", h.host, h.port)
 	udpAddr, err := net.ResolveUDPAddr("udp", addr)
 	if err != nil {
@@ -76,7 +75,6 @@ func (h *heartbeatHandler) StartSending() error {
 }
 
 func (h *heartbeatHandler) StartSendingToAll(destinationAddrs []string) error {
-
 	for _, addr := range destinationAddrs {
 		udpAddr, err := net.ResolveUDPAddr("udp", addr)
 		if err != nil {
@@ -194,8 +192,13 @@ func (h *heartbeatHandler) receiveHeartbeatsWithTimeout(onTimeoutFunc func(amoun
 				if netErr, ok := err.(net.Error); ok && netErr.Timeout() {
 					continue
 				}
-				logger.Logger.Errorf("Error receiving heartbeat: %v", err)
-				return
+				select {
+				case <-h.ctx.Done():
+					return // Exit if context is done
+				default:
+					logger.Logger.Errorf("Error receiving heartbeat: %v", err)
+					return
+				}
 			}
 			// Process heartbeat
 			var hb protocol.HeartBeat

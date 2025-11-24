@@ -22,6 +22,7 @@ const (
 	HEARTBEAT_INTERVAL = 1 * time.Second
 	ELECTION_TIMEOUT   = 5 * time.Second
 
+	DEFAULT_HOST = "localhost"
 	DEFAULT_PORT = 9090
 
 	MAX_CHAN_BUFFER = 2000
@@ -289,7 +290,11 @@ func (le *leaderElection) startSendingHeartbeats() {
 		if i == int(le.id) {
 			continue
 		}
+
 		addr := fmt.Sprintf("%s%d:%d", string(le.workerType), i, DEFAULT_PORT)
+		if le.workerType == enum.None { // Use default localhost for testing with None type
+			addr = DEFAULT_HOST + ":" + strconv.Itoa(DEFAULT_PORT+i)
+		}
 		addrs = append(addrs, addr)
 	}
 
