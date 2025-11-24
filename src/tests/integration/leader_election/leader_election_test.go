@@ -21,9 +21,27 @@ func TestMain(t *testing.M) {
 func TestSingleNode(t *testing.T) {
 	maxNodes := 1
 
-	le := leader_election.NewLeaderElection(1, url, enum.Gateway, maxNodes, nil)
-	go le.Start()
+	le := createNewNode(1, 9091, maxNodes)
 	assert.False(t, le.IsLeader(), "Expected single node to not be leader")
 	time.Sleep(sleepTime)
 	assert.True(t, le.IsLeader(), "Expected single node to be leader")
+	le.Close()
+}
+
+func TestTwoNodes(t *testing.T) {
+	maxNodes := 2
+
+	le1 := createNewNode(1, 9091, maxNodes)
+	le2 := createNewNode(2, 9092, maxNodes)
+	assert.False(t, le1.IsLeader(), "Expected single node to not be leader")
+	assert.False(t, le2.IsLeader(), "Expected single node to not be leader")
+	time.Sleep(sleepTime)
+	assert.False(t, le1.IsLeader(), "Expected single node to be leader")
+	assert.True(t, le2.IsLeader(), "Expected single node to be leader")
+}
+
+func createNewNode(id int32, port int, maxNodes int) leader_election.LeaderElection {
+	le := leader_election.NewLeaderElection("0.0.0.0", port, id, url, enum.Gateway, maxNodes, nil)
+	go le.Start()
+	return le
 }
