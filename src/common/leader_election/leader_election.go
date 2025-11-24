@@ -307,3 +307,11 @@ func (le *leaderElection) startSendingHeartbeats() {
 		logger.Logger.Errorf("Error starting to send heartbeats: %v", err)
 	}
 }
+
+func (le *leaderElection) handleCoordinatorMsg(nodeId int32) {
+	le.leaderId.Store(nodeId)
+	if le.IsLeader() {
+		le.beginHeartbeatHandler()
+	}
+	logger.Logger.Infof("Node %d recognized Node %d as leader", le.id, nodeId)
+}
