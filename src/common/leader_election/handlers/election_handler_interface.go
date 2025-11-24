@@ -9,6 +9,9 @@ type ElectionHandler interface {
 	// Should be called when a leader has been elected.
 	StopElection()
 
+	// IsElectionRunning returns whether the election is ongoing in a atomic fashion.
+	IsElectionRunning() bool
+
 	// HandleElectionMessage processes an incoming election message from a node.
 	HandleElectionMessage(nodeId int32, roundID string)
 

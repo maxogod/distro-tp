@@ -75,6 +75,10 @@ func (eh *electionHandler) StopElection() {
 	eh.isElectionRunning.Store(false)
 }
 
+func (eh *electionHandler) IsElectionRunning() bool {
+	return eh.isElectionRunning.Load()
+}
+
 func (eh *electionHandler) HandleElectionMessage(nodeId int32, roundID string) {
 	logger.Logger.Infof("[Node %d] received ELECTION from node %d", eh.id, nodeId)
 	nodeConn, ok := eh.connectedNodes[nodeId]

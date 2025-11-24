@@ -305,6 +305,9 @@ func (le *leaderElection) startSendingHeartbeats() {
 }
 
 func (le *leaderElection) handleCoordinatorMsg(nodeId int32) {
+	if le.id > nodeId && le.electionHandler.IsElectionRunning() {
+		return
+	}
 	le.leaderId.Store(nodeId)
 	le.electionHandler.StopElection()
 	le.beginHeartbeatHandler()
