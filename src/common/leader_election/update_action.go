@@ -17,7 +17,7 @@ func (le *leaderElection) awaitUpdates() error {
 
 	le.sendRequestUpdate()
 
-	timer := time.NewTimer(TIMEOUT_INTERVAL)
+	timer := time.NewTimer(ACK_TIMEOUT)
 	defer timer.Stop()
 
 	savingCh := make(chan *protocol.DataEnvelope)
@@ -43,7 +43,7 @@ func (le *leaderElection) awaitUpdates() error {
 		if !timer.Stop() {
 			<-timer.C
 		}
-		timer.Reset(TIMEOUT_INTERVAL)
+		timer.Reset(ACK_TIMEOUT)
 	}
 
 	return nil

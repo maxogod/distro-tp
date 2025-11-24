@@ -18,9 +18,9 @@ import (
 
 // TODO: THIS MUST BE BACKED UP WITH FACTS!!!
 const (
-	TIMEOUT_INTERVAL   = 2 * time.Second
-	HEARTBEAT_INTERVAL = 1 * time.Second
-	ELECTION_TIMEOUT   = 5 * time.Second
+	ACK_TIMEOUT         = 2 * time.Second
+	COORDINATOR_TIMEOUT = 5 * time.Second
+	HEARTBEAT_INTERVAL  = 100 * time.Millisecond
 
 	DEFAULT_HOST = "localhost"
 	DEFAULT_PORT = 9090
@@ -99,7 +99,7 @@ func NewLeaderElection(
 	}
 	le.heartbeatHandler = heartbeatHandler
 
-	le.electionHandler = handlers.NewElectionHandler(id, le.connectedNodes, le.coordMiddleware, TIMEOUT_INTERVAL, TIMEOUT_INTERVAL)
+	le.electionHandler = handlers.NewElectionHandler(id, le.connectedNodes, le.coordMiddleware, ACK_TIMEOUT, COORDINATOR_TIMEOUT)
 
 	routineReadyCh := make(chan bool)
 	go le.nodeQueueListener(routineReadyCh)
@@ -151,7 +151,6 @@ func (le *leaderElection) Start() error {
 			le.electionHandler.HandleCoordinatorMessage(msg.GetRoundId())
 			le.handleCoordinatorMsg(nodeID)
 		case int32(enum.ELECTION):
-			logger.Logger.Infof("Node %d received ELECTION from node %d", le.id, nodeID)
 			if le.readyForElection.Load() { // The node is ready for election after loading all of the data
 				le.electionHandler.HandleElectionMessage(nodeID)
 			}
@@ -164,7 +163,7 @@ func (le *leaderElection) Start() error {
 				le.handleUpdateMsg(msg.GetEnvelope())
 			}
 		default:
-			logger.Logger.Warnf("Unknown leader election action received: %d", msg.GetAction())
+			logger.Logger.Warnf("[Node %d] Unknown leader election action received: %d", le.id, msg.GetAction())
 		}
 	}
 
@@ -205,7 +204,7 @@ func (le *leaderElection) initLeaderSearchTimer(onTimeoutFunc func()) chan bool 
 	leaderFoundCh := make(chan bool)
 
 	go func() {
-		timer := time.NewTimer(TIMEOUT_INTERVAL)
+		timer := time.NewTimer(ACK_TIMEOUT)
 		defer close(leaderFoundCh)
 		defer timer.Stop()
 
@@ -214,8 +213,9 @@ func (le *leaderElection) initLeaderSearchTimer(onTimeoutFunc func()) chan bool 
 			return
 		case <-le.ctx.Done():
 			return
-		case <-timer.C:
-			logger.Logger.Debug("Leader Not Found - Timeout!")
+		case timeout := <-timer.C:
+			elapsed := fmt.Sprintf("%.2f", time.Since(timeout.Add(-ACK_TIMEOUT)).Seconds())
+			logger.Logger.Debugf("[Node %d] Leader Not Found after %s seconds - Timeout!", le.id, elapsed)
 			onTimeoutFunc()
 		}
 	}()
@@ -272,12 +272,12 @@ func (le *leaderElection) beginHeartbeatHandler() {
 
 func (le *leaderElection) startReceivingHeartbeats() {
 	initElectionFunc := func(timeoutAmount int) {
-		logger.Logger.Infof("Node %d: Leader Heartbeat Timeout Detected! Starting Election...", le.id)
+		logger.Logger.Infof("[Node %d] Leader Heartbeat Timeout Detected! Starting Election...", le.id)
 		le.heartbeatHandler.Stop() // Stop receiving heartbeats
 		le.electionHandler.StartElection()
 	}
 
-	err := le.heartbeatHandler.StartReceiving(initElectionFunc, TIMEOUT_INTERVAL)
+	err := le.heartbeatHandler.StartReceiving(initElectionFunc, ACK_TIMEOUT)
 	if err != nil {
 		logger.Logger.Errorf("Error starting to receive heartbeats: %v", err)
 	}
@@ -307,5 +307,5 @@ func (le *leaderElection) startSendingHeartbeats() {
 func (le *leaderElection) handleCoordinatorMsg(nodeId int32) {
 	le.leaderId.Store(nodeId)
 	le.beginHeartbeatHandler()
-	logger.Logger.Infof("Node %d recognized Node %d as leader", le.id, nodeId)
+	logger.Logger.Infof("[Node %d] recognized Node %d as leader", le.id, nodeId)
 }

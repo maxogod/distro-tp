@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"context"
+	"fmt"
 	"sync/atomic"
 	"time"
 
@@ -49,19 +50,22 @@ func NewElectionHandler(nodeId int32, connectedNodes map[int32]middleware.Messag
 }
 
 func (eh *electionHandler) StartElection() {
+	logger.Logger.Infof("[Node %d] ELECTION START", eh.id)
 	for nodeID, nodeConn := range eh.connectedNodes {
 		if eh.id > nodeID {
 			continue
 		}
+		logger.Logger.Infof("[Node %d] sending ELECTION to node %d", eh.id, nodeID)
 		eh.sendElectionMessage(nodeConn)
 	}
 	go eh.runElectionTimeout()
 }
 
 func (eh *electionHandler) HandleElectionMessage(nodeId int32) {
+	logger.Logger.Infof("[Node %d] received ELECTION from node %d", eh.id, nodeId)
 	nodeConn, ok := eh.connectedNodes[nodeId]
 	if !ok {
-		logger.Logger.Errorf("No connection found for node %d to send ACK", nodeId)
+		logger.Logger.Errorf("[Node %d] No connection found for node %d to send ACK", eh.id, nodeId)
 		return
 	}
 	eh.sendAckMessage(nodeConn)
@@ -71,13 +75,14 @@ func (eh *electionHandler) HandleElectionMessage(nodeId int32) {
 		if eh.id > id {
 			continue
 		}
+		logger.Logger.Infof("[Node %d] found higher node %d, sending ELECTION", eh.id, id)
 		foundHigher = true
 		eh.sendElectionMessage(conn)
 	}
 
 	if !foundHigher {
 		eh.sendCoordinatorMessage()
-		logger.Logger.Infof("Node %d became coordinator", eh.id)
+		logger.Logger.Infof("[Node %d] no higher nodes, becoming coordinator", eh.id)
 		return
 	}
 
@@ -94,6 +99,7 @@ func (eh *electionHandler) Close() error {
 }
 
 func (eh *electionHandler) HandleAckMessage(roundID uint64) {
+	logger.Logger.Infof("[Node %d] received ACK for round %d", eh.id, roundID)
 	select {
 	case eh.ackCh <- roundID:
 	default:
@@ -101,6 +107,7 @@ func (eh *electionHandler) HandleAckMessage(roundID uint64) {
 }
 
 func (eh *electionHandler) HandleCoordinatorMessage(roundID uint64) {
+	logger.Logger.Infof("[Node %d] received COORDINATOR for round %d", eh.id, roundID)
 	select {
 	case eh.coordCh <- roundID:
 	default:
@@ -125,10 +132,10 @@ func (eh *electionHandler) runElectionTimeout() {
 				return
 			}
 
-		case <-timer.C:
-			logger.Logger.Infof("ACK timeout expired on node %d; no higher nodes responded, becoming leader", eh.id)
+		case timer := <-timer.C:
+			elapsed := fmt.Sprintf("%.2f", time.Since(timer.Add(-eh.ackTimeout)).Seconds())
 			eh.sendCoordinatorMessage()
-			logger.Logger.Infof("Node %d became coordinator", eh.id)
+			logger.Logger.Infof("[Node %d] no one ACKed after %s seconds becoming coordinator", eh.id, elapsed)
 			return
 		}
 
@@ -145,13 +152,14 @@ func (eh *electionHandler) awaitCoordinator(roundID uint64) {
 		select {
 		case <-eh.ctx.Done():
 			return
-		case <-timer.C:
-			logger.Logger.Infof("Coordinator timeout expired on node %d; no coordinator message received", eh.id)
+		case timer := <-timer.C:
+			elapsed := fmt.Sprintf("%.2f", time.Since(timer.Add(-eh.coordTimeout)).Seconds())
+			logger.Logger.Infof("[Node %d] Coordinator timeout after %s seconds; no coordinator message received", eh.id, elapsed)
 			eh.StartElection()
 			return
 		case r := <-eh.coordCh:
 			if r == roundID {
-				logger.Logger.Debugf("Node %d received COORDINATOR for round %d", eh.id, roundID)
+				logger.Logger.Debugf("[Node %d] received COORDINATOR for round %d", eh.id, roundID)
 				return // Election complete, someone else is leader
 			}
 		}
@@ -167,7 +175,7 @@ func (eh *electionHandler) sendElectionMessage(nodeConn middleware.MessageMiddle
 	}
 	payload, err := proto.Marshal(electionMsg)
 	if err != nil {
-		logger.Logger.Errorf("Failed to marshal ELECTION message: %v", err)
+		logger.Logger.Errorf("[Node %d] Failed to marshal ELECTION message: %v", eh.id, err)
 		return
 	}
 	nodeConn.Send(payload)
@@ -181,7 +189,7 @@ func (eh *electionHandler) sendAckMessage(nodeConn middleware.MessageMiddleware)
 	}
 	payload, err := proto.Marshal(ackMsg)
 	if err != nil {
-		logger.Logger.Errorf("Failed to marshal ACK message: %v", err)
+		logger.Logger.Errorf("[Node %d] Failed to marshal ACK message: %v", eh.id, err)
 		return
 	}
 	nodeConn.Send(payload)
@@ -195,7 +203,7 @@ func (eh *electionHandler) sendCoordinatorMessage() {
 	}
 	payload, err := proto.Marshal(coordMsg)
 	if err != nil {
-		logger.Logger.Errorf("Failed to marshal COORDINATOR message: %v", err)
+		logger.Logger.Errorf("[Node %d] Failed to marshal COORDINATOR message: %v", eh.id, err)
 		return
 	}
 

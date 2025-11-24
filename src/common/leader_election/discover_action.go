@@ -45,7 +45,7 @@ func (le *leaderElection) handleDiscoverMsg(nodeID, leaderID int32, leaderSearch
 
 		le.readyForElection.Store(true)
 		le.beginHeartbeatHandler()
-		logger.Logger.Infof("[Node %d] recognized node %d as coordinator", le.id, leaderID)
+		logger.Logger.Infof("[Node %d] recognized node %d as existing leader", le.id, leaderID)
 	} else if leaderID == -1 { // discovery message
 		le.respondDiscoveryMessage(nodeID)
 	}
@@ -86,7 +86,11 @@ func (le *leaderElection) respondDiscoveryMessage(nodeId int32) {
 		return
 	}
 
-	logger.Logger.Debugf("Connected nodes: %+v", le.connectedNodes)
+	keys := make([]int32, 0, len(le.connectedNodes))
+	for k := range le.connectedNodes {
+		keys = append(keys, k)
+	}
+	logger.Logger.Debugf("Connected node keys: %v", keys)
 	m, exists := le.connectedNodes[nodeId]
 	if !exists {
 		logger.Logger.Errorf("[Node %d] No middleware found for node %d to respond to discovery", le.id, nodeId)
