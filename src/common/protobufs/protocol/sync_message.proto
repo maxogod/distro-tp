@@ -9,5 +9,6 @@ message SyncMessage {
   int32 leader_id = 2;
   int32 action = 3;
   bytes envelope = 4; // optional
+  uint64 round_id = 5;
 }
 
