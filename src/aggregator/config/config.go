@@ -3,6 +3,7 @@ package config
 import (
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/pkg/errors"
 	"github.com/spf13/viper"
@@ -11,7 +12,7 @@ import (
 type HeartbeatConfig struct {
 	Host     string
 	Port     int
-	Interval int
+	Interval time.Duration
 }
 
 type Limits struct {
@@ -58,7 +59,7 @@ func InitConfig(configFilePath string) (*Config, error) {
 	heatbeatConf := HeartbeatConfig{
 		Host:     v.GetString("heartbeat.host"),
 		Port:     v.GetInt("heartbeat.port"),
-		Interval: v.GetInt("heartbeat.interval"),
+		Interval: time.Duration(v.GetInt("heartbeat.interval")) * time.Second,
 	}
 
 	config := &Config{
