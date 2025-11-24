@@ -9,16 +9,34 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
+// startDiscoveryPhase initializes node for discovery phase to request messages from other nodes
+// to find out the leader and ask for updates.
+func (le *leaderElection) startDiscoveryPhase() chan bool {
+	le.readyForElection.Store(false)
+
+	le.sendDiscoveryMessage()
+
+	// This should only timeout at startup
+	leaderSearchTimerCh := le.initLeaderSearchTimer(func() {
+		// There is no leader -> start election
+		le.readyForElection.Store(true)
+		le.startElection()
+	})
+
+	return leaderSearchTimerCh
+}
+
 // handleDiscoverMsg handles the discovery message whether its the broadcast message on a node connection (marked by leaderID = -1)
 // or a response message to that new node and check if the leader is known.
-func (le *leaderElection) handleDiscoverMsg(nodeID, leaderID int32, leaderSearchTimerCh chan bool) {
+func (le *leaderElection) handleDiscoverMsg(nodeID, leaderID int32, leaderSearchTimerCh *chan bool) {
 	if leaderID > 0 && !le.readyForElection.Load() { // there is already a leader
 		le.leaderId.Store(leaderID)
-		leaderSearchTimerCh <- true // stop leader search timer
+		*leaderSearchTimerCh <- true // stop leader search timer
 
 		err := le.awaitUpdates()
 		if err != nil {
-			// TODO: if timeout, redo the discovery phase
+			// Re-start discovery phase (leader fell mid updating this node)
+			*leaderSearchTimerCh = le.startDiscoveryPhase()
 		}
 
 		le.readyForElection.Store(true)

@@ -140,25 +140,15 @@ func (le *leaderElection) FinishClient(clientID string) error {
 
 func (le *leaderElection) Start() error {
 	le.running.Store(true)
-	le.readyForElection.Store(false)
 
-	le.sendDiscoveryMessage()
-
-	// This should only timeout at startup
-	leaderSearchTimerCh := le.initLeaderSearchTimer(func() {
-		// There is no leader -> start election
-		le.readyForElection.Store(true)
-		le.startElection()
-	})
-
-	le.readyForElection.Store(true)
+	leaderSearchTimerCh := le.startDiscoveryPhase()
 
 	for le.running.Load() {
 		msg := <-le.messagesCh
 		nodeID := msg.GetNodeId()
 		switch msg.GetAction() {
 		case int32(enum.DISCOVER):
-			le.handleDiscoverMsg(nodeID, msg.GetLeaderId(), leaderSearchTimerCh)
+			le.handleDiscoverMsg(nodeID, msg.GetLeaderId(), &leaderSearchTimerCh)
 		case int32(enum.COORDINATOR):
 			le.handleCoordinatorMsg(nodeID)
 			// select {
