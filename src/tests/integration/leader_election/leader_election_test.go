@@ -18,40 +18,40 @@ func TestMain(t *testing.M) {
 	t.Run()
 }
 
-// func TestSingleNode(t *testing.T) {
-// 	maxNodes := 1
+func TestSingleNode(t *testing.T) {
+	maxNodes := 1
 
-// 	le1 := leader_election.NewLeaderElection("localhost", 9091, 1, url, enum.None, maxNodes, nil)
-// 	go le1.Start()
-// 	assert.False(t, le1.IsLeader(), "Expected node to not be leader")
+	le1 := leader_election.NewLeaderElection("localhost", 9091, 1, url, enum.None, maxNodes, nil)
+	go le1.Start()
+	assert.False(t, le1.IsLeader(), "Expected node to not be leader")
 
-// 	time.Sleep(sleepTime)
+	time.Sleep(sleepTime)
 
-// 	assert.True(t, le1.IsLeader(), "Expected node to be leader")
+	assert.True(t, le1.IsLeader(), "Expected node to be leader")
 
-// 	le1.Close()
-// }
+	le1.Close()
+}
 
-// func TestTwoNodes(t *testing.T) {
-// 	maxNodes := 2
-// 	le1 := leader_election.NewLeaderElection("localhost", 9091, 1, url, enum.None, maxNodes, nil)
-// 	le2 := leader_election.NewLeaderElection("localhost", 9092, 2, url, enum.None, maxNodes, nil)
-// 	time.Sleep(5 * time.Second) // wait for connections to establish
+func TestTwoNodes(t *testing.T) {
+	maxNodes := 2
+	le1 := leader_election.NewLeaderElection("localhost", 9091, 1, url, enum.None, maxNodes, nil)
+	le2 := leader_election.NewLeaderElection("localhost", 9092, 2, url, enum.None, maxNodes, nil)
+	time.Sleep(5 * time.Second) // wait for connections to establish
 
-// 	go le1.Start()
-// 	go le2.Start()
+	go le1.Start()
+	go le2.Start()
 
-// 	assert.False(t, le1.IsLeader(), "Expected node to not be leader")
-// 	assert.False(t, le2.IsLeader(), "Expected node to not be leader")
+	assert.False(t, le1.IsLeader(), "Expected node to not be leader")
+	assert.False(t, le2.IsLeader(), "Expected node to not be leader")
 
-// 	time.Sleep(sleepTime)
+	time.Sleep(sleepTime)
 
-// 	assert.False(t, le1.IsLeader(), "Expected node to be leader")
-// 	assert.True(t, le2.IsLeader(), "Expected node to be leader")
+	assert.False(t, le1.IsLeader(), "Expected node to be leader")
+	assert.True(t, le2.IsLeader(), "Expected node to be leader")
 
-// 	le1.Close()
-// 	le2.Close()
-// }
+	le1.Close()
+	le2.Close()
+}
 
 func TestTwoNodesWithMaxTenNodes(t *testing.T) {
 	maxNodes := 10
@@ -75,98 +75,104 @@ func TestTwoNodesWithMaxTenNodes(t *testing.T) {
 	le2.Close()
 }
 
-// func TestNewNodeConnection(t *testing.T) {
-// 	maxNodes := 10
+func TestNewNodeConnection(t *testing.T) {
+	maxNodes := 10
 
-// 	le1 := leader_election.NewLeaderElection("localhost", 9091, 1, url, enum.None, maxNodes, nil)
-// 	le2 := leader_election.NewLeaderElection("localhost", 9092, 2, url, enum.None, maxNodes, nil)
-// 	time.Sleep(5 * time.Second) // wait for connections to establish
+	le1 := leader_election.NewLeaderElection("localhost", 9091, 1, url, enum.None, maxNodes, nil)
+	le2 := leader_election.NewLeaderElection("localhost", 9092, 2, url, enum.None, maxNodes, nil)
+	time.Sleep(5 * time.Second) // wait for connections to establish
 
-// 	go le1.Start()
-// 	go le2.Start()
+	go le1.Start()
+	go le2.Start()
 
-// 	assert.False(t, le1.IsLeader(), "Expected node to not be leader")
-// 	assert.False(t, le2.IsLeader(), "Expected node to not be leader")
+	assert.False(t, le1.IsLeader(), "Expected node to not be leader")
+	assert.False(t, le2.IsLeader(), "Expected node to not be leader")
 
-// 	time.Sleep(sleepTime)
+	time.Sleep(sleepTime)
 
-// 	assert.False(t, le1.IsLeader(), "Expected node to be leader")
-// 	assert.True(t, le2.IsLeader(), "Expected node to be leader")
+	assert.False(t, le1.IsLeader(), "Expected node to be leader")
+	assert.True(t, le2.IsLeader(), "Expected node to be leader")
 
-// 	// Connect a new node with higher ID
-// 	le3 := leader_election.NewLeaderElection("localhost", 9093, 3, url, enum.None, maxNodes, nil)
-// 	go le3.Start()
-// 	time.Sleep(sleepTime)
+	// Connect a new node with higher ID
+	le3 := leader_election.NewLeaderElection("localhost", 9093, 3, url, enum.None, maxNodes, nil)
+	go le3.Start()
+	time.Sleep(sleepTime)
 
-// 	assert.False(t, le1.IsLeader(), "Expected node to be leader")
-// 	assert.True(t, le2.IsLeader(), "Expected node to be leader")
-// 	assert.False(t, le3.IsLeader(), "Expected new node to not be leader")
+	assert.False(t, le1.IsLeader(), "Expected node to be leader")
+	assert.True(t, le2.IsLeader(), "Expected node to be leader")
+	assert.False(t, le3.IsLeader(), "Expected new node to not be leader")
 
-// 	le1.Close()
-// 	le2.Close()
-// 	le3.Close()
-// }
+	le1.Close()
+	le2.Close()
+	le3.Close()
+}
 
-// func TestNewNodeConnectionWithNewLeader(t *testing.T) {
-// 	maxNodes := 10
+func TestNewNodeConnectionWithNewLeader(t *testing.T) {
+	maxNodes := 10
 
-// 	le1 := leader_election.NewLeaderElection("localhost", 9091, 1, url, enum.None, maxNodes, nil)
-// 	le2 := leader_election.NewLeaderElection("localhost", 9092, 2, url, enum.None, maxNodes, nil)
-// 	time.Sleep(5 * time.Second) // wait for connections to establish
+	le1 := leader_election.NewLeaderElection("localhost", 9091, 1, url, enum.None, maxNodes, nil)
+	le2 := leader_election.NewLeaderElection("localhost", 9092, 2, url, enum.None, maxNodes, nil)
+	time.Sleep(5 * time.Second) // wait for connections to establish
 
-// 	go le1.Start()
-// 	go le2.Start()
+	go le1.Start()
+	go le2.Start()
 
-// 	assert.False(t, le1.IsLeader(), "Expected node to not be leader")
-// 	assert.False(t, le2.IsLeader(), "Expected node to not be leader")
+	assert.False(t, le1.IsLeader(), "Expected node to not be leader")
+	assert.False(t, le2.IsLeader(), "Expected node to not be leader")
 
-// 	time.Sleep(sleepTime)
+	time.Sleep(sleepTime)
 
-// 	assert.False(t, le1.IsLeader(), "Expected node to be leader")
-// 	assert.True(t, le2.IsLeader(), "Expected node to be leader")
+	assert.False(t, le1.IsLeader(), "Expected node to be leader")
+	assert.True(t, le2.IsLeader(), "Expected node to be leader")
 
-// 	// Connect a new node with higher ID
-// 	le3 := leader_election.NewLeaderElection("localhost", 9093, 3, url, enum.None, maxNodes, nil)
-// 	go le3.Start()
-// 	time.Sleep(sleepTime)
+	// Connect a new node with higher ID
+	le3 := leader_election.NewLeaderElection("localhost", 9093, 3, url, enum.None, maxNodes, nil)
+	go le3.Start()
+	time.Sleep(sleepTime)
 
-// 	assert.False(t, le1.IsLeader(), "Expected node to be leader")
-// 	assert.True(t, le2.IsLeader(), "Expected node to be leader")
-// 	assert.False(t, le3.IsLeader(), "Expected new node to not be leader")
+	assert.False(t, le1.IsLeader(), "Expected node to be leader")
+	assert.True(t, le2.IsLeader(), "Expected node to be leader")
+	assert.False(t, le3.IsLeader(), "Expected new node to not be leader")
 
-// 	// Close the leader node
-// 	le2.Close()
+	// Close the leader node
+	le2.Close()
 
-// 	time.Sleep(sleepTime)
+	time.Sleep(sleepTime)
 
-// 	assert.False(t, le1.IsLeader(), "Expected node to not be leader")
-// 	assert.True(t, le3.IsLeader(), "Expected new node to be leader")
-// }
+	assert.False(t, le1.IsLeader(), "Expected node to not be leader")
+	assert.True(t, le3.IsLeader(), "Expected new node to be leader")
 
-// func TestNewNodeConnectionDuringElection(t *testing.T) {
-// 	maxNodes := 10
+	le1.Close()
+	le3.Close()
+}
 
-// 	le1 := leader_election.NewLeaderElection("localhost", 9091, 1, url, enum.None, maxNodes, nil)
-// 	le2 := leader_election.NewLeaderElection("localhost", 9092, 2, url, enum.None, maxNodes, nil)
-// 	time.Sleep(5 * time.Second) // wait for connections to establish
+func TestNewNodeConnectionDuringElection(t *testing.T) {
+	maxNodes := 10
 
-// 	go le1.Start()
-// 	go le2.Start()
+	le1 := leader_election.NewLeaderElection("localhost", 9091, 1, url, enum.None, maxNodes, nil)
+	le2 := leader_election.NewLeaderElection("localhost", 9092, 2, url, enum.None, maxNodes, nil)
+	time.Sleep(5 * time.Second) // wait for connections to establish
 
-// 	assert.False(t, le1.IsLeader(), "Expected node to not be leader")
-// 	assert.False(t, le2.IsLeader(), "Expected node to not be leader")
+	go le1.Start()
+	go le2.Start()
 
-// 	time.Sleep(sleepTime)
+	assert.False(t, le1.IsLeader(), "Expected node to not be leader")
+	assert.False(t, le2.IsLeader(), "Expected node to not be leader")
 
-// 	assert.False(t, le1.IsLeader(), "Expected node to be leader")
-// 	assert.True(t, le2.IsLeader(), "Expected node to be leader")
+	time.Sleep(sleepTime)
 
-// 	// Connect a new node with higher ID
-// 	le3 := leader_election.NewLeaderElection("localhost", 9093, 3, url, enum.None, maxNodes, nil)
-// 	le2.Close()
-// 	go le3.Start()
-// 	time.Sleep(sleepTime)
+	assert.False(t, le1.IsLeader(), "Expected node to be leader")
+	assert.True(t, le2.IsLeader(), "Expected node to be leader")
 
-// 	assert.False(t, le1.IsLeader(), "Expected node to not be leader")
-// 	assert.True(t, le3.IsLeader(), "Expected new node to be leader")
-// }
+	// Connect a new node with higher ID
+	le3 := leader_election.NewLeaderElection("localhost", 9093, 3, url, enum.None, maxNodes, nil)
+	le2.Close()
+	go le3.Start()
+	time.Sleep(sleepTime)
+
+	assert.False(t, le1.IsLeader(), "Expected node to not be leader")
+	assert.True(t, le3.IsLeader(), "Expected new node to be leader")
+
+	le1.Close()
+	le3.Close()
+}
