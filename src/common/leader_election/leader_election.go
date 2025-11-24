@@ -306,6 +306,7 @@ func (le *leaderElection) startSendingHeartbeats() {
 
 func (le *leaderElection) handleCoordinatorMsg(nodeId int32) {
 	if le.id > nodeId && le.electionHandler.IsElectionRunning() {
+		logger.Logger.Debugf("[Node %d] Received COORDINATOR from Node %d, but my ID is higher. Ignoring...", le.id, nodeId)
 		return
 	}
 	le.leaderId.Store(nodeId)
