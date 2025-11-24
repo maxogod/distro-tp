@@ -162,10 +162,7 @@ func (h *heartbeatHandler) sendHeartbeat(conn *net.UDPConn) error {
 		return fmt.Errorf("failed to marshal heartbeat: %w", err)
 	}
 
-	_, err = conn.Write(data)
-	if err != nil {
-		return fmt.Errorf("failed to send UDP packet: %w", err)
-	}
+	conn.Write(data)
 
 	return nil
 }

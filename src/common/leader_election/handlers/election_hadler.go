@@ -54,6 +54,7 @@ func (eh *electionHandler) StartElection() {
 	eh.isElectionRunning.Store(true)
 
 	eh.electionCtx, eh.electionCancel = context.WithCancel(context.Background())
+	eh.roundID = uuid.New().String() // New unique roundID
 	for nodeID, nodeConn := range eh.connectedNodes {
 		if eh.id > nodeID {
 			continue
@@ -138,7 +139,6 @@ func (eh *electionHandler) awaitCoordinator() {
 /* -------- Send functions -------- */
 
 func (eh *electionHandler) sendElectionMessage(nodeConn middleware.MessageMiddleware) {
-	eh.roundID = uuid.New().String() // New unique roundID
 	electionMsg := &protocol.SyncMessage{
 		NodeId:  int32(eh.id),
 		Action:  int32(enum.ELECTION),
