@@ -13,11 +13,9 @@ func NewGroupService() GroupService {
 
 // This is T2
 func (gs *groupService) GroupItemsByYearMonthAndItem(items []*raw.TransactionItem) map[string]*group_by.GroupTransactionItems {
-
 	result := make(map[string]*group_by.GroupTransactionItems)
 
 	for _, item := range items {
-
 		// Since the CreatedAt is in the format "YYYY-MM-DD HH:MM:SS",
 		// we extract the "YYYY-MM" part and replace the CreatedAt field with it
 		item.CreatedAt = item.CreatedAt[:7]
@@ -40,7 +38,6 @@ func (gs *groupService) GroupItemsByYearMonthAndItem(items []*raw.TransactionIte
 
 // This is T3
 func (gs *groupService) GroupTransactionsByStoreAndSemester(transactions []*raw.Transaction) map[string]*group_by.GroupTransactions {
-
 	result := make(map[string]*group_by.GroupTransactions)
 
 	for _, transaction := range transactions {
@@ -77,11 +74,9 @@ func (gs *groupService) GroupTransactionsByStoreAndSemester(transactions []*raw.
 
 // This is T4
 func (gs *groupService) GroupTransactionsByStoreAndUser(transactions []*raw.Transaction) map[string]*group_by.GroupTransactions {
-
 	result := make(map[string]*group_by.GroupTransactions)
 
 	for _, transaction := range transactions {
-
 		key := transaction.UserId + "@" + transaction.StoreId
 		if _, exists := result[key]; !exists {
 			result[key] = &group_by.GroupTransactions{

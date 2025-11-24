@@ -2,51 +2,51 @@ package joiner_test
 
 import "github.com/maxogod/distro-tp/src/common/models/reduced"
 
-var MockTotalProfitOutput = []*reduced.TotalProfitBySubtotal{
-	{
-		ItemId:    "Black Coffee",
-		YearMonth: "2025-01",
-		Subtotal:  100.0,
-	},
-	{
-		ItemId:    "Black Coffee",
-		YearMonth: "2025-01",
-		Subtotal:  100.0,
-	},
-	{
-		ItemId:    "Latte",
-		YearMonth: "2024-12",
-		Subtotal:  100.0,
-	},
-	{
-		ItemId:    "Flat White",
-		YearMonth: "2024-06",
-		Subtotal:  100.0,
-	},
-}
+// var MockTotalProfitOutput = []*reduced.TotalProfitBySubtotal{
+// 	{
+// 		ItemId:    "Black Coffee",
+// 		YearMonth: "2025-01",
+// 		Subtotal:  100.0,
+// 	},
+// 	{
+// 		ItemId:    "Black Coffee",
+// 		YearMonth: "2025-01",
+// 		Subtotal:  100.0,
+// 	},
+// 	{
+// 		ItemId:    "Latte",
+// 		YearMonth: "2024-12",
+// 		Subtotal:  100.0,
+// 	},
+// 	{
+// 		ItemId:    "Flat White",
+// 		YearMonth: "2024-06",
+// 		Subtotal:  100.0,
+// 	},
+// }
 
-var MockTotalSalesOutput = []*reduced.TotalSoldByQuantity{
-	{
-		ItemId:    "Black Coffee",
-		YearMonth: "2025-01",
-		Quantity:  100.0,
-	},
-	{
-		ItemId:    "Black Coffee",
-		YearMonth: "2025-01",
-		Quantity:  100.0,
-	},
-	{
-		ItemId:    "Latte",
-		YearMonth: "2024-12",
-		Quantity:  100.0,
-	},
-	{
-		ItemId:    "Flat White",
-		YearMonth: "2024-06",
-		Quantity:  100.0,
-	},
-}
+// var MockTotalSalesOutput = []*reduced.TotalSoldByQuantity{
+// 	{
+// 		ItemId:    "Black Coffee",
+// 		YearMonth: "2025-01",
+// 		Quantity:  100.0,
+// 	},
+// 	{
+// 		ItemId:    "Black Coffee",
+// 		YearMonth: "2025-01",
+// 		Quantity:  100.0,
+// 	},
+// 	{
+// 		ItemId:    "Latte",
+// 		YearMonth: "2024-12",
+// 		Quantity:  100.0,
+// 	},
+// 	{
+// 		ItemId:    "Flat White",
+// 		YearMonth: "2024-06",
+// 		Quantity:  100.0,
+// 	},
+// }
 
 var MockTpvOutput = []*reduced.TotalPaymentValue{
 	{

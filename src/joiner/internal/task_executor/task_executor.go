@@ -15,196 +15,207 @@ import (
 
 const SEND_LIMIT = 1000
 
-var log = logger.GetLogger()
-
 type joinerExecutor struct {
-	config          *config.Config
-	joinerService   business.JoinerService
-	aggregatorQueue middleware.MessageMiddleware
+	config        *config.Config
+	joinerService business.JoinerService
+	joinerQueue   middleware.MessageMiddleware
 }
 
 func NewJoinerExecutor(config *config.Config,
 	joinerService business.JoinerService,
-	aggregatorQueue middleware.MessageMiddleware) worker.TaskExecutor {
+) worker.TaskExecutor {
 	return &joinerExecutor{
-		config:          config,
-		joinerService:   joinerService,
-		aggregatorQueue: aggregatorQueue,
+		config:        config,
+		joinerService: joinerService,
+		joinerQueue:   middleware.GetJoinerQueue(config.Address),
 	}
-}
-
-// HandleTask2 is exclusively for reference data
-func (je *joinerExecutor) HandleTask2(payload []byte, clientID string) error {
-	dataEnvelope := &protocol.DataEnvelope{}
-	err := proto.Unmarshal(payload, dataEnvelope)
-	if err != nil {
-		return err
-	}
-
-	if !dataEnvelope.GetIsRef() {
-		panic("Received a non-reference data envelope for Task 2, ignoring...")
-	}
-
-	if !dataEnvelope.GetIsDone() {
-		return je.handleRefData(dataEnvelope, clientID)
-	}
-	return je.joinerService.FinishStoringRefData(clientID)
-
-}
-
-// HandleTask2_1 is exclusively for reduced data
-func (je *joinerExecutor) HandleTask2_1(payload []byte, clientID string) error {
-	dataEnvelope := &protocol.DataEnvelope{}
-	err := proto.Unmarshal(payload, dataEnvelope)
-	if err != nil {
-		return err
-	}
-
-	if dataEnvelope.GetIsRef() {
-		panic("The joiner only implements Task 2_1 for reduced data")
-	}
-
-	reducedData := &reduced.TotalProfitBySubtotal{}
-	err = proto.Unmarshal(dataEnvelope.GetPayload(), reducedData)
-	if err != nil {
-		return err
-	}
-
-	joinedData := je.joinerService.JoinTotalProfitBySubtotal(reducedData, clientID)
-	if len(joinedData) == 0 {
-		return nil
-	}
-
-	for _, jd := range joinedData {
-		err = worker.SendDataToMiddleware(jd, enum.T2_1, clientID, je.aggregatorQueue)
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
 }
 
 // HandleTask2_2 is exclusively for reduced data
-func (je *joinerExecutor) HandleTask2_2(payload []byte, clientID string) error {
-	dataEnvelope := &protocol.DataEnvelope{}
-	err := proto.Unmarshal(payload, dataEnvelope)
-	if err != nil {
-		return err
-	}
+func (je *joinerExecutor) HandleTask2(dataEnvelope *protocol.DataEnvelope, ackHandler func(bool, bool) error) error {
+	shouldAck := false
+	shouldRequeue := false
+	clientID := dataEnvelope.GetClientId()
 
 	if dataEnvelope.GetIsRef() {
-		panic("The joiner only implements Task 2_2 for reduced data")
-	}
-
-	reducedData := &reduced.TotalSoldByQuantity{}
-	err = proto.Unmarshal(dataEnvelope.GetPayload(), reducedData)
-	if err != nil {
-		return err
-	}
-
-	joinedData := je.joinerService.JoinTotalSoldByQuantity(reducedData, clientID)
-	if len(joinedData) == 0 {
-		return nil
-	}
-
-	for _, jd := range joinedData {
-		err = worker.SendDataToMiddleware(jd, enum.T2_2, clientID, je.aggregatorQueue)
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
-func (je *joinerExecutor) HandleTask3(payload []byte, clientID string) error {
-	dataEnvelope := &protocol.DataEnvelope{}
-	err := proto.Unmarshal(payload, dataEnvelope)
-	if err != nil {
-		return err
-	}
-
-	if dataEnvelope.GetIsRef() {
+		var err error
 		if !dataEnvelope.GetIsDone() {
-			return je.handleRefData(dataEnvelope, clientID)
+			err = je.handleRefData(dataEnvelope, clientID)
+		} else {
+			err = je.joinerService.FinishStoringRefData(clientID)
 		}
-		return je.joinerService.FinishStoringRefData(clientID)
-	}
 
-	reducedData := &reduced.TotalPaymentValue{}
-
-	err = proto.Unmarshal(dataEnvelope.GetPayload(), reducedData)
-	if err != nil {
-		return err
-	}
-
-	joinedData := je.joinerService.JoinTotalPaymentValue(reducedData, clientID)
-	if len(joinedData) == 0 {
-		return nil
-	}
-
-	for _, jd := range joinedData {
-		err = worker.SendDataToMiddleware(jd, enum.T3, clientID, je.aggregatorQueue)
 		if err != nil {
 			return err
 		}
+		shouldAck = true
+		return nil
 	}
 
-	return nil
-}
+	processedDataQueue := middleware.GetProcessedDataExchange(je.config.Address, clientID)
+	defer func() {
+		ackHandler(shouldAck, shouldRequeue)
+		if !dataEnvelope.GetIsRef() {
+			processedDataQueue.Close()
+			je.joinerService.DeleteClientRefData(clientID)
+			logger.Logger.Debugf("Finished & Deleted ref data for client %s", clientID)
+		}
+	}()
 
-func (je *joinerExecutor) HandleTask4(payload []byte, clientID string) error {
-	dataEnvelope := &protocol.DataEnvelope{}
-	err := proto.Unmarshal(payload, dataEnvelope)
+	reportData := &reduced.TotalSumItemsReport{}
+	err := proto.Unmarshal(dataEnvelope.GetPayload(), reportData)
 	if err != nil {
 		return err
 	}
+
+	// here we join the data
+	for _, itemData := range reportData.GetTotalSumItemsBySubtotal() {
+		if err := je.joinerService.JoinTotalSumItem(itemData, clientID); err != nil {
+			// if the ref data is not present yet, requeue the message
+			payload, _ := proto.Marshal(dataEnvelope)
+			je.joinerQueue.Send(payload)
+			shouldAck = true
+			return nil
+		}
+	}
+	for _, itemData := range reportData.GetTotalSumItemsByQuantity() {
+		if err := je.joinerService.JoinTotalSumItem(itemData, clientID); err != nil {
+			// in the first for-loop we already checked for missing ref data, so if we error here it's another issue
+			return err
+		}
+	}
+	err = worker.SendDataToMiddleware(reportData, enum.T2, clientID, 0, processedDataQueue)
+	if err != nil {
+		shouldRequeue = true
+		return err
+	}
+
+	shouldAck = true
+	return nil
+}
+
+func (je *joinerExecutor) HandleTask3(dataEnvelope *protocol.DataEnvelope, ackHandler func(bool, bool) error) error {
+	shouldAck := false
+	shouldRequeue := false
+	clientID := dataEnvelope.GetClientId()
 
 	if dataEnvelope.GetIsRef() {
+		var err error
 		if !dataEnvelope.GetIsDone() {
-			return je.handleRefData(dataEnvelope, clientID)
+			err = je.handleRefData(dataEnvelope, clientID)
+		} else {
+			err = je.joinerService.FinishStoringRefData(clientID)
 		}
-		return je.joinerService.FinishStoringRefData(clientID)
+
+		if err != nil {
+			return err
+		}
+		shouldAck = true
+		return nil
 	}
 
-	countedData := &reduced.CountedUserTransactions{}
-	err = proto.Unmarshal(dataEnvelope.GetPayload(), countedData)
+	processedDataQueue := middleware.GetProcessedDataExchange(je.config.Address, clientID)
+	defer func() {
+		ackHandler(shouldAck, shouldRequeue)
+		if !dataEnvelope.GetIsRef() {
+			processedDataQueue.Close()
+			je.joinerService.DeleteClientRefData(clientID)
+			logger.Logger.Debugf("Finished & Deleted ref data for client %s", clientID)
+		}
+	}()
+
+	reducedData := &reduced.TotalPaymentValueBatch{}
+	err := proto.Unmarshal(dataEnvelope.GetPayload(), reducedData)
 	if err != nil {
 		return err
 	}
 
-	joinedData := je.joinerService.JoinCountedUserTransactions(countedData, clientID)
-	if len(joinedData) == 0 {
-		return nil
-	}
-
-	for _, jd := range joinedData {
-		err = worker.SendDataToMiddleware(jd, enum.T4, clientID, je.aggregatorQueue)
+	for _, rData := range reducedData.GetTotalPaymentValues() {
+		err := je.joinerService.JoinTotalPaymentValue(rData, clientID)
 		if err != nil {
-			return err
+			// if the ref data is not present yet, requeue the message
+			payload, _ := proto.Marshal(dataEnvelope)
+			je.joinerQueue.Send(payload)
+			shouldAck = true
+			return nil
 		}
 	}
 
+	err = worker.SendDataToMiddleware(reducedData, enum.T3, clientID, 0, processedDataQueue)
+	if err != nil {
+		shouldRequeue = true
+		return err
+	}
+	shouldAck = true
 	return nil
 }
 
-func (je *joinerExecutor) HandleFinishClient(clientID string) error {
-	log.Debug("Finishing client: ", clientID)
+func (je *joinerExecutor) HandleTask4(dataEnvelope *protocol.DataEnvelope, ackHandler func(bool, bool) error) error {
+	shouldAck := false
+	shouldRequeue := false
+	clientID := dataEnvelope.GetClientId()
 
-	return je.joinerService.DeleteClientRefData(clientID)
+	if dataEnvelope.GetIsRef() {
+		var err error
+		if !dataEnvelope.GetIsDone() {
+			err = je.handleRefData(dataEnvelope, clientID)
+		} else {
+			err = je.joinerService.FinishStoringRefData(clientID)
+		}
+
+		if err != nil {
+			return err
+		}
+		shouldAck = true
+		return nil
+	}
+
+	processedDataQueue := middleware.GetProcessedDataExchange(je.config.Address, clientID)
+	defer func() {
+		ackHandler(shouldAck, shouldRequeue)
+		if !dataEnvelope.GetIsRef() {
+			processedDataQueue.Close()
+			je.joinerService.DeleteClientRefData(clientID)
+			logger.Logger.Debugf("Finished & Deleted ref data for client %s", clientID)
+		}
+	}()
+
+	countedDataBatch := &reduced.CountedUserTransactionBatch{}
+	err := proto.Unmarshal(dataEnvelope.GetPayload(), countedDataBatch)
+	if err != nil {
+		return err
+	}
+	for _, countedData := range countedDataBatch.GetCountedUserTransactions() {
+		err := je.joinerService.JoinCountedUserTransactions(countedData, clientID)
+		if err != nil {
+			// if the ref data is not present yet, requeue the message
+			payload, _ := proto.Marshal(dataEnvelope)
+			je.joinerQueue.Send(payload)
+			shouldAck = true
+			return nil
+		}
+	}
+
+	err = worker.SendDataToMiddleware(countedDataBatch, enum.T4, clientID, 0, processedDataQueue)
+	if err != nil {
+		shouldRequeue = true
+		logger.Logger.Debugf("An error occurred: %s", err)
+		return err
+	}
+	shouldAck = true
+	return nil
+}
+
+func (je *joinerExecutor) HandleFinishClient(dataEnvelope *protocol.DataEnvelope, ackHandler func(bool, bool) error) error {
+	ackHandler(true, false)
+	return nil
 }
 
 func (je *joinerExecutor) Close() error {
-	err := je.joinerService.Close()
-	je.aggregatorQueue.Close()
-	if err != nil {
-		return err
-	}
-	return nil
+	return je.joinerService.Close()
 }
 
-func (je *joinerExecutor) HandleTask1(payload []byte, clientID string) error {
+func (je *joinerExecutor) HandleTask1(dataEnvelope *protocol.DataEnvelope, ackHandler func(bool, bool) error) error {
 	panic("The joiner does not implement Task 1")
 }
 
@@ -240,7 +251,7 @@ func (je *joinerExecutor) handleRefData(batch *protocol.DataEnvelope, clientID s
 		}
 		return je.joinerService.StoreShops(clientID, storeBatch.Stores)
 	default:
-		log.Errorf("Unknown reference type: %v", refData.GetReferenceType())
+		logger.Logger.Errorf("Unknown reference type: %v", refData.GetReferenceType())
 		return nil
 	}
 }

@@ -8,7 +8,6 @@ import (
 )
 
 func GetDataEnvelope(msg []byte) (*protocol.DataEnvelope, error) {
-
 	dataBatch := &protocol.DataEnvelope{}
 	err := proto.Unmarshal(msg, dataBatch)
 	if err != nil {
@@ -20,16 +19,17 @@ func GetDataEnvelope(msg []byte) (*protocol.DataEnvelope, error) {
 
 // CreateSerializedEnvelope creates a marshaled DataEnvelope containing the provided data, task type, and client ID.
 // This simplifies the need to manually create and marshal DataEnvelope messages each time.
-func CreateSerializedEnvelope(data proto.Message, taskType int32, clientID string) ([]byte, error) {
+func CreateSerializedEnvelope(data proto.Message, taskType int32, clientID string, seqNum int) ([]byte, error) {
 	payload, err := proto.Marshal(data)
 	if err != nil {
 		return nil, err
 	}
 
 	dataEnvelope := &protocol.DataEnvelope{
-		TaskType: taskType,
-		Payload:  payload,
-		ClientId: clientID,
+		TaskType:       taskType,
+		Payload:        payload,
+		ClientId:       clientID,
+		SequenceNumber: int32(seqNum),
 	}
 
 	return proto.Marshal(dataEnvelope)

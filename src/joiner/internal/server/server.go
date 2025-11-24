@@ -5,21 +5,21 @@ import (
 	"os/signal"
 	"syscall"
 
+	"github.com/maxogod/distro-tp/src/common/heartbeat"
 	"github.com/maxogod/distro-tp/src/common/logger"
 	"github.com/maxogod/distro-tp/src/common/middleware"
 	"github.com/maxogod/distro-tp/src/common/models/enum"
 	"github.com/maxogod/distro-tp/src/common/worker"
+	disk_storage "github.com/maxogod/distro-tp/src/common/worker/storage/disk_memory"
 	"github.com/maxogod/distro-tp/src/joiner/business"
 	"github.com/maxogod/distro-tp/src/joiner/cache"
 	"github.com/maxogod/distro-tp/src/joiner/config"
 	"github.com/maxogod/distro-tp/src/joiner/internal/task_executor"
-	"github.com/maxogod/distro-tp/src/joiner/internal/task_handler"
 )
-
-var log = logger.GetLogger()
 
 type Server struct {
 	messageHandler worker.MessageHandler
+	heatbeatSender heartbeat.HeartBeatHandler
 }
 
 func InitServer(conf *config.Config) *Server {
@@ -27,41 +27,46 @@ func InitServer(conf *config.Config) *Server {
 	joinerInputQueue := middleware.GetJoinerQueue(conf.Address)
 	refDataExchange := middleware.GetRefDataExchange(conf.Address)
 	finishExchange := middleware.GetFinishExchange(conf.Address, []string{string(enum.JoinerWorker)})
-	aggregatorQueue := middleware.GetAggregatorQueue(conf.Address)
 
 	// initiate internal components
 	cacheService := cache.NewInMemoryCache()
+	storageService := disk_storage.NewDiskMemoryStorage()
 
-	joinerService := business.NewJoinerService(cacheService)
+	joinerService := business.NewJoinerService(cacheService, storageService, conf.AmountOfUsersPerFile)
 
 	taskExecutor := task_executor.NewJoinerExecutor(
 		conf,
 		joinerService,
-		aggregatorQueue,
 	)
 
-	joinerHandler := task_handler.NewjoinerHandler(taskExecutor)
+	taskHandler := worker.NewTaskHandler(taskExecutor, false)
 
 	messageHandler := worker.NewMessageHandler(
-		joinerHandler,
+		taskHandler,
 		[]middleware.MessageMiddleware{joinerInputQueue, refDataExchange},
 		finishExchange,
 	)
 
 	return &Server{
 		messageHandler: messageHandler,
+		heatbeatSender: heartbeat.NewHeartBeatHandler(conf.Heartbeat.Host, conf.Heartbeat.Port, conf.Heartbeat.Interval),
 	}
 }
 
 func (s *Server) Run() error {
-	log.Info("Starting joiner server...")
+	logger.Logger.Info("Starting joiner server...")
 	s.setupGracefulShutdown()
+
+	err := s.heatbeatSender.StartSending()
+	if err != nil {
+		logger.Logger.Errorf("action: start_heartbeat_sender | result: failed | error: %s", err.Error())
+	}
 
 	// This is a blocking call, it will run until an error occurs or
 	// the Close() method is called via a signal
 	e := s.messageHandler.Start()
 	if e != nil {
-		log.Errorf("Error starting message handler: %v", e)
+		logger.Logger.Errorf("Error starting message handler: %v", e)
 		s.Shutdown()
 		return e
 	}
@@ -75,17 +80,18 @@ func (s *Server) setupGracefulShutdown() {
 
 	go func() {
 		<-sigChannel
-		log.Debugf("Shutdown Signal received, shutting down...")
+		logger.Logger.Debugf("Shutdown Signal received, shutting down...")
 		s.Shutdown()
 	}()
 }
 
 func (s *Server) Shutdown() {
-	log.Debug("Shutting down aggregator Worker server...")
+	logger.Logger.Debug("Shutting down joiner Worker server...")
 	err := s.messageHandler.Close()
 	if err != nil {
-		log.Errorf("Error closing message handler: %v", err)
+		logger.Logger.Errorf("Error closing message handler: %v", err)
 	}
 
-	log.Debug("aggregator Worker server shut down successfully.")
+	s.heatbeatSender.Close()
+	logger.Logger.Debug("joiner Worker server shut down successfully.")
 }

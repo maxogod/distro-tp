@@ -1,6 +1,13 @@
 gateway:
   address: "amqp://guest:guest@rabbitmq:5672/"
+heartbeat:
+  host: "egg_of_life"
+  port: 7777
+  interval: 1
 log:
-  level: "DEBUG"
+  level: "development"
 persistence:
   enabled: true
+limits:
+  transaction_send_limit: 1000
+  max_amount_to_send: 35

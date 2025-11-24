@@ -18,13 +18,13 @@ func NewExchangeMiddleware(url, exchangeName, exchangeType string, routingKeys [
 
 	conn, err := amqp.Dial(url)
 	if err != nil {
-		logger.GetLogger().Errorln("Failed to connect to RabbitMQ:", err)
+		logger.Logger.Errorln("Failed to connect to RabbitMQ:", err)
 		return m, err
 	}
 
 	ch, err := conn.Channel()
 	if err != nil {
-		logger.GetLogger().Errorln("Failed to open a channel:", err)
+		logger.Logger.Errorln("Failed to open a channel:", err)
 		return m, err
 	}
 
@@ -38,7 +38,7 @@ func NewExchangeMiddleware(url, exchangeName, exchangeType string, routingKeys [
 		nil,          // arguments
 	)
 	if err != nil {
-		logger.GetLogger().Errorln("Failed to declare an exchange:", err)
+		logger.Logger.Errorln("Failed to declare an exchange:", err)
 		return m, err
 	}
 
@@ -60,12 +60,12 @@ func (me *MessageMiddlewareExchange) StartConsuming(onMessageCallback onMessageC
 		nil,   // arguments
 	)
 	if err != nil {
-		logger.GetLogger().Errorln("Failed to declare a queue:", err)
+		logger.Logger.Errorln("Failed to declare a queue:", err)
 		return MessageMiddlewareMessageError
 	}
 
 	for _, key := range me.routeKeys {
-		logger.GetLogger().Debugf("Binding queue %s to exchange %s with routing key %s", q.Name, me.exchangeName, key)
+		logger.Logger.Debugf("Binding queue %s to exchange %s with routing key %s", q.Name, me.exchangeName, key)
 		err = me.channel.QueueBind(
 			q.Name,          // queue name
 			key,             // routing key
@@ -74,7 +74,7 @@ func (me *MessageMiddlewareExchange) StartConsuming(onMessageCallback onMessageC
 			nil,
 		)
 		if err != nil {
-			logger.GetLogger().Errorln("Failed to bind consumer queue to exchange:", err)
+			logger.Logger.Errorln("Failed to bind consumer queue to exchange:", err)
 			return MessageMiddlewareMessageError
 		}
 	}
@@ -93,7 +93,7 @@ func (me *MessageMiddlewareExchange) StartConsuming(onMessageCallback onMessageC
 		nil,         // args
 	)
 	if err != nil {
-		logger.GetLogger().Errorln("Failed to register a consumer:", err)
+		logger.Logger.Errorln("Failed to register a consumer:", err)
 		return MessageMiddlewareMessageError
 	}
 
@@ -107,13 +107,13 @@ func (me *MessageMiddlewareExchange) StartConsuming(onMessageCallback onMessageC
 
 func (me *MessageMiddlewareExchange) StopConsuming() (error MessageMiddlewareError) {
 	if me.consumerTag == "" {
-		logger.GetLogger().Warnln("StopConsuming called but no consumer is active")
+		logger.Logger.Warnln("StopConsuming called but no consumer is active")
 		return MessageMiddlewareSuccess
 	}
 
 	err := me.channel.Cancel(me.consumerTag, false)
 	if err != nil {
-		logger.GetLogger().Errorln("Failed to cancel the consumer:", err)
+		logger.Logger.Errorln("Failed to cancel the consumer:", err)
 		return MessageMiddlewareMessageError
 	}
 	me.consumerTag = ""
@@ -123,7 +123,7 @@ func (me *MessageMiddlewareExchange) StopConsuming() (error MessageMiddlewareErr
 
 func (me *MessageMiddlewareExchange) Send(message []byte) MessageMiddlewareError {
 	if me.conn.IsClosed() {
-		logger.GetLogger().Errorln("Connection is closed")
+		logger.Logger.Errorln("Connection is closed")
 		return MessageMiddlewareDisconnectedError
 	}
 
@@ -142,7 +142,7 @@ func (me *MessageMiddlewareExchange) Send(message []byte) MessageMiddlewareError
 				Body:         message,
 			})
 		if err != nil {
-			logger.GetLogger().Errorf("Failed to publish a message to route %s: %v", key, err)
+			logger.Logger.Errorf("Failed to publish a message to route %s: %v", key, err)
 			return MessageMiddlewareMessageError
 		}
 	}
@@ -154,7 +154,7 @@ func (me *MessageMiddlewareExchange) Close() (error MessageMiddlewareError) {
 	errCh := me.channel.Close()
 	errConn := me.conn.Close()
 	if errCh != nil || errConn != nil {
-		logger.GetLogger().Errorln("Failed to close middleware connection")
+		logger.Logger.Errorln("Failed to close middleware connection")
 		return MessageMiddlewareCloseError
 	}
 
@@ -168,11 +168,11 @@ func (me *MessageMiddlewareExchange) Delete() (error MessageMiddlewareError) {
 		false,           // noWait
 	)
 	if err != nil {
-		logger.GetLogger().Errorln("Failed to delete exchange:", err)
+		logger.Logger.Errorln("Failed to delete exchange:", err)
 		return MessageMiddlewareDeleteError
 	}
 
-	logger.GetLogger().Debugln("Deleted exchange:", me.exchangeName)
+	logger.Logger.Debugln("Deleted exchange:", me.exchangeName)
 
 	return MessageMiddlewareSuccess
 }

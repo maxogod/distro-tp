@@ -1,0 +1,21 @@
+syntax = "proto3";
+
+package reduced;
+
+option go_package = "./reduced";
+
+message TotalSumItem {
+  string item_id = 1;
+  string year_month = 2;
+  double subtotal = 3;
+  int32 quantity = 4;
+}
+
+message TotalSumItemsBatch {
+  repeated TotalSumItem totalSumItems = 1;
+}
+
+message TotalSumItemsReport {
+  repeated TotalSumItem totalSumItemsByQuantity = 1;
+  repeated TotalSumItem totalSumItemsBySubtotal = 2;
+}

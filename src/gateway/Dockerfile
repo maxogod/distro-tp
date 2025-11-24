@@ -14,14 +14,15 @@ COPY --from=deps /go/pkg/mod /go/pkg/mod
 COPY src/common/ ./src/common/
 COPY src/gateway/ ./src/gateway/
 
-RUN go build -v -o ./app ./src/gateway/cmd
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -v -o ./app ./src/gateway/cmd
 
 # ** Run binary **
-FROM busybox:latest AS runner
+FROM alpine:latest AS runner
 
 WORKDIR /app
 
+RUN apk --no-cache add curl
+
 COPY --from=builder /app/app ./app
-COPY --from=builder /app/src/gateway/config.yaml ./config.yaml
 
 ENTRYPOINT ["./app"]

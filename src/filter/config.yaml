@@ -1,7 +1,11 @@
 gateway:
   address: "amqp://guest:guest@rabbitmq:5672/"
+heartbeat:
+  host: "egg_of_life"
+  port: 7777
+  interval: 1
 log:
-  level: "DEBUG"
+  level: "development"
 filter:
   year:
     from: 2024

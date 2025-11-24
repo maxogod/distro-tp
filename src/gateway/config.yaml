@@ -1,9 +1,13 @@
-data_path: "./.data"
-output_path: "./.output"
-batch_size: 1000
-server:
-  host: "gateway_controller"
-  port: 8080
-  connection_retries: 5
+port: 8080
+healthcheck:
+  port: 8081
+heartbeat:
+  host: "egg_of_life"
+  port: 7777
+  interval: 1
+middleware:
+  address: "amqp://guest:guest@rabbitmq:5672/"
 log:
-  level: "DEBUG"
+  level: "development"
+receiving:
+  timeout: 10

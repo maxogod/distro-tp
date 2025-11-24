@@ -6,8 +6,7 @@ import (
 )
 
 type ReducerService interface {
-	SumTotalProfitBySubtotal(groupedData *group_by.GroupTransactionItems) *reduced.TotalProfitBySubtotal
-	SumTotalSoldByQuantity(groupedData *group_by.GroupTransactionItems) *reduced.TotalSoldByQuantity
+	SumTotalItems(groupedData *group_by.GroupTransactionItems) *reduced.TotalSumItem
 	SumTotalPaymentValue(groupedData *group_by.GroupTransactions) *reduced.TotalPaymentValue
 	CountUserTransactions(groupedData *group_by.GroupTransactions) *reduced.CountedUserTransactions
 }

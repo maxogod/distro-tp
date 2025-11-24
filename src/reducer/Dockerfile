@@ -22,6 +22,5 @@ FROM busybox:latest AS runner
 WORKDIR /app
 
 COPY --from=builder /app/app ./app
-COPY --from=builder /app/src/reducer/config.yaml ./config.yaml
 
 ENTRYPOINT ["./app"]

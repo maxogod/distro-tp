@@ -1,270 +1,259 @@
 package business
 
 import (
+	"fmt"
+	"strconv"
+
 	"github.com/maxogod/distro-tp/src/common/logger"
+	"github.com/maxogod/distro-tp/src/common/models/enum"
 	"github.com/maxogod/distro-tp/src/common/models/raw"
 	"github.com/maxogod/distro-tp/src/common/models/reduced"
-	"github.com/maxogod/distro-tp/src/common/utils"
+	storage "github.com/maxogod/distro-tp/src/common/worker/storage"
+	store_helper "github.com/maxogod/distro-tp/src/common/worker/storage/disk_memory"
 	"github.com/maxogod/distro-tp/src/joiner/cache"
 	"google.golang.org/protobuf/proto"
 )
 
-var log = logger.GetLogger()
+const MENU_ITEMS_REF = "MenuItems"
+const STORES_REF = "Stores"
+const USERS_REF = "Users"
 
-const SEPERATOR = "@"
-const MENU_ITEM = "menu_item"
-const STORE = "store"
-const USER = "user"
-
-// TODO: [1]
-// This implementation only works asusming that all of the reference data is sent before all of the reduced data.
-// If this is not the case, we would need to implement a more complex buffering mechanism.
-// One possible approach is to buffer reduced data and only once the finish message is received,
-// we can start processing the buffered data for that client.
-
-// TODO: [2]
-// This code is almost 300 lines long, and a lot of it is repetitive.
-// Apply DRY principle to reduce code duplication.
 type joinerService struct {
-	cacheService   cache.CacheService
-	fullRefClients map[string]bool // Used as a set
+	inMemoryService      cache.InMemoryService
+	storageService       storage.StorageService
+	fullRefClients       map[string]bool // Used as a set
+	userStorageGroupSize int
 }
 
-func NewJoinerService(cacheService cache.CacheService) JoinerService {
+func NewJoinerService(inMemoryService cache.InMemoryService, storageService storage.StorageService, userStorageGroupSize int) JoinerService {
 	return &joinerService{
-		cacheService:   cacheService,
-		fullRefClients: make(map[string]bool),
+		inMemoryService:      inMemoryService,
+		storageService:       storageService,
+		fullRefClients:       make(map[string]bool),
+		userStorageGroupSize: userStorageGroupSize,
 	}
 }
 
-/* --- Store raw reference data --- */
+// ======= GENERIC HELPERS (Private) =======
 
-func storeRefData[T proto.Message](clientID string, items []T, getRefID func(T) string, cacheService cache.CacheService) error {
-	for _, item := range items {
-		referenceID := getRefID(item)
-		err := cacheService.StoreRefData(clientID, referenceID, item)
+// Usage in joinerService methods:
+func (js *joinerService) StoreMenuItems(clientID string, items []*raw.MenuItem) error {
+	referenceID := clientID + MENU_ITEMS_REF
+	return store_helper.StoreBatch(js.storageService, referenceID, items)
+}
+
+func (js *joinerService) StoreShops(clientID string, items []*raw.Store) error {
+	referenceID := clientID + STORES_REF
+	return store_helper.StoreBatch(js.storageService, referenceID, items)
+}
+
+func (js *joinerService) StoreUsers(clientID string, items []*raw.User) error {
+
+	// since the users dataset is too big to load in memory, we store them in multiple files
+	// each file will contain users from a specific group determined by their user ID
+	// the amount of users per group is defined by user_storage_groups config parameter
+	userGroups := make(map[int][]*raw.User)
+	for _, user := range items {
+		groupNum, err := js.getUsersGroup(user.GetUserId())
 		if err != nil {
-			log.Debugf("Failed to store ref data %s for client %s: %v", referenceID, clientID, err)
-			return err
+			return fmt.Errorf("error getting user group for user %s: %w", user.GetUserId(), err)
+		}
+		userGroups[groupNum] = append(userGroups[groupNum], user)
+	}
+	for groupNum, groupUsers := range userGroups {
+		referenceID := fmt.Sprintf("%s%s%d", clientID, USERS_REF, groupNum)
+		err := store_helper.StoreBatch(js.storageService, referenceID, groupUsers)
+		if err != nil {
+			return fmt.Errorf("error storing users for group %d: %w", groupNum, err)
 		}
 	}
 	return nil
 }
 
-// Usage in joinerService methods:
-func (js *joinerService) StoreMenuItems(clientID string, items []*raw.MenuItem) error {
-	return storeRefData(clientID, items, func(item *raw.MenuItem) string {
-		return item.ItemId + SEPERATOR + MENU_ITEM
-	}, js.cacheService)
-}
-
-func (js *joinerService) StoreShops(clientID string, items []*raw.Store) error {
-	return storeRefData(clientID, items, func(item *raw.Store) string {
-		return item.StoreId + SEPERATOR + STORE
-	}, js.cacheService)
-}
-
-func (js *joinerService) StoreUsers(clientID string, items []*raw.User) error {
-	return storeRefData(clientID, items, func(item *raw.User) string {
-		return item.UserId + SEPERATOR + USER
-	}, js.cacheService)
-}
-
 func (js *joinerService) FinishStoringRefData(clientID string) error {
-	log.Debug("Received all reference data for client: ", clientID)
+	logger.Logger.Debug("Received all reference data for client: ", clientID)
 	js.fullRefClients[clientID] = true // All reference data was received for this client
 	return nil
 }
 
-/* --- Get joined data --- */
+// ======= PRIVATE METHODS =======
 
-// This is T2_1
-func (js *joinerService) JoinTotalProfitBySubtotal(profit *reduced.TotalProfitBySubtotal, clientID string) []*reduced.TotalProfitBySubtotal {
-	bufferID := "T2_1" + SEPERATOR + clientID
-	referenceID := profit.GetItemId() + SEPERATOR + MENU_ITEM
-
-	_, allRefPresent := js.fullRefClients[clientID]
-	if !allRefPresent {
-		js.cacheService.BufferUnreferencedData(clientID, bufferID, profit)
-		return nil
-	}
-	protoRef, err := js.cacheService.GetRefData(clientID, referenceID)
-	if err != nil {
-		log.Debugf("Error retrieving reference data %s for client %s: %v", referenceID, clientID, err)
-		return nil
-	}
-	joinedData := make([]*reduced.TotalProfitBySubtotal, 0)
-	menuItem := utils.CastProtoMessage[*raw.MenuItem](protoRef)
-	profit.ItemId = menuItem.GetItemName()
-	joinedData = append(joinedData, profit)
-	// In case there are buffered profits waiting for this reference, resolve them now
-	js.joinBufferedProfitData(clientID, bufferID, &joinedData)
-	return joinedData
+func (js *joinerService) hasAllReferenceData(clientID string) bool {
+	_, exists := js.fullRefClients[clientID]
+	return exists
 }
 
-// This is T2_2
-func (js *joinerService) JoinTotalSoldByQuantity(sales *reduced.TotalSoldByQuantity, clientID string) []*reduced.TotalSoldByQuantity {
-	bufferID := "T2_2" + SEPERATOR + clientID
-	referenceID := sales.GetItemId() + SEPERATOR + MENU_ITEM
-	_, allRefPresent := js.fullRefClients[clientID]
-	if !allRefPresent {
-		js.cacheService.BufferUnreferencedData(clientID, bufferID, sales)
-		return nil
-	}
-	protoRef, err := js.cacheService.GetRefData(clientID, referenceID)
+func (js *joinerService) getUsersGroup(userID string) (int, error) {
+	userNum, err := strconv.ParseFloat(userID, 64)
 	if err != nil {
-		log.Debugf("Error retrieving reference data %s for client %s: %v", referenceID, clientID, err)
-		return nil
+		return 0, fmt.Errorf("failed to parse userID: %w", err)
 	}
-	joinedData := make([]*reduced.TotalSoldByQuantity, 0)
-	menuItem := utils.CastProtoMessage[*raw.MenuItem](protoRef)
+	groupNum := ((int(userNum)-1)/js.userStorageGroupSize + 1) * js.userStorageGroupSize
+	return groupNum, nil
+}
+
+// ======== Get reference data from disk =========
+
+func loadReferenceData[T proto.Message](js *joinerService, referenceID string, factory func() T, getKey func(T) string) (map[string]T, []T, error) {
+
+	read_ch := make(chan []byte)
+	js.storageService.ReadData(referenceID, read_ch)
+	result := make(map[string]T)
+	resultsList := make([]T, 0)
+
+	for protoBytes := range read_ch {
+		protoData := factory()
+		err := proto.Unmarshal(protoBytes, protoData)
+		if err != nil {
+			logger.Logger.Errorf("Error unmarshalling proto message: %v", err)
+			return nil, nil, err
+		}
+		result[getKey(protoData)] = protoData
+		resultsList = append(resultsList, protoData)
+	}
+	return result, resultsList, nil
+}
+
+// ======== Get reference data ========
+
+func (js *joinerService) getMenuItemRef(clientID string, menuItemId string) (*raw.MenuItem, error) {
+	inMemoryMenuItemRef, err := js.inMemoryService.GetMenuItem(clientID, menuItemId)
+	if err != nil { // no data in in-memory, so now we load from persistent storage
+		logger.Logger.Debugf("DATA MISS for menuItemID: %s Loading menu items for client %s from disk", menuItemId, clientID)
+		factory := func() *raw.MenuItem {
+			return &raw.MenuItem{}
+		}
+		getRefKey := func(item *raw.MenuItem) string {
+			return item.GetItemId()
+		}
+		referenceID := clientID + MENU_ITEMS_REF
+		diskMenuItems, menuItemsList, err := loadReferenceData(js, referenceID, factory, getRefKey)
+		if err != nil {
+			logger.Logger.Debugf("Error loading menu items for client %s: %v", clientID, err)
+			return nil, err
+		}
+		js.inMemoryService.StoreMenuItems(clientID, menuItemsList)
+		logger.Logger.Debugf("Amount of menu items loaded for client %s: %d", clientID, len(diskMenuItems))
+		return diskMenuItems[menuItemId], nil
+	}
+	return inMemoryMenuItemRef, nil
+}
+
+func (js *joinerService) getShopRef(clientID string, shopId string) (*raw.Store, error) {
+	inMemoryStoreRef, err := js.inMemoryService.GetShop(clientID, shopId)
+	if err != nil { // no data in in-memory, so now we load from persistent storage
+		logger.Logger.Debugf("DATA MISS for storeID: %s Loading stores for client %s from disk", shopId, clientID)
+		factory := func() *raw.Store {
+			return &raw.Store{}
+		}
+		getRefKey := func(item *raw.Store) string {
+			return item.GetStoreId()
+		}
+		referenceID := clientID + STORES_REF
+		diskStores, storesList, err := loadReferenceData(js, referenceID, factory, getRefKey)
+		if err != nil {
+			logger.Logger.Debugf("Error loading menu items for client %s: %v", clientID, err)
+			return nil, err
+		}
+		js.inMemoryService.StoreShops(clientID, storesList)
+		logger.Logger.Debugf("Amount of stores loaded for client %s: %d", clientID, len(diskStores))
+		return diskStores[shopId], nil
+	}
+	return inMemoryStoreRef, nil
+}
+
+func (js *joinerService) getUserRef(clientID string, userId string) (*raw.User, error) {
+
+	inMemoryUserRef, err := js.inMemoryService.GetUser(clientID, userId)
+	if err != nil { // no data in in-memory, so now we load from persistent storage
+		factory := func() *raw.User {
+			return &raw.User{}
+		}
+		getRefKey := func(item *raw.User) string {
+			return item.GetUserId()
+		}
+		groupNum, err := js.getUsersGroup(userId)
+		if err != nil {
+			return nil, fmt.Errorf("error getting user group for user %s: %w", userId, err)
+		}
+		referenceID := fmt.Sprintf("%s%s%d", clientID, USERS_REF, groupNum)
+		logger.Logger.Debugf("DATA MISS for userID: %s Loading users for client %s from disk, group %d", userId, clientID, groupNum)
+		diskUsers, usersList, err := loadReferenceData(js, referenceID, factory, getRefKey)
+		if err != nil {
+			logger.Logger.Debugf("Error loading users for client %s: %v", clientID, err)
+			return nil, err
+		}
+		// We first remove all data from the current cache, then store a new batch of users to the cache
+		js.inMemoryService.RemoveRefData(clientID, enum.Users)
+		js.inMemoryService.StoreUsers(clientID, usersList)
+		logger.Logger.Debugf("Amount of users loaded for client %s: %d", clientID, len(diskUsers))
+		return diskUsers[userId], nil
+	}
+	return inMemoryUserRef, nil
+}
+
+// ======= JOINING FUNCTIONS =======
+
+// This is T2
+func (js *joinerService) JoinTotalSumItem(sales *reduced.TotalSumItem, clientID string) error {
+
+	if !js.hasAllReferenceData(clientID) {
+		return fmt.Errorf("not all reference data present for client %s", clientID)
+	}
+
+	menuItem, err := js.getMenuItemRef(clientID, sales.GetItemId())
+	if err != nil {
+		logger.Logger.Debugf("Error retrieving reference data %s for client %s: %v", sales.GetItemId(), clientID, err)
+		return err
+	}
 	sales.ItemId = menuItem.GetItemName()
-	joinedData = append(joinedData, sales)
-	// In case there are buffered profits waiting for this reference, resolve them now
-	js.joinBufferedSalesData(clientID, bufferID, &joinedData)
-	return joinedData
+	return nil
 }
 
 // This is T3
-func (js *joinerService) JoinTotalPaymentValue(tpv *reduced.TotalPaymentValue, clientID string) []*reduced.TotalPaymentValue {
-	bufferID := "T3" + SEPERATOR + clientID
-	referenceID := tpv.GetStoreId() + SEPERATOR + STORE
-	_, allRefPresent := js.fullRefClients[clientID]
-	if !allRefPresent {
-		js.cacheService.BufferUnreferencedData(clientID, bufferID, tpv)
-		return nil
+func (js *joinerService) JoinTotalPaymentValue(tpv *reduced.TotalPaymentValue, clientID string) error {
+	if !js.hasAllReferenceData(clientID) {
+		return fmt.Errorf("not all reference data present for client %s", clientID)
 	}
-	protoRef, err := js.cacheService.GetRefData(clientID, referenceID)
+	store, err := js.getShopRef(clientID, tpv.GetStoreId())
 	if err != nil {
-		log.Debugf("Error retrieving reference data %s for client %s: %v", referenceID, clientID, err)
-		return nil
+		logger.Logger.Debugf("Error retrieving reference data %s for client %s: %v", tpv.GetStoreId(), clientID, err)
+		return err
 	}
-	joinedData := make([]*reduced.TotalPaymentValue, 0)
-	store := utils.CastProtoMessage[*raw.Store](protoRef)
 	tpv.StoreId = store.GetStoreName()
-	joinedData = append(joinedData, tpv)
-	// In case there are buffered profits waiting for this reference, resolve them now
-	js.joinBufferedTPVData(clientID, bufferID, &joinedData)
-	return joinedData
+	return nil
 }
 
 // This is T4
-func (js *joinerService) JoinCountedUserTransactions(countedTransaction *reduced.CountedUserTransactions, clientID string) []*reduced.CountedUserTransactions {
-	bufferID := "T4" + SEPERATOR + clientID
-	storeRefID := countedTransaction.GetStoreId() + SEPERATOR + STORE
-	userRefID := countedTransaction.GetUserId() + SEPERATOR + USER
-	_, allRefPresent := js.fullRefClients[clientID]
-	if !allRefPresent {
-		js.cacheService.BufferUnreferencedData(clientID, bufferID, countedTransaction)
-		return nil
+func (js *joinerService) JoinCountedUserTransactions(countedTransaction *reduced.CountedUserTransactions, clientID string) error {
+
+	if !js.hasAllReferenceData(clientID) {
+		return fmt.Errorf("not all reference data present for client %s", clientID)
 	}
-	storeProtoRef, err := js.cacheService.GetRefData(clientID, storeRefID)
+	user, err := js.getUserRef(clientID, countedTransaction.GetUserId())
 	if err != nil {
-		log.Debugf("Error retrieving reference data %s for client %s: %v", storeRefID, clientID, err)
-		return nil
+		logger.Logger.Debugf("Error retrieving reference data %s for client %s: %v", countedTransaction.GetUserId(), clientID, err)
+		return err
 	}
-	userProtoRef, err := js.cacheService.GetRefData(clientID, userRefID)
+	store, err := js.getShopRef(clientID, countedTransaction.GetStoreId())
 	if err != nil {
-		log.Debugf("Error retrieving reference data %s for client %s: %v", userRefID, clientID, err)
-		return nil
+		logger.Logger.Debugf("Error retrieving reference data %s for client %s: %v", countedTransaction.GetStoreId(), clientID, err)
+		return err
 	}
-	joinedData := make([]*reduced.CountedUserTransactions, 0)
-	user := utils.CastProtoMessage[*raw.User](userProtoRef)
-	store := utils.CastProtoMessage[*raw.Store](storeProtoRef)
 	countedTransaction.Birthdate = user.GetBirthdate()
 	countedTransaction.StoreId = store.GetStoreName()
-	joinedData = append(joinedData, countedTransaction)
-	// In case there are buffered profits waiting for this reference, resolve them now
-	js.joinBufferedCountedTransactionsData(clientID, bufferID, &joinedData)
-	return joinedData
+	return nil
 }
 
 /* --- Resource release --- */
 
 func (js *joinerService) DeleteClientRefData(clientID string) error {
-	js.cacheService.RemoveRefData(clientID)
+	js.inMemoryService.RemoveAllRefData(clientID)
+	js.storageService.RemoveCache(clientID)
 	return nil
 }
 
 func (js *joinerService) Close() error {
-	return js.cacheService.Close()
-}
-
-/* --- Buffered data Helper Functions --- */
-
-func (js *joinerService) joinBufferedProfitData(clientID, bufferID string, joinedData *[]*reduced.TotalProfitBySubtotal) {
-	js.cacheService.IterateUnreferencedData(clientID, bufferID, func(bufferedProto proto.Message) bool {
-		bufferedProfit := utils.CastProtoMessage[*reduced.TotalProfitBySubtotal](bufferedProto)
-		refID := bufferedProfit.GetItemId() + SEPERATOR + MENU_ITEM
-		protoRef, err := js.cacheService.GetRefData(clientID, refID)
-		if err != nil {
-			log.Debugf("Error retrieving reference data %s for client %s: %v", refID, clientID, err)
-			// TODO why return false, if this function is running it means the reference data must exist (done was already received)
-			return false
-		}
-		menuItem := utils.CastProtoMessage[*raw.MenuItem](protoRef)
-		bufferedProfit.ItemId = menuItem.GetItemName()
-		*joinedData = append(*joinedData, bufferedProfit)
-		return true // TODO no need to return true, as we want to remove all buffered data after reading it
-	})
-}
-
-func (js *joinerService) joinBufferedSalesData(clientID, bufferID string, joinedData *[]*reduced.TotalSoldByQuantity) {
-	js.cacheService.IterateUnreferencedData(clientID, bufferID, func(bufferedProto proto.Message) bool {
-		bufferedSales := utils.CastProtoMessage[*reduced.TotalSoldByQuantity](bufferedProto)
-		refID := bufferedSales.GetItemId() + SEPERATOR + MENU_ITEM
-		protoRef, err := js.cacheService.GetRefData(clientID, refID)
-		if err != nil {
-			log.Debugf("Error retrieving reference data %s for client %s: %v", refID, clientID, err)
-			// TODO why return false, if this function is running it means the reference data must exist (done was already received)
-			return false
-		}
-		menuItem := utils.CastProtoMessage[*raw.MenuItem](protoRef)
-		bufferedSales.ItemId = menuItem.GetItemName()
-		*joinedData = append(*joinedData, bufferedSales)
-		return true // TODO no need to return true, as we want to remove all buffered data after reading it
-	})
-}
-
-func (js *joinerService) joinBufferedTPVData(clientID, bufferID string, joinedData *[]*reduced.TotalPaymentValue) {
-	js.cacheService.IterateUnreferencedData(clientID, bufferID, func(bufferedProto proto.Message) bool {
-		bufferedSales := utils.CastProtoMessage[*reduced.TotalPaymentValue](bufferedProto)
-		refID := bufferedSales.GetStoreId() + SEPERATOR + STORE
-		protoRef, err := js.cacheService.GetRefData(clientID, refID)
-		if err != nil {
-			log.Debugf("Error retrieving reference data %s for client %s: %v", refID, clientID, err)
-			// TODO why return false, if this function is running it means the reference data must exist (done was already received)
-			return false
-		}
-		store := utils.CastProtoMessage[*raw.Store](protoRef)
-		bufferedSales.StoreId = store.GetStoreName()
-		*joinedData = append(*joinedData, bufferedSales)
-		return true // TODO no need to return true, as we want to remove all buffered data after reading it
-	})
-}
-
-func (js *joinerService) joinBufferedCountedTransactionsData(clientID, bufferID string, joinedData *[]*reduced.CountedUserTransactions) {
-	js.cacheService.IterateUnreferencedData(clientID, bufferID, func(bufferedProto proto.Message) bool {
-		bufferedSales := utils.CastProtoMessage[*reduced.CountedUserTransactions](bufferedProto)
-		storeRefID := bufferedSales.GetStoreId() + SEPERATOR + STORE
-		userRefID := bufferedSales.GetUserId() + SEPERATOR + USER
-		storeProtoRef, err := js.cacheService.GetRefData(clientID, storeRefID)
-		if err != nil {
-			log.Debugf("Error retrieving reference data %s for client %s: %v", storeRefID, clientID, err)
-			// TODO why return false, if this function is running it means the reference data must exist (done was already received)
-			return false
-		}
-		userProtoRef, err := js.cacheService.GetRefData(clientID, userRefID)
-		if err != nil {
-			log.Debugf("Error retrieving reference data %s for client %s: %v", userRefID, clientID, err)
-			// TODO why return false, if this function is running it means the reference data must exist (done was already received)
-			return false
-		}
-		user := utils.CastProtoMessage[*raw.User](userProtoRef)
-		bufferedSales.Birthdate = user.GetBirthdate()
-		store := utils.CastProtoMessage[*raw.Store](storeProtoRef)
-		bufferedSales.StoreId = store.GetStoreName()
-		*joinedData = append(*joinedData, bufferedSales)
-		return true // TODO no need to return true, as we want to remove all buffered data after reading it
-	})
+	js.storageService.Close()
+	return js.inMemoryService.Close()
 }

@@ -1,6 +1,10 @@
 gateway:
   address: "amqp://guest:guest@rabbitmq:5672/"
+heartbeat:
+  host: "egg_of_life"
+  port: 7777
+  interval: 1
 log:
-  level: "DEBUG"
-persistence:
-  enabled: true
+  level: "development"
+amount_of_users_per_file: 3_000_000
+

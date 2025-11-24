@@ -22,7 +22,7 @@ lines = []
 # ==============================
 # Header
 # ==============================
-lines.append("name: tp1")
+lines.append("name: distro")
 lines.append("services:")
 
 # ==============================
@@ -35,6 +35,7 @@ lines.append(
       context: ./src/rabbitmq
       dockerfile: Dockerfile
     image: rabbitmq:latest
+    command: sh -c "rabbitmq-server > /dev/null 2>&1"
     ports:
       - '5670:5672'
       - '15670:15672'
@@ -50,19 +51,39 @@ lines.append(
 )
 
 # ==============================
-# Gateway Controller
+# Egg of life
 # ==============================
 lines.append(
-    """  gateway_controller:
-    container_name: gateway_controller
+    f"""  egg_of_life:
+    container_name: egg_of_life
     build:
-      dockerfile: ./src/gateway_controller/Dockerfile
-    image: gateway_controller:latest
+      dockerfile: ./src/egg_of_life/Dockerfile
+    image: egg_of_life:latest
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./config.yaml:/app/config.yaml
+    networks:
+      - tp_net
+    environment:
+      - NETWORK=distro_tp_net
+      - HOST_PROJECT_PATH={"${PWD}"}
+    """
+)
+
+# ==============================
+# Gateway
+# ==============================
+lines.append(
+    """  gateway:
+    container_name: gateway
+    build:
+      dockerfile: ./src/gateway/Dockerfile
+    image: gateway:latest
     ports:
       - '8080:8080'
       - '8081:8081'
     volumes:
-      - ./src/gateway_controller/config.yaml:/config.yaml
+      - ./src/gateway/config.yaml:/app/config.yaml
     depends_on:
       rabbitmq:
         condition: service_healthy
@@ -72,6 +93,25 @@ lines.append(
       timeout: 5s
       retries: 5
       start_period: 10s
+    networks:
+      - tp_net
+    """
+)
+
+# ==============================
+# Controller
+# ==============================
+lines.append(
+    """  controller:
+    container_name: controller 
+    build:
+      dockerfile: ./src/controller/Dockerfile
+    image: controller:latest
+    volumes:
+      - ./src/controller/config.yaml:/app/config.yaml
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
     networks:
       - tp_net
     """
@@ -89,7 +129,7 @@ lines.append(
     networks:
       - tp_net
     volumes:
-      - ./src/aggregator/config.yaml:/config.yaml
+      - ./src/aggregator/config.yaml:/app/config.yaml
     depends_on:
       rabbitmq:
         condition: service_healthy
@@ -112,7 +152,7 @@ def add_services(name, count):
     networks:
       - tp_net
     volumes:
-      - ./src/{name}/config.yaml:/config.yaml
+      - ./src/{name}/config.yaml:/app/config.yaml
     depends_on:
       rabbitmq:
         condition: service_healthy
@@ -130,28 +170,29 @@ for svc in ["filter", "joiner", "reducer", "group_by"]:
         add_services(svc, count)
 
 # ==============================
-# Gateways
+# Clients
 # ==============================
-gw_count = service_counts.get("gateway", 0)
+gw_count = service_counts.get("client", 0)
 for i in range(gw_count):
     lines.append(
-        f"""  gateway{i+1}:
-    container_name: gateway{i+1}
+        f"""  client{i+1}:
+    container_name: client{i+1}
     entrypoint: ["/app/app", "t{(i % 4)+1}"]
     build:
-      dockerfile: ./src/gateway/Dockerfile
-    image: gateway:latest
+      dockerfile: ./src/client/Dockerfile
+    image: client:latest
     networks:
       - tp_net
     volumes:
       - ./.data:/app/.data
       - ./.output{i+1}:/app/.output
+      - ./src/client/config.yaml:/app/config.yaml
     depends_on:
-      gateway_controller:
+      gateway:
         condition: service_healthy
         """
     )
-    print(f"Adding gateway{i+1}")
+    print(f"Adding client{i+1}")
 
 # ==============================
 # Networks

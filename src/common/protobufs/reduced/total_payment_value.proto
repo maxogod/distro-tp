@@ -9,3 +9,7 @@ message TotalPaymentValue {
   string semester = 2;
   double final_amount = 3;
 }
+
+message TotalPaymentValueBatch {
+  repeated TotalPaymentValue totalPaymentValues = 1;
+}

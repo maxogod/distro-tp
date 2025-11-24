@@ -3,6 +3,7 @@ package group_by_test
 import (
 	"testing"
 
+	"github.com/maxogod/distro-tp/src/common/logger"
 	"github.com/maxogod/distro-tp/src/common/middleware"
 	"github.com/maxogod/distro-tp/src/common/models/enum"
 	"github.com/maxogod/distro-tp/src/common/models/group_by"
@@ -17,6 +18,7 @@ var url = "amqp://guest:guest@localhost:5672/"
 
 func TestMain(m *testing.M) {
 	go mock.StartGroupByMock("./config_test.yaml")
+	logger.InitLogger(logger.LoggerEnvDevelopment)
 	m.Run()
 }
 
@@ -59,8 +61,8 @@ func groupByTask2(t *testing.T) {
 
 	done := make(chan bool, 1)
 
-	var T2_1_counter = len(MockItemsOutputT2)
-	var T2_2_counter = len(MockItemsOutputT2)
+	var T2_1_counter = 1
+	var T2_2_counter = 1
 
 	// I expect the group by worker to send 6 batches, 2 for each group
 	// since the worker sends them to 2 different task types (T2_1 and T2_2)
@@ -79,17 +81,19 @@ func groupByTask2(t *testing.T) {
 				T2_2_counter--
 			}
 
-			groupData := &group_by.GroupTransactionItems{}
+			groupData := &group_by.GroupTransactionItemsBatch{}
 			err := proto.Unmarshal(dataBatch.Payload, groupData)
 
-			assert.Nil(t, err)
+			for _, groupDataItem := range groupData.GroupTransactionItems {
+				assert.Nil(t, err)
 
-			key := groupData.ItemId + "@" + groupData.YearMonth
+				key := groupDataItem.ItemId + "@" + groupDataItem.YearMonth
 
-			t.Logf("Key: %s", key)
-			expectedGroupData, exists := MockItemsOutputT2[key]
-			assert.True(t, exists)
-			assert.Equal(t, len(expectedGroupData), len(groupData.TransactionItems))
+				t.Logf("Key: %s", key)
+				expectedGroupData, exists := MockItemsOutputT2[key]
+				assert.True(t, exists)
+				assert.Equal(t, len(expectedGroupData), len(groupDataItem.TransactionItems))
+			}
 
 			if T2_1_counter == 0 && T2_2_counter == 0 {
 				break
@@ -132,22 +136,24 @@ func groupByTask3(t *testing.T) {
 			dataBatch, _ := utils.GetDataEnvelope(msg.Body)
 			assert.True(t, enum.TaskType(dataBatch.TaskType) == enum.T3)
 
-			groupData := &group_by.GroupTransactions{}
+			groupData := &group_by.GroupTransactionsBatch{}
 			err := proto.Unmarshal(dataBatch.Payload, groupData)
 
 			assert.Nil(t, err)
 
-			key := groupData.StoreId + "@" + groupData.Semester
+			for _, groupTransactions := range groupData.GroupedTransactions {
+				key := groupTransactions.StoreId + "@" + groupTransactions.Semester
 
-			_, exists := groups[key]
-			if !exists {
-				groups[key] = struct{}{}
+				_, exists := groups[key]
+				if !exists {
+					groups[key] = struct{}{}
+				}
+
+				t.Logf("Key: %s", key)
+				expectedGroupData, exists := MockTransactionsOutputT3[key]
+				assert.True(t, exists)
+				assert.Equal(t, len(expectedGroupData), len(groupTransactions.Transactions))
 			}
-
-			t.Logf("Key: %s", key)
-			expectedGroupData, exists := MockTransactionsOutputT3[key]
-			assert.True(t, exists)
-			assert.Equal(t, len(expectedGroupData), len(groupData.Transactions))
 
 			if len(groups) == 4 {
 				break
@@ -190,22 +196,24 @@ func groupByTask4(t *testing.T) {
 			dataBatch, _ := utils.GetDataEnvelope(msg.Body)
 			assert.True(t, enum.TaskType(dataBatch.TaskType) == enum.T4)
 
-			groupData := &group_by.GroupTransactions{}
+			groupData := &group_by.GroupTransactionsBatch{}
 			err := proto.Unmarshal(dataBatch.Payload, groupData)
 
 			assert.Nil(t, err)
 
-			key := groupData.StoreId + "@" + groupData.UserId
+			for _, groupTransactions := range groupData.GroupedTransactions {
+				key := groupTransactions.StoreId + "@" + groupTransactions.UserId
 
-			_, exists := groups[key]
-			if !exists {
-				groups[key] = struct{}{}
+				_, exists := groups[key]
+				if !exists {
+					groups[key] = struct{}{}
+				}
+
+				t.Logf("Key: %s", key)
+				expectedGroupData, exists := MockTransactionsOutputT4[key]
+				assert.True(t, exists)
+				assert.Equal(t, len(expectedGroupData), len(groupTransactions.Transactions))
 			}
-
-			t.Logf("Key: %s", key)
-			expectedGroupData, exists := MockTransactionsOutputT4[key]
-			assert.True(t, exists)
-			assert.Equal(t, len(expectedGroupData), len(groupData.Transactions))
 
 			if len(groups) == 4 {
 				break

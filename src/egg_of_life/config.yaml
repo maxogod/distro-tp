@@ -1,0 +1,3 @@
+port: 8080
+timeout_interval: 10
+check_interval: 1

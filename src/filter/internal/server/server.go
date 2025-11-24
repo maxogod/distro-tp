@@ -5,6 +5,7 @@ import (
 	"os/signal"
 	"syscall"
 
+	"github.com/maxogod/distro-tp/src/common/heartbeat"
 	"github.com/maxogod/distro-tp/src/common/logger"
 	"github.com/maxogod/distro-tp/src/common/middleware"
 	"github.com/maxogod/distro-tp/src/common/worker"
@@ -13,30 +14,37 @@ import (
 	"github.com/maxogod/distro-tp/src/filter/internal/task_executor"
 )
 
-var log = logger.GetLogger()
-
 type Server struct {
-	messageHandler worker.MessageHandler
+	messageHandler  worker.MessageHandler
+	heartbeatSender heartbeat.HeartBeatHandler
 }
 
 func InitServer(conf *config.Config) *Server {
-
 	// initiateOutputs
 	filterInputQueue := middleware.GetFilterQueue(conf.Address)
 	aggregatorOutputQueue := middleware.GetAggregatorQueue(conf.Address)
 	groupByOutputQueue := middleware.GetGroupByQueue(conf.Address)
 
 	// initiate internal components
-	filterService := business.NewFilterService()
+	filterService := business.NewFilterService(
+		conf.TaskConfig.FilterYearFrom,
+		conf.TaskConfig.FilterYearTo,
+		conf.TaskConfig.BusinessHourFrom,
+		conf.TaskConfig.BusinessHourTo,
+		conf.TaskConfig.TotalAmountThreshold,
+	)
+	connectedClients := make(map[string]middleware.MessageMiddleware)
 
 	taskExecutor := task_executor.NewFilterExecutor(
 		conf.TaskConfig,
+		conf.Address,
 		filterService,
+		connectedClients,
 		groupByOutputQueue,
 		aggregatorOutputQueue,
 	)
 
-	taskHandler := worker.NewTaskHandler(taskExecutor)
+	taskHandler := worker.NewTaskHandler(taskExecutor, true)
 
 	messageHandler := worker.NewMessageHandler(
 		taskHandler,
@@ -45,19 +53,25 @@ func InitServer(conf *config.Config) *Server {
 	)
 
 	return &Server{
-		messageHandler: messageHandler,
+		messageHandler:  messageHandler,
+		heartbeatSender: heartbeat.NewHeartBeatHandler(conf.Heartbeat.Host, conf.Heartbeat.Port, conf.Heartbeat.Interval),
 	}
 }
 
 func (s *Server) Run() error {
-	log.Info("Starting Filter server...")
+	logger.Logger.Info("Starting Filter server...")
 	s.setupGracefulShutdown()
+
+	err := s.heartbeatSender.StartSending()
+	if err != nil {
+		logger.Logger.Errorf("action: start_heartbeat_sender | result: failed | error: %s", err.Error())
+	}
 
 	// This is a blocking call, it will run until an error occurs or
 	// the Close() method is called via a signal
 	e := s.messageHandler.Start()
 	if e != nil {
-		log.Errorf("Error starting message handler: %v", e)
+		logger.Logger.Errorf("Error starting message handler: %v", e)
 		s.Shutdown()
 		return e
 	}
@@ -71,17 +85,18 @@ func (s *Server) setupGracefulShutdown() {
 
 	go func() {
 		<-sigChannel
-		log.Debugf("Shutdown Signal received, shutting down...")
+		logger.Logger.Debugf("Shutdown Signal received, shutting down...")
 		s.Shutdown()
 	}()
 }
 
 func (s *Server) Shutdown() {
-	log.Debug("Shutting down Filter Worker server...")
+	logger.Logger.Debug("Shutting down Filter Worker server...")
 	err := s.messageHandler.Close()
 	if err != nil {
-		log.Errorf("Error closing message handler: %v", err)
+		logger.Logger.Errorf("Error closing message handler: %v", err)
 	}
 
-	log.Debug("Filter Worker server shut down successfully.")
+	s.heartbeatSender.Close()
+	logger.Logger.Debug("Filter Worker server shut down successfully.")
 }

@@ -82,6 +82,50 @@ func (x *GroupTransactionItems) GetTransactionItems() []*raw.TransactionItem {
 	return nil
 }
 
+type GroupTransactionItemsBatch struct {
+	state                 protoimpl.MessageState   `protogen:"open.v1"`
+	GroupTransactionItems []*GroupTransactionItems `protobuf:"bytes,1,rep,name=group_transaction_items,json=groupTransactionItems,proto3" json:"group_transaction_items,omitempty"`
+	unknownFields         protoimpl.UnknownFields
+	sizeCache             protoimpl.SizeCache
+}
+
+func (x *GroupTransactionItemsBatch) Reset() {
+	*x = GroupTransactionItemsBatch{}
+	mi := &file_group_by_group_transaction_items_proto_msgTypes[1]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GroupTransactionItemsBatch) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GroupTransactionItemsBatch) ProtoMessage() {}
+
+func (x *GroupTransactionItemsBatch) ProtoReflect() protoreflect.Message {
+	mi := &file_group_by_group_transaction_items_proto_msgTypes[1]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GroupTransactionItemsBatch.ProtoReflect.Descriptor instead.
+func (*GroupTransactionItemsBatch) Descriptor() ([]byte, []int) {
+	return file_group_by_group_transaction_items_proto_rawDescGZIP(), []int{1}
+}
+
+func (x *GroupTransactionItemsBatch) GetGroupTransactionItems() []*GroupTransactionItems {
+	if x != nil {
+		return x.GroupTransactionItems
+	}
+	return nil
+}
+
 var File_group_by_group_transaction_items_proto protoreflect.FileDescriptor
 
 const file_group_by_group_transaction_items_proto_rawDesc = "" +
@@ -91,7 +135,9 @@ const file_group_by_group_transaction_items_proto_rawDesc = "" +
 	"\aitem_id\x18\x01 \x01(\tR\x06itemId\x12\x1d\n" +
 	"\n" +
 	"year_month\x18\x02 \x01(\tR\tyearMonth\x12A\n" +
-	"\x11transaction_items\x18\x03 \x03(\v2\x14.raw.TransactionItemR\x10transactionItemsB\fZ\n" +
+	"\x11transaction_items\x18\x03 \x03(\v2\x14.raw.TransactionItemR\x10transactionItems\"u\n" +
+	"\x1aGroupTransactionItemsBatch\x12W\n" +
+	"\x17group_transaction_items\x18\x01 \x03(\v2\x1f.group_by.GroupTransactionItemsR\x15groupTransactionItemsB\fZ\n" +
 	"./group_byb\x06proto3"
 
 var (
@@ -106,18 +152,20 @@ func file_group_by_group_transaction_items_proto_rawDescGZIP() []byte {
 	return file_group_by_group_transaction_items_proto_rawDescData
 }
 
-var file_group_by_group_transaction_items_proto_msgTypes = make([]protoimpl.MessageInfo, 1)
+var file_group_by_group_transaction_items_proto_msgTypes = make([]protoimpl.MessageInfo, 2)
 var file_group_by_group_transaction_items_proto_goTypes = []any{
-	(*GroupTransactionItems)(nil), // 0: group_by.GroupTransactionItems
-	(*raw.TransactionItem)(nil),   // 1: raw.TransactionItem
+	(*GroupTransactionItems)(nil),      // 0: group_by.GroupTransactionItems
+	(*GroupTransactionItemsBatch)(nil), // 1: group_by.GroupTransactionItemsBatch
+	(*raw.TransactionItem)(nil),        // 2: raw.TransactionItem
 }
 var file_group_by_group_transaction_items_proto_depIdxs = []int32{
-	1, // 0: group_by.GroupTransactionItems.transaction_items:type_name -> raw.TransactionItem
-	1, // [1:1] is the sub-list for method output_type
-	1, // [1:1] is the sub-list for method input_type
-	1, // [1:1] is the sub-list for extension type_name
-	1, // [1:1] is the sub-list for extension extendee
-	0, // [0:1] is the sub-list for field type_name
+	2, // 0: group_by.GroupTransactionItems.transaction_items:type_name -> raw.TransactionItem
+	0, // 1: group_by.GroupTransactionItemsBatch.group_transaction_items:type_name -> group_by.GroupTransactionItems
+	2, // [2:2] is the sub-list for method output_type
+	2, // [2:2] is the sub-list for method input_type
+	2, // [2:2] is the sub-list for extension type_name
+	2, // [2:2] is the sub-list for extension extendee
+	0, // [0:2] is the sub-list for field type_name
 }
 
 func init() { file_group_by_group_transaction_items_proto_init() }
@@ -131,7 +179,7 @@ func file_group_by_group_transaction_items_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_group_by_group_transaction_items_proto_rawDesc), len(file_group_by_group_transaction_items_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   1,
+			NumMessages:   2,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

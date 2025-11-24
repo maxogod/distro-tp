@@ -1,0 +1,13 @@
+port: 8080
+middleware:
+  address: "amqp://guest:guest@rabbitmq:5672/"
+heartbeat:
+  host: "egg_of_life"
+  port: 7777
+  interval: 1
+log:
+  level: "development"
+receiving:
+  timeout: 10
+max:
+  clients: 100

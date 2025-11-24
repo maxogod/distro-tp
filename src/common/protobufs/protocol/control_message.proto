@@ -1,0 +1,11 @@
+syntax = "proto3";
+
+package protocol;
+
+option go_package = "./protocol";
+
+message ControlMessage {
+  string client_id = 1;
+  bool is_ack = 2;
+  string error = 3;
+}

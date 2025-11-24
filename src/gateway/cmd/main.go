@@ -1,41 +1,22 @@
 package main
 
 import (
-	"os"
-	"time"
-
 	"github.com/maxogod/distro-tp/src/common/logger"
 	"github.com/maxogod/distro-tp/src/gateway/config"
-	"github.com/maxogod/distro-tp/src/gateway/internal/client"
+	"github.com/maxogod/distro-tp/src/gateway/internal/server"
 )
 
-var log = logger.GetLogger()
-
 func main() {
-	before := time.Now()
+	conf, _ := config.InitConfig()
 
-	if len(os.Args) < 2 {
-		log.Fatalln("no arguments provided")
-	}
+	logger.InitLogger(logger.LoggerEnvironment(conf.LogLevel))
 
-	conf, err := config.InitConfig()
+	logger.Logger.Infof("Controller server starting")
+	server := server.NewServer(conf)
+	err := server.Run()
 	if err != nil {
-		log.Fatalln("failed to initialize config:", err)
+		logger.Logger.Fatalf("Failed to run server: %v", err)
 	}
 
-	log.Debugf("Client will do tasks: %v", os.Args[1:])
-	for _, t := range os.Args[1:] {
-		c, err := client.NewClient(conf)
-		if err != nil {
-			log.Fatalf("failed to create client: %v", err)
-		}
-
-		if err := c.Start(t); err != nil {
-			log.Fatalln("Client error:", err)
-		}
-	}
-
-	after := time.Now()
-
-	log.Debugf("Pikachu finished successfully in %s\n", after.Sub(before).String())
+	logger.Logger.Infof("Geodude finished successfully!")
 }

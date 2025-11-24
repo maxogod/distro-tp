@@ -3,211 +3,215 @@ package business_test
 import (
 	"testing"
 
+	"github.com/maxogod/distro-tp/src/common/logger"
 	"github.com/maxogod/distro-tp/src/common/models/raw"
 	"github.com/maxogod/distro-tp/src/common/models/reduced"
+	disk_storage "github.com/maxogod/distro-tp/src/common/worker/storage/disk_memory"
 	"github.com/maxogod/distro-tp/src/joiner/business"
 	"github.com/maxogod/distro-tp/src/joiner/cache"
 	"github.com/stretchr/testify/assert"
 )
 
-func TestJoinTotalProfitBySubtotal(t *testing.T) {
-	cache := cache.NewInMemoryCache()
-	service := business.NewJoinerService(cache)
-	menuItem := &raw.MenuItem{ItemId: "item1", ItemName: "Pizza"}
-	service.StoreMenuItems("client1", []*raw.MenuItem{menuItem})
-	service.FinishStoringRefData("client1")
-	profit := &reduced.TotalProfitBySubtotal{
-		ItemId: "item1",
-	}
-	result := service.JoinTotalProfitBySubtotal(profit, "client1")
-	assert.NotNil(t, result)
-	assert.Equal(t, "Pizza", result[0].ItemId)
+// ====== INPUT DATA ======
+
+var TotalItemSumData = []*reduced.TotalSumItem{
+	{
+		ItemId:    "item1",
+		YearMonth: "2024-06",
+		Subtotal:  10.0,
+		Quantity:  10,
+	},
+	{
+		ItemId:    "item2",
+		YearMonth: "2024-07",
+		Subtotal:  20.0,
+		Quantity:  20,
+	},
+	{
+		ItemId:    "item1",
+		YearMonth: "2024-06",
+		Subtotal:  15.0,
+		Quantity:  15,
+	},
 }
 
-func TestJoinTotalSoldByQuantity(t *testing.T) {
-	cache := cache.NewInMemoryCache()
-	service := business.NewJoinerService(cache)
-	menuItem := &raw.MenuItem{ItemId: "item2", ItemName: "Burger"}
-	service.StoreMenuItems("client1", []*raw.MenuItem{menuItem})
-	service.FinishStoringRefData("client1")
-	sales := &reduced.TotalSoldByQuantity{
-		ItemId: "item2",
-	}
-	result := service.JoinTotalSoldByQuantity(sales, "client1")
-	assert.NotNil(t, result)
-	assert.Equal(t, "Burger", result[0].ItemId)
+var TPVData = []*reduced.TotalPaymentValue{
+	{
+		StoreId:     "store1",
+		Semester:    "2024-H1",
+		FinalAmount: 1000.0,
+	},
+	{
+		StoreId:     "store2",
+		Semester:    "2024-H1",
+		FinalAmount: 2000.0,
+	},
+	{
+		StoreId:     "store1",
+		Semester:    "2024-H1",
+		FinalAmount: 1000.0,
+	},
+	{
+		StoreId:     "store2",
+		Semester:    "2024-H1",
+		FinalAmount: 2000.0,
+	},
 }
 
-func TestJoinTotalPaymentValue(t *testing.T) {
-	cache := cache.NewInMemoryCache()
-	service := business.NewJoinerService(cache)
-	service.FinishStoringRefData("client1")
-	store := &raw.Store{StoreId: "store1", StoreName: "Main Store"}
-	service.StoreShops("client1", []*raw.Store{store})
-	tpv := &reduced.TotalPaymentValue{
-		StoreId: "store1",
-	}
-	result := service.JoinTotalPaymentValue(tpv, "client1")
-	assert.NotNil(t, result)
-	assert.Equal(t, "Main Store", result[0].StoreId)
+var CountedUserTransactionsData = []*reduced.CountedUserTransactions{
+	{
+		StoreId:             "store1",
+		UserId:              "1",
+		TransactionQuantity: 5,
+	},
+	{
+		StoreId:             "store2",
+		UserId:              "2",
+		TransactionQuantity: 10,
+	},
+	{
+		StoreId:             "store1",
+		UserId:              "1",
+		TransactionQuantity: 3,
+	},
+	{
+		StoreId:             "store2",
+		UserId:              "150",
+		TransactionQuantity: 7,
+	},
 }
 
-func TestJoinCountedUserTransactions(t *testing.T) {
-	cache := cache.NewInMemoryCache()
-	service := business.NewJoinerService(cache)
-	service.FinishStoringRefData("client1")
-	store := &raw.Store{StoreId: "store1", StoreName: "Main Store"}
-	user := &raw.User{UserId: "user1", Birthdate: "2000-01-01"}
-	service.StoreShops("client1", []*raw.Store{store})
-	service.StoreUsers("client1", []*raw.User{user})
-	tx := &reduced.CountedUserTransactions{
-		StoreId: "store1",
-		UserId:  "user1",
-	}
-	result := service.JoinCountedUserTransactions(tx, "client1")
-	assert.NotNil(t, result)
-	assert.Equal(t, "Main Store", result[0].StoreId)
-	assert.Equal(t, "2000-01-01", result[0].Birthdate)
+// ====== Reference Data ======
+var MenuItemsList = []*raw.MenuItem{
+	{ItemId: "item1", ItemName: "Pizza"},
+	{ItemId: "item2", ItemName: "Burger"},
 }
 
-func TestBufferedT2_1Join(t *testing.T) {
-	cache := cache.NewInMemoryCache()
-	service := business.NewJoinerService(cache)
-
-	menuItems := []*raw.MenuItem{
-		{ItemId: "item1", ItemName: "Pizza"},
-		{ItemId: "item2", ItemName: "Burger"},
-	}
-
-	service.StoreMenuItems("client1", menuItems)
-
-	profit := &reduced.TotalProfitBySubtotal{
-		ItemId: "item1",
-	}
-	// If i join BEFORE finishing storing ref data, it should be buffered
-	result := service.JoinTotalProfitBySubtotal(profit, "client1")
-	assert.Nil(t, result) // because its buffered
-
-	// Now finish storing ref data
-	service.FinishStoringRefData("client1")
-
-	profit2 := &reduced.TotalProfitBySubtotal{
-		ItemId: "item2",
-	}
-	// If i join AFTER
-	result2 := service.JoinTotalProfitBySubtotal(profit2, "client1")
-	assert.NotNil(t, result2)
-	t.Log(result2)
-	assert.Equal(t, 2, len(result2))
-	assert.Equal(t, "Burger", result2[0].ItemId)
-	assert.Equal(t, "Pizza", result2[1].ItemId)
+var StoresList = []*raw.Store{
+	{StoreId: "store1", StoreName: "Main Street Store"},
+	{StoreId: "store2", StoreName: "Downtown Store"},
 }
 
-func TestBufferedT2_2Join(t *testing.T) {
-	cache := cache.NewInMemoryCache()
-	service := business.NewJoinerService(cache)
-
-	menuItems := []*raw.MenuItem{
-		{ItemId: "item1", ItemName: "Pizza"},
-		{ItemId: "item2", ItemName: "Burger"},
-	}
-
-	service.StoreMenuItems("client1", menuItems)
-
-	quantity := &reduced.TotalSoldByQuantity{
-		ItemId: "item1",
-	}
-	// If i join BEFORE finishing storing ref data, it should be buffered
-	result := service.JoinTotalSoldByQuantity(quantity, "client1")
-	assert.Nil(t, result) // because its buffered
-
-	// Now finish storing ref data
-	service.FinishStoringRefData("client1")
-
-	quantity2 := &reduced.TotalSoldByQuantity{
-		ItemId: "item2",
-	}
-	// If i join AFTER
-	result2 := service.JoinTotalSoldByQuantity(quantity2, "client1")
-	assert.NotNil(t, result2)
-	t.Log(result2)
-	assert.Equal(t, 2, len(result2))
-	assert.Equal(t, "Burger", result2[0].ItemId)
-	assert.Equal(t, "Pizza", result2[1].ItemId)
+var UsersList = []*raw.User{
+	{UserId: "1", Birthdate: "08/10/2000"},
+	{UserId: "2", Birthdate: "12/05/1995"},
+	{UserId: "150", Birthdate: "23/03/1988"},
+	{UserId: "120", Birthdate: "24/04/1988"},
 }
 
-func TestBufferedT3Join(t *testing.T) {
-	cache := cache.NewInMemoryCache()
-	service := business.NewJoinerService(cache)
+// ====== Reference Data Maps ======
 
-	stores := []*raw.Store{
-		{StoreId: "store1", StoreName: "Store one"},
-		{StoreId: "store2", StoreName: "Store two"},
-	}
-
-	service.StoreShops("client1", stores)
-
-	tpv := &reduced.TotalPaymentValue{
-		StoreId: "store1",
-	}
-	// If i join BEFORE finishing storing ref data, it should be buffered
-	result := service.JoinTotalPaymentValue(tpv, "client1")
-	assert.Nil(t, result) // because its buffered
-
-	// Now finish storing ref data
-	service.FinishStoringRefData("client1")
-
-	tpv2 := &reduced.TotalPaymentValue{
-		StoreId: "store2",
-	}
-	// If i join AFTER
-	result2 := service.JoinTotalPaymentValue(tpv2, "client1")
-	assert.NotNil(t, result2)
-	t.Log(result2)
-	assert.Equal(t, 2, len(result2))
-	assert.Equal(t, "Store two", result2[0].StoreId)
-	assert.Equal(t, "Store one", result2[1].StoreId)
+var MenuItems = map[string]*raw.MenuItem{
+	"item1": {ItemName: "Pizza"},
+	"item2": {ItemName: "Burger"},
 }
 
-func TestBufferedT4Join(t *testing.T) {
-	cache := cache.NewInMemoryCache()
-	service := business.NewJoinerService(cache)
+var Stores = map[string]*raw.Store{
+	"store1": {StoreName: "Main Street Store"},
+	"store2": {StoreName: "Downtown Store"},
+}
 
-	stores := []*raw.Store{
-		{StoreId: "store1", StoreName: "Store one"},
-		{StoreId: "store2", StoreName: "Store two"},
+var Users = map[string]*raw.User{
+	"1":   {Birthdate: "08/10/2000"},
+	"2":   {Birthdate: "12/05/1995"},
+	"120": {Birthdate: "24/04/1988"},
+	"150": {Birthdate: "23/03/1988"},
+}
+
+func TestJoinTotalSumItems(t *testing.T) {
+	logger.InitLogger(logger.LoggerEnvDevelopment)
+	cache_service := cache.NewInMemoryCache()
+	storage_service := disk_storage.NewDiskMemoryStorage()
+	service := business.NewJoinerService(cache_service, storage_service, 100)
+
+	clientID := "client1"
+	defer service.DeleteClientRefData(clientID)
+
+	service.StoreMenuItems(clientID, MenuItemsList)
+	service.FinishStoringRefData(clientID)
+
+	for _, item := range TotalItemSumData {
+
+		originalId := item.ItemId
+
+		err := service.JoinTotalSumItem(item, clientID)
+
+		assert.NoError(t, err)
+		assert.Equal(t, MenuItems[originalId].ItemName, item.ItemId)
 	}
+}
 
-	users := []*raw.User{
-		{UserId: "user1", Birthdate: "2000-01-01"},
-		{UserId: "user2", Birthdate: "2000-02-02"},
+func TestJoinTotalPaymentValueData(t *testing.T) {
+	logger.InitLogger(logger.LoggerEnvDevelopment)
+	cache_service := cache.NewInMemoryCache()
+	storage_service := disk_storage.NewDiskMemoryStorage()
+	service := business.NewJoinerService(cache_service, storage_service, 100)
+
+	clientID := "client2"
+	defer service.DeleteClientRefData(clientID)
+
+	service.StoreShops(clientID, StoresList)
+	service.FinishStoringRefData(clientID)
+
+	for _, item := range TPVData {
+
+		originalId := item.StoreId
+
+		err := service.JoinTotalPaymentValue(item, clientID)
+
+		assert.NoError(t, err)
+		assert.Equal(t, Stores[originalId].StoreName, item.StoreId)
 	}
+}
 
-	service.StoreShops("client1", stores)
-	service.StoreUsers("client1", users)
+func TestJoinCountedUserTransactionData(t *testing.T) {
+	logger.InitLogger(logger.LoggerEnvDevelopment)
+	cache_service := cache.NewInMemoryCache()
+	storage_service := disk_storage.NewDiskMemoryStorage()
+	service := business.NewJoinerService(cache_service, storage_service, 100)
 
-	countedUser := &reduced.CountedUserTransactions{
-		StoreId: "store1",
-		UserId:  "user1",
+	clientID := "client3"
+	defer service.DeleteClientRefData(clientID)
+
+	service.StoreShops(clientID, StoresList)
+	service.StoreUsers(clientID, UsersList)
+	service.FinishStoringRefData(clientID)
+
+	for _, item := range CountedUserTransactionsData {
+
+		originalStoreId := item.StoreId
+		originalUserId := item.UserId
+
+		err := service.JoinCountedUserTransactions(item, clientID)
+
+		assert.NoError(t, err)
+		assert.Equal(t, Stores[originalStoreId].StoreName, item.StoreId)
+		assert.Equal(t, Users[originalUserId].Birthdate, item.Birthdate)
 	}
-	// If i join BEFORE finishing storing ref data, it should be buffered
-	result := service.JoinCountedUserTransactions(countedUser, "client1")
-	assert.Nil(t, result) // because its buffered
+}
 
-	// Now finish storing ref data
-	service.FinishStoringRefData("client1")
+func TestDontJoinUntilAllDataIsPresent(t *testing.T) {
+	logger.InitLogger(logger.LoggerEnvDevelopment)
+	cache_service := cache.NewInMemoryCache()
+	storage_service := disk_storage.NewDiskMemoryStorage()
+	service := business.NewJoinerService(cache_service, storage_service, 100)
 
-	countedUser2 := &reduced.CountedUserTransactions{
-		StoreId: "store2",
-		UserId:  "user2",
+	clientID := "client1"
+	defer service.DeleteClientRefData(clientID)
+
+	service.StoreMenuItems(clientID, MenuItemsList)
+
+	assert.Error(t, service.JoinTotalSumItem(TotalItemSumData[0], clientID))
+
+	service.FinishStoringRefData(clientID)
+
+	for _, item := range TotalItemSumData {
+
+		originalId := item.ItemId
+
+		err := service.JoinTotalSumItem(item, clientID)
+
+		assert.NoError(t, err)
+		assert.Equal(t, MenuItems[originalId].ItemName, item.ItemId)
 	}
-	// If i join AFTER
-	result2 := service.JoinCountedUserTransactions(countedUser2, "client1")
-	assert.NotNil(t, result2)
-	t.Log(result2)
-	assert.Equal(t, 2, len(result2))
-	assert.Equal(t, "Store two", result2[0].StoreId)
-	assert.Equal(t, "2000-02-02", result2[0].Birthdate)
-	assert.Equal(t, "Store one", result2[1].StoreId)
-	assert.Equal(t, "2000-01-01", result2[1].Birthdate)
 }

@@ -38,7 +38,7 @@ _ := receiver.StartConsuming(func(consumeChannel middleware.ConsumeChannel, d ch
 select {
 case <-done:
 case <-time.After(2 * time.Second):
-    log.Fatal("did not receive message in time")
+    logger.Logger.Fatal("did not receive message in time")
 }
 
 // -- As a sender: --
@@ -76,7 +76,7 @@ _ := receiver.StartConsuming(func(consumeChannel middleware.ConsumeChannel, d ch
 select {
 case <-done:
 case <-time.After(2 * time.Second):
-    log.Fatal("did not receive message in time")
+    logger.Logger.Fatal("did not receive message in time")
 }
 
 // -- As a publisher: --

@@ -1,4 +1,4 @@
-name: tp1
+name: distro
 services:
   rabbitmq:
     container_name: rabbitmq
@@ -6,6 +6,7 @@ services:
       context: ./src/rabbitmq
       dockerfile: Dockerfile
     image: rabbitmq:latest
+    command: sh -c "rabbitmq-server > /dev/null 2>&1"
     ports:
       - '5670:5672'
       - '15670:15672'
@@ -18,16 +19,30 @@ services:
     networks:
       - tp_net
     
-  gateway_controller:
-    container_name: gateway_controller
+  egg_of_life:
+    container_name: egg_of_life
     build:
-      dockerfile: ./src/gateway_controller/Dockerfile
-    image: gateway_controller:latest
+      dockerfile: ./src/egg_of_life/Dockerfile
+    image: egg_of_life:latest
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./config.yaml:/app/config.yaml
+    networks:
+      - tp_net
+    environment:
+      - NETWORK=distro_tp_net
+      - HOST_PROJECT_PATH=${PWD}
+    
+  gateway:
+    container_name: gateway
+    build:
+      dockerfile: ./src/gateway/Dockerfile
+    image: gateway:latest
     ports:
       - '8080:8080'
       - '8081:8081'
     volumes:
-      - ./src/gateway_controller/config.yaml:/config.yaml
+      - ./src/gateway/config.yaml:/app/config.yaml
     depends_on:
       rabbitmq:
         condition: service_healthy
@@ -40,6 +55,19 @@ services:
     networks:
       - tp_net
     
+  controller:
+    container_name: controller 
+    build:
+      dockerfile: ./src/controller/Dockerfile
+    image: controller:latest
+    volumes:
+      - ./src/controller/config.yaml:/app/config.yaml
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - tp_net
+    
   aggregator:
     container_name: aggregator
     build:
@@ -48,7 +76,7 @@ services:
     networks:
       - tp_net
     volumes:
-      - ./src/aggregator/config.yaml:/config.yaml
+      - ./src/aggregator/config.yaml:/app/config.yaml
     depends_on:
       rabbitmq:
         condition: service_healthy
@@ -61,7 +89,7 @@ services:
     networks:
       - tp_net
     volumes:
-      - ./src/filter/config.yaml:/config.yaml
+      - ./src/filter/config.yaml:/app/config.yaml
     depends_on:
       rabbitmq:
         condition: service_healthy
@@ -74,7 +102,7 @@ services:
     networks:
       - tp_net
     volumes:
-      - ./src/filter/config.yaml:/config.yaml
+      - ./src/filter/config.yaml:/app/config.yaml
     depends_on:
       rabbitmq:
         condition: service_healthy
@@ -87,7 +115,7 @@ services:
     networks:
       - tp_net
     volumes:
-      - ./src/joiner/config.yaml:/config.yaml
+      - ./src/joiner/config.yaml:/app/config.yaml
     depends_on:
       rabbitmq:
         condition: service_healthy
@@ -100,7 +128,7 @@ services:
     networks:
       - tp_net
     volumes:
-      - ./src/joiner/config.yaml:/config.yaml
+      - ./src/joiner/config.yaml:/app/config.yaml
     depends_on:
       rabbitmq:
         condition: service_healthy
@@ -113,7 +141,7 @@ services:
     networks:
       - tp_net
     volumes:
-      - ./src/reducer/config.yaml:/config.yaml
+      - ./src/reducer/config.yaml:/app/config.yaml
     depends_on:
       rabbitmq:
         condition: service_healthy
@@ -126,7 +154,7 @@ services:
     networks:
       - tp_net
     volumes:
-      - ./src/reducer/config.yaml:/config.yaml
+      - ./src/reducer/config.yaml:/app/config.yaml
     depends_on:
       rabbitmq:
         condition: service_healthy
@@ -139,7 +167,7 @@ services:
     networks:
       - tp_net
     volumes:
-      - ./src/group_by/config.yaml:/config.yaml
+      - ./src/group_by/config.yaml:/app/config.yaml
     depends_on:
       rabbitmq:
         condition: service_healthy
@@ -152,69 +180,73 @@ services:
     networks:
       - tp_net
     volumes:
-      - ./src/group_by/config.yaml:/config.yaml
+      - ./src/group_by/config.yaml:/app/config.yaml
     depends_on:
       rabbitmq:
         condition: service_healthy
         
-  gateway1:
-    container_name: gateway1
+  client1:
+    container_name: client1
     entrypoint: ["/app/app", "t1"]
     build:
-      dockerfile: ./src/gateway/Dockerfile
-    image: gateway:latest
+      dockerfile: ./src/client/Dockerfile
+    image: client:latest
     networks:
       - tp_net
     volumes:
       - ./.data:/app/.data
       - ./.output1:/app/.output
+      - ./src/client/config.yaml:/app/config.yaml
     depends_on:
-      gateway_controller:
+      gateway:
         condition: service_healthy
         
-  gateway2:
-    container_name: gateway2
+  client2:
+    container_name: client2
     entrypoint: ["/app/app", "t2"]
     build:
-      dockerfile: ./src/gateway/Dockerfile
-    image: gateway:latest
+      dockerfile: ./src/client/Dockerfile
+    image: client:latest
     networks:
       - tp_net
     volumes:
       - ./.data:/app/.data
       - ./.output2:/app/.output
+      - ./src/client/config.yaml:/app/config.yaml
     depends_on:
-      gateway_controller:
+      gateway:
         condition: service_healthy
         
-  gateway3:
-    container_name: gateway3
+  client3:
+    container_name: client3
     entrypoint: ["/app/app", "t3"]
     build:
-      dockerfile: ./src/gateway/Dockerfile
-    image: gateway:latest
+      dockerfile: ./src/client/Dockerfile
+    image: client:latest
     networks:
       - tp_net
     volumes:
       - ./.data:/app/.data
       - ./.output3:/app/.output
+      - ./src/client/config.yaml:/app/config.yaml
     depends_on:
-      gateway_controller:
+      gateway:
         condition: service_healthy
         
-  gateway4:
-    container_name: gateway4
+  client4:
+    container_name: client4
     entrypoint: ["/app/app", "t4"]
     build:
-      dockerfile: ./src/gateway/Dockerfile
-    image: gateway:latest
+      dockerfile: ./src/client/Dockerfile
+    image: client:latest
     networks:
       - tp_net
     volumes:
       - ./.data:/app/.data
       - ./.output4:/app/.output
+      - ./src/client/config.yaml:/app/config.yaml
     depends_on:
-      gateway_controller:
+      gateway:
         condition: service_healthy
         
 networks:
