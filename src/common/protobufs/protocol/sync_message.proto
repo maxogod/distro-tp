@@ -1,0 +1,13 @@
+syntax = "proto3";
+
+package protocol;
+
+option go_package = "./protocol";
+
+message SyncMessage {
+  int32 node_id = 1;
+  int32 leader_id = 2;
+  int32 action = 3;
+  bytes envelope = 4; // optional
+}
+

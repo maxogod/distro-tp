@@ -22,7 +22,7 @@ type Server struct {
 	connectionManager network.ConnectionManager
 	clientManager     manager.ClientManager
 	pingServer        healthcheck.PingServer // for service health checks
-	heartbeatSender   heartbeat.HeartBeatSender
+	heartbeatSender   heartbeat.HeartBeatHandler
 }
 
 func NewServer(conf *config.Config) *Server {
@@ -31,7 +31,7 @@ func NewServer(conf *config.Config) *Server {
 		connectionManager: network.NewConnectionManager(conf.Port),
 		clientManager:     manager.NewClientManager(conf),
 		pingServer:        healthcheck.NewPingServer(int(conf.HealthCheckPort)), // for health check
-		heartbeatSender:   heartbeat.NewHeartBeatSender(conf.Heartbeat.Host, conf.Heartbeat.Port, conf.Heartbeat.Interval),
+		heartbeatSender:   heartbeat.NewHeartBeatHandler(conf.Heartbeat.Host, conf.Heartbeat.Port, conf.Heartbeat.Interval),
 	}
 	s.running.Store(true)
 
@@ -49,7 +49,7 @@ func (s *Server) Run() error {
 	}
 
 	go s.pingServer.Run() // Start health check server
-	err = s.heartbeatSender.Start()
+	err = s.heartbeatSender.StartSending()
 	if err != nil {
 		logger.Logger.Errorf("action: start_heartbeat_sender | result: failed | error: %s", err.Error())
 	}

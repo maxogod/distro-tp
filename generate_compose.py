@@ -54,7 +54,7 @@ lines.append(
 # Egg of life
 # ==============================
 lines.append(
-    """  egg_of_life:
+    f"""  egg_of_life:
     container_name: egg_of_life
     build:
       dockerfile: ./src/egg_of_life/Dockerfile
@@ -66,6 +66,7 @@ lines.append(
       - tp_net
     environment:
       - NETWORK=distro_tp_net
+      - HOST_PROJECT_PATH={"${PWD}"}
     """
 )
 
@@ -82,7 +83,7 @@ lines.append(
       - '8080:8080'
       - '8081:8081'
     volumes:
-      - ./src/gateway/config.yaml:/config.yaml
+      - ./src/gateway/config.yaml:/app/config.yaml
     depends_on:
       rabbitmq:
         condition: service_healthy
@@ -107,7 +108,7 @@ lines.append(
       dockerfile: ./src/controller/Dockerfile
     image: controller:latest
     volumes:
-      - ./src/controller/config.yaml:/config.yaml
+      - ./src/controller/config.yaml:/app/config.yaml
     depends_on:
       rabbitmq:
         condition: service_healthy
@@ -128,7 +129,7 @@ lines.append(
     networks:
       - tp_net
     volumes:
-      - ./src/aggregator/config.yaml:/config.yaml
+      - ./src/aggregator/config.yaml:/app/config.yaml
     depends_on:
       rabbitmq:
         condition: service_healthy
@@ -151,7 +152,7 @@ def add_services(name, count):
     networks:
       - tp_net
     volumes:
-      - ./src/{name}/config.yaml:/config.yaml
+      - ./src/{name}/config.yaml:/app/config.yaml
     depends_on:
       rabbitmq:
         condition: service_healthy
@@ -185,6 +186,7 @@ for i in range(gw_count):
     volumes:
       - ./.data:/app/.data
       - ./.output{i+1}:/app/.output
+      - ./src/client/config.yaml:/app/config.yaml
     depends_on:
       gateway:
         condition: service_healthy

@@ -33,7 +33,7 @@ func (c Config) String() string {
 	)
 }
 
-const CONFIG_FILE_PATH = "/config.yaml"
+const CONFIG_FILE_PATH = "./config.yaml"
 
 func InitConfig() (*Config, error) {
 	v := viper.New()

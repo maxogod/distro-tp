@@ -31,6 +31,7 @@ services:
       - tp_net
     environment:
       - NETWORK=distro_tp_net
+      - HOST_PROJECT_PATH=${PWD}
     
   gateway:
     container_name: gateway
@@ -41,7 +42,7 @@ services:
       - '8080:8080'
       - '8081:8081'
     volumes:
-      - ./src/gateway/config.yaml:/config.yaml
+      - ./src/gateway/config.yaml:/app/config.yaml
     depends_on:
       rabbitmq:
         condition: service_healthy
@@ -60,7 +61,7 @@ services:
       dockerfile: ./src/controller/Dockerfile
     image: controller:latest
     volumes:
-      - ./src/controller/config.yaml:/config.yaml
+      - ./src/controller/config.yaml:/app/config.yaml
     depends_on:
       rabbitmq:
         condition: service_healthy
@@ -75,7 +76,7 @@ services:
     networks:
       - tp_net
     volumes:
-      - ./src/aggregator/config.yaml:/config.yaml
+      - ./src/aggregator/config.yaml:/app/config.yaml
     depends_on:
       rabbitmq:
         condition: service_healthy
@@ -88,7 +89,7 @@ services:
     networks:
       - tp_net
     volumes:
-      - ./src/filter/config.yaml:/config.yaml
+      - ./src/filter/config.yaml:/app/config.yaml
     depends_on:
       rabbitmq:
         condition: service_healthy
@@ -101,7 +102,7 @@ services:
     networks:
       - tp_net
     volumes:
-      - ./src/filter/config.yaml:/config.yaml
+      - ./src/filter/config.yaml:/app/config.yaml
     depends_on:
       rabbitmq:
         condition: service_healthy
@@ -114,7 +115,7 @@ services:
     networks:
       - tp_net
     volumes:
-      - ./src/joiner/config.yaml:/config.yaml
+      - ./src/joiner/config.yaml:/app/config.yaml
     depends_on:
       rabbitmq:
         condition: service_healthy
@@ -127,7 +128,7 @@ services:
     networks:
       - tp_net
     volumes:
-      - ./src/joiner/config.yaml:/config.yaml
+      - ./src/joiner/config.yaml:/app/config.yaml
     depends_on:
       rabbitmq:
         condition: service_healthy
@@ -140,7 +141,7 @@ services:
     networks:
       - tp_net
     volumes:
-      - ./src/reducer/config.yaml:/config.yaml
+      - ./src/reducer/config.yaml:/app/config.yaml
     depends_on:
       rabbitmq:
         condition: service_healthy
@@ -153,7 +154,7 @@ services:
     networks:
       - tp_net
     volumes:
-      - ./src/reducer/config.yaml:/config.yaml
+      - ./src/reducer/config.yaml:/app/config.yaml
     depends_on:
       rabbitmq:
         condition: service_healthy
@@ -166,7 +167,7 @@ services:
     networks:
       - tp_net
     volumes:
-      - ./src/group_by/config.yaml:/config.yaml
+      - ./src/group_by/config.yaml:/app/config.yaml
     depends_on:
       rabbitmq:
         condition: service_healthy
@@ -179,7 +180,7 @@ services:
     networks:
       - tp_net
     volumes:
-      - ./src/group_by/config.yaml:/config.yaml
+      - ./src/group_by/config.yaml:/app/config.yaml
     depends_on:
       rabbitmq:
         condition: service_healthy
@@ -195,6 +196,7 @@ services:
     volumes:
       - ./.data:/app/.data
       - ./.output1:/app/.output
+      - ./src/client/config.yaml:/app/config.yaml
     depends_on:
       gateway:
         condition: service_healthy
@@ -210,6 +212,7 @@ services:
     volumes:
       - ./.data:/app/.data
       - ./.output2:/app/.output
+      - ./src/client/config.yaml:/app/config.yaml
     depends_on:
       gateway:
         condition: service_healthy
@@ -225,6 +228,7 @@ services:
     volumes:
       - ./.data:/app/.data
       - ./.output3:/app/.output
+      - ./src/client/config.yaml:/app/config.yaml
     depends_on:
       gateway:
         condition: service_healthy
@@ -240,6 +244,7 @@ services:
     volumes:
       - ./.data:/app/.data
       - ./.output4:/app/.output
+      - ./src/client/config.yaml:/app/config.yaml
     depends_on:
       gateway:
         condition: service_healthy
