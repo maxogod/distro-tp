@@ -11,7 +11,7 @@ import (
 )
 
 var url = "amqp://guest:guest@localhost:5672/"
-var sleepTime = time.Second * 10
+var sleepTime = time.Second * 17
 
 func TestMain(t *testing.M) {
 	logger.InitLogger(logger.LoggerEnvDevelopment)
@@ -34,8 +34,16 @@ func TestSingleNode(t *testing.T) {
 func TestTwoNodes(t *testing.T) {
 	maxNodes := 2
 
-	le1 := createNewNode(1, 9091, maxNodes)
-	le2 := createNewNode(2, 9092, maxNodes)
+	// le1 := createNewNode(1, 9091, maxNodes)
+	// le2 := createNewNode(2, 9092, maxNodes)
+
+	le1 := leader_election.NewLeaderElection("localhost", 9091, 1, url, enum.None, maxNodes, nil)
+	le2 := leader_election.NewLeaderElection("localhost", 9092, 2, url, enum.None, maxNodes, nil)
+	time.Sleep(5 * time.Second) // wait for connections to establish
+
+	go le1.Start()
+	go le2.Start()
+
 	assert.False(t, le1.IsLeader(), "Expected single node to not be leader")
 	assert.False(t, le2.IsLeader(), "Expected single node to not be leader")
 

@@ -4,7 +4,7 @@ type ElectionHandler interface {
 	// StartElection initiates the election process.
 	StartElection()
 	// HandleElectionMessage processes an incoming election message from a node.
-	HandleElectionMessage(nodeId int32)
+	HandleElectionMessage(nodeId int32, roundID uint64)
 	// HandleAckMessage processes an incoming acknowledgment message for a given round.
 	HandleAckMessage(roundID uint64)
 	// HandleCoordinatorMessage processes an incoming coordinator message for a given round.

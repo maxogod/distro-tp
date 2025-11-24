@@ -18,8 +18,8 @@ import (
 
 // TODO: THIS MUST BE BACKED UP WITH FACTS!!!
 const (
-	ACK_TIMEOUT         = 2 * time.Second
-	COORDINATOR_TIMEOUT = 5 * time.Second
+	ACK_TIMEOUT         = 5 * time.Second
+	COORDINATOR_TIMEOUT = 10 * time.Second
 	HEARTBEAT_INTERVAL  = 100 * time.Millisecond
 
 	DEFAULT_HOST = "localhost"
@@ -152,9 +152,10 @@ func (le *leaderElection) Start() error {
 			le.handleCoordinatorMsg(nodeID)
 		case int32(enum.ELECTION):
 			if le.readyForElection.Load() { // The node is ready for election after loading all of the data
-				le.electionHandler.HandleElectionMessage(nodeID)
+				le.electionHandler.HandleElectionMessage(nodeID, msg.GetRoundId())
 			}
 		case int32(enum.ACK):
+			logger.Logger.Infof("[Node %d] GOT ACK FROM: %d", le.id, nodeID)
 			le.electionHandler.HandleAckMessage(msg.GetRoundId())
 		case int32(enum.UPDATE):
 			if le.IsLeader() {

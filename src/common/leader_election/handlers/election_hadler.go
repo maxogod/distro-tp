@@ -51,17 +51,25 @@ func NewElectionHandler(nodeId int32, connectedNodes map[int32]middleware.Messag
 
 func (eh *electionHandler) StartElection() {
 	logger.Logger.Infof("[Node %d] ELECTION START", eh.id)
+	foundHigher := false
 	for nodeID, nodeConn := range eh.connectedNodes {
 		if eh.id > nodeID {
 			continue
 		}
+		foundHigher = true
 		logger.Logger.Infof("[Node %d] sending ELECTION to node %d", eh.id, nodeID)
 		eh.sendElectionMessage(nodeConn)
+	}
+	eh.roundID.Add(1)
+	if !foundHigher {
+		eh.sendCoordinatorMessage()
+		logger.Logger.Infof("[Node %d] no higher nodes, becoming coordinator", eh.id)
+		return
 	}
 	go eh.runElectionTimeout()
 }
 
-func (eh *electionHandler) HandleElectionMessage(nodeId int32) {
+func (eh *electionHandler) HandleElectionMessage(nodeId int32, roundID uint64) {
 	logger.Logger.Infof("[Node %d] received ELECTION from node %d", eh.id, nodeId)
 	nodeConn, ok := eh.connectedNodes[nodeId]
 	if !ok {
@@ -69,7 +77,7 @@ func (eh *electionHandler) HandleElectionMessage(nodeId int32) {
 		return
 	}
 	eh.sendAckMessage(nodeConn)
-
+	eh.roundID.Add(1)
 	foundHigher := false
 	for id, conn := range eh.connectedNodes {
 		if eh.id > id {
@@ -99,7 +107,6 @@ func (eh *electionHandler) Close() error {
 }
 
 func (eh *electionHandler) HandleAckMessage(roundID uint64) {
-	logger.Logger.Infof("[Node %d] received ACK for round %d", eh.id, roundID)
 	select {
 	case eh.ackCh <- roundID:
 	default:
@@ -107,7 +114,6 @@ func (eh *electionHandler) HandleAckMessage(roundID uint64) {
 }
 
 func (eh *electionHandler) HandleCoordinatorMessage(roundID uint64) {
-	logger.Logger.Infof("[Node %d] received COORDINATOR for round %d", eh.id, roundID)
 	select {
 	case eh.coordCh <- roundID:
 	default:
@@ -117,7 +123,7 @@ func (eh *electionHandler) HandleCoordinatorMessage(roundID uint64) {
 /* -------- Private Methods -------- */
 
 func (eh *electionHandler) runElectionTimeout() {
-	roundID := eh.roundID.Add(1)
+	roundID := eh.roundID.Load()
 	timer := time.NewTimer(eh.ackTimeout)
 
 	for {
@@ -127,6 +133,7 @@ func (eh *electionHandler) runElectionTimeout() {
 			return
 		case r := <-eh.ackCh:
 			if r == roundID {
+				logger.Logger.Infof("[Node %d] received ACK for round %d", eh.id, roundID)
 				timer.Stop()
 				eh.awaitCoordinator(roundID)
 				return
@@ -170,8 +177,9 @@ func (eh *electionHandler) awaitCoordinator(roundID uint64) {
 
 func (eh *electionHandler) sendElectionMessage(nodeConn middleware.MessageMiddleware) {
 	electionMsg := &protocol.SyncMessage{
-		NodeId: int32(eh.id),
-		Action: int32(enum.ELECTION),
+		NodeId:  int32(eh.id),
+		Action:  int32(enum.ELECTION),
+		RoundId: eh.roundID.Load(),
 	}
 	payload, err := proto.Marshal(electionMsg)
 	if err != nil {
