@@ -33,19 +33,22 @@ func (le *leaderElection) handleDiscoverMsg(nodeID, leaderID int32, leaderSearch
 		return // Ingore self-messages
 	}
 
-	if leaderID > 0 && !le.readyForElection.Load() { // there is already a leader
+	if le.leaderId.Load() == 0 && leaderID > 0 && !le.readyForElection.Load() { // there is already a leader
 		le.leaderId.Store(leaderID)
 		*leaderSearchTimerCh <- true // stop leader search timer
-
-		err := le.awaitUpdates()
-		if err != nil {
-			// Re-start discovery phase (leader fell mid updating this node)
-			*leaderSearchTimerCh = le.startDiscoveryPhase()
-		}
-
-		le.readyForElection.Store(true)
-		le.beginHeartbeatHandler()
 		logger.Logger.Infof("[Node %d] recognized node %d as existing leader", le.id, leaderID)
+
+		go func() { // Dont block main routine on awaiting updates
+			err := le.awaitUpdates()
+			if err != nil {
+				logger.Logger.Errorf("[Node %d] Failed to get updates from leader %d: %v", le.id, leaderID, err)
+				// Re-start discovery phase (leader fell mid updating this node)
+				*leaderSearchTimerCh = le.startDiscoveryPhase()
+			}
+
+			le.readyForElection.Store(true)
+			le.beginHeartbeatHandler()
+		}()
 	} else if leaderID == -1 { // discovery message
 		le.respondDiscoveryMessage(nodeID)
 	}

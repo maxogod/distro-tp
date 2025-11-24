@@ -204,17 +204,18 @@ func (le *leaderElection) initLeaderSearchTimer(onTimeoutFunc func()) chan bool 
 	leaderFoundCh := make(chan bool)
 
 	go func() {
-		timer := time.NewTimer(ACK_TIMEOUT)
+		timer := time.NewTimer(COORDINATOR_TIMEOUT)
 		defer close(leaderFoundCh)
 		defer timer.Stop()
 
 		select {
 		case <-leaderFoundCh:
+			logger.Logger.Debugf("[Node %d] Leader Found before Timeout!", le.id)
 			return
 		case <-le.ctx.Done():
 			return
 		case timeout := <-timer.C:
-			elapsed := fmt.Sprintf("%.2f", time.Since(timeout.Add(-ACK_TIMEOUT)).Seconds())
+			elapsed := fmt.Sprintf("%.2f", time.Since(timeout.Add(-COORDINATOR_TIMEOUT)).Seconds())
 			logger.Logger.Debugf("[Node %d] Leader Not Found after %s seconds - Timeout!", le.id, elapsed)
 			onTimeoutFunc()
 		}

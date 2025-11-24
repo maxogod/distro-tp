@@ -18,14 +18,15 @@ func (le *leaderElection) awaitUpdates() error {
 		return nil
 	}
 
+	logger.Logger.Infof("[Node %d] Requesting updates from leader %d", le.id, le.leaderId.Load())
 	le.updateCallbacks.ResetUpdates()
 
 	le.sendRequestUpdate()
 
-	timer := time.NewTimer(ACK_TIMEOUT)
+	timer := time.NewTimer(COORDINATOR_TIMEOUT)
 	defer timer.Stop()
 
-	savingCh := make(chan *protocol.DataEnvelope)
+	savingCh := make(chan *protocol.DataEnvelope, MAX_CHAN_BUFFER)
 	defer close(savingCh)
 
 	go le.updateCallbacks.GetUpdates(savingCh)
@@ -33,8 +34,11 @@ func (le *leaderElection) awaitUpdates() error {
 	for {
 		var envelope *protocol.DataEnvelope
 		select {
-		case e := <-le.updatesCh:
+		case e, ok := <-le.updatesCh:
 			envelope = e
+			if !ok {
+				return fmt.Errorf("Updates channel closed unexpectedly")
+			}
 		case <-timer.C:
 			return fmt.Errorf("Leader did not finish sending updates on time")
 		}
@@ -48,8 +52,10 @@ func (le *leaderElection) awaitUpdates() error {
 		if !timer.Stop() {
 			<-timer.C
 		}
-		timer.Reset(ACK_TIMEOUT)
+		timer.Reset(COORDINATOR_TIMEOUT)
 	}
+
+	logger.Logger.Infof("[Node %d] Finished receiving updates from leader %d", le.id, le.leaderId.Load())
 
 	return nil
 }
@@ -96,23 +102,43 @@ func (le *leaderElection) startSendingUpdates(nodeID int32) {
 		return
 	}
 
-	sendingCh := make(chan *protocol.DataEnvelope)
+	sendingCh := make(chan *protocol.DataEnvelope, MAX_CHAN_BUFFER)
 	doneCh := make(chan bool)
 	go le.updateCallbacks.SendUpdates(sendingCh, doneCh)
 
-	for { // Finishes when sending stops or routine shutdown
+	syncMsg := &protocol.SyncMessage{
+		NodeId:   le.id,
+		Action:   int32(enum.UPDATE),
+		Envelope: nil,
+	}
+
+	sending := true
+	for sending { // Finishes when sending stops or routine shutdown
 		var envelope *protocol.DataEnvelope
 		select {
-		case envelope = <-sendingCh:
+		case e, ok := <-sendingCh:
+			envelope = e
+			if !ok {
+				sending = false
+				continue
+			}
 		case <-le.ctx.Done():
-			doneCh <- true
-			return
+			sending = false
+			continue
 		}
 		payload, err := proto.Marshal(envelope)
 		if err != nil {
 			logger.Logger.Warn("Couldnt marshal envelope when sending updates")
 			continue
 		}
+
+		syncMsg.Envelope = payload
+		payload, err = proto.Marshal(syncMsg)
+		if err != nil {
+			logger.Logger.Warn("Couldnt marshal sync message when sending updates")
+			continue
+		}
 		middleware.Send(payload)
 	}
+	doneCh <- true
 }
