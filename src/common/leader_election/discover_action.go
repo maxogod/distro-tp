@@ -13,6 +13,7 @@ import (
 // to find out the leader and ask for updates.
 func (le *leaderElection) startDiscoveryPhase() chan bool {
 	le.readyForElection.Store(false)
+	le.leaderId.Store(0) // Reset known leader
 
 	le.sendDiscoveryMessage()
 
@@ -41,13 +42,19 @@ func (le *leaderElection) handleDiscoverMsg(nodeID, leaderID int32, leaderSearch
 		go func() { // Dont block main routine on awaiting updates
 			err := le.awaitUpdates()
 			if err != nil {
-				logger.Logger.Errorf("[Node %d] Failed to get updates from leader %d: %v", le.id, leaderID, err)
+				logger.Logger.Errorf("[Node %d] Failed to get updates from leader %d", le.id, leaderID)
 				// Re-start discovery phase (leader fell mid updating this node)
 				*leaderSearchTimerCh = le.startDiscoveryPhase()
+				return
 			}
 
 			le.readyForElection.Store(true)
-			le.beginHeartbeatHandler()
+			if le.leaderId.Load() < le.id {
+				logger.Logger.Infof("[Node %d] Starting election since leader %d has lower ID", le.id, le.leaderId.Load())
+				le.electionHandler.StartElection()
+			} else {
+				le.beginHeartbeatHandler()
+			}
 		}()
 	} else if leaderID == -1 { // discovery message
 		le.respondDiscoveryMessage(nodeID)
