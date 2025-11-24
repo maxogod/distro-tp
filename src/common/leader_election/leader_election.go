@@ -148,7 +148,6 @@ func (le *leaderElection) Start() error {
 		case int32(enum.DISCOVER):
 			le.handleDiscoverMsg(nodeID, msg.GetLeaderId(), &leaderSearchTimerCh)
 		case int32(enum.COORDINATOR):
-			le.electionHandler.HandleCoordinatorMessage(msg.GetRoundId())
 			le.handleCoordinatorMsg(nodeID)
 		case int32(enum.ELECTION):
 			if le.readyForElection.Load() { // The node is ready for election after loading all of the data
@@ -293,7 +292,7 @@ func (le *leaderElection) startSendingHeartbeats() {
 		}
 
 		addr := fmt.Sprintf("%s%d:%d", string(le.workerType), i, DEFAULT_PORT)
-		if le.workerType == enum.None { // Use default localhost for testing with None type
+		if le.workerType == enum.None { // Use default localhost for TESTING
 			addr = DEFAULT_HOST + ":" + strconv.Itoa(DEFAULT_PORT+i)
 		}
 		addrs = append(addrs, addr)
@@ -307,6 +306,7 @@ func (le *leaderElection) startSendingHeartbeats() {
 
 func (le *leaderElection) handleCoordinatorMsg(nodeId int32) {
 	le.leaderId.Store(nodeId)
+	le.electionHandler.StopElection()
 	le.beginHeartbeatHandler()
 	logger.Logger.Infof("[Node %d] recognized Node %d as leader", le.id, nodeId)
 }

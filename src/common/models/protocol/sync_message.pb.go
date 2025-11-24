@@ -26,8 +26,8 @@ type SyncMessage struct {
 	NodeId        int32                  `protobuf:"varint,1,opt,name=node_id,json=nodeId,proto3" json:"node_id,omitempty"`
 	LeaderId      int32                  `protobuf:"varint,2,opt,name=leader_id,json=leaderId,proto3" json:"leader_id,omitempty"`
 	Action        int32                  `protobuf:"varint,3,opt,name=action,proto3" json:"action,omitempty"`
-	Envelope      []byte                 `protobuf:"bytes,4,opt,name=envelope,proto3" json:"envelope,omitempty"` // optional
-	RoundId       uint64                 `protobuf:"varint,5,opt,name=round_id,json=roundId,proto3" json:"round_id,omitempty"`
+	RoundId       string                 `protobuf:"bytes,4,opt,name=round_id,json=roundId,proto3" json:"round_id,omitempty"`
+	Envelope      []byte                 `protobuf:"bytes,5,opt,name=envelope,proto3" json:"envelope,omitempty"` // optional
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -83,18 +83,18 @@ func (x *SyncMessage) GetAction() int32 {
 	return 0
 }
 
+func (x *SyncMessage) GetRoundId() string {
+	if x != nil {
+		return x.RoundId
+	}
+	return ""
+}
+
 func (x *SyncMessage) GetEnvelope() []byte {
 	if x != nil {
 		return x.Envelope
 	}
 	return nil
-}
-
-func (x *SyncMessage) GetRoundId() uint64 {
-	if x != nil {
-		return x.RoundId
-	}
-	return 0
 }
 
 var File_protocol_sync_message_proto protoreflect.FileDescriptor
@@ -105,9 +105,9 @@ const file_protocol_sync_message_proto_rawDesc = "" +
 	"\vSyncMessage\x12\x17\n" +
 	"\anode_id\x18\x01 \x01(\x05R\x06nodeId\x12\x1b\n" +
 	"\tleader_id\x18\x02 \x01(\x05R\bleaderId\x12\x16\n" +
-	"\x06action\x18\x03 \x01(\x05R\x06action\x12\x1a\n" +
-	"\benvelope\x18\x04 \x01(\fR\benvelope\x12\x19\n" +
-	"\bround_id\x18\x05 \x01(\x04R\aroundIdB\fZ\n" +
+	"\x06action\x18\x03 \x01(\x05R\x06action\x12\x19\n" +
+	"\bround_id\x18\x04 \x01(\tR\aroundId\x12\x1a\n" +
+	"\benvelope\x18\x05 \x01(\fR\benvelopeB\fZ\n" +
 	"./protocolb\x06proto3"
 
 var (

@@ -30,7 +30,7 @@ func (le *leaderElection) startDiscoveryPhase() chan bool {
 // or a response message to that new node and check if the leader is known.
 func (le *leaderElection) handleDiscoverMsg(nodeID, leaderID int32, leaderSearchTimerCh *chan bool) {
 	if nodeID == le.id {
-		return
+		return // Ingore self-messages
 	}
 
 	if leaderID > 0 && !le.readyForElection.Load() { // there is already a leader

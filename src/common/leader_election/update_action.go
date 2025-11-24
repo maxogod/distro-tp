@@ -13,6 +13,11 @@ import (
 // awaitUpdates blocks waiting and saving updates until DONE message is received or server is closed.
 // It has a timeout after which it assumes no more updates are comming, likely the leader fell (returns it as error).
 func (le *leaderElection) awaitUpdates() error {
+	if le.updateCallbacks == nil {
+		logger.Logger.Debugf("Node %d has no update callbacks, skipping updates", le.id)
+		return nil
+	}
+
 	le.updateCallbacks.ResetUpdates()
 
 	le.sendRequestUpdate()
@@ -80,6 +85,11 @@ func (le *leaderElection) handleUpdateMsg(payload []byte) {
 // startSendingUpdates should be run as a go routine and it will send the envelopes that gets
 // from the send updates callback for a given nodeID.
 func (le *leaderElection) startSendingUpdates(nodeID int32) {
+	if le.updateCallbacks == nil {
+		logger.Logger.Debugf("Node %d has no update callbacks, skipping sending updates", le.id)
+		return
+	}
+
 	middleware, exists := le.connectedNodes[nodeID]
 	if !exists {
 		logger.Logger.Errorf("NodeID %d is not in connected map", nodeID)

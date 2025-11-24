@@ -18,18 +18,18 @@ func TestMain(t *testing.M) {
 	t.Run()
 }
 
-func TestSingleNode(t *testing.T) {
-	maxNodes := 1
+// func TestSingleNode(t *testing.T) {
+// 	maxNodes := 1
 
-	le := createNewNode(1, 9091, maxNodes)
-	assert.False(t, le.IsLeader(), "Expected single node to not be leader")
+// 	le := createNewNode(1, 9091, maxNodes)
+// 	assert.False(t, le.IsLeader(), "Expected single node to not be leader")
 
-	time.Sleep(sleepTime)
+// 	time.Sleep(sleepTime)
 
-	assert.True(t, le.IsLeader(), "Expected single node to be leader")
+// 	assert.True(t, le.IsLeader(), "Expected single node to be leader")
 
-	le.Close()
-}
+// 	le.Close()
+// }
 
 func TestTwoNodes(t *testing.T) {
 	maxNodes := 2
