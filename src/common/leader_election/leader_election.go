@@ -1,6 +1,7 @@
 package leader_election
 
 import (
+	"context"
 	"fmt"
 	"strconv"
 	"sync/atomic"
@@ -17,9 +18,9 @@ import (
 
 // TODO: THIS MUST BE BACKED UP WITH FACTS!!!
 const (
-	TIMEOUT_INTERVAL   = 2
-	HEARTBEAT_INTERVAL = 1
-	ELECTION_TIMEOUT   = 5
+	TIMEOUT_INTERVAL   = 2 * time.Second
+	HEARTBEAT_INTERVAL = 1 * time.Second
+	ELECTION_TIMEOUT   = 5 * time.Second
 
 	DEFAULT_PORT = 9090
 
@@ -43,10 +44,11 @@ type leaderElection struct {
 	nodeMiddleware  middleware.MessageMiddleware
 	connectedNodes  map[int32]middleware.MessageMiddleware
 
-	messagesCh        chan *protocol.SyncMessage
-	updatesCh         chan *protocol.DataEnvelope
-	isSendingUpdates  atomic.Bool
-	routineShutdownCh chan bool
+	messagesCh       chan *protocol.SyncMessage
+	updatesCh        chan *protocol.DataEnvelope
+	isSendingUpdates atomic.Bool
+	ctx              context.Context
+	cancel           context.CancelFunc
 
 	// Handlers
 	heartbeatHandler heartbeat.HeartBeatHandler
@@ -56,6 +58,8 @@ type leaderElection struct {
 // NewLeaderElection instantiates a new `Bully algorithm` leader election object
 // and connects to necessary middlewares.
 func NewLeaderElection(
+	hostName string,
+	heartbeatPort int,
 	id int32,
 	middlewareUrl string,
 	workerType enum.WorkerType,
@@ -74,20 +78,26 @@ func NewLeaderElection(
 		nodeMiddleware:  middleware.GetLeaderElectionReceivingNodeExchange(middlewareUrl, workerType, strconv.Itoa(int(id))),
 		connectedNodes:  make(map[int32]middleware.MessageMiddleware),
 
-		messagesCh:        make(chan *protocol.SyncMessage, MAX_CHAN_BUFFER),
-		updatesCh:         make(chan *protocol.DataEnvelope, MAX_CHAN_BUFFER),
-		routineShutdownCh: make(chan bool),
+		messagesCh: make(chan *protocol.SyncMessage, MAX_CHAN_BUFFER),
+		updatesCh:  make(chan *protocol.DataEnvelope, MAX_CHAN_BUFFER),
 	}
+	le.ctx, le.cancel = context.WithCancel(context.Background())
 
-	for i := range int32(maxNodes) {
-		if i == id {
+	for i := 1; i <= maxNodes; i++ {
+		if i == int(id) {
 			continue
 		}
-		le.connectedNodes[i] = middleware.GetLeaderElectionSendingNodeExchange(middlewareUrl, workerType, strconv.Itoa(int(i)))
+		logger.Logger.Debugf("[Node %d] connecting to node %d middleware", le.id, i)
+		le.connectedNodes[int32(i)] = middleware.GetLeaderElectionSendingNodeExchange(middlewareUrl, workerType, strconv.Itoa(i))
 	}
 
-	host := fmt.Sprintf("%s%d", workerType, id) // Service name
-	le.heartbeatHandler = heartbeat.NewListeningHeartBeatHandler(host, DEFAULT_PORT, HEARTBEAT_INTERVAL)
+	heartbeatHandler, err := heartbeat.NewListeningHeartBeatHandler(hostName, heartbeatPort, HEARTBEAT_INTERVAL)
+	if err != nil {
+		logger.Logger.Errorf("[Node %d] Error creating heartbeat handler, cannot start election object: %v", le.id, err)
+		return nil
+	}
+	le.heartbeatHandler = heartbeatHandler
+
 	le.electionHandler = handlers.NewElectionHandler(id, le.connectedNodes, le.coordMiddleware, TIMEOUT_INTERVAL, TIMEOUT_INTERVAL)
 
 	routineReadyCh := make(chan bool)
@@ -163,10 +173,9 @@ func (le *leaderElection) Start() error {
 func (le *leaderElection) Close() error {
 	le.running.Store(false)
 	close(le.updatesCh)
-	le.routineShutdownCh <- true // Close node listener
-	le.routineShutdownCh <- true // Close leader search timer
+	le.cancel()
 	if le.isSendingUpdates.Load() {
-		le.routineShutdownCh <- true // Close sending routine
+		// TODO: check if this boolean is needed
 	}
 	le.heartbeatHandler.Close()
 
@@ -195,14 +204,14 @@ func (le *leaderElection) initLeaderSearchTimer(onTimeoutFunc func()) chan bool 
 	leaderFoundCh := make(chan bool)
 
 	go func() {
-		defer close(leaderFoundCh)
 		timer := time.NewTimer(TIMEOUT_INTERVAL)
+		defer close(leaderFoundCh)
 		defer timer.Stop()
 
 		select {
 		case <-leaderFoundCh:
 			return
-		case <-le.routineShutdownCh:
+		case <-le.ctx.Done():
 			return
 		case <-timer.C:
 			logger.Logger.Debug("Leader Not Found - Timeout!")
@@ -226,7 +235,7 @@ func (le *leaderElection) nodeQueueListener(readyCh chan bool) {
 			select {
 			case m := <-consumeChannel:
 				msg = m
-			case <-le.routineShutdownCh:
+			case <-le.ctx.Done():
 				running = false
 				continue
 			}

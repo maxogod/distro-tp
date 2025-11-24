@@ -45,7 +45,7 @@ func (le *leaderElection) handleDiscoverMsg(nodeID, leaderID int32, leaderSearch
 
 		le.readyForElection.Store(true)
 		le.beginHeartbeatHandler()
-		logger.Logger.Infof("Node %d recognized node %d as coordinator", le.id, leaderID)
+		logger.Logger.Infof("[Node %d] recognized node %d as coordinator", le.id, leaderID)
 	} else if leaderID == -1 { // discovery message
 		le.respondDiscoveryMessage(nodeID)
 	}
@@ -62,13 +62,13 @@ func (le *leaderElection) sendDiscoveryMessage() {
 
 	msgBytes, err := proto.Marshal(discoveryMsg)
 	if err != nil {
-		logger.Logger.Errorf("Failed to marshal discovery message: %v", err)
+		logger.Logger.Errorf("[Node %d] Failed to marshal discovery message: %v", le.id, err)
 		return
 	}
 
 	e := le.connMiddleware.Send(msgBytes)
 	if e != middleware.MessageMiddlewareSuccess {
-		logger.Logger.Errorf("Failed to send discovery message: %d", int(e))
+		logger.Logger.Errorf("[Node %d] Failed to send discovery message: %d", le.id, int(e))
 	}
 }
 
@@ -82,18 +82,19 @@ func (le *leaderElection) respondDiscoveryMessage(nodeId int32) {
 
 	msgBytes, err := proto.Marshal(responseMsg)
 	if err != nil {
-		logger.Logger.Errorf("Failed to marshal discovery response message: %v", err)
+		logger.Logger.Errorf("[Node %d] Failed to marshal discovery response message: %v", le.id, err)
 		return
 	}
 
+	logger.Logger.Debugf("Connected nodes: %+v", le.connectedNodes)
 	m, exists := le.connectedNodes[nodeId]
 	if !exists {
-		logger.Logger.Errorf("No middleware found for node %d to respond to discovery", nodeId)
+		logger.Logger.Errorf("[Node %d] No middleware found for node %d to respond to discovery", le.id, nodeId)
 		return
 	}
 
 	e := m.Send(msgBytes)
 	if e != middleware.MessageMiddlewareSuccess {
-		logger.Logger.Errorf("Failed to send discovery response message to node %d: %d", nodeId, int(e))
+		logger.Logger.Errorf("[Node %d] Failed to send discovery response message to node %d: %d", le.id, nodeId, int(e))
 	}
 }

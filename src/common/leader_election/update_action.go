@@ -87,8 +87,17 @@ func (le *leaderElection) startSendingUpdates(nodeID int32) {
 	}
 
 	sendingCh := make(chan *protocol.DataEnvelope)
-	go le.updateCallbacks.SendUpdates(sendingCh, le.routineShutdownCh)
-	for envelope := range sendingCh { // Finishes when sending stops or routine shutdown
+	doneCh := make(chan bool)
+	go le.updateCallbacks.SendUpdates(sendingCh, doneCh)
+
+	for { // Finishes when sending stops or routine shutdown
+		var envelope *protocol.DataEnvelope
+		select {
+		case envelope = <-sendingCh:
+		case <-le.ctx.Done():
+			doneCh <- true
+			return
+		}
 		payload, err := proto.Marshal(envelope)
 		if err != nil {
 			logger.Logger.Warn("Couldnt marshal envelope when sending updates")

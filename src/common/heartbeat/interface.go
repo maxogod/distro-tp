@@ -1,5 +1,7 @@
 package heartbeat
 
+import "time"
+
 // HeartBeatHandler is responsible for sending heartbeat signals to
 // a specified host and port at regular intervals.
 type HeartBeatHandler interface {
@@ -13,7 +15,7 @@ type HeartBeatHandler interface {
 	// StartReceiving initiates the heartbeat receiving process in a routine.
 	// The amount of heartbeats received is passed to the onTimeoutFunc when a timeout occurs.
 	// This is used for testing purposes to see how many heartbeats were received before timing out.
-	StartReceiving(onTimeoutFunc func(amountOfHeartbeats int), timeoutAmount int) error
+	StartReceiving(onTimeoutFunc func(amountOfHeartbeats int), timeoutAmount time.Duration) error
 
 	// Close finishes the heartbeat sending process and cleans up resources.
 	Close()
