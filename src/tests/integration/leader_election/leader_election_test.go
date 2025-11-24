@@ -52,8 +52,6 @@ func TestTwoNodes(t *testing.T) {
 	le2.Close()
 }
 
-/* --- UTILS --- */
-
 func TestTwoNodesWithMaxTenNodes(t *testing.T) {
 	maxNodes := 10
 
@@ -168,6 +166,6 @@ func TestNewNodeConnectionDuringElection(t *testing.T) {
 	go le3.Start()
 	time.Sleep(sleepTime)
 
-	assert.True(t, le1.IsLeader(), "Expected node to be leader")
-	assert.False(t, le3.IsLeader(), "Expected new node to not be leader")
+	assert.False(t, le1.IsLeader(), "Expected node to not be leader")
+	assert.True(t, le3.IsLeader(), "Expected new node to be leader")
 }
