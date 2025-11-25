@@ -2,4 +2,4 @@
 
 package poison
 
-const PROBABILITY = 0.25
+const PROBABILITY = 0.001

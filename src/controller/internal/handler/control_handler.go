@@ -77,7 +77,7 @@ func (ch *controlHandler) AwaitForWorkers() error {
 		seqNum := counter.GetSequenceNumber()
 
 		if _, ok := ch.sequencesSeen[seqNum]; ok {
-			logger.Logger.Warnf("[%s] Duplicate counter message received from %s workers with seq num %d, dropping",
+			logger.Logger.Debugf("[%s] Duplicate counter message received from %s workers with seq num %d, dropping",
 				ch.clientID, currentWorkerType, seqNum)
 			continue // Drop duplicated
 		} else {

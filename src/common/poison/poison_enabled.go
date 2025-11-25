@@ -8,14 +8,17 @@ import (
 )
 
 func ExitIfPoisoned() {
-	if rand.Float64() < PROBABILITY {
+	sample := rand.Float64()
+	if sample > PROBABILITY {
 		return
 	}
-	os.Exit(1)
+	os.Exit(3) // Exit code for poisoned process
 }
 
 func DuplicateIfPoisoned() int {
-	minNum := 1
-	maxNum := 4
-	return rand.IntN(maxNum) + minNum
+	sample := rand.Float64()
+	if sample > PROBABILITY {
+		return 1
+	}
+	return 2
 }
