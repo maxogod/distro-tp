@@ -7,6 +7,7 @@ import (
 	"github.com/maxogod/distro-tp/src/common/middleware"
 	"github.com/maxogod/distro-tp/src/common/models/enum"
 	"github.com/maxogod/distro-tp/src/common/models/protocol"
+	"github.com/maxogod/distro-tp/src/common/poison"
 	"github.com/maxogod/distro-tp/src/common/utils"
 	"google.golang.org/protobuf/proto"
 )
@@ -165,9 +166,15 @@ func SendDataToMiddleware(data proto.Message, taskType enum.TaskType, clientID s
 		return fmt.Errorf("failed to envelope message: %v", err)
 	}
 
-	if e := outputQueue.Send(envelope); e != middleware.MessageMiddlewareSuccess {
-		return fmt.Errorf("failed to send message to output queue: %d", int(e))
+	dups := poison.DuplicateIfPoisoned() // CONDITIONAL COMPILATION FOR TESTING
+
+	for range dups {
+		if e := outputQueue.Send(envelope); e != middleware.MessageMiddlewareSuccess {
+			return fmt.Errorf("failed to send message to output queue: %d", int(e))
+		}
 	}
+
+	poison.ExitIfPoisoned() // CONDITIONAL COMPILATION FOR TESTING
 
 	return nil
 }
@@ -186,9 +193,12 @@ func SendCounterMessage(clientID string, amount, seq int, from, next enum.Worker
 		return fmt.Errorf("error marshaling message counter: %v", err)
 	}
 
-	sendErr := counterExchange.Send(counterBytes)
-	if sendErr != middleware.MessageMiddlewareSuccess {
-		return fmt.Errorf("error sending message counter: %v", sendErr)
+	dups := poison.DuplicateIfPoisoned() // CONDITIONAL COMPILATION FOR TESTING
+
+	for range dups {
+		if sendErr := counterExchange.Send(counterBytes); sendErr != middleware.MessageMiddlewareSuccess {
+			return fmt.Errorf("error sending message counter: %v", sendErr)
+		}
 	}
 	return nil
 }
@@ -207,8 +217,12 @@ func SendDone(clientID string, taskType enum.TaskType, outputQueue middleware.Me
 		return fmt.Errorf("failed to serialize done message: %v", err)
 	}
 
-	if e := outputQueue.Send(data); e != middleware.MessageMiddlewareSuccess {
-		return fmt.Errorf("failed to send message to output queue: %d", int(e))
+	dups := poison.DuplicateIfPoisoned() // CONDITIONAL COMPILATION FOR TESTING
+
+	for range dups {
+		if e := outputQueue.Send(data); e != middleware.MessageMiddlewareSuccess {
+			return fmt.Errorf("failed to send message to output queue: %d", int(e))
+		}
 	}
 
 	return nil
