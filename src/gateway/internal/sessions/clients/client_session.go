@@ -4,6 +4,7 @@ import (
 	"sync/atomic"
 
 	"github.com/maxogod/distro-tp/src/common/logger"
+	"github.com/maxogod/distro-tp/src/common/models/enum"
 	"github.com/maxogod/distro-tp/src/common/models/protocol"
 	"github.com/maxogod/distro-tp/src/common/network"
 	"github.com/maxogod/distro-tp/src/gateway/internal/handler"
@@ -38,8 +39,15 @@ func (cs *clientSession) IsFinished() bool {
 func (cs *clientSession) ProcessRequest() error {
 	logger.Logger.Debugf("[%s] Starting to process client request", cs.Id)
 
+	controlMsg, err := cs.getControlRequest()
+	if err != nil {
+		logger.Logger.Errorf("[%s] Error getting task request: %v", cs.Id, err)
+		return err
+	}
+	taskType := enum.TaskType(controlMsg.GetTaskType())
+
 	// Initialize session with controller
-	err := cs.messageHandler.AwaitControllerInit()
+	err = cs.messageHandler.AwaitControllerInit(taskType)
 	if err != nil {
 		logger.Logger.Errorf("[%s] Error awaiting controller init for client: %v", cs.Id, err)
 		return err
@@ -120,6 +128,23 @@ func (cs *clientSession) getRequest() (*protocol.DataEnvelope, error) {
 	}
 
 	request := &protocol.DataEnvelope{}
+	err = proto.Unmarshal(requestBytes, request)
+	if err != nil {
+		logger.Logger.Errorf("[%s] Error receiving data: %v", cs.Id, err)
+		return nil, err
+	}
+
+	return request, nil
+}
+
+func (cs *clientSession) getControlRequest() (*protocol.ControlMessage, error) {
+	requestBytes, err := cs.clientConnection.ReceiveData()
+	if err != nil {
+		logger.Logger.Errorf("[%s] Error receiving data: %v", cs.Id, err)
+		return nil, err
+	}
+
+	request := &protocol.ControlMessage{}
 	err = proto.Unmarshal(requestBytes, request)
 	if err != nil {
 		logger.Logger.Errorf("[%s] Error receiving data: %v", cs.Id, err)

@@ -72,7 +72,7 @@ func (fe *FilterExecutor) HandleTask1(dataEnvelope *protocol.DataEnvelope, ackHa
 	}
 	shouldAck = true
 
-	if err := worker.SendCounterMessage(clientID, amountSent, int(dataEnvelope.SequenceNumber), enum.FilterWorker, enum.Gateway, counterExchange); err != nil {
+	if err := worker.SendCounterMessage(clientID, amountSent, int(dataEnvelope.SequenceNumber), enum.FilterWorker, enum.None, counterExchange); err != nil {
 		return err
 	}
 

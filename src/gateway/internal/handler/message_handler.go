@@ -63,10 +63,11 @@ func NewMessageHandler(middlewareUrl, clientID string, receivingTimeout int) Mes
 	return h
 }
 
-func (mh *messageHandler) AwaitControllerInit() error {
+func (mh *messageHandler) AwaitControllerInit(taskType enum.TaskType) error {
 	// Send init message to controller
 	controlMessage := &protocol.ControlMessage{
 		ClientId: mh.clientID,
+		TaskType: int32(taskType),
 	}
 	payload, err := proto.Marshal(controlMessage)
 	if err != nil {

@@ -37,6 +37,10 @@ func NewTaskExecutor(dataPath, outputPath string, batchSize int, conn network.Co
 }
 
 func (t *taskExecutor) Task1() error {
+	if err := t.sendRequestForTask(enum.T1); err != nil {
+		logger.Logger.Errorf("Error making task request %v", err)
+	}
+
 	transactionsDir := t.dataPath + t.conf.Paths.Transactions
 	err := t.readAndSendData(
 		enum.T1,
@@ -74,6 +78,10 @@ func (t *taskExecutor) Task1() error {
 }
 
 func (t *taskExecutor) Task2() error {
+	if err := t.sendRequestForTask(enum.T2); err != nil {
+		logger.Logger.Errorf("Error making task request %v", err)
+	}
+
 	menuItemsDir := t.dataPath + t.conf.Paths.MenuItems
 	err := t.readAndSendData(
 		enum.T2,
@@ -146,6 +154,10 @@ func (t *taskExecutor) Task2() error {
 }
 
 func (t *taskExecutor) Task3() error {
+	if err := t.sendRequestForTask(enum.T3); err != nil {
+		logger.Logger.Errorf("Error making task request %v", err)
+	}
+
 	storesDir := t.dataPath + t.conf.Paths.Stores
 	err := t.readAndSendData(
 		enum.T3,
@@ -194,6 +206,10 @@ func (t *taskExecutor) Task3() error {
 }
 
 func (t *taskExecutor) Task4() error {
+	if err := t.sendRequestForTask(enum.T4); err != nil {
+		logger.Logger.Errorf("Error making task request %v", err)
+	}
+
 	usersDir := t.dataPath + t.conf.Paths.Users
 	err := t.readAndSendData(
 		enum.T4,
@@ -393,4 +409,16 @@ func (t taskExecutor) saveEntireResults(
 
 func (t *taskExecutor) Close() {
 	t.fs.Close()
+}
+
+func (t *taskExecutor) sendRequestForTask(taskType enum.TaskType) error {
+	msg := &protocol.ControlMessage{
+		TaskType: int32(taskType),
+	}
+	payload, err := proto.Marshal(msg)
+	if err != nil {
+		return err
+	}
+
+	return t.conn.SendData(payload)
 }
