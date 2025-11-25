@@ -1,12 +1,14 @@
 package leader_election_test
 
 import (
+	"sync/atomic"
 	"testing"
 	"time"
 
 	"github.com/maxogod/distro-tp/src/common/leader_election"
 	"github.com/maxogod/distro-tp/src/common/logger"
 	"github.com/maxogod/distro-tp/src/common/models/enum"
+	"github.com/maxogod/distro-tp/src/common/models/protocol"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -16,6 +18,42 @@ var sleepTime = time.Second * 10
 func TestMain(t *testing.M) {
 	logger.InitLogger(logger.LoggerEnvDevelopment)
 	t.Run()
+}
+
+type testUpdatesCallbacks struct {
+	sent     *atomic.Bool
+	updated  *atomic.Bool
+	resetted *atomic.Bool
+	t        *testing.T
+}
+
+func (u *testUpdatesCallbacks) SendUpdates(msgs chan *protocol.DataEnvelope, _ chan bool) {
+	for i := range 3 {
+		data := &protocol.DataEnvelope{
+			SequenceNumber: int32(i),
+		}
+		msgs <- data
+		time.Sleep(1 * time.Second)
+	}
+	data := &protocol.DataEnvelope{
+		IsDone: true,
+	}
+	msgs <- data
+	close(msgs)
+	u.sent.Store(true)
+}
+
+func (u *testUpdatesCallbacks) GetUpdates(msgs chan *protocol.DataEnvelope) {
+	i := 0
+	for msg := range msgs {
+		assert.Equal(u.t, msg.GetSequenceNumber(), int32(i), "Expected correct seq num")
+		i++
+	}
+	u.updated.Store(true)
+}
+
+func (u *testUpdatesCallbacks) ResetUpdates() {
+	u.resetted.Store(true)
 }
 
 func TestSingleNode(t *testing.T) {
