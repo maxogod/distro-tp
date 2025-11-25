@@ -37,10 +37,10 @@ func (le *leaderElection) awaitUpdates() error {
 		case e, ok := <-le.updatesCh:
 			envelope = e
 			if !ok {
-				return fmt.Errorf("Updates channel closed unexpectedly")
+				return fmt.Errorf("updates channel closed unexpectedly")
 			}
 		case <-timer.C:
-			return fmt.Errorf("Leader did not finish sending updates on time")
+			return fmt.Errorf("leader did not finish sending updates on time")
 		}
 
 		if envelope.GetIsDone() {

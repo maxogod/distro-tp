@@ -37,7 +37,7 @@ type leaderElection struct {
 	middlewareUrl   string
 	workerType      enum.WorkerType
 	maxNodes        int
-	updateCallbacks *UpdateCallbacks
+	updateCallbacks UpdateCallbacks
 
 	// Middlewares
 	coordMiddleware middleware.MessageMiddleware
@@ -65,7 +65,7 @@ func NewLeaderElection(
 	middlewareUrl string,
 	workerType enum.WorkerType,
 	maxNodes int,
-	updateCallbacks *UpdateCallbacks,
+	updateCallbacks UpdateCallbacks,
 ) LeaderElection {
 	le := &leaderElection{
 		id:              id,
