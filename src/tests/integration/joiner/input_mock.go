@@ -96,53 +96,52 @@ var MockUsers = []*raw.User{
 // 	},
 // }
 
-var MockTPV = []*reduced.TotalPaymentValue{
-	{
-		StoreId:     "1",
-		Semester:    "2024-H1",
-		FinalAmount: 100.0,
-	},
-	{
-		StoreId:     "2",
-		Semester:    "2025-H1",
-		FinalAmount: 50.0,
-	},
-	{
-		StoreId:     "2",
-		Semester:    "2025-H1",
-		FinalAmount: 50.0,
-	},
-	{
-		StoreId:     "1",
-		Semester:    "2024-H2",
-		FinalAmount: 100.0,
-	},
-	{
-		StoreId:     "3",
-		Semester:    "2024-H1",
-		FinalAmount: 100.0,
-	},
-	{
-		StoreId:     "3",
-		Semester:    "2024-H2",
-		FinalAmount: 100.0,
+var MockTPV = reduced.TotalPaymentValueBatch{
+	TotalPaymentValues: []*reduced.TotalPaymentValue{
+		{
+			StoreId:     "1",
+			Semester:    "2024-H1",
+			FinalAmount: 100.0,
+		},
+		{
+			StoreId:     "2",
+			Semester:    "2025-H1",
+			FinalAmount: 100.0,
+		},
+		{
+			StoreId:     "1",
+			Semester:    "2024-H2",
+			FinalAmount: 100.0,
+		},
+		{
+			StoreId:     "3",
+			Semester:    "2024-H1",
+			FinalAmount: 100.0,
+		},
+		{
+			StoreId:     "3",
+			Semester:    "2024-H2",
+			FinalAmount: 100.0,
+		},
 	},
 }
 
-var MockCountedUserTransactions = []*reduced.CountedUserTransactions{
-	{
-		StoreId:             "1",
-		UserId:              "user1",
-		TransactionQuantity: 50,
-	},
-	{
-		StoreId:             "2",
-		UserId:              "user2",
-		TransactionQuantity: 50,
-	},
-	{
-		StoreId:             "3",
-		UserId:              "user3",
-		TransactionQuantity: 50,
+var MockCountedUserTransactions = reduced.CountedUserTransactionBatch{
+	CountedUserTransactions: []*reduced.CountedUserTransactions{
+		{
+			StoreId:             "1",
+			UserId:              "user1",
+			TransactionQuantity: 50,
+		},
+		{
+			StoreId:             "2",
+			UserId:              "user2",
+			TransactionQuantity: 50,
+		},
+		{
+			StoreId:             "3",
+			UserId:              "user3",
+			TransactionQuantity: 50,
+		},
 	},
 }
