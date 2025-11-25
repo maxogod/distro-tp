@@ -12,10 +12,8 @@ output_file = "docker-compose.yaml"
 with open(config_file, "r") as f:
     config = yaml.safe_load(f)
 
-# Extract service counts
-service_counts = {}
-for svc in config.get("services", []):
-    service_counts.update(svc)
+# Extract service configuration
+services_config = config.get("services", {})
 
 lines = []
 
@@ -70,14 +68,24 @@ lines.append(
     """
 )
 
+
 # ==============================
-# Gateway
+# Function to add gateway
 # ==============================
-lines.append(
-    """  gateway:
-    container_name: gateway
+def add_gateway(count, tags=None):
+    for i in range(1, count + 1):
+        cname = "gateway" if count == 1 else f"gateway{i}"
+        service_def = f"""  {cname}:
+    container_name: {cname}
     build:
-      dockerfile: ./src/gateway/Dockerfile
+      dockerfile: ./src/gateway/Dockerfile"""
+        
+        if tags:
+            service_def += f"""
+      args:
+        BUILD_TAGS: "{tags}" """
+        
+        service_def += f"""
     image: gateway:latest
     ports:
       - '8080:8080'
@@ -95,17 +103,27 @@ lines.append(
       start_period: 10s
     networks:
       - tp_net
-    """
-)
+        """
+        lines.append(service_def)
+
 
 # ==============================
-# Controller
+# Function to add controller
 # ==============================
-lines.append(
-    """  controller:
-    container_name: controller 
+def add_controller(count, tags=None):
+    for i in range(1, count + 1):
+        cname = "controller" if count == 1 else f"controller{i}"
+        service_def = f"""  {cname}:
+    container_name: {cname}
     build:
-      dockerfile: ./src/controller/Dockerfile
+      dockerfile: ./src/controller/Dockerfile"""
+        
+        if tags:
+            service_def += f"""
+      args:
+        BUILD_TAGS: "{tags}" """
+        
+        service_def += f"""
     image: controller:latest
     volumes:
       - ./src/controller/config.yaml:/app/config.yaml
@@ -114,17 +132,27 @@ lines.append(
         condition: service_healthy
     networks:
       - tp_net
-    """
-)
+        """
+        lines.append(service_def)
+
 
 # ==============================
-# Aggregator (always 1)
+# Function to add aggregator
 # ==============================
-lines.append(
-    """  aggregator:
-    container_name: aggregator
+def add_aggregator(count, tags=None):
+    for i in range(1, count + 1):
+        cname = "aggregator" if count == 1 else f"aggregator{i}"
+        service_def = f"""  {cname}:
+    container_name: {cname}
     build:
-      dockerfile: ./src/aggregator/Dockerfile
+      dockerfile: ./src/aggregator/Dockerfile"""
+        
+        if tags:
+            service_def += f"""
+      args:
+        BUILD_TAGS: "{tags}" """
+        
+        service_def += f"""
     image: aggregator:latest
     networks:
       - tp_net
@@ -133,21 +161,28 @@ lines.append(
     depends_on:
       rabbitmq:
         condition: service_healthy
-    """
-)
+        """
+        lines.append(service_def)
 
 
 # ==============================
 # Function to add replicated services
 # ==============================
-def add_services(name, count):
+def add_services(name, count, tags=None):
     for i in range(1, count + 1):
         cname = name if count == 1 else f"{name}{i}"
-        lines.append(
-            f"""  {cname}:
+        service_def = f"""  {cname}:
     container_name: {cname}
     build:
-      dockerfile: ./src/{name}/Dockerfile
+      dockerfile: ./src/{name}/Dockerfile"""
+        
+        # Add build tags if present
+        if tags:
+            service_def += f"""
+      args:
+        BUILD_TAGS: "{tags}" """
+        
+        service_def += f"""
     image: {name}:latest
     networks:
       - tp_net
@@ -157,22 +192,85 @@ def add_services(name, count):
       rabbitmq:
         condition: service_healthy
         """
-        )
+        lines.append(service_def)
 
+
+# ==============================
+# Add gateway
+# ==============================
+gateway_config = services_config.get("gateway", {})
+if isinstance(gateway_config, dict):
+    count = gateway_config.get("instances", 0)
+    tags = gateway_config.get("tags", None)
+else:
+    count = gateway_config if isinstance(gateway_config, int) else 0
+    tags = None
+
+if count > 0:
+    tag_info = f" with tags '{tags}'" if tags else ""
+    print(f"Adding {count} gateway(s){tag_info}")
+    add_gateway(count, tags)
+
+# ==============================
+# Add controller
+# ==============================
+controller_config = services_config.get("controller", {})
+if isinstance(controller_config, dict):
+    count = controller_config.get("instances", 0)
+    tags = controller_config.get("tags", None)
+else:
+    count = controller_config if isinstance(controller_config, int) else 0
+    tags = None
+
+if count > 0:
+    tag_info = f" with tags '{tags}'" if tags else ""
+    print(f"Adding {count} controller(s){tag_info}")
+    add_controller(count, tags)
+
+# ==============================
+# Add aggregator
+# ==============================
+aggregator_config = services_config.get("aggregator", {})
+if isinstance(aggregator_config, dict):
+    count = aggregator_config.get("instances", 0)
+    tags = aggregator_config.get("tags", None)
+else:
+    count = aggregator_config if isinstance(aggregator_config, int) else 0
+    tags = None
+
+if count > 0:
+    tag_info = f" with tags '{tags}'" if tags else ""
+    print(f"Adding {count} aggregator(s){tag_info}")
+    add_aggregator(count, tags)
 
 # ==============================
 # Add other services
 # ==============================
 for svc in ["filter", "joiner", "reducer", "group_by"]:
-    count = service_counts.get(svc, 0)
+    svc_config = services_config.get(svc, {})
+    
+    # Handle both dict and int formats for backwards compatibility
+    if isinstance(svc_config, dict):
+        count = svc_config.get("instances", 0)
+        tags = svc_config.get("tags", None)
+    else:
+        count = svc_config if isinstance(svc_config, int) else 0
+        tags = None
+    
     if count > 0:
-        print(f"Adding {count} {svc}(s)")
-        add_services(svc, count)
+        tag_info = f" with tags '{tags}'" if tags else ""
+        print(f"Adding {count} {svc}(s){tag_info}")
+        add_services(svc, count, tags)
 
 # ==============================
 # Clients
 # ==============================
-gw_count = service_counts.get("client", 0)
+client_config = services_config.get("client", {})
+if isinstance(client_config, dict):
+    gw_count = client_config.get("instances", 0)
+else:
+    gw_count = client_config if isinstance(client_config, int) else 0
+
 for i in range(gw_count):
     lines.append(
         f"""  client{i+1}:

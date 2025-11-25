@@ -54,9 +54,9 @@ services:
       start_period: 10s
     networks:
       - tp_net
-    
+        
   controller:
-    container_name: controller 
+    container_name: controller
     build:
       dockerfile: ./src/controller/Dockerfile
     image: controller:latest
@@ -67,7 +67,7 @@ services:
         condition: service_healthy
     networks:
       - tp_net
-    
+        
   aggregator:
     container_name: aggregator
     build:
@@ -80,11 +80,13 @@ services:
     depends_on:
       rabbitmq:
         condition: service_healthy
-    
+        
   filter1:
     container_name: filter1
     build:
       dockerfile: ./src/filter/Dockerfile
+      args:
+        BUILD_TAGS: "poison high_prob" 
     image: filter:latest
     networks:
       - tp_net
@@ -98,6 +100,8 @@ services:
     container_name: filter2
     build:
       dockerfile: ./src/filter/Dockerfile
+      args:
+        BUILD_TAGS: "poison high_prob" 
     image: filter:latest
     networks:
       - tp_net
