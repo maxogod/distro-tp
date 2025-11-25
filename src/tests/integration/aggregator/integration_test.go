@@ -30,7 +30,7 @@ func TestSequentialRun(t *testing.T) {
 	tests := []func(t *testing.T){
 		t1AggregateMock,
 		t3AggregateMock,
-		//t4AggregateMock,
+		t4AggregateMock,
 	}
 
 	// Run each test one by one
@@ -187,52 +187,48 @@ func t4AggregateMock(t *testing.T) {
 	aggregatorInputQueue := middleware.GetAggregatorQueue(url)
 	finishExchange := middleware.GetFinishExchange(url, []string{string(enum.AggregatorWorker)})
 	clientID := "test-client-4"
-	processedDataQueue := middleware.GetProcessedDataExchange(url, clientID)
+	joinerOutputQueue := middleware.GetJoinerQueue(url)
+
+	var countedUserTransactions []*reduced.CountedUserTransactions
+	done := make(chan bool, 1)
+	// each message should contain the grouped items
+	e := joinerOutputQueue.StartConsuming(func(consumeChannel middleware.ConsumeChannel, d chan error) {
+		for msg := range consumeChannel {
+			msg.Ack(false)
+			dataBatch, _ := utils.GetDataEnvelope(msg.Body)
+			countedUserTransaction := &reduced.CountedUserTransactionBatch{}
+			err := proto.Unmarshal(dataBatch.Payload, countedUserTransaction)
+
+			assert.Nil(t, err)
+
+			countedUserTransactions = append(countedUserTransactions, countedUserTransaction.CountedUserTransactions...)
+			break
+		}
+		done <- true
+	})
 
 	// Send T4 data to aggregator
-
-	for _, countedUsers := range MockUsersDupQuantities {
-		serializedCU, _ := proto.Marshal(countedUsers)
-		dataEnvelope := protocol.DataEnvelope{
-			ClientId: clientID,
-			TaskType: int32(enum.T4),
-			Payload:  serializedCU,
-		}
-		serializedDataEnvelope, _ := proto.Marshal(&dataEnvelope)
-
-		aggregatorInputQueue.Send(serializedDataEnvelope)
+	serializedCU, _ := proto.Marshal(&MockUsersDupQuantities)
+	dataEnvelope := protocol.DataEnvelope{
+		ClientId: clientID,
+		TaskType: int32(enum.T4),
+		Payload:  serializedCU,
 	}
+	serializedDataEnvelope, _ := proto.Marshal(&dataEnvelope)
+
+	aggregatorInputQueue.Send(serializedDataEnvelope)
 
 	// Send done message to aggregator
 	doneMessage := &protocol.DataEnvelope{
 		ClientId: clientID,
 		IsDone:   true,
+		TaskType: int32(enum.T4),
 	}
 	doneBytes, _ := proto.Marshal(doneMessage)
 	time.Sleep(3 * time.Second)
 	err := finishExchange.Send(doneBytes)
 	assert.Equal(t, err, middleware.MessageMiddlewareSuccess)
 
-	countedUserTransactions := []*reduced.CountedUserTransactions{}
-	done := make(chan bool, 1)
-	// each message should contain the grouped items
-	e := processedDataQueue.StartConsuming(func(consumeChannel middleware.ConsumeChannel, d chan error) {
-		for msg := range consumeChannel {
-			msg.Ack(false)
-			dataBatch, _ := utils.GetDataEnvelope(msg.Body)
-			if dataBatch.IsDone {
-				break
-			}
-			countedUserTransaction := &reduced.CountedUserTransactions{}
-			err := proto.Unmarshal(dataBatch.Payload, countedUserTransaction)
-
-			assert.Nil(t, err)
-
-			countedUserTransactions = append(countedUserTransactions, countedUserTransaction)
-
-		}
-		done <- true
-	})
 	select {
 	case <-done:
 	case <-time.After(5 * time.Second):
@@ -240,39 +236,16 @@ func t4AggregateMock(t *testing.T) {
 	}
 	assert.Equal(t, 0, int(e))
 
-	countedTransactionsCounter := make(map[string](map[int32]int))
-
-	for _, countedUserTransaction := range countedUserTransactions {
-		storeID := countedUserTransaction.StoreId
-		quantity := countedUserTransaction.TransactionQuantity
-		if _, exists := countedTransactionsCounter[storeID]; !exists {
-			countedTransactionsCounter[storeID] = make(map[int32]int)
-		}
-		countedTransactionsCounter[storeID][quantity]++
+	assert.Equal(t, len(MockUsersDupQuantitiesOutput.GetCountedUserTransactions()), len(countedUserTransactions), "Expected 2 user transactions after aggregating")
+	for i, tpv := range countedUserTransactions {
+		assert.Equal(t, MockUsersDupQuantitiesOutput.GetCountedUserTransactions()[i].StoreId, tpv.StoreId)
+		assert.Equal(t, MockUsersDupQuantitiesOutput.GetCountedUserTransactions()[i].UserId, tpv.UserId)
+		assert.Equal(t, MockUsersDupQuantitiesOutput.GetCountedUserTransactions()[i].TransactionQuantity, tpv.TransactionQuantity)
+		assert.Equal(t, MockUsersDupQuantitiesOutput.GetCountedUserTransactions()[i].Birthdate, tpv.Birthdate)
 	}
 
-	assert.Equal(t, len(MockUsersDupQuantitiesOutput), len(countedTransactionsCounter), "Expected The same amount of Counted User transactions after aggregating")
-
-	for storeID, quantities := range MockUsersDupQuantitiesOutput {
-		// Check if the storeID exists in countedTransactionsCounter
-		if _, exists := countedTransactionsCounter[storeID]; !exists {
-			t.Errorf("StoreID %s not found in countedTransactionsCounter", storeID)
-			continue
-		}
-
-		// Check if the quantities match for the storeID
-		for quantity, expectedCount := range quantities {
-			actualCount, exists := countedTransactionsCounter[storeID][quantity]
-			if !exists {
-				t.Errorf("Quantity %d not found for StoreID %s in countedTransactionsCounter", quantity, storeID)
-				continue
-			}
-			assert.Equal(t, expectedCount, actualCount, "Mismatch in transaction count for StoreID %s and Quantity %d", storeID, quantity)
-		}
-	}
-
-	processedDataQueue.StopConsuming()
-	processedDataQueue.Close()
+	joinerOutputQueue.StopConsuming()
+	joinerOutputQueue.Close()
 	aggregatorInputQueue.Close()
 	finishExchange.Close()
 }

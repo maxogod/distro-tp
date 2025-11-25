@@ -19,13 +19,19 @@ var MockTpvOutput = reduced.TotalPaymentValueBatch{
 	},
 }
 
-var MockUsersDupQuantitiesOutput = map[string](map[int32]int){
-	"1": {
-		200: 1,
-		100: 2,
-		50:  1,
-	},
-	"2": {
-		10: 1,
+var MockUsersDupQuantitiesOutput = reduced.CountedUserTransactionBatch{
+	CountedUserTransactions: []*reduced.CountedUserTransactions{
+		{
+			StoreId:             "1",
+			UserId:              "user1",
+			Birthdate:           "2000-01-01",
+			TransactionQuantity: 100,
+		},
+		{
+			StoreId:             "2",
+			UserId:              "user1",
+			Birthdate:           "2000-01-01",
+			TransactionQuantity: 10,
+		},
 	},
 }
