@@ -61,24 +61,15 @@ func groupByTask2(t *testing.T) {
 
 	done := make(chan bool, 1)
 
-	var T2_1_counter = 1
-	var T2_2_counter = 1
+	var T2Counter = 1
 
-	// I expect the group by worker to send 6 batches, 2 for each group
-	// since the worker sends them to 2 different task types (T2_1 and T2_2)
-	// In total, there should be these unique groups (itemID@YearMonth):
-	// item1@2025-07, item1@2025-08, item3@2025-07
-	// so i expect to receive 6 messages in total
-	// each message should contain the grouped items
 	e := reducerOutputQueue.StartConsuming(func(consumeChannel middleware.ConsumeChannel, d chan error) {
 		for msg := range consumeChannel {
 			msg.Ack(false)
 			dataBatch, _ := utils.GetDataEnvelope(msg.Body)
-			assert.True(t, enum.TaskType(dataBatch.TaskType) == enum.T2_1 || enum.TaskType(dataBatch.TaskType) == enum.T2_2)
-			if enum.TaskType(dataBatch.TaskType) == enum.T2_1 {
-				T2_1_counter--
-			} else {
-				T2_2_counter--
+			assert.True(t, enum.TaskType(dataBatch.TaskType) == enum.T2)
+			if enum.TaskType(dataBatch.TaskType) == enum.T2 {
+				T2Counter--
 			}
 
 			groupData := &group_by.GroupTransactionItemsBatch{}
@@ -95,7 +86,7 @@ func groupByTask2(t *testing.T) {
 				assert.Equal(t, len(expectedGroupData), len(groupDataItem.TransactionItems))
 			}
 
-			if T2_1_counter == 0 && T2_2_counter == 0 {
+			if T2Counter == 0 {
 				break
 			}
 		}
