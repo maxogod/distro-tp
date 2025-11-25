@@ -7,7 +7,6 @@ import (
 	"github.com/maxogod/distro-tp/src/aggregator/config"
 	"github.com/maxogod/distro-tp/src/common/middleware"
 	"github.com/maxogod/distro-tp/src/common/models/enum"
-	"github.com/maxogod/distro-tp/src/common/models/raw"
 	"github.com/maxogod/distro-tp/src/common/models/reduced"
 	"github.com/maxogod/distro-tp/src/common/worker"
 )
@@ -29,7 +28,6 @@ func NewFinishExecutor(address string, aggregatorService business.AggregatorServ
 	}
 
 	fe.finishExecutors = map[enum.TaskType]func(clientID string) error{
-		enum.T1: fe.finishTask1,
 		enum.T2: fe.finishTask2,
 		enum.T3: fe.finishTask3,
 		enum.T4: fe.finishTask4,
@@ -44,36 +42,6 @@ func (fe *finishExecutor) SendAllData(clientID string, taskType enum.TaskType) e
 	}
 
 	return finishFunc(clientID)
-}
-
-func (fe *finishExecutor) finishTask1(clientID string) error {
-	processedDataQueue := middleware.GetProcessedDataExchange(fe.address, clientID)
-	defer func() {
-		processedDataQueue.Close()
-		fe.aggregatorService.RemoveData(clientID)
-	}()
-
-	results, err := fe.aggregatorService.GetStoredTransactions(clientID)
-	if err != nil {
-		return fmt.Errorf("[TASK 1] failed to get results for client %s: %v", clientID, err)
-	}
-	index := 0
-	lenResults := len(results)
-	for index < lenResults {
-		endIndex := index + int(fe.limits.TransactionSendLimit)
-		if endIndex > lenResults {
-			endIndex = lenResults
-		}
-		transactionBatch := &raw.TransactionBatch{
-			Transactions: results[index:endIndex],
-		}
-		if err := worker.SendDataToMiddleware(transactionBatch, enum.T1, clientID, 0, processedDataQueue); err != nil {
-			return fmt.Errorf("failed to send data to middleware: %v", err)
-		}
-		index = endIndex
-	}
-
-	return worker.SendDone(clientID, enum.T1, processedDataQueue)
 }
 
 func (fe *finishExecutor) finishTask2(clientID string) error {

@@ -5,7 +5,7 @@ services:
     instances: 1
   filter:
     instances: 2
-    tags: "poison low_prob"
+    # tags: "poison low_prob"
   group_by:
     instances: 2
   reducer:
