@@ -30,36 +30,23 @@ var MockTransactionsBatch = raw.TransactionBatch{
 		},
 	}}
 
-var MockTPV = []*reduced.TotalPaymentValue{
-	{
-		StoreId:     "1",
-		Semester:    "2024-H1",
-		FinalAmount: 100.0,
-	},
-	{
-		StoreId:     "2",
-		Semester:    "2025-H1",
-		FinalAmount: 50.0,
-	},
-	{
-		StoreId:     "2",
-		Semester:    "2025-H1",
-		FinalAmount: 50.0,
-	},
-	{
-		StoreId:     "1",
-		Semester:    "2024-H2",
-		FinalAmount: 100.0,
-	},
-	{
-		StoreId:     "1",
-		Semester:    "2024-H1",
-		FinalAmount: 100.0,
-	},
-	{
-		StoreId:     "1",
-		Semester:    "2024-H2",
-		FinalAmount: 100.0,
+var MockTPV = reduced.TotalPaymentValueBatch{
+	TotalPaymentValues: []*reduced.TotalPaymentValue{
+		{
+			StoreId:     "1",
+			Semester:    "2024-H1",
+			FinalAmount: 300.0,
+		},
+		{
+			StoreId:     "2",
+			Semester:    "2025-H1",
+			FinalAmount: 100.0,
+		},
+		{
+			StoreId:     "1",
+			Semester:    "2024-H1",
+			FinalAmount: 300.0,
+		},
 	},
 }
 

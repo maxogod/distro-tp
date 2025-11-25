@@ -29,7 +29,7 @@ func TestMain(m *testing.M) {
 func TestSequentialRun(t *testing.T) {
 	tests := []func(t *testing.T){
 		t1AggregateMock,
-		//t3AggregateMock,
+		t3AggregateMock,
 		//t4AggregateMock,
 	}
 
@@ -124,50 +124,46 @@ func t3AggregateMock(t *testing.T) {
 	aggregatorInputQueue := middleware.GetAggregatorQueue(url)
 	finishExchange := middleware.GetFinishExchange(url, []string{string(enum.AggregatorWorker)})
 	clientID := "test-client-3"
-	processedDataQueue := middleware.GetProcessedDataExchange(url, clientID)
+	joinerOutputQueue := middleware.GetJoinerQueue(url)
+
+	var tpvItems []*reduced.TotalPaymentValue
+	done := make(chan bool, 1)
+	// each message should contain the grouped items
+	e := joinerOutputQueue.StartConsuming(func(consumeChannel middleware.ConsumeChannel, d chan error) {
+		for msg := range consumeChannel {
+			msg.Ack(false)
+			dataBatch, _ := utils.GetDataEnvelope(msg.Body)
+			tpvItem := &reduced.TotalPaymentValueBatch{}
+			err := proto.Unmarshal(dataBatch.Payload, tpvItem)
+			assert.Nil(t, err)
+			tpvItems = append(tpvItems, tpvItem.TotalPaymentValues...)
+			break
+		}
+		done <- true
+	})
 
 	// Send T3 data to aggregator
-
-	for _, tpv := range MockTPV {
-		serializedTPV, _ := proto.Marshal(tpv)
-		dataEnvelope := protocol.DataEnvelope{
-			ClientId: clientID,
-			TaskType: int32(enum.T3),
-			Payload:  serializedTPV,
-		}
-		serializedDataEnvelope, _ := proto.Marshal(&dataEnvelope)
-
-		aggregatorInputQueue.Send(serializedDataEnvelope)
+	serializedTPV, _ := proto.Marshal(&MockTPV)
+	dataEnvelope := protocol.DataEnvelope{
+		ClientId: clientID,
+		TaskType: int32(enum.T3),
+		Payload:  serializedTPV,
 	}
+	serializedDataEnvelope, _ := proto.Marshal(&dataEnvelope)
+
+	aggregatorInputQueue.Send(serializedDataEnvelope)
 
 	// Send done message to aggregator
 	doneMessage := &protocol.DataEnvelope{
 		ClientId: clientID,
 		IsDone:   true,
+		TaskType: int32(enum.T3),
 	}
 	doneBytes, _ := proto.Marshal(doneMessage)
 	time.Sleep(3 * time.Second)
 	err := finishExchange.Send(doneBytes)
 	assert.Equal(t, err, middleware.MessageMiddlewareSuccess)
 
-	tpvItems := []*reduced.TotalPaymentValue{}
-	done := make(chan bool, 1)
-	// each message should contain the grouped items
-	e := processedDataQueue.StartConsuming(func(consumeChannel middleware.ConsumeChannel, d chan error) {
-		for msg := range consumeChannel {
-			msg.Ack(false)
-			dataBatch, _ := utils.GetDataEnvelope(msg.Body)
-			if dataBatch.IsDone {
-				break
-			}
-			tpvItem := &reduced.TotalPaymentValue{}
-			err := proto.Unmarshal(dataBatch.Payload, tpvItem)
-			assert.Nil(t, err)
-			tpvItems = append(tpvItems, tpvItem)
-
-		}
-		done <- true
-	})
 	select {
 	case <-done:
 	case <-time.After(5 * time.Second):
@@ -175,14 +171,14 @@ func t3AggregateMock(t *testing.T) {
 	}
 	assert.Equal(t, 0, int(e))
 
-	assert.Equal(t, len(MockTpvOutput), len(tpvItems), "Expected 2 TPV items after aggregating")
+	assert.Equal(t, len(MockTpvOutput.GetTotalPaymentValues()), len(tpvItems), "Expected 2 TPV items after aggregating")
 	for i, tpv := range tpvItems {
-		assert.Equal(t, MockTpvOutput[i].StoreId, tpv.StoreId)
-		assert.Equal(t, MockTpvOutput[i].Semester, tpv.Semester)
-		assert.Equal(t, MockTpvOutput[i].FinalAmount, tpv.FinalAmount)
+		assert.Equal(t, MockTpvOutput.GetTotalPaymentValues()[i].StoreId, tpv.StoreId)
+		assert.Equal(t, MockTpvOutput.GetTotalPaymentValues()[i].Semester, tpv.Semester)
+		assert.Equal(t, MockTpvOutput.GetTotalPaymentValues()[i].FinalAmount, tpv.FinalAmount)
 	}
-	processedDataQueue.StopConsuming()
-	processedDataQueue.Close()
+	joinerOutputQueue.StopConsuming()
+	joinerOutputQueue.Close()
 	aggregatorInputQueue.Close()
 	finishExchange.Close()
 }
