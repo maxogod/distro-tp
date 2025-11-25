@@ -1,6 +1,7 @@
 package manager
 
 import (
+	"github.com/maxogod/distro-tp/src/common/models/enum"
 	"github.com/maxogod/distro-tp/src/controller/config"
 	"github.com/maxogod/distro-tp/src/controller/internal/handler"
 	"github.com/maxogod/distro-tp/src/controller/internal/sessions/clients"
@@ -18,8 +19,8 @@ func NewClientManager(conf *config.Config) ClientManager {
 	}
 }
 
-func (cm *clientManager) AddClient(id string) clients.ClientSession {
-	controlHandler := handler.NewControlHandler(cm.config.MiddlewareAddress, id)
+func (cm *clientManager) AddClient(id string, taskType enum.TaskType) clients.ClientSession {
+	controlHandler := handler.NewControlHandler(cm.config.MiddlewareAddress, id, taskType)
 	session := clients.NewClientSession(id, controlHandler)
 	cm.clients[id] = session
 	return session

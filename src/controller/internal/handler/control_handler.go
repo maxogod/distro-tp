@@ -17,6 +17,7 @@ type workerMonitor struct {
 
 type controlHandler struct {
 	clientID      string
+	taskType      enum.TaskType
 	middlewareUrl string
 	sequencesSeen map[int32]bool
 
@@ -30,9 +31,10 @@ type controlHandler struct {
 	counterCh         chan *protocol.MessageCounter
 }
 
-func NewControlHandler(middlewareUrl, clientID string) ControlHandler {
+func NewControlHandler(middlewareUrl, clientID string, taskType enum.TaskType) ControlHandler {
 	h := &controlHandler{
 		clientID:      clientID,
+		taskType:      taskType,
 		middlewareUrl: middlewareUrl,
 		sequencesSeen: make(map[int32]bool),
 
@@ -109,6 +111,7 @@ func (ch *controlHandler) AwaitForWorkers() error {
 func (ch *controlHandler) SendDone(worker enum.WorkerType) error {
 	doneMessage := &protocol.DataEnvelope{
 		ClientId: ch.clientID,
+		TaskType: int32(ch.taskType),
 		IsDone:   true,
 		Payload:  nil,
 	}

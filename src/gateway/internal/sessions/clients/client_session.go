@@ -97,9 +97,9 @@ func (cs *clientSession) processResponse() {
 	// Read and send until channel is closed
 	for batch := range data {
 		seq := batch.GetSequenceNumber()
-		if _, exists := cs.seqNumsReceived[seq]; exists {
-			// logger.Logger.Debugf("[%s] Duplicate sequence number %d in report data. Ignoring message.", cs.Id, seq)
-			// continue
+		if _, exists := cs.seqNumsReceived[seq]; exists && !batch.GetIsDone() {
+			logger.Logger.Debugf("[%s] Duplicate sequence number %d in report data. Ignoring message.", cs.Id, seq)
+			continue
 		}
 		cs.seqNumsReceived[seq] = true
 
