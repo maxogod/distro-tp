@@ -9,7 +9,6 @@ import (
 	"github.com/maxogod/distro-tp/src/common/middleware"
 	"github.com/maxogod/distro-tp/src/common/models/enum"
 	"github.com/maxogod/distro-tp/src/common/models/protocol"
-	"github.com/maxogod/distro-tp/src/common/models/raw"
 	"github.com/maxogod/distro-tp/src/common/models/reduced"
 	"github.com/maxogod/distro-tp/src/common/worker"
 	"google.golang.org/protobuf/proto"
@@ -36,33 +35,8 @@ func NewAggregatorExecutor(config *config.Config,
 }
 
 func (ae *AggregatorExecutor) HandleTask1(dataEnvelope *protocol.DataEnvelope, ackHandler func(bool, bool) error) error {
-	shouldAck := false
-	defer ackHandler(shouldAck, false)
-
-	transactionBatch := &raw.TransactionBatch{}
-	payload := dataEnvelope.GetPayload()
-	clientID := dataEnvelope.GetClientId()
-
-	err := proto.Unmarshal(payload, transactionBatch)
-	if err != nil {
-		return err
-	}
-
-	err = ae.aggregatorService.StoreTransactions(clientID, transactionBatch.Transactions)
-	if err != nil {
-		return err
-	}
-	shouldAck = true
-
-	_, exists := ae.connectedClients[clientID]
-	if !exists {
-		ae.connectedClients[clientID] = middleware.GetCounterExchange(ae.config.Address, clientID+"@"+string(enum.AggregatorWorker))
-	}
-	counterExchange := ae.connectedClients[clientID]
-	if err := worker.SendCounterMessage(clientID, 0, int(dataEnvelope.SequenceNumber), enum.AggregatorWorker, enum.None, counterExchange); err != nil {
-		return err
-	}
-
+	ackHandler(false, false)
+	logger.Logger.Warn("Aggregator should not handle task 1!")
 	return nil
 }
 
