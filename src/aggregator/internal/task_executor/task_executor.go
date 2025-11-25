@@ -20,7 +20,6 @@ type AggregatorExecutor struct {
 	connectedClients  map[string]middleware.MessageMiddleware
 	aggregatorService business.AggregatorService
 	finishExecutor    FinishExecutor
-	clientTasks       map[string]enum.TaskType
 }
 
 func NewAggregatorExecutor(config *config.Config,
@@ -33,7 +32,6 @@ func NewAggregatorExecutor(config *config.Config,
 		connectedClients:  connectedClients,
 		aggregatorService: aggregatorService,
 		finishExecutor:    NewFinishExecutor(config.Address, aggregatorService, outputQueue, config.Limits),
-		clientTasks:       make(map[string]enum.TaskType),
 	}
 }
 
@@ -49,8 +47,6 @@ func (ae *AggregatorExecutor) HandleTask1(dataEnvelope *protocol.DataEnvelope, a
 	if err != nil {
 		return err
 	}
-
-	ae.clientTasks[clientID] = enum.T1
 
 	err = ae.aggregatorService.StoreTransactions(clientID, transactionBatch.Transactions)
 	if err != nil {
@@ -82,8 +78,6 @@ func (ae *AggregatorExecutor) HandleTask2(dataEnvelope *protocol.DataEnvelope, a
 	if err != nil {
 		return err
 	}
-
-	ae.clientTasks[clientID] = enum.T2
 
 	for _, profit := range reducedData.GetTotalSumItems() {
 		err = ae.aggregatorService.StoreTotalItems(clientID, profit)
@@ -117,8 +111,6 @@ func (ae *AggregatorExecutor) HandleTask3(dataEnvelope *protocol.DataEnvelope, a
 	if err != nil {
 		return err
 	}
-
-	ae.clientTasks[clientID] = enum.T3
 
 	for _, tpv := range reducedData.GetTotalPaymentValues() {
 		err = ae.aggregatorService.StoreTotalPaymentValue(clientID, tpv)
@@ -154,7 +146,6 @@ func (ae *AggregatorExecutor) HandleTask4(dataEnvelope *protocol.DataEnvelope, a
 	}
 
 	for _, countedData := range countedDataBatch.GetCountedUserTransactions() {
-		ae.clientTasks[clientID] = enum.T4
 		err = ae.aggregatorService.StoreCountedUserTransactions(clientID, countedData)
 		if err != nil {
 			return err
@@ -178,21 +169,15 @@ func (ae *AggregatorExecutor) HandleFinishClient(dataEnvelope *protocol.DataEnve
 	defer ackHandler(shouldAck, false)
 
 	clientID := dataEnvelope.GetClientId()
-	taskType, exists := ae.clientTasks[clientID]
+	taskType := dataEnvelope.GetTaskType()
 	logger.Logger.Debugf("Finishing client: %s | task-type: %d", clientID, taskType)
-	if !exists {
-		logger.Logger.Warn("Client ID never sent any data: ", clientID)
-		return nil
-	}
 
-	// TODO: track finishing clients just in case the aggregaror crashes during sending data
 	err := ae.finishExecutor.SendAllData(clientID, enum.TaskType(taskType))
 	if err != nil {
 		return err
 	}
 
 	logger.Logger.Debug("Client Finished: ", clientID)
-	delete(ae.clientTasks, clientID)
 	shouldAck = true
 	return nil
 }
