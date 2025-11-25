@@ -61,7 +61,6 @@ class HoundDoom:
         run_cmd(f"docker kill {container_id}")
 
 def main():
-
     if len(argv) < 3:
         print("Usage: ./hound_of_doom.py <amount_to_doom> <rest_interval_secs> [<target_prefix>] [<exeption_prefix>]")
         return
@@ -84,6 +83,8 @@ def main():
     print(f"  - Exeption prefix: '{exeption_prefix}'\n")
     hound = HoundDoom(amount, time_wait, prefix=prefix, exeption_prefix=exeption_prefix)
     hound.unleash_doom()
+
+    print("Houndoom is finished.")
 
 if __name__ == "__main__":
     main()
