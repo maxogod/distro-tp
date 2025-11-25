@@ -27,13 +27,8 @@ func TestNewHeartBeatHandler(t *testing.T) {
 
 func TestStartSending_InvalidAddress(t *testing.T) {
 	handler, err := heartbeat.NewListeningHeartBeatHandler("invalid-host", 8080, 1*time.Second)
-	assert.NoError(t, err)
-
-	defer handler.Close()
-
-	err = handler.StartSending()
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "failed to resolve UDP address")
+	assert.Nil(t, handler)
 }
 
 func TestSendAndReceiveHeartbeats(t *testing.T) {
