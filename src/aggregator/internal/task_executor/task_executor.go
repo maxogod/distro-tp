@@ -170,6 +170,12 @@ func (ae *AggregatorExecutor) HandleFinishClient(dataEnvelope *protocol.DataEnve
 
 	clientID := dataEnvelope.GetClientId()
 	taskType := dataEnvelope.GetTaskType()
+
+	if taskType == int32(enum.T1) {
+		shouldAck = true
+		return nil
+	}
+
 	logger.Logger.Debugf("Finishing client: %s | task-type: %d", clientID, taskType)
 
 	err := ae.finishExecutor.SendAllData(clientID, enum.TaskType(taskType))
