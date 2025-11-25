@@ -92,6 +92,7 @@ func t1AggregateMock(t *testing.T) {
 	doneMessage := &protocol.DataEnvelope{
 		ClientId: clientID,
 		IsDone:   true,
+		TaskType: int32(enum.T1),
 	}
 	doneBytes, _ := proto.Marshal(doneMessage)
 	time.Sleep(3 * time.Second)
