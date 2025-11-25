@@ -36,13 +36,26 @@ func (c Config) String() string {
 const CONFIG_FILE_PATH = "./config.yaml"
 
 func InitConfig() (*Config, error) {
+	return initConfig(CONFIG_FILE_PATH)
+}
+
+func InitConfigWithPath(configFilePath string) (*Config, error) {
+	path := CONFIG_FILE_PATH
+	if configFilePath != "" {
+		path = configFilePath
+	}
+
+	return initConfig(path)
+}
+
+func initConfig(configFilePath string) (*Config, error) {
 	v := viper.New()
 	v.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 
 	_ = godotenv.Load(".env")
 	v.AutomaticEnv()
 
-	v.SetConfigFile(CONFIG_FILE_PATH)
+	v.SetConfigFile(configFilePath)
 	_ = v.ReadInConfig() // ignore error if file missing
 
 	// Bind env vars to config keys
