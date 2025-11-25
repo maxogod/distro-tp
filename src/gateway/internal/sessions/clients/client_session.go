@@ -98,8 +98,8 @@ func (cs *clientSession) processResponse() {
 	for batch := range data {
 		seq := batch.GetSequenceNumber()
 		if _, exists := cs.seqNumsReceived[seq]; exists {
-			logger.Logger.Debugf("[%s] Duplicate sequence number %d in report data. Ignoring message.", cs.Id, seq)
-			continue
+			// logger.Logger.Debugf("[%s] Duplicate sequence number %d in report data. Ignoring message.", cs.Id, seq)
+			// continue
 		}
 		cs.seqNumsReceived[seq] = true
 
