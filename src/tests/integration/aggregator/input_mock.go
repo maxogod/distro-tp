@@ -1,4 +1,4 @@
-package filter_test
+package aggregator_test
 
 import (
 	"github.com/maxogod/distro-tp/src/common/models/raw"

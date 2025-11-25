@@ -1,4 +1,4 @@
-package filter_test
+package aggregator_test
 
 import (
 	"github.com/maxogod/distro-tp/src/common/models/reduced"
@@ -21,39 +21,6 @@ var MockTpvOutput = []*reduced.TotalPaymentValue{
 		FinalAmount: 100.0,
 	},
 }
-
-// var MockUsersDupQuantitiesOutput = []*reduced.CountedUserTransactions{
-// 	{
-// 		StoreId:             "1",
-// 		UserId:              "user3",
-// 		Birthdate:           "2000-01-01",
-// 		TransactionQuantity: 200,
-// 	},
-// 	{
-// 		StoreId:             "1",
-// 		UserId:              "user1",
-// 		Birthdate:           "2000-01-01",
-// 		TransactionQuantity: 100,
-// 	},
-// 	{
-// 		StoreId:             "1",
-// 		UserId:              "user2",
-// 		Birthdate:           "2000-01-01",
-// 		TransactionQuantity: 100,
-// 	},
-// 	{
-// 		StoreId:             "1",
-// 		UserId:              "user4",
-// 		Birthdate:           "2000-01-01",
-// 		TransactionQuantity: 50,
-// 	},
-// 	{
-// 		StoreId:             "2",
-// 		UserId:              "user1",
-// 		Birthdate:           "2000-01-01",
-// 		TransactionQuantity: 10,
-// 	},
-// }
 
 var MockUsersDupQuantitiesOutput = map[string](map[int32]int){
 	"1": {
