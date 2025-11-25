@@ -2,4 +2,4 @@
 
 package poison
 
-const PROBABILITY = 0.001
+const PROBABILITY = 0.001 // E[~G(p)] = 1000
