@@ -46,12 +46,12 @@ func TestSequentialRun(t *testing.T) {
 
 func reduceTask3(t *testing.T) {
 	reducerInputQueue := middleware.GetReducerQueue(url)
-	joinerOutputQueue := middleware.GetJoinerQueue(url)
+	aggregatorOutputQueue := middleware.GetAggregatorQueue(url)
 
 	serializedTransactions, _ := proto.Marshal(&GroupTransactionMock1)
 
 	dataEnvelope := protocol.DataEnvelope{
-		ClientId: "test-client",
+		ClientId: "test-client-3",
 		TaskType: int32(enum.T3),
 		Payload:  serializedTransactions,
 	}
@@ -62,7 +62,7 @@ func reduceTask3(t *testing.T) {
 
 	done := make(chan bool, 1)
 
-	e := joinerOutputQueue.StartConsuming(func(consumeChannel middleware.ConsumeChannel, d chan error) {
+	e := aggregatorOutputQueue.StartConsuming(func(consumeChannel middleware.ConsumeChannel, d chan error) {
 		for msg := range consumeChannel {
 			msg.Ack(false)
 			dataBatch, _ := utils.GetDataEnvelope(msg.Body)
@@ -78,7 +78,7 @@ func reduceTask3(t *testing.T) {
 				assert.Equal(t, ReducedTransactionMock1.GetStoreId(), item.GetStoreId())
 				assert.Equal(t, ReducedTransactionMock1.GetSemester(), item.GetSemester())
 			}
-
+			break
 		}
 		done <- true
 	})
@@ -89,19 +89,19 @@ func reduceTask3(t *testing.T) {
 	}
 	assert.Equal(t, 0, int(e))
 
-	joinerOutputQueue.StopConsuming()
+	aggregatorOutputQueue.StopConsuming()
 	reducerInputQueue.Close()
-	joinerOutputQueue.Close()
+	aggregatorOutputQueue.Close()
 }
 
 func reduceTask4(t *testing.T) {
 	reducerInputQueue := middleware.GetReducerQueue(url)
-	joinerOutputQueue := middleware.GetJoinerQueue(url)
+	aggregatorOutputQueue := middleware.GetAggregatorQueue(url)
 
 	serializedTransactions, _ := proto.Marshal(&GroupTransactionMock4)
 
 	dataEnvelope := protocol.DataEnvelope{
-		ClientId: "test-client",
+		ClientId: "test-client-4",
 		TaskType: int32(enum.T4),
 		Payload:  serializedTransactions,
 	}
@@ -112,7 +112,7 @@ func reduceTask4(t *testing.T) {
 
 	done := make(chan bool, 1)
 
-	e := joinerOutputQueue.StartConsuming(func(consumeChannel middleware.ConsumeChannel, d chan error) {
+	e := aggregatorOutputQueue.StartConsuming(func(consumeChannel middleware.ConsumeChannel, d chan error) {
 		for msg := range consumeChannel {
 			msg.Ack(false)
 			dataBatch, _ := utils.GetDataEnvelope(msg.Body)
@@ -128,7 +128,7 @@ func reduceTask4(t *testing.T) {
 				assert.Equal(t, ReducedTransactionMock4.GetStoreId(), countedUserTransaction.GetStoreId())
 				assert.Equal(t, ReducedTransactionMock4.GetTransactionQuantity(), countedUserTransaction.GetTransactionQuantity())
 			}
-
+			break
 		}
 		done <- true
 	})
@@ -139,7 +139,7 @@ func reduceTask4(t *testing.T) {
 	}
 	assert.Equal(t, 0, int(e))
 
-	joinerOutputQueue.StopConsuming()
+	aggregatorOutputQueue.StopConsuming()
 	reducerInputQueue.Close()
-	joinerOutputQueue.Close()
+	aggregatorOutputQueue.Close()
 }
