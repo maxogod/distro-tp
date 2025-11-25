@@ -27,6 +27,7 @@ func TestMain(m *testing.M) {
 // avoid consuming conflicts on the same queues.
 func TestSequentialRun(t *testing.T) {
 	tests := []func(t *testing.T){
+		t2AggregateMock,
 		t3AggregateMock,
 		t4AggregateMock,
 	}
@@ -43,6 +44,75 @@ func TestSequentialRun(t *testing.T) {
 	aggregatorInputQueue.Delete()
 	joinerQueue.Delete()
 	processedDataQueue.Delete()
+}
+
+func t2AggregateMock(t *testing.T) {
+	aggregatorInputQueue := middleware.GetAggregatorQueue(url)
+	finishExchange := middleware.GetFinishExchange(url, []string{string(enum.AggregatorWorker)})
+	clientID := "test-client-2"
+	joinerOutputQueue := middleware.GetJoinerQueue(url)
+
+	var totalSumItems []*reduced.TotalSumItem
+	done := make(chan bool, 1)
+	// each message should contain the grouped items
+	e := joinerOutputQueue.StartConsuming(func(consumeChannel middleware.ConsumeChannel, d chan error) {
+		for msg := range consumeChannel {
+			msg.Ack(false)
+			dataBatch, _ := utils.GetDataEnvelope(msg.Body)
+			totalSumBatch := &reduced.TotalSumItemsBatch{}
+			err := proto.Unmarshal(dataBatch.Payload, totalSumBatch)
+			assert.Nil(t, err)
+			totalSumItems = append(totalSumItems, totalSumBatch.TotalSumItems...)
+			break
+		}
+		done <- true
+	})
+
+	// Send T2 data to aggregator
+	serializedTPV, _ := proto.Marshal(&MockTotalSumItems)
+	dataEnvelope := protocol.DataEnvelope{
+		ClientId: clientID,
+		TaskType: int32(enum.T2),
+		Payload:  serializedTPV,
+	}
+	serializedDataEnvelope, _ := proto.Marshal(&dataEnvelope)
+
+	aggregatorInputQueue.Send(serializedDataEnvelope)
+
+	// Send done message to aggregator
+	doneMessage := &protocol.DataEnvelope{
+		ClientId: clientID,
+		IsDone:   true,
+		TaskType: int32(enum.T2),
+	}
+	doneBytes, _ := proto.Marshal(doneMessage)
+	time.Sleep(3 * time.Second)
+	err := finishExchange.Send(doneBytes)
+	assert.Equal(t, err, middleware.MessageMiddlewareSuccess)
+
+	select {
+	case <-done:
+	case <-time.After(5 * time.Second):
+		t.Error("Test timed out waiting for results")
+	}
+	assert.Equal(t, 0, int(e))
+
+	t.Logf("Total sum items: %v", totalSumItems)
+
+	assert.Equal(t, len(MockTotalSumItemsReport.GetTotalSumItemsByQuantity()), len(totalSumItems), "Expected 2 items after aggregating")
+
+	assert.Equal(t, MockTotalSumItemsReport.GetTotalSumItemsByQuantity()[0].ItemId, totalSumItems[1].ItemId)
+	assert.Equal(t, MockTotalSumItemsReport.GetTotalSumItemsByQuantity()[0].Quantity, totalSumItems[1].Quantity)
+	assert.Equal(t, MockTotalSumItemsReport.GetTotalSumItemsByQuantity()[0].Subtotal, totalSumItems[1].Subtotal)
+
+	assert.Equal(t, MockTotalSumItemsReport.GetTotalSumItemsBySubtotal()[0].ItemId, totalSumItems[0].ItemId)
+	assert.Equal(t, MockTotalSumItemsReport.GetTotalSumItemsBySubtotal()[0].Quantity, totalSumItems[0].Quantity)
+	assert.Equal(t, MockTotalSumItemsReport.GetTotalSumItemsBySubtotal()[0].Subtotal, totalSumItems[0].Subtotal)
+
+	joinerOutputQueue.StopConsuming()
+	joinerOutputQueue.Close()
+	aggregatorInputQueue.Close()
+	finishExchange.Close()
 }
 
 func t3AggregateMock(t *testing.T) {

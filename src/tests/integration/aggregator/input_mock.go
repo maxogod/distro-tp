@@ -4,6 +4,29 @@ import (
 	"github.com/maxogod/distro-tp/src/common/models/reduced"
 )
 
+var MockTotalSumItems = reduced.TotalSumItemsBatch{
+	TotalSumItems: []*reduced.TotalSumItem{
+		{
+			ItemId:    "item1",
+			YearMonth: "2025-07",
+			Quantity:  10,
+			Subtotal:  1000.0,
+		},
+		{
+			ItemId:    "item1",
+			YearMonth: "2025-07",
+			Quantity:  10,
+			Subtotal:  1000.0,
+		},
+		{
+			ItemId:    "item2",
+			YearMonth: "2025-08",
+			Quantity:  50,
+			Subtotal:  5.0,
+		},
+	},
+}
+
 var MockTPV = reduced.TotalPaymentValueBatch{
 	TotalPaymentValues: []*reduced.TotalPaymentValue{
 		{
