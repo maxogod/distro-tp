@@ -184,7 +184,7 @@ func (mh *messageHandler) startReportDataListener() {
 
 				mh.processedCh <- envelope
 				msg.Ack(false)
-				if envelope.GetIsDone() && enum.TaskType(envelope.GetTaskType()) != enum.T2_1 {
+				if envelope.GetIsDone() {
 					receiving = false
 				} else if !firstMessageReceived {
 					firstMessageReceived = true
