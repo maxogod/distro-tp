@@ -18,8 +18,13 @@ import (
 
 // TODO: THIS MUST BE BACKED UP WITH FACTS!!!
 const (
+<<<<<<< Updated upstream
 	ACK_TIMEOUT         = 2 * time.Second
 	COORDINATOR_TIMEOUT = 6 * time.Second
+=======
+	ACK_TIMEOUT         = 5 * time.Second
+	COORDINATOR_TIMEOUT = 7 * time.Second
+>>>>>>> Stashed changes
 	HEARTBEAT_INTERVAL  = 100 * time.Millisecond
 
 	DEFAULT_HOST = "localhost"

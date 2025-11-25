@@ -20,25 +20,38 @@ func TestMain(t *testing.M) {
 	t.Run()
 }
 
-// func TestSingleNode(t *testing.T) {
-// 	maxNodes := 1
+func TestSingleNode(t *testing.T) {
+	maxNodes := 1
 
+<<<<<<< Updated upstream
 // 	le1 := leader_election.NewLeaderElection("localhost", 9091, 1, url, enum.None, maxNodes, nil)
 // 	go le1.Start()
 // 	assert.False(t, le1.IsLeader(), "Expected node to not be leader")
+=======
+	le := createNewNode(1, 9091, maxNodes)
+	assert.False(t, le.IsLeader(), "Expected single node to not be leader")
+>>>>>>> Stashed changes
 
-// 	time.Sleep(sleepTime)
+	time.Sleep(sleepTime)
 
+<<<<<<< Updated upstream
 // 	assert.True(t, le1.IsLeader(), "Expected node to be leader")
 
 // 	le1.Close()
 // }
+=======
+	assert.True(t, le.IsLeader(), "Expected single node to be leader")
+
+	le.Close()
+}
+>>>>>>> Stashed changes
 
 // func TestTwoNodes(t *testing.T) {
 // 	maxNodes := 2
 // 	le1 := leader_election.NewLeaderElection("localhost", 9091, 1, url, enum.None, maxNodes, nil)
 // 	le2 := leader_election.NewLeaderElection("localhost", 9092, 2, url, enum.None, maxNodes, nil)
 
+<<<<<<< Updated upstream
 // 	go le1.Start()
 // 	go le2.Start()
 
@@ -281,6 +294,10 @@ func TestNewNodeLeaderDiesMidUpdates(t *testing.T) {
 
 	go le1.Start()
 	go le2.Start()
+=======
+	le1 := createNewNode(1, 9091, maxNodes)
+	le2 := createNewNode(2, 9092, maxNodes)
+>>>>>>> Stashed changes
 
 	assert.False(t, le1.IsLeader(), "Expected node to not be leader")
 	assert.False(t, le2.IsLeader(), "Expected node to not be leader")
