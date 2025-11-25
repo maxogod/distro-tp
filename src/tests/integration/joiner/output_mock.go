@@ -82,19 +82,19 @@ var MockCountedUserTransactionsOutput = reduced.CountedUserTransactionBatch{
 	CountedUserTransactions: []*reduced.CountedUserTransactions{
 		{
 			StoreId:             "Starbucks",
-			UserId:              "user1",
+			UserId:              "1",
 			Birthdate:           "2000-08-10",
 			TransactionQuantity: 50,
 		},
 		{
 			StoreId:             "Dunkin' Donuts",
-			UserId:              "user2",
+			UserId:              "2",
 			Birthdate:           "2004-07-11",
 			TransactionQuantity: 50,
 		},
 		{
 			StoreId:             "Hijos del Mar",
-			UserId:              "user3",
+			UserId:              "3",
 			Birthdate:           "1905-01-01",
 			TransactionQuantity: 50,
 		},

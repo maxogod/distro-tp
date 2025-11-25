@@ -29,7 +29,7 @@ func TestMain(m *testing.M) {
 func TestSequentialRun(t *testing.T) {
 	tests := []func(t *testing.T){
 		t3JoinerMock,
-		//t4JoinerMock,
+		t4JoinerMock,
 	}
 
 	// Run each test one by one
@@ -49,6 +49,25 @@ func t3JoinerMock(t *testing.T) {
 	finishExchange := middleware.GetFinishExchange(url, []string{string(enum.JoinerWorker)})
 	clientID := "test-client-3"
 	processDataQueue := middleware.GetProcessedDataExchange(url, clientID)
+
+	var tpvItems []*reduced.TotalPaymentValueBatch
+	done := make(chan bool, 1)
+	_ = processDataQueue.StartConsuming(func(consumeChannel middleware.ConsumeChannel, d chan error) {
+		t.Log("Starting to consume messages for T3")
+		for msg := range consumeChannel {
+			msg.Ack(false)
+			dataBatch, _ := utils.GetDataEnvelope(msg.Body)
+
+			t.Logf("Received TPV: %v", dataBatch)
+			tpv := &reduced.TotalPaymentValueBatch{}
+			err := proto.Unmarshal(dataBatch.Payload, tpv)
+			assert.Nil(t, err)
+			tpvItems = append(tpvItems, tpv)
+
+			break
+		}
+		done <- true
+	})
 
 	// --- Send T3 related data references to joiner ---
 	storeBatch := &raw.StoreBatch{
@@ -92,25 +111,6 @@ func t3JoinerMock(t *testing.T) {
 	serializedDataEnvelope, _ := proto.Marshal(&dataEnvelope)
 	joinerInputQueue.Send(serializedDataEnvelope)
 
-	var tpvItems []*reduced.TotalPaymentValueBatch
-	done := make(chan bool, 1)
-	_ = processDataQueue.StartConsuming(func(consumeChannel middleware.ConsumeChannel, d chan error) {
-		t.Log("Starting to consume messages for T3")
-		for msg := range consumeChannel {
-			msg.Ack(false)
-			dataBatch, _ := utils.GetDataEnvelope(msg.Body)
-
-			t.Logf("Received TPV: %v", dataBatch)
-			tpv := &reduced.TotalPaymentValueBatch{}
-			err := proto.Unmarshal(dataBatch.Payload, tpv)
-			assert.Nil(t, err)
-			tpvItems = append(tpvItems, tpv)
-
-			break
-		}
-		done <- true
-	})
-
 	select {
 	case <-done:
 	case <-time.After(30 * time.Second):
@@ -137,7 +137,25 @@ func t4JoinerMock(t *testing.T) {
 	joinerInputQueue := middleware.GetJoinerQueue(url)
 	finishExchange := middleware.GetFinishExchange(url, []string{string(enum.JoinerWorker)})
 	clientID := "test-client-4"
-	aggregatorOutputQueue := middleware.GetAggregatorQueue(url)
+	processDataQueue := middleware.GetProcessedDataExchange(url, clientID)
+
+	var countedTransactionItems []*reduced.CountedUserTransactionBatch
+	done := make(chan bool, 1)
+	_ = processDataQueue.StartConsuming(func(consumeChannel middleware.ConsumeChannel, d chan error) {
+		t.Log("Starting to consume messages for T4")
+		for msg := range consumeChannel {
+			msg.Ack(false)
+			dataBatch, _ := utils.GetDataEnvelope(msg.Body)
+
+			ct := &reduced.CountedUserTransactionBatch{}
+			err := proto.Unmarshal(dataBatch.Payload, ct)
+			assert.Nil(t, err)
+			countedTransactionItems = append(countedTransactionItems, ct)
+
+			break
+		}
+		done <- true
+	})
 
 	// --- Send T4 related data references to joiner ---
 	// Send Stores:
@@ -204,29 +222,6 @@ func t4JoinerMock(t *testing.T) {
 	serializedDataEnvelope, _ := proto.Marshal(&dataEnvelope)
 	joinerInputQueue.Send(serializedDataEnvelope)
 
-	var countedTransactionItems []*reduced.CountedUserTransactionBatch
-
-	doneCounter := 1
-
-	done := make(chan bool, 1)
-	e = aggregatorOutputQueue.StartConsuming(func(consumeChannel middleware.ConsumeChannel, d chan error) {
-		t.Log("Starting to consume messages for T4")
-		for msg := range consumeChannel {
-			msg.Ack(false)
-			dataBatch, _ := utils.GetDataEnvelope(msg.Body)
-
-			ct := &reduced.CountedUserTransactionBatch{}
-			err := proto.Unmarshal(dataBatch.Payload, ct)
-			assert.Nil(t, err)
-			countedTransactionItems = append(countedTransactionItems, ct)
-
-			doneCounter--
-			if doneCounter == 0 {
-				break
-			}
-		}
-		done <- true
-	})
 	select {
 	case <-done:
 	case <-time.After(30 * time.Second):
@@ -243,8 +238,8 @@ func t4JoinerMock(t *testing.T) {
 		}
 	}
 
-	aggregatorOutputQueue.StopConsuming()
-	aggregatorOutputQueue.Close()
+	processDataQueue.StopConsuming()
+	processDataQueue.Close()
 	joinerInputQueue.Close()
 	finishExchange.Close()
 }

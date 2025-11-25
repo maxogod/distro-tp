@@ -37,15 +37,15 @@ var MockStores = []*raw.Store{
 
 var MockUsers = []*raw.User{
 	{
-		UserId:    "user1",
+		UserId:    "1",
 		Birthdate: "2000-08-10",
 	},
 	{
-		UserId:    "user2",
+		UserId:    "2",
 		Birthdate: "2004-07-11",
 	},
 	{
-		UserId:    "user3",
+		UserId:    "3",
 		Birthdate: "1905-01-01",
 	},
 }
@@ -130,17 +130,17 @@ var MockCountedUserTransactions = reduced.CountedUserTransactionBatch{
 	CountedUserTransactions: []*reduced.CountedUserTransactions{
 		{
 			StoreId:             "1",
-			UserId:              "user1",
+			UserId:              "1",
 			TransactionQuantity: 50,
 		},
 		{
 			StoreId:             "2",
-			UserId:              "user2",
+			UserId:              "2",
 			TransactionQuantity: 50,
 		},
 		{
 			StoreId:             "3",
-			UserId:              "user3",
+			UserId:              "3",
 			TransactionQuantity: 50,
 		},
 	},
