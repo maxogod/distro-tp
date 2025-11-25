@@ -27,6 +27,7 @@ func TestMain(m *testing.M) {
 // avoid consuming conflicts on the same queues.
 func TestSequentialRun(t *testing.T) {
 	tests := []func(t *testing.T){
+		reduceTask2,
 		reduceTask3,
 		reduceTask4,
 	}
@@ -44,11 +45,67 @@ func TestSequentialRun(t *testing.T) {
 	joinerOutputQueue.Delete()
 }
 
+func reduceTask2(t *testing.T) {
+	reducerInputQueue := middleware.GetReducerQueue(url)
+	aggregatorOutputQueue := middleware.GetAggregatorQueue(url)
+
+	serializedTransactionItems, _ := proto.Marshal(&GroupTransactionMock2)
+
+	dataEnvelope := protocol.DataEnvelope{
+		ClientId: "test-client-2",
+		TaskType: int32(enum.T2),
+		Payload:  serializedTransactionItems,
+	}
+
+	serializedDataEnvelope, _ := proto.Marshal(&dataEnvelope)
+
+	reducerInputQueue.Send(serializedDataEnvelope)
+
+	done := make(chan bool, 1)
+
+	e := aggregatorOutputQueue.StartConsuming(func(consumeChannel middleware.ConsumeChannel, d chan error) {
+		for msg := range consumeChannel {
+			_ = msg.Ack(false)
+			dataBatch, _ := utils.GetDataEnvelope(msg.Body)
+			if enum.TaskType(dataBatch.TaskType) != enum.T2 {
+				continue
+			}
+
+			reducedData := &reduced.TotalSumItemsBatch{}
+			err := proto.Unmarshal(dataBatch.Payload, reducedData)
+			assert.Nil(t, err)
+
+			if len(reducedData.GetTotalSumItems()) == 0 {
+				break
+			}
+			item := reducedData.GetTotalSumItems()[0]
+			assert.Equal(t, ReducedTransactionMock2.GetItemId(), item.GetItemId())
+			assert.Equal(t, ReducedTransactionMock2.GetYearMonth(), item.GetYearMonth())
+			assert.Equal(t, ReducedTransactionMock2.GetQuantity(), item.GetQuantity())
+			assert.Equal(t, ReducedTransactionMock2.GetSubtotal(), item.GetSubtotal())
+
+			break
+		}
+		done <- true
+	})
+
+	select {
+	case <-done:
+	case <-time.After(5 * time.Second):
+		t.Error("Test timed out waiting for results")
+	}
+	assert.Equal(t, 0, int(e))
+
+	aggregatorOutputQueue.StopConsuming()
+	reducerInputQueue.Close()
+	aggregatorOutputQueue.Close()
+}
+
 func reduceTask3(t *testing.T) {
 	reducerInputQueue := middleware.GetReducerQueue(url)
 	aggregatorOutputQueue := middleware.GetAggregatorQueue(url)
 
-	serializedTransactions, _ := proto.Marshal(&GroupTransactionMock1)
+	serializedTransactions, _ := proto.Marshal(&GroupTransactionMock3)
 
 	dataEnvelope := protocol.DataEnvelope{
 		ClientId: "test-client-3",
@@ -64,7 +121,7 @@ func reduceTask3(t *testing.T) {
 
 	e := aggregatorOutputQueue.StartConsuming(func(consumeChannel middleware.ConsumeChannel, d chan error) {
 		for msg := range consumeChannel {
-			msg.Ack(false)
+			_ = msg.Ack(false)
 			dataBatch, _ := utils.GetDataEnvelope(msg.Body)
 			assert.True(t, enum.TaskType(dataBatch.TaskType) == enum.T3)
 
@@ -74,9 +131,9 @@ func reduceTask3(t *testing.T) {
 			assert.Nil(t, err)
 
 			for _, item := range reducedData.TotalPaymentValues {
-				assert.Equal(t, ReducedTransactionMock1.GetFinalAmount(), item.GetFinalAmount())
-				assert.Equal(t, ReducedTransactionMock1.GetStoreId(), item.GetStoreId())
-				assert.Equal(t, ReducedTransactionMock1.GetSemester(), item.GetSemester())
+				assert.Equal(t, ReducedTransactionMock3.GetFinalAmount(), item.GetFinalAmount())
+				assert.Equal(t, ReducedTransactionMock3.GetStoreId(), item.GetStoreId())
+				assert.Equal(t, ReducedTransactionMock3.GetSemester(), item.GetSemester())
 			}
 			break
 		}
@@ -114,7 +171,7 @@ func reduceTask4(t *testing.T) {
 
 	e := aggregatorOutputQueue.StartConsuming(func(consumeChannel middleware.ConsumeChannel, d chan error) {
 		for msg := range consumeChannel {
-			msg.Ack(false)
+			_ = msg.Ack(false)
 			dataBatch, _ := utils.GetDataEnvelope(msg.Body)
 			assert.True(t, enum.TaskType(dataBatch.TaskType) == enum.T4)
 

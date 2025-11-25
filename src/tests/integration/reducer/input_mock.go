@@ -5,8 +5,31 @@ import (
 	"github.com/maxogod/distro-tp/src/common/models/raw"
 )
 
+var GroupTransactionMock2 = group_by.GroupTransactionItemsBatch{
+	GroupTransactionItems: []*group_by.GroupTransactionItems{
+		{
+			ItemId:    "item1",
+			YearMonth: "2025-07",
+			TransactionItems: []*raw.TransactionItem{
+				{
+					ItemId:    "item1",
+					Quantity:  2,
+					Subtotal:  200.0,
+					CreatedAt: "2025-07-01 07:00:00",
+				},
+				{
+					ItemId:    "item1",
+					Quantity:  2,
+					Subtotal:  200.0,
+					CreatedAt: "2025-07-01 07:00:00",
+				},
+			},
+		},
+	},
+}
+
 // if T3: the output should be grouped by StoreId and Semester (H1 or H2)
-var GroupTransactionMock1 = group_by.GroupTransactionsBatch{
+var GroupTransactionMock3 = group_by.GroupTransactionsBatch{
 	GroupedTransactions: []*group_by.GroupTransactions{
 		{
 			StoreId:  "store1",
