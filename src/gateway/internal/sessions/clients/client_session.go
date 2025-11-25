@@ -15,6 +15,8 @@ type clientSession struct {
 	clientConnection network.ConnectionInterface
 	messageHandler   handler.MessageHandler
 	running          atomic.Bool
+
+	seqNumsReceived map[int32]bool
 }
 
 func NewClientSession(id string, conn network.ConnectionInterface, messageHandler handler.MessageHandler) ClientSession {
@@ -22,6 +24,8 @@ func NewClientSession(id string, conn network.ConnectionInterface, messageHandle
 		Id:               id,
 		clientConnection: conn,
 		messageHandler:   messageHandler,
+
+		seqNumsReceived: make(map[int32]bool),
 	}
 	s.running.Store(true)
 	return s
@@ -92,6 +96,13 @@ func (cs *clientSession) processResponse() {
 
 	// Read and send until channel is closed
 	for batch := range data {
+		seq := batch.GetSequenceNumber()
+		if _, exists := cs.seqNumsReceived[seq]; exists {
+			logger.Logger.Debugf("[%s] Duplicate sequence number %d in report data. Ignoring message.", cs.Id, seq)
+			continue
+		}
+		cs.seqNumsReceived[seq] = true
+
 		dataBytes, err := proto.Marshal(batch)
 		if err != nil {
 			logger.Logger.Errorf("[%s] Error marshaling data to send to client: %v", cs.Id, err)
