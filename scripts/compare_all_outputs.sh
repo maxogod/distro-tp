@@ -22,6 +22,6 @@ for output_file in "${OUTPUT_FILES[@]}"; do
         continue
     fi
 
-    python3 ./compare_output.py "$output_file" "$expected_file"
+    python3 ./scripts/compare_output.py "$output_file" "$expected_file"
 done
 

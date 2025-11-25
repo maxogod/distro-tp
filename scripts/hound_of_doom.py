@@ -1,5 +1,6 @@
 #!/bin/python3
 
+from sys import argv
 import time
 import subprocess
 import random
@@ -7,6 +8,7 @@ import random
 HEALTHY = 200
 CONTAINER_NAME_POS = 0
 CONTAINER_ID_POS = 1
+DEFAULT_EXEPTIONS = "None"
 RABBITMQ_CONTAINER = "rabbitmq"
 
 def run_cmd(cmd_str):
@@ -21,8 +23,9 @@ def run_cmd(cmd_str):
     return res.stdout
 
 class HoundDoom:
-    def __init__(self, amount_to_doom, prefix="", exeption_prefix="None"):
+    def __init__(self, amount_to_doom, time_wait, prefix="", exeption_prefix=DEFAULT_EXEPTIONS):
         self.amount_to_doom = amount_to_doom
+        self.time_wait = time_wait
         self.prefix = prefix
         self.exeption_prefix = exeption_prefix
         containers = self._get_container_names()
@@ -47,7 +50,7 @@ class HoundDoom:
                 continue
             container_id = self.containers[i][CONTAINER_ID_POS]
             self._kill(container_name, container_id)
-            time.sleep(3)
+            time.sleep(self.time_wait)
 
     def _get_container_names(self):
         res = run_cmd("docker ps --format '{{.Names}},{{.ID}}'")
@@ -58,7 +61,28 @@ class HoundDoom:
         run_cmd(f"docker kill {container_id}")
 
 def main():
-    hound = HoundDoom(3)
+
+    if len(argv) < 3:
+        print("Usage: ./hound_of_doom.py <amount_to_doom> <rest_interval_secs> [<target_prefix>] [<exeption_prefix>]")
+        return
+
+    amount = argv[1]
+    time_wait = argv[2]
+
+    prefix = ""
+    if len(argv) >= 4:
+        prefix = argv[3]
+
+    exeption_prefix = DEFAULT_EXEPTIONS
+    if len(argv) >= 5:
+        exeption_prefix = argv[4]
+
+    print("Initializing Hound of Doom with config:")
+    print(f"  - Amount to doom: {amount}")
+    print(f"  - Time wait between dooms: {time_wait} seconds")
+    print(f"  - Target prefix: '{prefix}'")
+    print(f"  - Exeption prefix: '{exeption_prefix}'\n")
+    hound = HoundDoom(amount, time_wait, prefix=prefix, exeption_prefix=exeption_prefix)
     hound.unleash_doom()
 
 if __name__ == "__main__":
