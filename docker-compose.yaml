@@ -86,7 +86,7 @@ services:
     build:
       dockerfile: ./src/filter/Dockerfile
       args:
-        BUILD_TAGS: "poison high_prob" 
+        BUILD_TAGS: "poison low_prob" 
     image: filter:latest
     networks:
       - tp_net
@@ -101,7 +101,7 @@ services:
     build:
       dockerfile: ./src/filter/Dockerfile
       args:
-        BUILD_TAGS: "poison high_prob" 
+        BUILD_TAGS: "poison low_prob" 
     image: filter:latest
     networks:
       - tp_net
