@@ -214,3 +214,53 @@ func TestAggregatorService_StoreAggregatedAndReadTotalCountedUserTransactions(t 
 			"TransactionQuantity mismatch for key %s", key)
 	}
 }
+
+func TestReadAndWriteInParallel(t *testing.T) {
+	logger.InitLogger(logger.LoggerEnvDevelopment)
+
+	clientID1 := "client5"
+	clientID2 := "client6"
+	c := storage.NewDiskMemoryStorage()
+	service := business.NewAggregatorService(c)
+	defer service.RemoveData(clientID1)
+	defer service.RemoveData(clientID2)
+
+	// First we store some data
+	var dataEnvelopes []*protocol.DataEnvelope
+	for _, tx := range CountedUserTransactionsData {
+		bytes, err := proto.Marshal(tx)
+		assert.NoError(t, err)
+		dataEnvelope := getDataEnvelope(bytes)
+		dataEnvelopes = append(dataEnvelopes, dataEnvelope)
+	}
+	err := service.StoreData(clientID1, dataEnvelopes)
+	assert.NoError(t, err)
+
+	// Now, we read and write in parallel
+	done := make(chan bool)
+
+	var routineError error
+
+	// This represents a routine that writes data
+	go func() {
+		for {
+			// we keep writing until signaled to stop
+			select {
+			case <-done:
+				return
+			default:
+				// continue
+			}
+			routineError = service.StoreData(clientID2, dataEnvelopes)
+		}
+	}()
+
+	results, err := service.GetStoredCountedUserTransactions(clientID1)
+	assert.NoError(t, err)
+	assert.Len(t, results, len(CUTExpected))
+	// Signal the writing routine to stop
+	done <- true
+	_, err = service.GetStoredCountedUserTransactions(clientID2)
+	assert.NoError(t, err)
+	assert.NoError(t, routineError)
+}
