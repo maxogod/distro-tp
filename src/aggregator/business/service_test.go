@@ -5,66 +5,33 @@ import (
 
 	"github.com/maxogod/distro-tp/src/aggregator/business"
 	"github.com/maxogod/distro-tp/src/common/logger"
-	"github.com/maxogod/distro-tp/src/common/models/raw"
+	"github.com/maxogod/distro-tp/src/common/models/protocol"
 	"github.com/maxogod/distro-tp/src/common/models/reduced"
-	cache "github.com/maxogod/distro-tp/src/common/worker/storage/disk_memory"
+	storage "github.com/maxogod/distro-tp/src/common/worker/storage"
 	"github.com/stretchr/testify/assert"
+	"google.golang.org/protobuf/proto"
 )
 
 // ====== INPUT DATA ======
 
-var Transactions = []*raw.Transaction{
+var TotalItemSumData = []*reduced.TotalSumItem{
 	{
-		TransactionId: "1",
-		StoreId:       "storeID",
-		UserId:        "userID",
-		FinalAmount:   100.0,
-		CreatedAt:     "2025-07-01 06:01:00",
-	},
-	{
-		TransactionId: "1",
-		StoreId:       "storeID",
-		UserId:        "userID",
-		FinalAmount:   100.0,
-		CreatedAt:     "2025-07-01 06:00:00",
+		ItemId:    "item1",
+		YearMonth: "2024-06",
+		Subtotal:  10.0,
+		Quantity:  10,
 	},
 	{
-		TransactionId: "2",
-		StoreId:       "storeID",
-		UserId:        "userID",
-		FinalAmount:   100.0,
-		CreatedAt:     "2025-07-01 23:00:00",
+		ItemId:    "item2",
+		YearMonth: "2024-07",
+		Subtotal:  20.0,
+		Quantity:  20,
 	},
-}
-
-var UnsortedTransactionsMap = map[string]*raw.Transaction{
-	"1": {
-		TransactionId: "1",
-		StoreId:       "storeID",
-		UserId:        "userID",
-		FinalAmount:   100.0,
-		CreatedAt:     "2025-07-01 06:01:00",
-	},
-	"4": {
-		TransactionId: "4",
-		StoreId:       "storeID",
-		UserId:        "userID",
-		FinalAmount:   100.0,
-		CreatedAt:     "2025-07-01 23:00:00",
-	},
-	"3": {
-		TransactionId: "3",
-		StoreId:       "storeID",
-		UserId:        "userID",
-		FinalAmount:   100.0,
-		CreatedAt:     "2025-07-01 23:00:00",
-	},
-	"2": {
-		TransactionId: "2",
-		StoreId:       "storeID",
-		UserId:        "userID",
-		FinalAmount:   100.0,
-		CreatedAt:     "2025-07-01 06:00:00",
+	{
+		ItemId:    "item1",
+		YearMonth: "2024-06",
+		Subtotal:  15.0,
+		Quantity:  15,
 	},
 }
 
@@ -88,27 +55,6 @@ var TPVData = []*reduced.TotalPaymentValue{
 		StoreId:     "store2",
 		Semester:    "2024-H1",
 		FinalAmount: 2000.0,
-	},
-}
-
-var TotalItemSumData = []*reduced.TotalSumItem{
-	{
-		ItemId:    "item1",
-		YearMonth: "2024-06",
-		Subtotal:  10.0,
-		Quantity:  10,
-	},
-	{
-		ItemId:    "item2",
-		YearMonth: "2024-07",
-		Subtotal:  20.0,
-		Quantity:  20,
-	},
-	{
-		ItemId:    "item1",
-		YearMonth: "2024-06",
-		Subtotal:  15.0,
-		Quantity:  15,
 	},
 }
 
@@ -154,40 +100,31 @@ var CUTExpected = map[string]int32{
 
 // ====== TESTS ======
 
-func TestAggregatorService_StoreAndReadTransactions(t *testing.T) {
-	logger.InitLogger(logger.LoggerEnvDevelopment)
-	clientID := "client1"
-	c := cache.NewDiskMemoryStorage()
-	service := business.NewAggregatorService(c)
-	defer service.RemoveData(clientID)
-
-	err := service.StoreTransactions(clientID, Transactions)
-	assert.NoError(t, err)
-
-	results, err := service.GetStoredTransactions(clientID)
-	assert.NoError(t, err)
-
-	assert.Len(t, results, len(Transactions))
-
-	for i, expected := range Transactions {
-		assert.True(t, expected.TransactionId == results[i].TransactionId &&
-			expected.FinalAmount == results[i].FinalAmount,
-			"Transaction mismatch at index %d", i)
+func getDataEnvelope(bytes []byte) *protocol.DataEnvelope {
+	var dataEnvelopes = protocol.DataEnvelope{
+		Payload: bytes,
 	}
+	return &dataEnvelopes
 }
 
 func TestAggregatorService_StoreAggregatedAndReadTotalSoldQuantity(t *testing.T) {
 	logger.InitLogger(logger.LoggerEnvDevelopment)
 
 	clientID := "client2"
-	c := cache.NewDiskMemoryStorage()
+	c := storage.NewDiskMemoryStorage()
 	service := business.NewAggregatorService(c)
-	defer service.RemoveData(clientID)
+	//defer service.RemoveData(clientID)
 
-	for _, sq := range TotalItemSumData {
-		err := service.StoreTotalItems(clientID, sq)
+	var dataEnvelopes []*protocol.DataEnvelope
+	for _, tx := range TotalItemSumData {
+		bytes, err := proto.Marshal(tx)
 		assert.NoError(t, err)
+		dataEnvelope := getDataEnvelope(bytes)
+		dataEnvelopes = append(dataEnvelopes, dataEnvelope)
 	}
+
+	err := service.StoreData(clientID, dataEnvelopes)
+	assert.NoError(t, err)
 
 	subtotalResults, quantityResults, err := service.GetStoredTotalItems(clientID)
 	assert.NoError(t, err)
@@ -215,14 +152,19 @@ func TestAggregatorService_StoreAggregatedAndReadTpvData(t *testing.T) {
 	logger.InitLogger(logger.LoggerEnvDevelopment)
 
 	clientID := "client3"
-	c := cache.NewDiskMemoryStorage()
+	c := storage.NewDiskMemoryStorage()
 	service := business.NewAggregatorService(c)
 	defer service.RemoveData(clientID)
 
-	for _, tpv := range TPVData {
-		err := service.StoreTotalPaymentValue(clientID, tpv)
+	var dataEnvelopes []*protocol.DataEnvelope
+	for _, tx := range TPVData {
+		bytes, err := proto.Marshal(tx)
 		assert.NoError(t, err)
+		dataEnvelope := getDataEnvelope(bytes)
+		dataEnvelopes = append(dataEnvelopes, dataEnvelope)
 	}
+	err := service.StoreData(clientID, dataEnvelopes)
+	assert.NoError(t, err)
 
 	results, err := service.GetStoredTotalPaymentValue(clientID)
 	assert.NoError(t, err)
@@ -242,14 +184,20 @@ func TestAggregatorService_StoreAggregatedAndReadTotalCountedUserTransactions(t 
 	logger.InitLogger(logger.LoggerEnvDevelopment)
 
 	clientID := "client4"
-	c := cache.NewDiskMemoryStorage()
+	c := storage.NewDiskMemoryStorage()
 	service := business.NewAggregatorService(c)
 	defer service.RemoveData(clientID)
 
-	for _, cut := range CountedUserTransactionsData {
-		err := service.StoreCountedUserTransactions(clientID, cut)
+	var dataEnvelopes []*protocol.DataEnvelope
+	for _, tx := range CountedUserTransactionsData {
+		bytes, err := proto.Marshal(tx)
 		assert.NoError(t, err)
+		dataEnvelope := getDataEnvelope(bytes)
+		dataEnvelopes = append(dataEnvelopes, dataEnvelope)
 	}
+
+	err := service.StoreData(clientID, dataEnvelopes)
+	assert.NoError(t, err)
 
 	results, err := service.GetStoredCountedUserTransactions(clientID)
 	assert.NoError(t, err)
