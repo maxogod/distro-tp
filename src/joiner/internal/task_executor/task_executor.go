@@ -55,6 +55,8 @@ func (je *joinerExecutor) HandleTask2(dataEnvelope *protocol.DataEnvelope, ackHa
 	processedDataQueue := middleware.GetProcessedDataExchange(je.config.Address, clientID)
 	defer func() {
 		ackHandler(shouldAck, shouldRequeue)
+		// TODO: Now that the aggregator can die, if the joiner gets a dupped client ID,
+		// it shouldn't delete it until it's really done
 		if !dataEnvelope.GetIsRef() {
 			processedDataQueue.Close()
 			je.joinerService.DeleteClientRefData(clientID)

@@ -8,21 +8,18 @@ import (
 	"github.com/maxogod/distro-tp/src/common/models/reduced"
 	"github.com/maxogod/distro-tp/src/common/utils"
 	storage "github.com/maxogod/distro-tp/src/common/worker/storage"
-	store_helper "github.com/maxogod/distro-tp/src/common/worker/storage/disk_memory"
 	"google.golang.org/protobuf/proto"
 )
 
 const SEPERATOR = "#"
 
 type aggregatorService struct {
-	cacheService  storage.StorageService
-	done_channels map[string]chan string
+	cacheService storage.StorageService
 }
 
 func NewAggregatorService(cacheService storage.StorageService) AggregatorService {
 	as := &aggregatorService{
-		cacheService:  cacheService,
-		done_channels: make(map[string]chan string),
+		cacheService: cacheService,
 	}
 	return as
 }
@@ -62,7 +59,7 @@ func filterBestMonthValues[T proto.Message](
 func getData[T proto.Message](as *aggregatorService, clientID string, factory func() T, joinFn func(T, map[string]T)) ([]T, error) {
 
 	read_ch := make(chan []byte)
-	as.cacheService.ReadData(clientID, read_ch)
+	as.cacheService.ReadAllData(clientID, read_ch)
 	flattenedDataMap := make(map[string]T)
 
 	var result []T
@@ -140,19 +137,19 @@ func getTopUsersPerStore(countedUserTransactions []*reduced.CountedUserTransacti
 // ======= STORAGE FUNCTIONS =======
 
 func (as *aggregatorService) StoreTransactions(clientID string, transactions []*raw.Transaction) error {
-	return store_helper.StoreBatch(as.cacheService, clientID, transactions)
+	return storage.StoreBatch(as.cacheService, clientID, transactions)
 }
 
 func (as *aggregatorService) StoreTotalItems(clientID string, reducedData *reduced.TotalSumItem) error {
-	return store_helper.StoreBatch(as.cacheService, clientID, []*reduced.TotalSumItem{reducedData})
+	return storage.StoreBatch(as.cacheService, clientID, []*reduced.TotalSumItem{reducedData})
 }
 
 func (as *aggregatorService) StoreTotalPaymentValue(clientID string, reducedData *reduced.TotalPaymentValue) error {
-	return store_helper.StoreBatch(as.cacheService, clientID, []*reduced.TotalPaymentValue{reducedData})
+	return storage.StoreBatch(as.cacheService, clientID, []*reduced.TotalPaymentValue{reducedData})
 }
 
 func (as *aggregatorService) StoreCountedUserTransactions(clientID string, reducedData *reduced.CountedUserTransactions) error {
-	return store_helper.StoreBatch(as.cacheService, clientID, []*reduced.CountedUserTransactions{reducedData})
+	return storage.StoreBatch(as.cacheService, clientID, []*reduced.CountedUserTransactions{reducedData})
 }
 
 // ======= RETRIEVAL FUNCTIONS =======

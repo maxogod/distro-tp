@@ -13,7 +13,7 @@ import (
 	"github.com/maxogod/distro-tp/src/common/middleware"
 	"github.com/maxogod/distro-tp/src/common/models/enum"
 	"github.com/maxogod/distro-tp/src/common/worker"
-	cache "github.com/maxogod/distro-tp/src/common/worker/storage/disk_memory"
+	"github.com/maxogod/distro-tp/src/common/worker/storage"
 )
 
 type Server struct {
@@ -29,7 +29,7 @@ func InitServer(conf *config.Config) *Server {
 	finishExchange := middleware.GetFinishExchange(conf.Address, []string{string(enum.AggregatorWorker)})
 
 	// initiate internal components
-	cacheService := cache.NewDiskMemoryStorage()
+	cacheService := storage.NewDiskMemoryStorage()
 	connectedClients := make(map[string]middleware.MessageMiddleware)
 
 	aggregatorService := business.NewAggregatorService(cacheService)

@@ -8,8 +8,7 @@ import (
 	"github.com/maxogod/distro-tp/src/common/models/enum"
 	"github.com/maxogod/distro-tp/src/common/models/raw"
 	"github.com/maxogod/distro-tp/src/common/models/reduced"
-	storage "github.com/maxogod/distro-tp/src/common/worker/storage"
-	store_helper "github.com/maxogod/distro-tp/src/common/worker/storage/disk_memory"
+	"github.com/maxogod/distro-tp/src/common/worker/storage"
 	"github.com/maxogod/distro-tp/src/joiner/cache"
 	"google.golang.org/protobuf/proto"
 )
@@ -39,12 +38,12 @@ func NewJoinerService(inMemoryService cache.InMemoryService, storageService stor
 // Usage in joinerService methods:
 func (js *joinerService) StoreMenuItems(clientID string, items []*raw.MenuItem) error {
 	referenceID := clientID + MENU_ITEMS_REF
-	return store_helper.StoreBatch(js.storageService, referenceID, items)
+	return storage.StoreBatch(js.storageService, referenceID, items)
 }
 
 func (js *joinerService) StoreShops(clientID string, items []*raw.Store) error {
 	referenceID := clientID + STORES_REF
-	return store_helper.StoreBatch(js.storageService, referenceID, items)
+	return storage.StoreBatch(js.storageService, referenceID, items)
 }
 
 func (js *joinerService) StoreUsers(clientID string, items []*raw.User) error {
@@ -62,7 +61,7 @@ func (js *joinerService) StoreUsers(clientID string, items []*raw.User) error {
 	}
 	for groupNum, groupUsers := range userGroups {
 		referenceID := fmt.Sprintf("%s%s%d", clientID, USERS_REF, groupNum)
-		err := store_helper.StoreBatch(js.storageService, referenceID, groupUsers)
+		err := storage.StoreBatch(js.storageService, referenceID, groupUsers)
 		if err != nil {
 			return fmt.Errorf("error storing users for group %d: %w", groupNum, err)
 		}
@@ -97,7 +96,7 @@ func (js *joinerService) getUsersGroup(userID string) (int, error) {
 func loadReferenceData[T proto.Message](js *joinerService, referenceID string, factory func() T, getKey func(T) string) (map[string]T, []T, error) {
 
 	read_ch := make(chan []byte)
-	js.storageService.ReadData(referenceID, read_ch)
+	js.storageService.ReadAllData(referenceID, read_ch)
 	result := make(map[string]T)
 	resultsList := make([]T, 0)
 

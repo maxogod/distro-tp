@@ -6,7 +6,7 @@ import (
 	"github.com/maxogod/distro-tp/src/common/logger"
 	"github.com/maxogod/distro-tp/src/common/models/raw"
 	"github.com/maxogod/distro-tp/src/common/models/reduced"
-	disk_storage "github.com/maxogod/distro-tp/src/common/worker/storage/disk_memory"
+	"github.com/maxogod/distro-tp/src/common/worker/storage"
 	"github.com/maxogod/distro-tp/src/joiner/business"
 	"github.com/maxogod/distro-tp/src/joiner/cache"
 	"github.com/stretchr/testify/assert"
@@ -121,7 +121,7 @@ var Users = map[string]*raw.User{
 func TestJoinTotalSumItems(t *testing.T) {
 	logger.InitLogger(logger.LoggerEnvDevelopment)
 	cache_service := cache.NewInMemoryCache()
-	storage_service := disk_storage.NewDiskMemoryStorage()
+	storage_service := storage.NewDiskMemoryStorage()
 	service := business.NewJoinerService(cache_service, storage_service, 100)
 
 	clientID := "client1"
@@ -144,7 +144,7 @@ func TestJoinTotalSumItems(t *testing.T) {
 func TestJoinTotalPaymentValueData(t *testing.T) {
 	logger.InitLogger(logger.LoggerEnvDevelopment)
 	cache_service := cache.NewInMemoryCache()
-	storage_service := disk_storage.NewDiskMemoryStorage()
+	storage_service := storage.NewDiskMemoryStorage()
 	service := business.NewJoinerService(cache_service, storage_service, 100)
 
 	clientID := "client2"
@@ -167,7 +167,7 @@ func TestJoinTotalPaymentValueData(t *testing.T) {
 func TestJoinCountedUserTransactionData(t *testing.T) {
 	logger.InitLogger(logger.LoggerEnvDevelopment)
 	cache_service := cache.NewInMemoryCache()
-	storage_service := disk_storage.NewDiskMemoryStorage()
+	storage_service := storage.NewDiskMemoryStorage()
 	service := business.NewJoinerService(cache_service, storage_service, 100)
 
 	clientID := "client3"
@@ -193,7 +193,7 @@ func TestJoinCountedUserTransactionData(t *testing.T) {
 func TestDontJoinUntilAllDataIsPresent(t *testing.T) {
 	logger.InitLogger(logger.LoggerEnvDevelopment)
 	cache_service := cache.NewInMemoryCache()
-	storage_service := disk_storage.NewDiskMemoryStorage()
+	storage_service := storage.NewDiskMemoryStorage()
 	service := business.NewJoinerService(cache_service, storage_service, 100)
 
 	clientID := "client1"
