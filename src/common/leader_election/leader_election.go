@@ -272,7 +272,7 @@ func (le *leaderElection) beginHeartbeatHandler() {
 }
 
 func (le *leaderElection) startReceivingHeartbeats() {
-	initElectionFunc := func(timeoutAmount int) {
+	initElectionFunc := func(params any) {
 		logger.Logger.Infof("[Node %d] Leader Heartbeat Timeout Detected! Starting Election...", le.id)
 		le.heartbeatHandler.Stop() // Stop receiving heartbeats
 		le.electionHandler.StartElection()

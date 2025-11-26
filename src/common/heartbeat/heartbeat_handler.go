@@ -89,7 +89,7 @@ func (h *heartbeatHandler) StartSendingToAll(destinationAddrs []string) error {
 	return nil
 }
 
-func (h *heartbeatHandler) StartReceiving(onTimeoutFunc func(amountOfHeartbeats int), timeoutAmount time.Duration) error {
+func (h *heartbeatHandler) StartReceiving(onTimeoutFunc func(params any), timeoutAmount time.Duration) error {
 	go h.receiveHeartbeatsWithTimeout(onTimeoutFunc, timeoutAmount)
 	return nil
 }
@@ -167,7 +167,7 @@ func (h *heartbeatHandler) sendHeartbeat(conn *net.UDPConn) error {
 	return nil
 }
 
-func (h *heartbeatHandler) receiveHeartbeatsWithTimeout(onTimeoutFunc func(amountOfHeartbeats int), timeoutAmount time.Duration) {
+func (h *heartbeatHandler) receiveHeartbeatsWithTimeout(onTimeoutFunc func(params any), timeoutAmount time.Duration) {
 	buf := make([]byte, BUFFER_SIZE)
 	var heartbeatCounter atomic.Int64
 

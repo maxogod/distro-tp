@@ -41,7 +41,7 @@ func (h *rabbitHeartbeatHandler) StartSending() error {
 	return nil
 }
 
-func (h *rabbitHeartbeatHandler) StartReceiving(onTimeoutFunc func(amountOfHeartbeats int), timeoutAmount time.Duration) error {
+func (h *rabbitHeartbeatHandler) StartReceiving(onTimeoutFunc func(params any), timeoutAmount time.Duration) error {
 	h.running.Store(true)
 	go h.receiveHeartbeatsWithTimeout(onTimeoutFunc, timeoutAmount)
 	return nil
@@ -102,7 +102,7 @@ func (h *rabbitHeartbeatHandler) sendHeartbeat() {
 	h.heartbeatMiddleware.Send(data)
 }
 
-func (h *rabbitHeartbeatHandler) receiveHeartbeatsWithTimeout(onTimeoutFunc func(amountOfHeartbeats int), timeoutAmount time.Duration) {
+func (h *rabbitHeartbeatHandler) receiveHeartbeatsWithTimeout(onTimeoutFunc func(params any), timeoutAmount time.Duration) {
 	hbCh := make(chan *protocol.HeartBeat)
 	routineReadyCh := make(chan bool)
 
@@ -128,7 +128,7 @@ func (h *rabbitHeartbeatHandler) receiveHeartbeatsWithTimeout(onTimeoutFunc func
 	}
 }
 
-func (h *rabbitHeartbeatHandler) checkTimeouts(timeoutAmount time.Duration, onTimeoutFunc func(amountOfHeartbeats int)) {
+func (h *rabbitHeartbeatHandler) checkTimeouts(timeoutAmount time.Duration, onTimeoutFunc func(params any)) {
 	ticker := time.NewTicker(timeoutAmount / 2) // Check at half the timeout interval
 	defer ticker.Stop()
 
@@ -138,7 +138,6 @@ func (h *rabbitHeartbeatHandler) checkTimeouts(timeoutAmount time.Duration, onTi
 			return
 		case <-ticker.C:
 			now := time.Now()
-			timedOutCount := 0
 
 			h.serviceTimestamps.Range(func(key, value any) bool {
 				serviceName := key.(string)
@@ -147,14 +146,10 @@ func (h *rabbitHeartbeatHandler) checkTimeouts(timeoutAmount time.Duration, onTi
 				if now.Sub(lastSeen) > timeoutAmount {
 					logger.Logger.Warnf("Service %s timed out (last seen: %v)", serviceName, lastSeen)
 					h.serviceTimestamps.Delete(serviceName)
-					timedOutCount++
+					onTimeoutFunc(serviceName)
 				}
 				return true
 			})
-
-			if timedOutCount > 0 {
-				onTimeoutFunc(timedOutCount)
-			}
 		}
 	}
 }
