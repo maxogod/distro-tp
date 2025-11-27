@@ -39,11 +39,11 @@ func (cs *clientSession) InitiateControlSequence() error {
 	logger.Logger.Debugf("[%s] EOF control finished, sending done signal to workers", cs.Id)
 
 	workersToNotify := []enum.WorkerType{
-		enum.FilterWorker, enum.GroupbyWorker, enum.ReducerWorker,
-		enum.AggregatorWorker, enum.JoinerWorker,
+		enum.FilterWorker, enum.GroupbyWorker,
+		enum.ReducerWorker, enum.JoinerWorker,
 	}
 	for _, worker := range workersToNotify {
-		if err = cs.controlHandler.SendDone(worker); err != nil {
+		if err = cs.controlHandler.SendDone(worker, 0); err != nil {
 			logger.Logger.Errorf("[%s] Error sending done signal to %s for client: %v", cs.Id, string(worker), err)
 			return err
 		}

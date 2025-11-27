@@ -48,7 +48,7 @@ func NewControlHandler(middlewareUrl, clientID string, taskType enum.TaskType) C
 	}
 
 	workers := []enum.WorkerType{
-		enum.Gateway, enum.FilterWorker, enum.AggregatorWorker,
+		enum.Gateway, enum.FilterWorker,
 	}
 	for _, worker := range workers {
 		h.workersMonitoring[worker] = workerMonitor{
@@ -93,8 +93,10 @@ func (ch *controlHandler) AwaitForWorkers() error {
 
 			clear(ch.sequencesSeen)
 			ch.workersMonitoring[currentWorkerType].startOrFinishCh <- false // finish current layer
-			if nextLayer != enum.None {
+			if nextLayer != enum.None && nextLayer != enum.AggregatorWorker {
 				ch.workersMonitoring[nextLayer].startOrFinishCh <- true // start next layer
+			} else if nextLayer == enum.AggregatorWorker {
+				ch.SendDone(nextLayer, sentFromCurrentLayer) // Notify aggregators the total msgs to wait
 			}
 			currentWorkerType = nextLayer
 			ch.messagesSentToNextLayer = sentFromCurrentLayer
@@ -108,12 +110,13 @@ func (ch *controlHandler) AwaitForWorkers() error {
 	return nil
 }
 
-func (ch *controlHandler) SendDone(worker enum.WorkerType) error {
+func (ch *controlHandler) SendDone(worker enum.WorkerType, totalMsgs int) error {
 	doneMessage := &protocol.DataEnvelope{
-		ClientId: ch.clientID,
-		TaskType: int32(ch.taskType),
-		IsDone:   true,
-		Payload:  nil,
+		ClientId:      ch.clientID,
+		TaskType:      int32(ch.taskType),
+		IsDone:        true,
+		TotalMessages: int32(totalMsgs),
+		Payload:       nil,
 	}
 	dataBytes, err := proto.Marshal(doneMessage)
 	if err != nil {
