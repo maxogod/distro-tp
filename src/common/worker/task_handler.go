@@ -30,13 +30,18 @@ type taskHandler struct {
 	sequencesPerClient   map[string]map[int32]bool
 	taskExecutor         TaskExecutor
 	shouldDropDuplicates bool
+
+	messagesReceived       map[string]int32
+	totalMessagesToReceive map[string]int32
 }
 
 func NewTaskHandler(taskExecutor TaskExecutor, shouldDropDuplicates bool) DataHandler {
 	th := &taskHandler{
-		taskExecutor:         taskExecutor,
-		sequencesPerClient:   make(map[string]map[int32]bool),
-		shouldDropDuplicates: shouldDropDuplicates,
+		taskExecutor:           taskExecutor,
+		sequencesPerClient:     make(map[string]map[int32]bool),
+		messagesReceived:       make(map[string]int32),
+		totalMessagesToReceive: make(map[string]int32),
+		shouldDropDuplicates:   shouldDropDuplicates,
 	}
 
 	th.taskHandlers = map[enum.TaskType]func(*protocol.DataEnvelope, func(bool, bool) error) error{
@@ -68,7 +73,23 @@ func (th *taskHandler) HandleData(dataEnvelope *protocol.DataEnvelope, ackHandle
 	}
 
 	taskType := enum.TaskType(dataEnvelope.GetTaskType())
-	return th.handleTask(taskType, dataEnvelope, ackHandler)
+	err := th.handleTask(taskType, dataEnvelope, ackHandler)
+	if err != nil {
+		return err
+	}
+
+	count, exists := th.messagesReceived[clientID]
+	if exists {
+		th.messagesReceived[clientID] = count + 1
+	} else {
+		th.messagesReceived[clientID] = 1
+	}
+
+	if total, exists := th.totalMessagesToReceive[clientID]; exists && total != 0 && th.messagesReceived[clientID] == total {
+		return th.HandleFinishClient(dataEnvelope, func(bool, bool) error { return nil }) // TODO: what if it dies here
+	}
+
+	return nil
 }
 
 func (th *taskHandler) handleTask(taskType enum.TaskType, dataEnvelope *protocol.DataEnvelope, ackHandler func(bool, bool) error) error {
@@ -85,7 +106,19 @@ func (th *taskHandler) handleTask(taskType enum.TaskType, dataEnvelope *protocol
 func (th *taskHandler) HandleFinishClient(dataEnvelope *protocol.DataEnvelope, ackHandler func(bool, bool) error) error {
 	// Remove client sequences tracking
 	clientID := dataEnvelope.GetClientId()
+
+	count, existsCount := th.messagesReceived[clientID]
+	if existsCount && count != dataEnvelope.GetTotalMessages() {
+		if dataEnvelope.GetTotalMessages() != 0 {
+			th.totalMessagesToReceive[clientID] = dataEnvelope.GetTotalMessages()
+			return nil
+		}
+	}
+	// If this is reached, then the total messages was met
+
 	delete(th.sequencesPerClient, clientID)
+	delete(th.messagesReceived, clientID)
+	delete(th.totalMessagesToReceive, clientID)
 
 	// Call executor finish client handler
 	return th.taskExecutor.HandleFinishClient(dataEnvelope, ackHandler)
