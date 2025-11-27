@@ -20,7 +20,8 @@ const USERS_REF = "Users"
 type joinerService struct {
 	inMemoryService      cache.InMemoryService
 	storageService       storage.StorageService
-	fullRefClients       map[string]bool // Used as a set
+	clientRefs           map[string]map[string]bool
+	fullRefClients       map[string]bool
 	userStorageGroupSize int
 }
 
@@ -29,6 +30,7 @@ func NewJoinerService(inMemoryService cache.InMemoryService, storageService stor
 		inMemoryService:      inMemoryService,
 		storageService:       storageService,
 		fullRefClients:       make(map[string]bool),
+		clientRefs:           make(map[string]map[string]bool),
 		userStorageGroupSize: userStorageGroupSize,
 	}
 }
@@ -38,11 +40,13 @@ func NewJoinerService(inMemoryService cache.InMemoryService, storageService stor
 // Usage in joinerService methods:
 func (js *joinerService) StoreMenuItems(clientID string, items []*raw.MenuItem) error {
 	referenceID := clientID + MENU_ITEMS_REF
+	js.trackClientRef(clientID, referenceID)
 	return storage.StoreBatch(js.storageService, referenceID, items)
 }
 
 func (js *joinerService) StoreShops(clientID string, items []*raw.Store) error {
 	referenceID := clientID + STORES_REF
+	js.trackClientRef(clientID, referenceID)
 	return storage.StoreBatch(js.storageService, referenceID, items)
 }
 
@@ -65,6 +69,7 @@ func (js *joinerService) StoreUsers(clientID string, items []*raw.User) error {
 		if err != nil {
 			return fmt.Errorf("error storing users for group %d: %w", groupNum, err)
 		}
+		js.trackClientRef(clientID, referenceID)
 	}
 	return nil
 }
@@ -72,6 +77,9 @@ func (js *joinerService) StoreUsers(clientID string, items []*raw.User) error {
 func (js *joinerService) FinishStoringRefData(clientID string) error {
 	logger.Logger.Debug("Received all reference data for client: ", clientID)
 	js.fullRefClients[clientID] = true // All reference data was received for this client
+	for ref := range js.clientRefs[clientID] {
+		js.storageService.StopWriting(ref)
+	}
 	return nil
 }
 
@@ -91,12 +99,21 @@ func (js *joinerService) getUsersGroup(userID string) (int, error) {
 	return groupNum, nil
 }
 
+func (js *joinerService) trackClientRef(clientID string, ref string) {
+	if _, exists := js.clientRefs[clientID]; !exists {
+		js.clientRefs[clientID] = make(map[string]bool)
+	}
+	js.clientRefs[clientID][ref] = true
+}
+
 // ======== Get reference data from disk =========
 
 func loadReferenceData[T proto.Message](js *joinerService, referenceID string, factory func() T, getKey func(T) string) (map[string]T, []T, error) {
 
-	read_ch := make(chan []byte)
-	js.storageService.ReadAllData(referenceID, read_ch)
+	read_ch, err := js.storageService.ReadAllData(referenceID)
+	if err != nil {
+		return nil, nil, err
+	}
 	result := make(map[string]T)
 	resultsList := make([]T, 0)
 

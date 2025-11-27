@@ -9,9 +9,7 @@ import (
 	"github.com/maxogod/distro-tp/src/common/middleware"
 	"github.com/maxogod/distro-tp/src/common/models/enum"
 	"github.com/maxogod/distro-tp/src/common/models/protocol"
-	"github.com/maxogod/distro-tp/src/common/models/reduced"
 	"github.com/maxogod/distro-tp/src/common/worker"
-	"google.golang.org/protobuf/proto"
 )
 
 type AggregatorExecutor struct {
@@ -43,22 +41,9 @@ func (ae *AggregatorExecutor) HandleTask1(dataEnvelope *protocol.DataEnvelope, a
 func (ae *AggregatorExecutor) HandleTask2(dataEnvelope *protocol.DataEnvelope, ackHandler func(bool, bool) error) error {
 	shouldAck := false
 	defer ackHandler(shouldAck, false)
-
-	reducedData := &reduced.TotalSumItemsBatch{}
-	payload := dataEnvelope.GetPayload()
 	clientID := dataEnvelope.GetClientId()
 
-	err := proto.Unmarshal(payload, reducedData)
-	if err != nil {
-		return err
-	}
-
-	for _, profit := range reducedData.GetTotalSumItems() {
-		err = ae.aggregatorService.StoreTotalItems(clientID, profit)
-		if err != nil {
-			return err
-		}
-	}
+	ae.aggregatorService.StoreData(clientID, dataEnvelope)
 	shouldAck = true
 
 	_, exists := ae.connectedClients[clientID]
@@ -77,21 +62,8 @@ func (ae *AggregatorExecutor) HandleTask3(dataEnvelope *protocol.DataEnvelope, a
 	shouldAck := false
 	defer ackHandler(shouldAck, false)
 
-	reducedData := &reduced.TotalPaymentValueBatch{}
-	payload := dataEnvelope.GetPayload()
 	clientID := dataEnvelope.GetClientId()
-
-	err := proto.Unmarshal(payload, reducedData)
-	if err != nil {
-		return err
-	}
-
-	for _, tpv := range reducedData.GetTotalPaymentValues() {
-		err = ae.aggregatorService.StoreTotalPaymentValue(clientID, tpv)
-		if err != nil {
-			return err
-		}
-	}
+	ae.aggregatorService.StoreData(clientID, dataEnvelope)
 	shouldAck = true
 
 	_, exists := ae.connectedClients[clientID]
@@ -110,21 +82,8 @@ func (ae *AggregatorExecutor) HandleTask4(dataEnvelope *protocol.DataEnvelope, a
 	shouldAck := false
 	defer ackHandler(shouldAck, false)
 
-	payload := dataEnvelope.GetPayload()
 	clientID := dataEnvelope.GetClientId()
-
-	countedDataBatch := &reduced.CountedUserTransactionBatch{}
-	err := proto.Unmarshal(payload, countedDataBatch)
-	if err != nil {
-		return err
-	}
-
-	for _, countedData := range countedDataBatch.GetCountedUserTransactions() {
-		err = ae.aggregatorService.StoreCountedUserTransactions(clientID, countedData)
-		if err != nil {
-			return err
-		}
-	}
+	ae.aggregatorService.StoreData(clientID, dataEnvelope)
 	shouldAck = true
 
 	_, exists := ae.connectedClients[clientID]
@@ -152,13 +111,15 @@ func (ae *AggregatorExecutor) HandleFinishClient(dataEnvelope *protocol.DataEnve
 
 	logger.Logger.Debugf("Finishing client: %s | task-type: %d", clientID, taskType)
 
-	err := ae.finishExecutor.SendAllData(clientID, enum.TaskType(taskType))
-	if err != nil {
-		return err
-	}
-
-	logger.Logger.Debug("Client Finished: ", clientID)
-	shouldAck = true
+	// we finish clients asynchronously to not block the ack of the finish message
+	go func() {
+		err := ae.finishExecutor.SendAllData(clientID, enum.TaskType(taskType))
+		if err != nil {
+			logger.Logger.Errorf("Error finishing client %s for task %d: %v", clientID, taskType, err)
+		}
+		logger.Logger.Debug("Client Finished: ", clientID)
+		shouldAck = true
+	}()
 	return nil
 }
 

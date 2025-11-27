@@ -26,8 +26,8 @@ func NewAggregatorService(storageService storage.StorageService) AggregatorServi
 
 // ======= STORAGE FUNCTIONS =======
 
-func (as *aggregatorService) StoreData(clientID string, data []*protocol.DataEnvelope) error {
-	return storage.StoreBatch(as.storageService, clientID, data)
+func (as *aggregatorService) StoreData(clientID string, data *protocol.DataEnvelope) error {
+	return storage.StoreBatch(as.storageService, clientID, []*protocol.DataEnvelope{data})
 }
 
 // ======= RETRIEVAL FUNCTIONS =======
@@ -35,8 +35,18 @@ func (as *aggregatorService) StoreData(clientID string, data []*protocol.DataEnv
 func (as *aggregatorService) GetStoredTotalItems(clientID string) ([]*reduced.TotalSumItem, []*reduced.TotalSumItem, error) {
 	as.storageService.StopWriting(clientID)
 
-	factory := func() *reduced.TotalSumItem {
-		return &reduced.TotalSumItem{}
+	unwrapper := func(dataEnvelopes []*protocol.DataEnvelope) []*reduced.TotalSumItem {
+		results := make([]*reduced.TotalSumItem, 0)
+		for _, dataEnvelope := range dataEnvelopes {
+			data := &reduced.TotalSumItemsBatch{}
+			err := proto.Unmarshal(dataEnvelope.GetPayload(), data)
+			if err != nil {
+				logger.Logger.Errorf("Error unmarshalling TotalSumItemBatch: %v", err)
+				continue
+			}
+			results = append(results, data.GetTotalSumItems()...)
+		}
+		return results
 	}
 
 	joinFn := func(newData *reduced.TotalSumItem, flattenedDataMap map[string]*reduced.TotalSumItem) {
@@ -49,7 +59,7 @@ func (as *aggregatorService) GetStoredTotalItems(clientID string) ([]*reduced.To
 		}
 	}
 
-	data, err := getData(as, clientID, factory, joinFn)
+	data, err := getData(as, clientID, unwrapper, joinFn)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -72,8 +82,18 @@ func (as *aggregatorService) GetStoredTotalItems(clientID string) ([]*reduced.To
 func (as *aggregatorService) GetStoredTotalPaymentValue(clientID string) ([]*reduced.TotalPaymentValue, error) {
 	as.storageService.StopWriting(clientID)
 
-	factory := func() *reduced.TotalPaymentValue {
-		return &reduced.TotalPaymentValue{}
+	unwrapper := func(dataEnvelopes []*protocol.DataEnvelope) []*reduced.TotalPaymentValue {
+		results := make([]*reduced.TotalPaymentValue, 0)
+		for _, dataEnvelope := range dataEnvelopes {
+			data := &reduced.TotalPaymentValueBatch{}
+			err := proto.Unmarshal(dataEnvelope.GetPayload(), data)
+			if err != nil {
+				logger.Logger.Errorf("Error unmarshalling TotalPaymentValueBatch: %v", err)
+				continue
+			}
+			results = append(results, data.GetTotalPaymentValues()...)
+		}
+		return results
 	}
 
 	joinFn := func(newData *reduced.TotalPaymentValue, flattenedDataMap map[string]*reduced.TotalPaymentValue) {
@@ -97,7 +117,7 @@ func (as *aggregatorService) GetStoredTotalPaymentValue(clientID string) ([]*red
 		// H1 comes before H2
 		return halfA < halfB
 	}
-	data, err := getData(as, clientID, factory, joinFn)
+	data, err := getData(as, clientID, unwrapper, joinFn)
 	sortData(data, sortFn)
 	return data, err
 }
@@ -105,8 +125,18 @@ func (as *aggregatorService) GetStoredTotalPaymentValue(clientID string) ([]*red
 func (as *aggregatorService) GetStoredCountedUserTransactions(clientID string) (map[string][]*reduced.CountedUserTransactions, error) {
 	as.storageService.StopWriting(clientID)
 
-	factory := func() *reduced.CountedUserTransactions {
-		return &reduced.CountedUserTransactions{}
+	unwrapper := func(dataEnvelopes []*protocol.DataEnvelope) []*reduced.CountedUserTransactions {
+		results := make([]*reduced.CountedUserTransactions, 0)
+		for _, dataEnvelope := range dataEnvelopes {
+			data := &reduced.CountedUserTransactionBatch{}
+			err := proto.Unmarshal(dataEnvelope.GetPayload(), data)
+			if err != nil {
+				logger.Logger.Errorf("Error unmarshalling CountedUserTransactionBatch: %v", err)
+				continue
+			}
+			results = append(results, data.GetCountedUserTransactions()...)
+		}
+		return results
 	}
 
 	joinFn := func(newData *reduced.CountedUserTransactions, flattenedDataMap map[string]*reduced.CountedUserTransactions) {
@@ -118,7 +148,7 @@ func (as *aggregatorService) GetStoredCountedUserTransactions(clientID string) (
 		}
 	}
 
-	data, err := getData(as, clientID, factory, joinFn)
+	data, err := getData(as, clientID, unwrapper, joinFn)
 
 	if err != nil {
 		return nil, err
@@ -168,17 +198,16 @@ func filterBestMonthValues[T proto.Message](
 	return results
 }
 
-func getData[T proto.Message](as *aggregatorService, clientID string, factory func() T, joinFn func(T, map[string]T)) ([]T, error) {
+// getDataEnvelopes retrieves all unique DataEnvelopes for a given clientID.
+func (as *aggregatorService) getDataEnvelopes(clientID string) ([]*protocol.DataEnvelope, error) {
 
 	readCh, err := as.storageService.ReadAllData(clientID)
 	if err != nil {
 		return nil, err
 	}
-	flattenedDataMap := make(map[string]T)
-	uniqueEnvelopes := make(map[*protocol.DataEnvelope]bool)
-	var result []T
 
-	// We make sure to only keep unique DataEnvelopes
+	uniqueDataEnvelopes := make(map[*protocol.DataEnvelope]bool)
+	var result []*protocol.DataEnvelope
 	for protoBytes := range readCh {
 		dataEnvelope := &protocol.DataEnvelope{}
 		err := proto.Unmarshal(protoBytes, dataEnvelope)
@@ -186,18 +215,29 @@ func getData[T proto.Message](as *aggregatorService, clientID string, factory fu
 			logger.Logger.Errorf("Error unmarshalling DataEnvelope: %v", err)
 			continue
 		}
-		if _, exists := uniqueEnvelopes[dataEnvelope]; !exists {
-			uniqueEnvelopes[dataEnvelope] = true
+		if _, exists := uniqueDataEnvelopes[dataEnvelope]; !exists {
+			uniqueDataEnvelopes[dataEnvelope] = true
 		}
 	}
+	for dataEnvelope := range uniqueDataEnvelopes {
+		result = append(result, dataEnvelope)
+	}
+	return result, nil
+}
+
+func getData[T proto.Message](as *aggregatorService, clientID string, unwrapper func([]*protocol.DataEnvelope) []T, joinFn func(T, map[string]T)) ([]T, error) {
+
+	envelopes, err := as.getDataEnvelopes(clientID)
+	if err != nil {
+		return nil, err
+	}
+	rawData := unwrapper(envelopes)
+
+	flattenedDataMap := make(map[string]T)
+	var result []T
+
 	// Now process each unique DataEnvelope
-	for dataEnvelope := range uniqueEnvelopes {
-		protoData := factory()
-		err := proto.Unmarshal(dataEnvelope.GetPayload(), protoData)
-		if err != nil {
-			logger.Logger.Errorf("Error unmarshalling proto message: %v", err)
-			continue
-		}
+	for _, protoData := range rawData {
 		if joinFn != nil {
 			joinFn(protoData, flattenedDataMap)
 		} else {

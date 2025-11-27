@@ -11,7 +11,7 @@ type AggregatorService interface {
 	// ------------ Store Functions -----------
 
 	// StoreData stores raw data envelopes
-	StoreData(clientID string, data []*protocol.DataEnvelope) error
+	StoreData(clientID string, data *protocol.DataEnvelope) error
 
 	// ------------ Retreival Functions -----------
 
