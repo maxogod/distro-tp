@@ -22,7 +22,6 @@ type Server struct {
 func InitServer(conf *config.Config) *Server {
 	// initiateOutputs
 	filterInputQueue := middleware.GetFilterQueue(conf.Address)
-	aggregatorOutputQueue := middleware.GetAggregatorQueue(conf.Address)
 	groupByOutputQueue := middleware.GetGroupByQueue(conf.Address)
 
 	// initiate internal components
@@ -34,6 +33,7 @@ func InitServer(conf *config.Config) *Server {
 		conf.TaskConfig.TotalAmountThreshold,
 	)
 	connectedClients := make(map[string]middleware.MessageMiddleware)
+	processedOutputQueue := make(map[string]middleware.MessageMiddleware)
 
 	taskExecutor := task_executor.NewFilterExecutor(
 		conf.TaskConfig,
@@ -41,7 +41,7 @@ func InitServer(conf *config.Config) *Server {
 		filterService,
 		connectedClients,
 		groupByOutputQueue,
-		aggregatorOutputQueue,
+		processedOutputQueue, // To be used in T1
 	)
 
 	taskHandler := worker.NewTaskHandler(taskExecutor, true)

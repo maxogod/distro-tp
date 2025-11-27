@@ -4,6 +4,7 @@ import (
 	"sync/atomic"
 
 	"github.com/maxogod/distro-tp/src/common/logger"
+	"github.com/maxogod/distro-tp/src/common/models/enum"
 	"github.com/maxogod/distro-tp/src/common/models/protocol"
 	"github.com/maxogod/distro-tp/src/common/network"
 	"github.com/maxogod/distro-tp/src/gateway/internal/handler"
@@ -15,6 +16,8 @@ type clientSession struct {
 	clientConnection network.ConnectionInterface
 	messageHandler   handler.MessageHandler
 	running          atomic.Bool
+
+	seqNumsReceived map[int32]bool
 }
 
 func NewClientSession(id string, conn network.ConnectionInterface, messageHandler handler.MessageHandler) ClientSession {
@@ -22,6 +25,8 @@ func NewClientSession(id string, conn network.ConnectionInterface, messageHandle
 		Id:               id,
 		clientConnection: conn,
 		messageHandler:   messageHandler,
+
+		seqNumsReceived: make(map[int32]bool),
 	}
 	s.running.Store(true)
 	return s
@@ -34,8 +39,15 @@ func (cs *clientSession) IsFinished() bool {
 func (cs *clientSession) ProcessRequest() error {
 	logger.Logger.Debugf("[%s] Starting to process client request", cs.Id)
 
+	controlMsg, err := cs.getControlRequest()
+	if err != nil {
+		logger.Logger.Errorf("[%s] Error getting task request: %v", cs.Id, err)
+		return err
+	}
+	taskType := enum.TaskType(controlMsg.GetTaskType())
+
 	// Initialize session with controller
-	err := cs.messageHandler.AwaitControllerInit()
+	err = cs.messageHandler.AwaitControllerInit(taskType)
 	if err != nil {
 		logger.Logger.Errorf("[%s] Error awaiting controller init for client: %v", cs.Id, err)
 		return err
@@ -92,6 +104,13 @@ func (cs *clientSession) processResponse() {
 
 	// Read and send until channel is closed
 	for batch := range data {
+		seq := batch.GetSequenceNumber()
+		if _, exists := cs.seqNumsReceived[seq]; exists && !batch.GetIsDone() {
+			logger.Logger.Debugf("[%s] Duplicate sequence number %d in report data. Ignoring message.", cs.Id, seq)
+			continue
+		}
+		cs.seqNumsReceived[seq] = true
+
 		dataBytes, err := proto.Marshal(batch)
 		if err != nil {
 			logger.Logger.Errorf("[%s] Error marshaling data to send to client: %v", cs.Id, err)
@@ -109,6 +128,23 @@ func (cs *clientSession) getRequest() (*protocol.DataEnvelope, error) {
 	}
 
 	request := &protocol.DataEnvelope{}
+	err = proto.Unmarshal(requestBytes, request)
+	if err != nil {
+		logger.Logger.Errorf("[%s] Error receiving data: %v", cs.Id, err)
+		return nil, err
+	}
+
+	return request, nil
+}
+
+func (cs *clientSession) getControlRequest() (*protocol.ControlMessage, error) {
+	requestBytes, err := cs.clientConnection.ReceiveData()
+	if err != nil {
+		logger.Logger.Errorf("[%s] Error receiving data: %v", cs.Id, err)
+		return nil, err
+	}
+
+	request := &protocol.ControlMessage{}
 	err = proto.Unmarshal(requestBytes, request)
 	if err != nil {
 		logger.Logger.Errorf("[%s] Error receiving data: %v", cs.Id, err)

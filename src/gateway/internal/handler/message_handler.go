@@ -63,10 +63,11 @@ func NewMessageHandler(middlewareUrl, clientID string, receivingTimeout int) Mes
 	return h
 }
 
-func (mh *messageHandler) AwaitControllerInit() error {
+func (mh *messageHandler) AwaitControllerInit(taskType enum.TaskType) error {
 	// Send init message to controller
 	controlMessage := &protocol.ControlMessage{
 		ClientId: mh.clientID,
+		TaskType: int32(taskType),
 	}
 	payload, err := proto.Marshal(controlMessage)
 	if err != nil {
@@ -183,7 +184,7 @@ func (mh *messageHandler) startReportDataListener() {
 
 				mh.processedCh <- envelope
 				msg.Ack(false)
-				if envelope.GetIsDone() && enum.TaskType(envelope.GetTaskType()) != enum.T2_1 {
+				if envelope.GetIsDone() {
 					receiving = false
 				} else if !firstMessageReceived {
 					firstMessageReceived = true

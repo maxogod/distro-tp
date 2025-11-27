@@ -60,7 +60,7 @@ func (th *taskHandler) HandleData(dataEnvelope *protocol.DataEnvelope, ackHandle
 			th.sequencesPerClient[clientID] = seqs
 		}
 		if seqs[seqNum] {
-			logger.Logger.Warnf("[%s] Duplicate sequence number %d. Ignoring message.", clientID, seqNum)
+			logger.Logger.Debugf("[%s] Duplicate sequence number %d. Ignoring message.", clientID, seqNum)
 			return ackHandler(false, false)
 		}
 

@@ -13,6 +13,7 @@ import (
 // to find out the leader and ask for updates.
 func (le *leaderElection) startDiscoveryPhase() chan bool {
 	le.readyForElection.Store(false)
+	le.leaderId.Store(0) // Reset known leader
 
 	le.sendDiscoveryMessage()
 
@@ -20,7 +21,7 @@ func (le *leaderElection) startDiscoveryPhase() chan bool {
 	leaderSearchTimerCh := le.initLeaderSearchTimer(func() {
 		// There is no leader -> start election
 		le.readyForElection.Store(true)
-		le.startElection()
+		le.electionHandler.StartElection()
 	})
 
 	return leaderSearchTimerCh
@@ -29,19 +30,32 @@ func (le *leaderElection) startDiscoveryPhase() chan bool {
 // handleDiscoverMsg handles the discovery message whether its the broadcast message on a node connection (marked by leaderID = -1)
 // or a response message to that new node and check if the leader is known.
 func (le *leaderElection) handleDiscoverMsg(nodeID, leaderID int32, leaderSearchTimerCh *chan bool) {
-	if leaderID > 0 && !le.readyForElection.Load() { // there is already a leader
+	if nodeID == le.id {
+		return // Ingore self-messages
+	}
+
+	if le.leaderId.Load() == 0 && leaderID > 0 && !le.readyForElection.Load() { // there is already a leader
 		le.leaderId.Store(leaderID)
 		*leaderSearchTimerCh <- true // stop leader search timer
+		logger.Logger.Infof("[Node %d] recognized node %d as existing leader", le.id, leaderID)
 
-		err := le.awaitUpdates()
-		if err != nil {
-			// Re-start discovery phase (leader fell mid updating this node)
-			*leaderSearchTimerCh = le.startDiscoveryPhase()
-		}
+		go func() { // Dont block main routine on awaiting updates
+			err := le.awaitUpdates()
+			if err != nil {
+				logger.Logger.Errorf("[Node %d] Failed to get updates from leader %d", le.id, leaderID)
+				// Re-start discovery phase (leader fell mid updating this node)
+				*leaderSearchTimerCh = le.startDiscoveryPhase()
+				return
+			}
 
-		le.readyForElection.Store(true)
-		le.beginHeartbeatHandler()
-		logger.Logger.Infof("Node %d recognized node %d as coordinator", le.id, leaderID)
+			le.readyForElection.Store(true)
+			if le.leaderId.Load() < le.id {
+				logger.Logger.Infof("[Node %d] Starting election since leader %d has lower ID", le.id, le.leaderId.Load())
+				le.electionHandler.StartElection()
+			} else {
+				le.beginHeartbeatHandler()
+			}
+		}()
 	} else if leaderID == -1 { // discovery message
 		le.respondDiscoveryMessage(nodeID)
 	}
@@ -58,13 +72,13 @@ func (le *leaderElection) sendDiscoveryMessage() {
 
 	msgBytes, err := proto.Marshal(discoveryMsg)
 	if err != nil {
-		logger.Logger.Errorf("Failed to marshal discovery message: %v", err)
+		logger.Logger.Errorf("[Node %d] Failed to marshal discovery message: %v", le.id, err)
 		return
 	}
 
 	e := le.connMiddleware.Send(msgBytes)
 	if e != middleware.MessageMiddlewareSuccess {
-		logger.Logger.Errorf("Failed to send discovery message: %d", int(e))
+		logger.Logger.Errorf("[Node %d] Failed to send discovery message: %d", le.id, int(e))
 	}
 }
 
@@ -78,18 +92,23 @@ func (le *leaderElection) respondDiscoveryMessage(nodeId int32) {
 
 	msgBytes, err := proto.Marshal(responseMsg)
 	if err != nil {
-		logger.Logger.Errorf("Failed to marshal discovery response message: %v", err)
+		logger.Logger.Errorf("[Node %d] Failed to marshal discovery response message: %v", le.id, err)
 		return
 	}
 
+	keys := make([]int32, 0, len(le.connectedNodes))
+	for k := range le.connectedNodes {
+		keys = append(keys, k)
+	}
+	logger.Logger.Debugf("Connected node keys: %v", keys)
 	m, exists := le.connectedNodes[nodeId]
 	if !exists {
-		logger.Logger.Errorf("No middleware found for node %d to respond to discovery", nodeId)
+		logger.Logger.Errorf("[Node %d] No middleware found for node %d to respond to discovery", le.id, nodeId)
 		return
 	}
 
 	e := m.Send(msgBytes)
 	if e != middleware.MessageMiddlewareSuccess {
-		logger.Logger.Errorf("Failed to send discovery response message to node %d: %d", nodeId, int(e))
+		logger.Logger.Errorf("[Node %d] Failed to send discovery response message to node %d: %d", le.id, nodeId, int(e))
 	}
 }

@@ -19,7 +19,7 @@ const CONNECTION_RETRY_DELAY = 1
 type heartbeatHandler struct {
 	host     string
 	port     int
-	interval int
+	interval time.Duration
 
 	conn *net.UDPConn
 
@@ -29,7 +29,7 @@ type heartbeatHandler struct {
 
 // NewHeartBeatHandler creates a new instance of HeartBeatHandler.
 // The host and port specify the address to receive heartbeats from or send heartbeats to
-func NewHeartBeatHandler(host string, port int, interval int) HeartBeatHandler {
+func NewHeartBeatHandler(host string, port int, interval time.Duration) HeartBeatHandler {
 	ctx, cancel := context.WithCancel(context.Background())
 	h := &heartbeatHandler{
 		host:     host,
@@ -42,7 +42,7 @@ func NewHeartBeatHandler(host string, port int, interval int) HeartBeatHandler {
 	return h
 }
 
-func NewListeningHeartBeatHandler(host string, port int, interval int) HeartBeatHandler {
+func NewListeningHeartBeatHandler(host string, port int, interval time.Duration) (HeartBeatHandler, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	h := &heartbeatHandler{
 		host:     host,
@@ -52,12 +52,14 @@ func NewListeningHeartBeatHandler(host string, port int, interval int) HeartBeat
 		ctx:    ctx,
 		cancel: cancel,
 	}
-	h.startListening(host, port)
-	return h
+	err := h.startListening(host, port)
+	if err != nil {
+		return nil, err
+	}
+	return h, nil
 }
 
 func (h *heartbeatHandler) StartSending() error {
-
 	addr := fmt.Sprintf("%s:%d", h.host, h.port)
 	udpAddr, err := net.ResolveUDPAddr("udp", addr)
 	if err != nil {
@@ -73,7 +75,6 @@ func (h *heartbeatHandler) StartSending() error {
 }
 
 func (h *heartbeatHandler) StartSendingToAll(destinationAddrs []string) error {
-
 	for _, addr := range destinationAddrs {
 		udpAddr, err := net.ResolveUDPAddr("udp", addr)
 		if err != nil {
@@ -88,7 +89,7 @@ func (h *heartbeatHandler) StartSendingToAll(destinationAddrs []string) error {
 	return nil
 }
 
-func (h *heartbeatHandler) StartReceiving(onTimeoutFunc func(amountOfHeartbeats int), timeoutAmount int) error {
+func (h *heartbeatHandler) StartReceiving(onTimeoutFunc func(params any), timeoutAmount time.Duration) error {
 	go h.receiveHeartbeatsWithTimeout(onTimeoutFunc, timeoutAmount)
 	return nil
 }
@@ -131,7 +132,7 @@ func (h *heartbeatHandler) startListening(host string, port int) error {
 }
 
 func (h *heartbeatHandler) sendAtIntervals(conn *net.UDPConn) {
-	ticker := time.NewTicker(time.Duration(h.interval) * time.Second)
+	ticker := time.NewTicker(h.interval)
 	defer ticker.Stop()
 
 	if err := h.sendHeartbeat(conn); err != nil {
@@ -161,19 +162,16 @@ func (h *heartbeatHandler) sendHeartbeat(conn *net.UDPConn) error {
 		return fmt.Errorf("failed to marshal heartbeat: %w", err)
 	}
 
-	_, err = conn.Write(data)
-	if err != nil {
-		return fmt.Errorf("failed to send UDP packet: %w", err)
-	}
+	conn.Write(data)
 
 	return nil
 }
 
-func (h *heartbeatHandler) receiveHeartbeatsWithTimeout(onTimeoutFunc func(amountOfHeartbeats int), timeoutAmount int) {
+func (h *heartbeatHandler) receiveHeartbeatsWithTimeout(onTimeoutFunc func(params any), timeoutAmount time.Duration) {
 	buf := make([]byte, BUFFER_SIZE)
 	var heartbeatCounter atomic.Int64
 
-	timeoutTimer := time.NewTimer(time.Duration(timeoutAmount) * time.Second)
+	timeoutTimer := time.NewTimer(timeoutAmount)
 	defer timeoutTimer.Stop()
 
 	for {
@@ -191,8 +189,13 @@ func (h *heartbeatHandler) receiveHeartbeatsWithTimeout(onTimeoutFunc func(amoun
 				if netErr, ok := err.(net.Error); ok && netErr.Timeout() {
 					continue
 				}
-				logger.Logger.Errorf("Error receiving heartbeat: %v", err)
-				return
+				select {
+				case <-h.ctx.Done():
+					return // Exit if context is done
+				default:
+					logger.Logger.Errorf("Error receiving heartbeat: %v", err)
+					return
+				}
 			}
 			// Process heartbeat
 			var hb protocol.HeartBeat
@@ -200,7 +203,7 @@ func (h *heartbeatHandler) receiveHeartbeatsWithTimeout(onTimeoutFunc func(amoun
 				continue
 			}
 			heartbeatCounter.Add(1)
-			timeoutTimer.Reset(time.Duration(timeoutAmount) * time.Second)
+			timeoutTimer.Reset(timeoutAmount)
 		}
 	}
 }

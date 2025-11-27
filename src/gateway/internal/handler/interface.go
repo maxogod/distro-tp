@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"github.com/maxogod/distro-tp/src/common/models/enum"
 	"github.com/maxogod/distro-tp/src/common/models/protocol"
 )
 
@@ -10,7 +11,7 @@ type MessageHandler interface {
 
 	// AwaitControllerInit comunicates with the controller to start a session and wait for it
 	// to be ready.
-	AwaitControllerInit() error
+	AwaitControllerInit(taskType enum.TaskType) error
 
 	// NotifyClientMessagesCount notifies the controller about the total number of messages
 	// that was sent by the client for processing.

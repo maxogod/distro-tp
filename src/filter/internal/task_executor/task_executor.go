@@ -17,7 +17,7 @@ type FilterExecutor struct {
 	url              string
 	filterService    business.FilterService
 	connectedClients map[string]middleware.MessageMiddleware
-	aggregatorQueue  middleware.MessageMiddleware
+	processedQueues  map[string]middleware.MessageMiddleware
 	groupByQueue     middleware.MessageMiddleware
 }
 
@@ -26,13 +26,13 @@ func NewFilterExecutor(config TaskConfig,
 	filterService business.FilterService,
 	connectedClients map[string]middleware.MessageMiddleware,
 	groupByQueue middleware.MessageMiddleware,
-	aggregatorQueue middleware.MessageMiddleware) worker.TaskExecutor {
+	processedQueue map[string]middleware.MessageMiddleware) worker.TaskExecutor {
 	return &FilterExecutor{
 		config:           config,
 		url:              url,
 		filterService:    filterService,
 		connectedClients: connectedClients,
-		aggregatorQueue:  aggregatorQueue,
+		processedQueues:  processedQueue,
 		groupByQueue:     groupByQueue,
 	}
 }
@@ -51,6 +51,12 @@ func (fe *FilterExecutor) HandleTask1(dataEnvelope *protocol.DataEnvelope, ackHa
 	}
 	counterExchange := fe.connectedClients[clientID]
 
+	_, exists = fe.processedQueues[clientID]
+	if !exists {
+		fe.processedQueues[clientID] = middleware.GetProcessedDataExchange(fe.url, clientID)
+	}
+	m := fe.processedQueues[clientID]
+
 	err := proto.Unmarshal(payload, transactionBatch)
 	if err != nil {
 		return err
@@ -62,7 +68,7 @@ func (fe *FilterExecutor) HandleTask1(dataEnvelope *protocol.DataEnvelope, ackHa
 
 	amountSent := 0
 	if len(transactionBatch.Transactions) != 0 {
-		err = worker.SendDataToMiddleware(transactionBatch, enum.T1, clientID, int(dataEnvelope.GetSequenceNumber()), fe.aggregatorQueue)
+		err = worker.SendDataToMiddleware(transactionBatch, enum.T1, clientID, int(dataEnvelope.GetSequenceNumber()), m)
 		if err != nil {
 			shouldRequeue = true
 			return err
@@ -71,7 +77,7 @@ func (fe *FilterExecutor) HandleTask1(dataEnvelope *protocol.DataEnvelope, ackHa
 	}
 	shouldAck = true
 
-	if err := worker.SendCounterMessage(clientID, amountSent, int(dataEnvelope.SequenceNumber), enum.FilterWorker, enum.AggregatorWorker, counterExchange); err != nil {
+	if err := worker.SendCounterMessage(clientID, amountSent, int(dataEnvelope.SequenceNumber), enum.FilterWorker, enum.None, counterExchange); err != nil {
 		return err
 	}
 
@@ -198,14 +204,6 @@ func (fe *FilterExecutor) HandleTask4(dataEnvelope *protocol.DataEnvelope, ackHa
 }
 
 func (fe *FilterExecutor) Close() error {
-	// TODO: if more than one task executor will exist concurrently, they should not close anything
-	// The closing of queues and exchanges should be handled at a higher level.
-	// CONSIDER MAKING A CLIENT CONNECTIONS MANAGER TO HANDLE THIS (or monitor).
-	// SAME GOES FOR ALL THE WORKERS.
-	if e := fe.aggregatorQueue.Close(); e != middleware.MessageMiddlewareSuccess {
-		return fmt.Errorf("failed to close aggregator queue: %v", e)
-	}
-
 	if e := fe.groupByQueue.Close(); e != middleware.MessageMiddlewareSuccess {
 		return fmt.Errorf("failed to close group by queue: %v", e)
 	}
@@ -216,10 +214,31 @@ func (fe *FilterExecutor) Close() error {
 		}
 	}
 
+	for clientID, processedExchange := range fe.processedQueues {
+		if e := processedExchange.Close(); e != middleware.MessageMiddlewareSuccess {
+			return fmt.Errorf("failed to close processed exchange for client %s: %v", clientID, e)
+		}
+	}
+
 	return nil
 }
 
 func (fe *FilterExecutor) HandleFinishClient(dataEnvelope *protocol.DataEnvelope, ackHandler func(bool, bool) error) error {
-	ackHandler(true, false)
+	defer ackHandler(true, false)
+
+	clientID := dataEnvelope.GetClientId()
+
+	_, exists := fe.processedQueues[clientID]
+	if !exists {
+		fe.processedQueues[clientID] = middleware.GetProcessedDataExchange(fe.url, clientID)
+	}
+	m := fe.processedQueues[clientID]
+
+	if dataEnvelope.GetTaskType() == int32(enum.T1) { // No more layers for this task
+		worker.SendDone(dataEnvelope.GetClientId(), enum.T1, m)
+	}
+
+	delete(fe.processedQueues, clientID)
+
 	return nil
 }

@@ -9,6 +9,7 @@ import (
 	"github.com/maxogod/distro-tp/src/common/heartbeat"
 	"github.com/maxogod/distro-tp/src/common/logger"
 	"github.com/maxogod/distro-tp/src/common/middleware"
+	"github.com/maxogod/distro-tp/src/common/models/enum"
 	"github.com/maxogod/distro-tp/src/common/models/protocol"
 	"github.com/maxogod/distro-tp/src/controller/config"
 	"github.com/maxogod/distro-tp/src/controller/internal/sessions/manager"
@@ -20,7 +21,7 @@ type Server struct {
 	running       atomic.Bool
 	clientManager manager.ClientManager
 
-	newClientsChan        chan string
+	newClientsChan        chan *protocol.ControlMessage
 	initControlMiddleware middleware.MessageMiddleware
 	finishAcceptingChan   chan bool
 	heartbeatSender       heartbeat.HeartBeatHandler
@@ -30,7 +31,7 @@ func NewServer(conf *config.Config) *Server {
 	s := &Server{
 		config:                conf,
 		clientManager:         manager.NewClientManager(conf),
-		newClientsChan:        make(chan string, conf.MaxClients),
+		newClientsChan:        make(chan *protocol.ControlMessage, conf.MaxClients),
 		initControlMiddleware: middleware.GetInitControlQueue(conf.MiddlewareAddress),
 		finishAcceptingChan:   make(chan bool),
 		heartbeatSender:       heartbeat.NewHeartBeatHandler(conf.Heartbeat.Host, conf.Heartbeat.Port, conf.Heartbeat.Interval),
@@ -51,17 +52,17 @@ func (s *Server) Run() error {
 		logger.Logger.Errorf("action: start_heartbeat_sender | result: failed | error: %s", err.Error())
 	}
 
-	for clientID := range s.newClientsChan {
+	for controlMsg := range s.newClientsChan {
 		if !s.running.Load() {
 			break
 		}
 
 		s.clientManager.ReapStaleClients()
 
-		clientSession := s.clientManager.AddClient(clientID)
+		clientSession := s.clientManager.AddClient(controlMsg.GetClientId(), enum.TaskType(controlMsg.GetTaskType()))
 		go clientSession.InitiateControlSequence()
 
-		logger.Logger.Infof("action: add_client | client_id: %s | result: success", clientID)
+		logger.Logger.Infof("action: add_client | client_id: %s | result: success", controlMsg.GetClientId())
 	}
 
 	return nil
@@ -116,7 +117,7 @@ func (s *Server) acceptNewClients() {
 				continue
 			}
 
-			s.newClientsChan <- controlMsg.GetClientId()
+			s.newClientsChan <- &controlMsg
 
 			msg.Ack(false)
 		}

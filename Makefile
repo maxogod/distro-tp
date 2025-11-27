@@ -11,7 +11,7 @@ down:
 	docker compose down -v
 
 compare:
-	./compare_all_outputs.sh .expected_full/
+	./scripts/compare_all_outputs.sh .expected_full/
 
 clean:
 	sudo rm -rf .output*

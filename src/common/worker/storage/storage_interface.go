@@ -1,11 +1,23 @@
-package cache
+package storage
 
 // The StorageService interface defines the methods that any cache implementation must provide.
 // This allows the business logic to interact with different caching mechanisms
 // without being tightly coupled to a specific implementation.
 type StorageService interface {
-	StoreData(cacheReference string, data [][]byte) error
-	ReadData(cacheReference string, read_ch chan []byte)
+	// StartWriting begins writing data to the cache identified by cacheReference.
+	StartWriting(cacheReference string, data [][]byte) error
+	// StopWriting stops writing data to the cache identified by cacheReference.
+	StopWriting(cacheReference string)
+	// FlushWriting flushes any buffered data to the cache identified by cacheReference.
+	FlushWriting(cacheReference string)
+	// ReadAllData reads all data from the cache identified by cacheReference.
+	ReadAllData(cacheReference string) (chan []byte, error)
+	// ReadData reads the data from the specific point it was called
+	// If called while StartWriting is initiated, it should read the data written until that moment
+	ReadData(cacheReference string) (chan []byte, error)
+	// RemoveCache removes the cache identified by cacheReference.
 	RemoveCache(cacheReference string) error
+	// GetAllFilesReferences returns a list of all file references currently stored in the cache.
+	GetAllFilesReferences() []string
 	Close() error
 }

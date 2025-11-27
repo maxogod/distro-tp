@@ -10,3 +10,7 @@ filter:
     from: 6
     to: 23
   totalAmountThreshold: 75.0
+heartbeat:
+  host: "egg_of_life"
+  port: 7777
+  interval: 1

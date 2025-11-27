@@ -9,12 +9,18 @@ FROM golang:1.24.6 AS builder
 
 WORKDIR /app
 
+ARG BUILD_TAGS=""
+
 COPY go.sum go.mod ./
 COPY --from=deps /go/pkg/mod /go/pkg/mod
 COPY src/common/ ./src/common/
 COPY src/joiner/ ./src/joiner/
 
-RUN go build -v -o ./app ./src/joiner/cmd
+RUN if [ -n "$BUILD_TAGS" ]; then \
+    go build -tags="$BUILD_TAGS" -v -o ./app ./src/joiner/cmd; \
+    else \
+    go build -v -o ./app ./src/joiner/cmd; \
+    fi
 
 # ** Run binary **
 FROM busybox:latest AS runner

@@ -47,6 +47,7 @@ class RevivalChansey:
                 self.shutdown()
 
     def shutdown(self):
+        if not self.running.is_set(): return
         self.running.clear() # Sets flag to false
         self._server.close()
         self._monitor_thread.join()
