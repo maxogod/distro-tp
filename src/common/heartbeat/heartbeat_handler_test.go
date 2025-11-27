@@ -45,9 +45,9 @@ func TestSendAndReceiveHeartbeats(t *testing.T) {
 	recieveChannel := make(chan int)
 
 	// Start receiver with a 1 second timeout
-	err = receiverHandler.StartReceiving(func(amountOfHeartbeats int) {
-		recieveChannel <- amountOfHeartbeats
-	}, 1)
+	err = receiverHandler.StartReceiving(func(amountOfHeartbeats any) {
+		recieveChannel <- amountOfHeartbeats.(int)
+	}, 1*time.Second)
 	assert.NoError(t, err)
 
 	// Start Sender
@@ -97,11 +97,11 @@ func TestSendMultipleHeartBeatsAndReceiveHeartbeats(t *testing.T) {
 	var handlerCounter atomic.Int64
 
 	for i, handler := range recieveHandlers {
-		err := handler.StartReceiving(func(amountOfHeartbeats int) {
+		err := handler.StartReceiving(func(amountOfHeartbeats any) {
 			// if a timeout occurs, record which handler timed out
 			t.Logf("Handler [%d] timed out", i)
 			handlerCounter.Add(1)
-		}, 1)
+		}, 1*time.Second)
 		assert.NoError(t, err)
 	}
 
@@ -110,14 +110,9 @@ func TestSendMultipleHeartBeatsAndReceiveHeartbeats(t *testing.T) {
 	assert.NoError(t, err)
 
 	// Stop sending after some time to allow receivers to timeout
-	time.Sleep(100 * time.Second)
+	time.Sleep(5 * time.Second)
 	senderHandler.Stop()
 
-	for {
-		if handlerCounter.Load() >= int64(len(recieveHandlers)) {
-			break
-		}
-	}
 	assert.Equal(t, len(recieveHandlers), int(handlerCounter.Load()), "All handlers should receive heartbeats before timeout")
 }
 
@@ -137,10 +132,10 @@ func TestStopAndSwapSendReadActions(t *testing.T) {
 	handlerChan := make(chan int)
 
 	// Start receiver with a 2 second timeout
-	err = handler1.StartReceiving(func(amountOfHeartbeats int) {
-		t.Logf("Receiver timed out after %d heartbeats", amountOfHeartbeats)
+	err = handler1.StartReceiving(func(amountOfHeartbeats any) {
+		t.Logf("Receiver timed out after %d heartbeats", amountOfHeartbeats.(int))
 		handlerChan <- 1
-	}, 2)
+	}, 2*time.Second)
 	assert.NoError(t, err)
 
 	// Start sending
@@ -160,10 +155,10 @@ func TestStopAndSwapSendReadActions(t *testing.T) {
 	t.Log("Phase 2: Swapping roles...")
 
 	// Start handler2 as receiver with a 2 second timeout
-	err = handler2.StartReceiving(func(amountOfHeartbeats int) {
-		t.Logf("New Receiver timed out after %d heartbeats", amountOfHeartbeats)
+	err = handler2.StartReceiving(func(amountOfHeartbeats any) {
+		t.Logf("New Receiver timed out after %d heartbeats", amountOfHeartbeats.(int))
 		handlerChan <- 1
-	}, 2)
+	}, 2*time.Second)
 	assert.NoError(t, err)
 
 	// Start handler1 as sender
@@ -198,8 +193,8 @@ func TestStartRecieverWithNoSender(t *testing.T) {
 		recieveChannel := make(chan int)
 
 		// Start receiver with a 1 second timeout
-		err := receiverHandler.StartReceiving(func(amountOfHeartbeats int) {
-			recieveChannel <- amountOfHeartbeats
+		err := receiverHandler.StartReceiving(func(amountOfHeartbeats any) {
+			recieveChannel <- amountOfHeartbeats.(int)
 		}, 1)
 		assert.NoError(t, err)
 
