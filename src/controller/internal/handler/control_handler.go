@@ -99,7 +99,7 @@ func (ch *controlHandler) AwaitForWorkers() error {
 			if nextLayer != enum.None && nextLayer != enum.AggregatorWorker {
 				ch.workersMonitoring[nextLayer].startOrFinishCh <- true // start next layer
 			} else if nextLayer == enum.AggregatorWorker {
-				ch.SendDone(nextLayer, sentFromCurrentLayer) // Notify aggregators the total msgs to wait
+				ch.SendDone(nextLayer, sentFromCurrentLayer, false) // Notify aggregators the total msgs to wait
 			}
 			currentWorkerType = nextLayer
 			ch.messagesSentToNextLayer = sentFromCurrentLayer
@@ -122,13 +122,17 @@ func (ch *controlHandler) AwaitForWorkers() error {
 	return nil
 }
 
-func (ch *controlHandler) SendDone(worker enum.WorkerType, totalMsgs int) error {
+func (ch *controlHandler) SendDone(worker enum.WorkerType, totalMsgs int, deleteAction bool) error {
+	seq := 0
+	if deleteAction {
+		seq = -1
+	}
 	doneMessage := &protocol.DataEnvelope{
 		ClientId:       ch.clientID,
 		TaskType:       int32(ch.taskType),
 		IsDone:         true,
 		TotalMessages:  int32(totalMsgs),
-		SequenceNumber: -1,
+		SequenceNumber: int32(seq),
 		Payload:        nil,
 	}
 	dataBytes, err := proto.Marshal(doneMessage)

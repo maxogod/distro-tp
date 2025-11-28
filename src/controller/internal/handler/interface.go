@@ -13,7 +13,7 @@ type ControlHandler interface {
 	AwaitForWorkers() error
 
 	// SendDone notifies the
-	SendDone(worker enum.WorkerType, totalMsgs int) error
+	SendDone(worker enum.WorkerType, totalMsgs int, deleteAction bool) error
 
 	// Close releases any resources held by the handler.
 	// e.g. middleware queues or exchanges instantiation.

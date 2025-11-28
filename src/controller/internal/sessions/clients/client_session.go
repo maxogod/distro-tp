@@ -44,7 +44,7 @@ func (cs *clientSession) InitiateControlSequence() error {
 		enum.AggregatorWorker,
 	}
 	for _, worker := range workersToNotify {
-		if err = cs.controlHandler.SendDone(worker, 0); err != nil {
+		if err = cs.controlHandler.SendDone(worker, 0, true); err != nil {
 			logger.Logger.Errorf("[%s] Error sending done signal to %s for client: %v", cs.Id, string(worker), err)
 			return err
 		}
