@@ -79,12 +79,12 @@ def add_gateway(count, tags=None):
     container_name: {cname}
     build:
       dockerfile: ./src/gateway/Dockerfile"""
-        
+
         if tags:
             service_def += f"""
       args:
         BUILD_TAGS: "{tags}" """
-        
+
         service_def += f"""
     image: gateway:latest
     ports:
@@ -117,12 +117,12 @@ def add_controller(count, tags=None):
     container_name: {cname}
     build:
       dockerfile: ./src/controller/Dockerfile"""
-        
+
         if tags:
             service_def += f"""
       args:
         BUILD_TAGS: "{tags}" """
-        
+
         service_def += f"""
     image: controller:latest
     volumes:
@@ -141,21 +141,25 @@ def add_controller(count, tags=None):
 # ==============================
 def add_aggregator(count, tags=None):
     for i in range(1, count + 1):
-        cname = "aggregator" if count == 1 else f"aggregator{i}"
+        cname = f"aggregator{i}"
         service_def = f"""  {cname}:
     container_name: {cname}
     build:
       dockerfile: ./src/aggregator/Dockerfile"""
-        
+
         if tags:
             service_def += f"""
       args:
         BUILD_TAGS: "{tags}" """
-        
+
         service_def += f"""
     image: aggregator:latest
     networks:
       - tp_net
+    environment:
+      - LEADER_ELECTION_ID={i}
+      - LEADER_ELECTION_HOST=aggregator{i}
+      - LEADER_ELECTION_PORT=7070
     volumes:
       - ./src/aggregator/config.yaml:/app/config.yaml
     depends_on:
@@ -175,13 +179,13 @@ def add_services(name, count, tags=None):
     container_name: {cname}
     build:
       dockerfile: ./src/{name}/Dockerfile"""
-        
+
         # Add build tags if present
         if tags:
             service_def += f"""
       args:
         BUILD_TAGS: "{tags}" """
-        
+
         service_def += f"""
     image: {name}:latest
     networks:
@@ -248,7 +252,7 @@ if count > 0:
 # ==============================
 for svc in ["filter", "joiner", "reducer", "group_by"]:
     svc_config = services_config.get(svc, {})
-    
+
     # Handle both dict and int formats for backwards compatibility
     if isinstance(svc_config, dict):
         count = svc_config.get("instances", 0)
@@ -256,7 +260,7 @@ for svc in ["filter", "joiner", "reducer", "group_by"]:
     else:
         count = svc_config if isinstance(svc_config, int) else 0
         tags = None
-    
+
     if count > 0:
         tag_info = f" with tags '{tags}'" if tags else ""
         print(f"Adding {count} {svc}(s){tag_info}")

@@ -299,10 +299,8 @@ func (le *leaderElection) startSendingHeartbeats() {
 		addrs = append(addrs, addr)
 	}
 
-	err := le.heartbeatHandler.StartSendingToAll(addrs)
-	if err != nil {
-		logger.Logger.Errorf("Error starting to send heartbeats: %v", err)
-	}
+	le.heartbeatHandler.StartSendingToAll(addrs)
+
 }
 
 func (le *leaderElection) handleCoordinatorMsg(nodeId int32) {

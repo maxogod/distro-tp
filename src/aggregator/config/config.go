@@ -20,20 +20,26 @@ type Limits struct {
 	MaxAmountToSend      int
 }
 
+type LeaderElectionConfig struct {
+	ID       int
+	MaxNodes int
+	Host     string
+	Port     int
+}
+
 type Config struct {
-	Address            string
-	LogLevel           string
-	PersistenceEnabled bool
-	Limits             Limits
-	Heartbeat          HeartbeatConfig
+	Address        string
+	LogLevel       string
+	Limits         Limits
+	Heartbeat      HeartbeatConfig
+	LeaderElection LeaderElectionConfig
 }
 
 func (c Config) String() string {
 	return fmt.Sprintf(
-		"Address: %s | LogLevel: %s | PersistenceEnabled: %t | Limits: [TransactionSendLimit=%d, MaxAmountToSend=%d]",
+		"Address: %s | LogLevel: %s | Limits: [TransactionSendLimit=%d, MaxAmountToSend=%d]",
 		c.Address,
 		c.LogLevel,
-		c.PersistenceEnabled,
 		c.Limits.TransactionSendLimit,
 		c.Limits.MaxAmountToSend,
 	)
@@ -62,15 +68,24 @@ func InitConfig(configFilePath string) (*Config, error) {
 		Interval: time.Duration(v.GetInt("heartbeat.interval")) * time.Second,
 	}
 
+	leaderElectionConf := LeaderElectionConfig{
+		ID:       v.GetInt("leader_election.id"),
+		MaxNodes: v.GetInt("leader_election.maxNodes"),
+		Host:     v.GetString("leader_election.host"),
+		Port:     v.GetInt("leader_election.port"),
+	}
+
+	limits := Limits{
+		TransactionSendLimit: v.GetInt32("limits.transaction_send_limit"),
+		MaxAmountToSend:      v.GetInt("limits.max_amount_to_send"),
+	}
+
 	config := &Config{
-		Address:            v.GetString("gateway.address"),
-		LogLevel:           v.GetString("log.level"),
-		PersistenceEnabled: v.GetBool("persistence.enabled"),
-		Limits: Limits{
-			TransactionSendLimit: v.GetInt32("limits.transaction_send_limit"),
-			MaxAmountToSend:      v.GetInt("limits.max_amount_to_send"),
-		},
-		Heartbeat: heatbeatConf,
+		Address:        v.GetString("gateway.address"),
+		LogLevel:       v.GetString("log.level"),
+		Limits:         limits,
+		Heartbeat:      heatbeatConf,
+		LeaderElection: leaderElectionConf,
 	}
 
 	return config, nil

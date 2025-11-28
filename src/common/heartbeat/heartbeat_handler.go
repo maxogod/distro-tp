@@ -78,7 +78,7 @@ func (h *heartbeatHandler) StartSendingToAll(destinationAddrs []string) error {
 	for _, addr := range destinationAddrs {
 		udpAddr, err := net.ResolveUDPAddr("udp", addr)
 		if err != nil {
-			return fmt.Errorf("failed to resolve UDP address: %w", err)
+			continue
 		}
 		conn, err := net.DialUDP("udp", nil, udpAddr)
 		if err != nil {

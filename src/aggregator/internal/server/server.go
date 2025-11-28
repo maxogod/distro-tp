@@ -3,12 +3,14 @@ package server
 import (
 	"os"
 	"os/signal"
+	"sync/atomic"
 	"syscall"
 
 	"github.com/maxogod/distro-tp/src/aggregator/business"
 	"github.com/maxogod/distro-tp/src/aggregator/config"
 	"github.com/maxogod/distro-tp/src/aggregator/internal/task_executor"
 	"github.com/maxogod/distro-tp/src/common/heartbeat"
+	"github.com/maxogod/distro-tp/src/common/leader_election"
 	"github.com/maxogod/distro-tp/src/common/logger"
 	"github.com/maxogod/distro-tp/src/common/middleware"
 	"github.com/maxogod/distro-tp/src/common/models/enum"
@@ -17,8 +19,10 @@ import (
 )
 
 type Server struct {
+	iAmLeader      atomic.Bool
 	messageHandler worker.MessageHandler
 	heatbeatSender heartbeat.HeartBeatHandler
+	leaderElection leader_election.LeaderElection
 }
 
 func InitServer(conf *config.Config) *Server {
@@ -27,6 +31,16 @@ func InitServer(conf *config.Config) *Server {
 	aggregatorInputQueue := middleware.GetAggregatorQueue(conf.Address)
 	joinerOutputQueue := middleware.GetJoinerQueue(conf.Address)
 	finishExchange := middleware.GetFinishExchange(conf.Address, []string{string(enum.AggregatorWorker)})
+	//leaderElectionUpdateHandler := update_handler.NewUpdateHandler()
+	leaderElection := leader_election.NewLeaderElection(
+		conf.LeaderElection.Host,
+		conf.LeaderElection.Port,
+		int32(conf.LeaderElection.ID),
+		conf.Address,
+		enum.AggregatorWorker,
+		conf.LeaderElection.MaxNodes,
+		nil, //leaderElectionUpdateHandler
+	)
 
 	// initiate internal components
 	cacheService := storage.NewDiskMemoryStorage()
@@ -52,6 +66,8 @@ func InitServer(conf *config.Config) *Server {
 	return &Server{
 		messageHandler: messageHandler,
 		heatbeatSender: heartbeat.NewHeartBeatHandler(conf.Heartbeat.Host, conf.Heartbeat.Port, conf.Heartbeat.Interval),
+		leaderElection: leaderElection,
+		iAmLeader:      atomic.Bool{},
 	}
 }
 
@@ -66,12 +82,18 @@ func (s *Server) Run() error {
 
 	// This is a blocking call, it will run until an error occurs or
 	// the Close() method is called via a signal
-	e := s.messageHandler.Start()
-	if e != nil {
-		logger.Logger.Errorf("Error starting message handler: %v", e)
-		s.Shutdown()
-		return e
-	}
+
+	go func() {
+		e := s.messageHandler.Start()
+		if e != nil {
+			logger.Logger.Errorf("Error starting message handler: %v", e)
+			s.Shutdown()
+			return
+		}
+	}()
+
+	s.leaderElection.Start()
+
 	return nil
 }
 
@@ -93,7 +115,7 @@ func (s *Server) Shutdown() {
 	if err != nil {
 		logger.Logger.Errorf("Error closing message handler: %v", err)
 	}
-
 	s.heatbeatSender.Close()
+	s.leaderElection.Close()
 	logger.Logger.Debug("aggregator Worker server shut down successfully.")
 }

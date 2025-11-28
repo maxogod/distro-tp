@@ -6,8 +6,9 @@ heartbeat:
   interval: 1
 log:
   level: "development"
-persistence:
-  enabled: true
 limits:
   transaction_send_limit: 1000
   max_amount_to_send: 35
+leader_election:
+  maxNodes: 10
+
