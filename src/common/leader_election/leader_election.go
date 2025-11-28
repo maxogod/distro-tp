@@ -40,10 +40,10 @@ type leaderElection struct {
 	updateCallbacks UpdateCallbacks
 
 	// Middlewares
-	coordMiddleware middleware.MessageMiddleware
-	connMiddleware  middleware.MessageMiddleware
-	nodeMiddleware  middleware.MessageMiddleware
-	connectedNodes  map[int32]middleware.MessageMiddleware
+	coordMiddleware     middleware.MessageMiddleware
+	discoveryMiddleware middleware.MessageMiddleware
+	nodeMiddleware      middleware.MessageMiddleware
+	connectedNodes      map[int32]middleware.MessageMiddleware
 
 	messagesCh       chan *protocol.SyncMessage
 	updatesCh        chan *protocol.DataEnvelope
@@ -74,10 +74,10 @@ func NewLeaderElection(
 		maxNodes:        maxNodes,
 		updateCallbacks: updateCallbacks,
 
-		coordMiddleware: middleware.GetLeaderElectionCoordExchange(middlewareUrl, workerType),
-		connMiddleware:  middleware.GetLeaderElectionDiscoveryExchange(middlewareUrl, workerType),
-		nodeMiddleware:  middleware.GetLeaderElectionReceivingNodeExchange(middlewareUrl, workerType, strconv.Itoa(int(id))),
-		connectedNodes:  make(map[int32]middleware.MessageMiddleware),
+		coordMiddleware:     middleware.GetLeaderElectionCoordExchange(middlewareUrl, workerType),
+		discoveryMiddleware: middleware.GetLeaderElectionDiscoveryExchange(middlewareUrl, workerType),
+		nodeMiddleware:      middleware.GetLeaderElectionReceivingNodeExchange(middlewareUrl, workerType, strconv.Itoa(int(id))),
+		connectedNodes:      make(map[int32]middleware.MessageMiddleware),
 
 		messagesCh: make(chan *protocol.SyncMessage, MAX_CHAN_BUFFER),
 		updatesCh:  make(chan *protocol.DataEnvelope, MAX_CHAN_BUFFER),
@@ -195,7 +195,7 @@ func (le *leaderElection) Close() error {
 	if err := le.coordMiddleware.Close(); err != middleware.MessageMiddlewareSuccess {
 		return fmt.Errorf("error closing coord middleware: %d", int(err))
 	}
-	if err := le.connMiddleware.Close(); err != middleware.MessageMiddlewareSuccess {
+	if err := le.discoveryMiddleware.Close(); err != middleware.MessageMiddlewareSuccess {
 		return fmt.Errorf("error closing conn middleware: %d", int(err))
 	}
 	if err := le.nodeMiddleware.Close(); err != middleware.MessageMiddlewareSuccess {

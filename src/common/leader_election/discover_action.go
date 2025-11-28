@@ -76,7 +76,7 @@ func (le *leaderElection) sendDiscoveryMessage() {
 		return
 	}
 
-	e := le.connMiddleware.Send(msgBytes)
+	e := le.discoveryMiddleware.Send(msgBytes)
 	if e != middleware.MessageMiddlewareSuccess {
 		logger.Logger.Errorf("[Node %d] Failed to send discovery message: %d", le.id, int(e))
 	}
