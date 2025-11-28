@@ -142,7 +142,15 @@ func (le *leaderElection) Start() error {
 	leaderSearchTimerCh := le.startDiscoveryPhase()
 
 	for le.running.Load() {
-		msg := <-le.messagesCh
+		var msg *protocol.SyncMessage
+		select {
+		case m := <-le.messagesCh:
+			msg = m
+		case <-le.ctx.Done():
+			le.running.Store(false)
+			continue
+		}
+
 		nodeID := msg.GetNodeId()
 		switch msg.GetAction() {
 		case int32(enum.DISCOVER):
