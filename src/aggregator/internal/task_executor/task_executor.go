@@ -14,6 +14,8 @@ import (
 	"github.com/maxogod/distro-tp/src/common/worker"
 )
 
+const DELETE_ACTION = -1
+
 type AggregatorExecutor struct {
 	config            *config.Config // TODO: maybe remove config from here
 	connectedClients  map[string]middleware.MessageMiddleware
@@ -112,7 +114,14 @@ func (ae *AggregatorExecutor) HandleFinishClient(dataEnvelope *protocol.DataEnve
 
 	clientID := dataEnvelope.GetClientId()
 
+	if dataEnvelope.GetSequenceNumber() == DELETE_ACTION {
+		ae.removeClientData(clientID)
+		shouldAck = true
+		return nil
+	}
+
 	if ae.actionNonLeader(clientID) {
+		shouldAck = true
 		return nil
 	}
 
@@ -157,4 +166,16 @@ func (ae *AggregatorExecutor) actionNonLeader(clientID string) bool {
 		return true
 	}
 	return false
+}
+
+// ERROR HAPPENS HERE!!!
+// Makes it so that task doesnt work
+func (ae *AggregatorExecutor) removeClientData(clientID string) {
+	ae.aggregatorService.RemoveData(clientID)
+	if q, exists := ae.connectedClients[clientID]; exists {
+		q.Close()
+		delete(ae.connectedClients, clientID)
+	}
+	ae.finishedClients.LoadAndDelete(clientID)
+	logger.Logger.Debugf("Removed client data for: %s", clientID)
 }
