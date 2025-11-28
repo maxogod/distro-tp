@@ -2,6 +2,7 @@ package handler
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/maxogod/distro-tp/src/common/logger"
 	"github.com/maxogod/distro-tp/src/common/middleware"
@@ -92,7 +93,9 @@ func (ch *controlHandler) AwaitForWorkers() error {
 				ch.clientID, receivedFromCurrentLayer, currentWorkerType, nextLayer, sentFromCurrentLayer)
 
 			clear(ch.sequencesSeen)
-			ch.workersMonitoring[currentWorkerType].startOrFinishCh <- false // finish current layer
+			if currentWorkerType != enum.Gateway {
+				ch.workersMonitoring[currentWorkerType].startOrFinishCh <- false // finish current layer
+			}
 			if nextLayer != enum.None && nextLayer != enum.AggregatorWorker {
 				ch.workersMonitoring[nextLayer].startOrFinishCh <- true // start next layer
 			} else if nextLayer == enum.AggregatorWorker {
@@ -105,6 +108,15 @@ func (ch *controlHandler) AwaitForWorkers() error {
 			logger.Logger.Debugf("[%s] Proceeding to wait for %s workers", ch.clientID, currentWorkerType)
 		}
 	}
+
+	select {
+	case <-ch.counterCh: // Only open routine is that of gateway
+		logger.Logger.Debugf("[%s] Final counter received from Gateway workers, data done", ch.clientID)
+	case <-time.After(10 * time.Second):
+		logger.Logger.Warnf("[%s] Timeout waiting for final counter from Gateway workers", ch.clientID)
+	}
+	ch.workersMonitoring[enum.Gateway].startOrFinishCh <- false // Finally finish gateway layer
+
 	logger.Logger.Debugf("[%s] All workers done, proceed with finish sequence", ch.clientID)
 
 	return nil

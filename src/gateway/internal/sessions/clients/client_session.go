@@ -81,6 +81,12 @@ func (cs *clientSession) ProcessRequest() error {
 	logger.Logger.Debugf("[%s] Starting to send report data to client", cs.Id)
 	cs.processResponse()
 
+	err = cs.messageHandler.NotifyCompletion()
+	if err != nil {
+		logger.Logger.Errorf("[%s] Error notifying controller about client completion: %v", cs.Id, err)
+		return err
+	}
+
 	cs.Close()
 	logger.Logger.Debugf("[%s] All report data sent to client, and session closed", cs.Id)
 

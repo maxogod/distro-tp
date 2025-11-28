@@ -104,6 +104,22 @@ func (mh *messageHandler) NotifyClientMessagesCount() error {
 	return nil
 }
 
+func (mh *messageHandler) NotifyCompletion() error {
+	countMessage := &protocol.MessageCounter{
+		ClientId: mh.clientID,
+		From:     string(enum.Gateway),
+		Next:     string(enum.None),
+	}
+	payload, err := proto.Marshal(countMessage)
+	if err != nil {
+		return err
+	}
+	if err := mh.counterExchange.Send(payload); err != middleware.MessageMiddlewareSuccess {
+		return fmt.Errorf("error sending messages count to controller")
+	}
+	return nil
+}
+
 func (mh *messageHandler) ForwardData(dataBatch *protocol.DataEnvelope) error {
 	dataBatch.ClientId = mh.clientID
 	dataBatch.SequenceNumber = int32(mh.messagesSentToNextLayer)
