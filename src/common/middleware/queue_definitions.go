@@ -50,7 +50,8 @@ func GetRefDataExchange(url string) MessageMiddleware {
 // GetAggregatorQueue retrieves the middleware that the controller uses to put work on the aggregator queues
 func GetAggregatorQueue(url string) MessageMiddleware {
 	return retryMiddlewareCreation(MIDDLEWARE_CONNECTION_RETRIES, WAIT_INTERVAL, func() (MessageMiddleware, error) {
-		return NewQueueMiddleware(url, "aggregator")
+		// TODO: Remove RC by making the queues persistent
+		return NewExchangeMiddleware(url, "aggregator", "fanout", []string{})
 	})
 }
 
