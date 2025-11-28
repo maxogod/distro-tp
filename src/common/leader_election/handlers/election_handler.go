@@ -154,7 +154,7 @@ func (eh *electionHandler) sendElectionMessage(nodeConn middleware.MessageMiddle
 
 func (eh *electionHandler) sendAckMessage(nodeConn middleware.MessageMiddleware, roundID string) {
 	ackMsg := &protocol.SyncMessage{
-		NodeId:  int32(eh.id),
+		NodeId:  eh.id,
 		Action:  int32(enum.ACK),
 		RoundId: roundID,
 	}
