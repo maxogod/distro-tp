@@ -20,7 +20,7 @@ def read_csv_as_set(filename):
     return header, rows
 
 
-def compare_csv_files(file1: str, file2: str):
+def compare_csv_files(file1: str, file2: str) -> bool:
     header1, rows1 = read_csv_as_set(file1)
     header2, rows2 = read_csv_as_set(file2)
 
@@ -28,14 +28,14 @@ def compare_csv_files(file1: str, file2: str):
 
     if header1 != header2:
         print("FAIL! | Headers differ:\n{file1}: {header1}\n{file2}: {header2}\n")
-        return
+        return False
 
     missing_in_file2 = rows1 - rows2
     missing_in_file1 = rows2 - rows1
 
     if not missing_in_file1 and not missing_in_file2:
         print("SUCCESS! | Both CSV files contain the same rows!\n")
-        return
+        return True
 
     print("FAIL! | CSV files differ:")
 
@@ -48,9 +48,10 @@ def compare_csv_files(file1: str, file2: str):
         print(f"\nRows present in {Path(file2).name} but missing in {Path(file1).name}:")
         for row in sorted(missing_in_file1):
             print("  ", row)
+    return False
 
 
-def task4_comparison(file1: str, file2: str):
+def task4_comparison(file1: str, file2: str) -> bool:
     count1 = {}
     count2 = {}
     with open(file1, "r", encoding="utf-8") as f1, open(file2, "r", encoding="utf-8") as f2:
@@ -65,14 +66,15 @@ def task4_comparison(file1: str, file2: str):
 
     if len(count1) != len(count2):
         print(f"FAIL! | Number of stores differ\n")
-        return
+        return False
     
     for store in count1:
         if store not in count2 or count1[store] != count2[store]:
             print(f"FAIL! | Store '{store}' has different total quantities: {count1.get(store, 0)} vs {count2.get(store, 0)}\n")
-            return
+            return False
 
     print("SUCCESS! | Both files have the same total quantities per store!\n")
+    return True
 
 
 def main():
@@ -88,9 +90,11 @@ def main():
 
     task = file1.split("/")[1].split(".")[0]
     if task == "t4":
-        task4_comparison(file1, file2)
+        if not task4_comparison(file1, file2):
+            sys.exit(1)
     else:
-        compare_csv_files(file1, file2)
+        if not compare_csv_files(file1, file2):
+            sys.exit(1)
 
 
 if __name__ == "__main__":
