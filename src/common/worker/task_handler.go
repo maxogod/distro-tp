@@ -111,6 +111,7 @@ func (th *taskHandler) HandleFinishClient(dataEnvelope *protocol.DataEnvelope, a
 	if existsCount && count != dataEnvelope.GetTotalMessages() {
 		if dataEnvelope.GetTotalMessages() != 0 {
 			th.totalMessagesToReceive[clientID] = dataEnvelope.GetTotalMessages()
+			ackHandler(true, false)
 			return nil
 		}
 	}

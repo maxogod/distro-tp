@@ -38,6 +38,7 @@ func (je *joinerExecutor) HandleTask2(dataEnvelope *protocol.DataEnvelope, ackHa
 	clientID := dataEnvelope.GetClientId()
 
 	if dataEnvelope.GetIsRef() {
+		defer ackHandler(shouldAck, shouldRequeue)
 		var err error
 		if !dataEnvelope.GetIsDone() {
 			err = je.handleRefData(dataEnvelope, clientID)
@@ -55,13 +56,8 @@ func (je *joinerExecutor) HandleTask2(dataEnvelope *protocol.DataEnvelope, ackHa
 	processedDataQueue := middleware.GetProcessedDataExchange(je.config.Address, clientID)
 	defer func() {
 		ackHandler(shouldAck, shouldRequeue)
-		// TODO: Now that the aggregator can die, if the joiner gets a dupped client ID,
-		// it shouldn't delete it until it's really done
-		if !dataEnvelope.GetIsRef() {
-			processedDataQueue.Close()
-			je.joinerService.DeleteClientRefData(clientID)
-			logger.Logger.Debugf("Finished & Deleted ref data for client %s", clientID)
-		}
+		processedDataQueue.Close()
+		logger.Logger.Debugf("Finished & Deleted ref data for client %s", clientID)
 	}()
 
 	reportData := &reduced.TotalSumItemsReport{}
@@ -102,6 +98,7 @@ func (je *joinerExecutor) HandleTask3(dataEnvelope *protocol.DataEnvelope, ackHa
 	clientID := dataEnvelope.GetClientId()
 
 	if dataEnvelope.GetIsRef() {
+		defer ackHandler(shouldAck, shouldRequeue)
 		var err error
 		if !dataEnvelope.GetIsDone() {
 			err = je.handleRefData(dataEnvelope, clientID)
@@ -119,11 +116,8 @@ func (je *joinerExecutor) HandleTask3(dataEnvelope *protocol.DataEnvelope, ackHa
 	processedDataQueue := middleware.GetProcessedDataExchange(je.config.Address, clientID)
 	defer func() {
 		ackHandler(shouldAck, shouldRequeue)
-		if !dataEnvelope.GetIsRef() {
-			processedDataQueue.Close()
-			je.joinerService.DeleteClientRefData(clientID)
-			logger.Logger.Debugf("Finished & Deleted ref data for client %s", clientID)
-		}
+		processedDataQueue.Close()
+		logger.Logger.Debugf("Finished & Deleted ref data for client %s", clientID)
 	}()
 
 	reducedData := &reduced.TotalPaymentValueBatch{}
@@ -158,6 +152,7 @@ func (je *joinerExecutor) HandleTask4(dataEnvelope *protocol.DataEnvelope, ackHa
 	clientID := dataEnvelope.GetClientId()
 
 	if dataEnvelope.GetIsRef() {
+		defer ackHandler(shouldAck, shouldRequeue)
 		var err error
 		if !dataEnvelope.GetIsDone() {
 			err = je.handleRefData(dataEnvelope, clientID)
@@ -175,11 +170,8 @@ func (je *joinerExecutor) HandleTask4(dataEnvelope *protocol.DataEnvelope, ackHa
 	processedDataQueue := middleware.GetProcessedDataExchange(je.config.Address, clientID)
 	defer func() {
 		ackHandler(shouldAck, shouldRequeue)
-		if !dataEnvelope.GetIsRef() {
-			processedDataQueue.Close()
-			je.joinerService.DeleteClientRefData(clientID)
-			logger.Logger.Debugf("Finished & Deleted ref data for client %s", clientID)
-		}
+		processedDataQueue.Close()
+		logger.Logger.Debugf("Finished & Deleted ref data for client %s", clientID)
 	}()
 
 	countedDataBatch := &reduced.CountedUserTransactionBatch{}
