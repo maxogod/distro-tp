@@ -140,7 +140,7 @@ func (eh *electionHandler) awaitCoordinator() {
 
 func (eh *electionHandler) sendElectionMessage(nodeConn middleware.MessageMiddleware) {
 	electionMsg := &protocol.SyncMessage{
-		NodeId:  int32(eh.id),
+		NodeId:  eh.id,
 		Action:  int32(enum.ELECTION),
 		RoundId: eh.roundID,
 	}
