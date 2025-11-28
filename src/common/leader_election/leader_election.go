@@ -144,7 +144,12 @@ func (le *leaderElection) Start() error {
 	for le.running.Load() {
 		var msg *protocol.SyncMessage
 		select {
-		case m := <-le.messagesCh:
+		case m, ok := <-le.messagesCh:
+			if !ok {
+				// channel closed
+				le.running.Store(false)
+				continue
+			}
 			msg = m
 		case <-le.ctx.Done():
 			le.running.Store(false)
@@ -240,6 +245,8 @@ func (le *leaderElection) nodeQueueListener(readyCh chan bool) {
 	e := le.nodeMiddleware.StartConsuming(func(consumeChannel middleware.ConsumeChannel, d chan error) {
 		readyCh <- true
 		running := true
+		defer close(le.messagesCh)
+
 		for running {
 			var msg middleware.MessageDelivery
 			select {
@@ -256,9 +263,14 @@ func (le *leaderElection) nodeQueueListener(readyCh chan bool) {
 				logger.Logger.Errorf("Failed to unmarshal sync message: %v", err)
 				return
 			}
-			le.messagesCh <- syncMessage
 
-			msg.Ack(false)
+			select {
+			case le.messagesCh <- syncMessage:
+				msg.Ack(false)
+			case <-le.ctx.Done():
+				running = false
+				continue
+			}
 		}
 	})
 
