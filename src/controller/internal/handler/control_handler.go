@@ -124,11 +124,12 @@ func (ch *controlHandler) AwaitForWorkers() error {
 
 func (ch *controlHandler) SendDone(worker enum.WorkerType, totalMsgs int) error {
 	doneMessage := &protocol.DataEnvelope{
-		ClientId:      ch.clientID,
-		TaskType:      int32(ch.taskType),
-		IsDone:        true,
-		TotalMessages: int32(totalMsgs),
-		Payload:       nil,
+		ClientId:       ch.clientID,
+		TaskType:       int32(ch.taskType),
+		IsDone:         true,
+		TotalMessages:  int32(totalMsgs),
+		SequenceNumber: -1,
+		Payload:        nil,
 	}
 	dataBytes, err := proto.Marshal(doneMessage)
 	if err != nil {

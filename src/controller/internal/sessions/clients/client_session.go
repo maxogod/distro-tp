@@ -41,6 +41,7 @@ func (cs *clientSession) InitiateControlSequence() error {
 	workersToNotify := []enum.WorkerType{
 		enum.FilterWorker, enum.GroupbyWorker,
 		enum.ReducerWorker, enum.JoinerWorker,
+		enum.AggregatorWorker,
 	}
 	for _, worker := range workersToNotify {
 		if err = cs.controlHandler.SendDone(worker, 0); err != nil {
