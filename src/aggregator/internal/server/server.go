@@ -3,12 +3,13 @@ package server
 import (
 	"os"
 	"os/signal"
-	"sync/atomic"
+	"sync"
 	"syscall"
 
 	"github.com/maxogod/distro-tp/src/aggregator/business"
 	"github.com/maxogod/distro-tp/src/aggregator/config"
 	"github.com/maxogod/distro-tp/src/aggregator/internal/task_executor"
+	"github.com/maxogod/distro-tp/src/aggregator/internal/update_handler"
 	"github.com/maxogod/distro-tp/src/common/heartbeat"
 	"github.com/maxogod/distro-tp/src/common/leader_election"
 	"github.com/maxogod/distro-tp/src/common/logger"
@@ -19,7 +20,6 @@ import (
 )
 
 type Server struct {
-	iAmLeader      atomic.Bool
 	messageHandler worker.MessageHandler
 	heatbeatSender heartbeat.HeartBeatHandler
 	leaderElection leader_election.LeaderElection
@@ -27,11 +27,14 @@ type Server struct {
 
 func InitServer(conf *config.Config) *Server {
 
+	// map to keep track of finished clients
+	finishedClients := sync.Map{} // map[string]bool
+
 	// initiate Queues and Exchanges
 	aggregatorInputQueue := middleware.GetAggregatorQueue(conf.Address)
 	joinerOutputQueue := middleware.GetJoinerQueue(conf.Address)
 	finishExchange := middleware.GetFinishExchange(conf.Address, []string{string(enum.AggregatorWorker)})
-	//leaderElectionUpdateHandler := update_handler.NewUpdateHandler()
+	updateHandler := update_handler.NewUpdateHandler(&finishedClients)
 	leaderElection := leader_election.NewLeaderElection(
 		conf.LeaderElection.Host,
 		conf.LeaderElection.Port,
@@ -39,7 +42,7 @@ func InitServer(conf *config.Config) *Server {
 		conf.Address,
 		enum.AggregatorWorker,
 		conf.LeaderElection.MaxNodes,
-		nil, //leaderElectionUpdateHandler
+		updateHandler,
 	)
 
 	// initiate internal components
@@ -53,6 +56,8 @@ func InitServer(conf *config.Config) *Server {
 		connectedClients,
 		aggregatorService,
 		joinerOutputQueue,
+		leaderElection,
+		&finishedClients,
 	)
 
 	taskHandler := worker.NewTaskHandler(taskExecutor, true)
@@ -67,7 +72,6 @@ func InitServer(conf *config.Config) *Server {
 		messageHandler: messageHandler,
 		heatbeatSender: heartbeat.NewHeartBeatHandler(conf.Heartbeat.Host, conf.Heartbeat.Port, conf.Heartbeat.Interval),
 		leaderElection: leaderElection,
-		iAmLeader:      atomic.Bool{},
 	}
 }
 

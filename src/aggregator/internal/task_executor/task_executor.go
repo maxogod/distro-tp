@@ -2,9 +2,11 @@ package task_executor
 
 import (
 	"fmt"
+	"sync"
 
 	"github.com/maxogod/distro-tp/src/aggregator/business"
 	"github.com/maxogod/distro-tp/src/aggregator/config"
+	"github.com/maxogod/distro-tp/src/common/leader_election"
 	"github.com/maxogod/distro-tp/src/common/logger"
 	"github.com/maxogod/distro-tp/src/common/middleware"
 	"github.com/maxogod/distro-tp/src/common/models/enum"
@@ -17,18 +19,25 @@ type AggregatorExecutor struct {
 	connectedClients  map[string]middleware.MessageMiddleware
 	aggregatorService business.AggregatorService
 	finishExecutor    FinishExecutor
+
+	leaderElection  leader_election.LeaderElection
+	finishedClients *sync.Map // map[string]bool
 }
 
 func NewAggregatorExecutor(config *config.Config,
 	connectedClients map[string]middleware.MessageMiddleware,
 	aggregatorService business.AggregatorService,
 	outputQueue middleware.MessageMiddleware,
+	leaderElection leader_election.LeaderElection,
+	finishedClients *sync.Map,
 ) worker.TaskExecutor {
 	return &AggregatorExecutor{
 		config:            config,
 		connectedClients:  connectedClients,
 		aggregatorService: aggregatorService,
 		finishExecutor:    NewFinishExecutor(config.Address, aggregatorService, outputQueue, config.Limits),
+		leaderElection:    leaderElection,
+		finishedClients:   finishedClients,
 	}
 }
 
@@ -102,6 +111,11 @@ func (ae *AggregatorExecutor) HandleFinishClient(dataEnvelope *protocol.DataEnve
 	defer ackHandler(shouldAck, false)
 
 	clientID := dataEnvelope.GetClientId()
+
+	if ae.actionNonLeader(clientID) {
+		return nil
+	}
+
 	taskType := dataEnvelope.GetTaskType()
 
 	if taskType == int32(enum.T1) {
@@ -135,4 +149,12 @@ func (ae *AggregatorExecutor) Close() error {
 	}
 
 	return nil
+}
+
+func (ae *AggregatorExecutor) actionNonLeader(clientID string) bool {
+	if !ae.leaderElection.IsLeader() {
+		ae.finishedClients.LoadOrStore(clientID, true)
+		return true
+	}
+	return false
 }

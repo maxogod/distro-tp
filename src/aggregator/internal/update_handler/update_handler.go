@@ -1,15 +1,20 @@
 package update_handler
 
 import (
+	"sync"
+
 	"github.com/maxogod/distro-tp/src/common/leader_election"
 	"github.com/maxogod/distro-tp/src/common/models/protocol"
 )
 
 type updateHandler struct {
+	finishedClients *sync.Map
 }
 
-func NewUpdateHandler() leader_election.UpdateCallbacks {
-	return &updateHandler{}
+func NewUpdateHandler(finishedClients *sync.Map) leader_election.UpdateCallbacks {
+	return &updateHandler{
+		finishedClients: finishedClients,
+	}
 }
 
 func (uh *updateHandler) ResetUpdates() {
