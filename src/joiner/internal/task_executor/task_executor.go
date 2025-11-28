@@ -209,6 +209,11 @@ func (je *joinerExecutor) HandleTask4(dataEnvelope *protocol.DataEnvelope, ackHa
 }
 
 func (je *joinerExecutor) HandleFinishClient(dataEnvelope *protocol.DataEnvelope, ackHandler func(bool, bool) error) error {
+	clientID := dataEnvelope.GetClientId()
+	err := je.joinerService.DeleteClientRefData(clientID)
+	if err != nil {
+		return err
+	}
 	ackHandler(true, false)
 	return nil
 }
