@@ -168,8 +168,6 @@ func (ae *AggregatorExecutor) actionNonLeader(clientID string) bool {
 	return false
 }
 
-// ERROR HAPPENS HERE!!!
-// Makes it so that task doesnt work
 func (ae *AggregatorExecutor) removeClientData(clientID string) {
 	ae.aggregatorService.RemoveData(clientID)
 	if q, exists := ae.connectedClients[clientID]; exists {
