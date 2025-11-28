@@ -13,8 +13,6 @@ import (
 )
 
 const BUFFER_SIZE = 1024
-const MAX_CONNECTION_RETRIES = 5
-const CONNECTION_RETRY_DELAY = 1
 
 type heartbeatHandler struct {
 	host     string
