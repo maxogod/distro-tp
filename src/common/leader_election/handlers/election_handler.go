@@ -168,8 +168,8 @@ func (eh *electionHandler) sendAckMessage(nodeConn middleware.MessageMiddleware,
 
 func (eh *electionHandler) sendCoordinatorMessage() {
 	coordMsg := &protocol.SyncMessage{
-		NodeId:   int32(eh.id),
-		LeaderId: int32(eh.id),
+		NodeId:   eh.id,
+		LeaderId: eh.id,
 		Action:   int32(enum.COORDINATOR),
 	}
 	payload, err := proto.Marshal(coordMsg)
