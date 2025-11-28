@@ -2,7 +2,7 @@ data_path: "./.data"
 output_path: "./.output"
 batch_size: 1000
 server:
-  host: "gateway"
+  host: "gateway1"
   port: 8080
   connection_retries: 5
 log:

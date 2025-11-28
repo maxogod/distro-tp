@@ -33,8 +33,8 @@ services:
       - NETWORK=distro_tp_net
       - HOST_PROJECT_PATH=${PWD}
     
-  gateway:
-    container_name: gateway
+  gateway1:
+    container_name: gateway1
     build:
       dockerfile: ./src/gateway/Dockerfile
     image: gateway:latest
@@ -206,7 +206,7 @@ services:
       - ./.output1:/app/.output
       - ./src/client/config.yaml:/app/config.yaml
     depends_on:
-      gateway:
+      gateway1:
         condition: service_healthy
         
   client2:
@@ -222,7 +222,7 @@ services:
       - ./.output2:/app/.output
       - ./src/client/config.yaml:/app/config.yaml
     depends_on:
-      gateway:
+      gateway1:
         condition: service_healthy
         
   client3:
@@ -238,7 +238,7 @@ services:
       - ./.output3:/app/.output
       - ./src/client/config.yaml:/app/config.yaml
     depends_on:
-      gateway:
+      gateway1:
         condition: service_healthy
         
   client4:
@@ -254,7 +254,7 @@ services:
       - ./.output4:/app/.output
       - ./src/client/config.yaml:/app/config.yaml
     depends_on:
-      gateway:
+      gateway1:
         condition: service_healthy
         
 networks:

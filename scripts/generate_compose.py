@@ -74,7 +74,7 @@ lines.append(
 # ==============================
 def add_gateway(count, tags=None):
     for i in range(1, count + 1):
-        cname = "gateway" if count == 1 else f"gateway{i}"
+        cname = f"gateway{i}"
         service_def = f"""  {cname}:
     container_name: {cname}
     build:
@@ -294,7 +294,7 @@ for i in range(gw_count):
       - ./.output{i+1}:/app/.output
       - ./src/client/config.yaml:/app/config.yaml
     depends_on:
-      gateway:
+      gateway1:
         condition: service_healthy
         """
     )
