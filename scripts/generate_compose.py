@@ -87,13 +87,10 @@ def add_gateway(count, tags=None):
 
         service_def += f"""
     image: gateway:latest
-    ports:
-      - '8080:8080'
-      - '8081:8081'
     environment:
       - LEADER_ELECTION_ID={i}
       - LEADER_ELECTION_HOST=gateway{i}
-      - LEADER_ELECTION_PORT=7070
+      - LEADER_ELECTION_PORT=9090
     volumes:
       - ./src/gateway/config.yaml:/app/config.yaml
     depends_on:
