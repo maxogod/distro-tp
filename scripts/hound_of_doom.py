@@ -23,11 +23,11 @@ def run_cmd(cmd_str):
     return res.stdout
 
 class HoundDoom:
-    def __init__(self, amount_to_doom, time_wait, prefix="", exeption_prefix=DEFAULT_EXEPTIONS):
+    def __init__(self, amount_to_doom, time_wait, prefix=None, exeption_prefix=None):
         self.amount_to_doom = amount_to_doom
         self.time_wait = time_wait
-        self.prefix = prefix
-        self.exeption_prefix = exeption_prefix
+        self.prefix = prefix or []
+        self.exeption_prefix = exeption_prefix or []
         containers = self._get_container_names()
         self.containers = [value.strip("'").split(",") for value in containers]
         self.containers.pop(-1) # remove last empty string
@@ -56,9 +56,17 @@ class HoundDoom:
         return res.split("\n")
 
     def _is_eligible_for_doom(self, container_name):
-        has_prefix = container_name.startswith(self.prefix)
-        has_exeption = container_name.startswith(self.exeption_prefix)
-        return container_name and has_prefix and not has_exeption and container_name != RABBITMQ_CONTAINER and container_name != EGG_OF_LIFE_CONTAINER
+        matches_target = True
+        if self.prefix:
+            matches_target = any(container_name.startswith(p) for p in self.prefix)
+
+        matches_exception = any(container_name.startswith(p) for p in self.exeption_prefix)
+
+        return (
+            matches_target
+            and not matches_exception
+            and container_name not in (RABBITMQ_CONTAINER, EGG_OF_LIFE_CONTAINER)
+        )
 
     def _kill(self, container_name, container_id):
         print(f"Killing {container_name}")
@@ -66,29 +74,29 @@ class HoundDoom:
 
 def main():
     if len(argv) < 3:
-        print("Usage: ./hound_of_doom.py <amount_to_doom> <rest_interval_secs> [<target_prefix>] [<exeption_prefix>]")
-        print("Example: ./hound_of_doom.py 2 1")
-        print("Example: ./hound_of_doom.py 2 1 filter")
-        print("Example: ./hound_of_doom.py 2 1 none joiner")
+        print("Usage: ./hound_of_doom.py <amount_to_doom> <rest_interval_secs> [<target_prefixes>] [<exception_prefixes>]")
+        print("Examples:")
+        print("  ./hound_of_doom.py 2 1")
+        print("  ./hound_of_doom.py 2 1 filter,joiner")
+        print("  ./hound_of_doom.py 2 1 none filter,joiner")
         return
 
     amount = int(argv[1])
     time_wait = int(argv[2])
 
-    prefix = ""
-    if len(argv) >= 4:
-        prefix = argv[3]
-        prefix = prefix if prefix != "none" else ""
+    prefix = []
+    if len(argv) >= 4 and argv[3] != "none":
+        prefix = [p for p in argv[3].split(",") if p]
 
-    exeption_prefix = DEFAULT_EXEPTIONS
-    if len(argv) >= 5:
-        exeption_prefix = argv[4]
+    exeption_prefix = []
+    if len(argv) >= 5 and argv[4] != "none":
+        exeption_prefix = [p for p in argv[4].split(",") if p]
 
     print("Initializing Hound of Doom with config:")
     print(f"  - Amount to doom: {amount}")
     print(f"  - Time wait between dooms: {time_wait} seconds")
-    print(f"  - Target prefix: '{prefix}'")
-    print(f"  - Exeption prefix: '{exeption_prefix}'\n")
+    print(f"  - Target prefixes: {prefix}")
+    print(f"  - Exception prefixes: {exeption_prefix}\n")
     hound = HoundDoom(amount, time_wait, prefix=prefix, exeption_prefix=exeption_prefix)
     hound.unleash_doom()
 
