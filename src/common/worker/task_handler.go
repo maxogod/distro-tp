@@ -106,23 +106,20 @@ func (th *taskHandler) handleTask(taskType enum.TaskType, dataEnvelope *protocol
 func (th *taskHandler) HandleFinishClient(dataEnvelope *protocol.DataEnvelope, ackHandler func(bool, bool) error) error {
 	// Remove client sequences tracking
 	clientID := dataEnvelope.GetClientId()
+	count := th.messagesReceived[clientID]
 
-	count, existsCount := th.messagesReceived[clientID]
-	if existsCount && count != dataEnvelope.GetTotalMessages() {
-		if dataEnvelope.GetTotalMessages() != 0 {
-			th.totalMessagesToReceive[clientID] = dataEnvelope.GetTotalMessages()
-			ackHandler(true, false)
-			return nil
-		}
+	logger.Logger.Infof("[%s] Finished processing client in TaskHandler. Received %d/%d messages", clientID, count, dataEnvelope.GetTotalMessages())
+	if dataEnvelope.GetTotalMessages() == 0 || count == dataEnvelope.GetTotalMessages() {
+		delete(th.sequencesPerClient, clientID)
+		delete(th.messagesReceived, clientID)
+		delete(th.totalMessagesToReceive, clientID)
+
+		return th.taskExecutor.HandleFinishClient(dataEnvelope, ackHandler)
 	}
-	// If this is reached, then the total messages was met
 
-	delete(th.sequencesPerClient, clientID)
-	delete(th.messagesReceived, clientID)
-	delete(th.totalMessagesToReceive, clientID)
-
-	// Call executor finish client handler
-	return th.taskExecutor.HandleFinishClient(dataEnvelope, ackHandler)
+	th.totalMessagesToReceive[clientID] = dataEnvelope.GetTotalMessages()
+	ackHandler(true, false)
+	return nil
 }
 
 func (th *taskHandler) Close() error {

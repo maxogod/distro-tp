@@ -8,6 +8,7 @@ import (
 	"github.com/maxogod/distro-tp/src/common/heartbeat"
 	"github.com/maxogod/distro-tp/src/common/logger"
 	"github.com/maxogod/distro-tp/src/common/middleware"
+	"github.com/maxogod/distro-tp/src/common/models/enum"
 	"github.com/maxogod/distro-tp/src/common/worker"
 	"github.com/maxogod/distro-tp/src/filter/business"
 	"github.com/maxogod/distro-tp/src/filter/config"
@@ -34,6 +35,7 @@ func InitServer(conf *config.Config) *Server {
 	)
 	connectedClients := make(map[string]middleware.MessageMiddleware)
 	processedOutputQueue := make(map[string]middleware.MessageMiddleware)
+	finishExchange := middleware.GetFinishExchange(conf.Address, []string{string(enum.FilterWorker)})
 
 	taskExecutor := task_executor.NewFilterExecutor(
 		conf.TaskConfig,
@@ -49,7 +51,7 @@ func InitServer(conf *config.Config) *Server {
 	messageHandler := worker.NewMessageHandler(
 		taskHandler,
 		[]middleware.MessageMiddleware{filterInputQueue},
-		nil,
+		finishExchange,
 	)
 
 	return &Server{

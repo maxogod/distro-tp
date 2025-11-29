@@ -8,6 +8,7 @@ import (
 	"github.com/maxogod/distro-tp/src/common/heartbeat"
 	"github.com/maxogod/distro-tp/src/common/logger"
 	"github.com/maxogod/distro-tp/src/common/middleware"
+	"github.com/maxogod/distro-tp/src/common/models/enum"
 	"github.com/maxogod/distro-tp/src/common/worker"
 	"github.com/maxogod/distro-tp/src/group_by/business"
 	"github.com/maxogod/distro-tp/src/group_by/config"
@@ -23,6 +24,7 @@ func InitServer(conf *config.Config) *Server {
 	// initiateOutputs
 	groupByInputQueue := middleware.GetGroupByQueue(conf.Address)
 	reducerOutputQueue := middleware.GetReducerQueue(conf.Address)
+	finishExchange := middleware.GetFinishExchange(conf.Address, []string{string(enum.GroupbyWorker)})
 
 	// initiate internal components
 	service := business.NewGroupService()
@@ -38,7 +40,7 @@ func InitServer(conf *config.Config) *Server {
 	messageHandler := worker.NewMessageHandler(
 		taskHandler,
 		[]middleware.MessageMiddleware{groupByInputQueue},
-		nil,
+		finishExchange,
 	)
 
 	return &Server{

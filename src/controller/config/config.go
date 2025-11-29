@@ -16,12 +16,13 @@ type HeartbeatConfig struct {
 }
 
 type Config struct {
-	MiddlewareAddress string
-	Port              int32
-	LogLevel          string
-	ReceivingTimeout  int
-	MaxClients        int
-	Heartbeat         HeartbeatConfig
+	MiddlewareAddress          string
+	Port                       int32
+	LogLevel                   string
+	ReceivingTimeout           int
+	MaxClients                 int
+	Heartbeat                  HeartbeatConfig
+	CompletionAfterDoneTimeout time.Duration
 }
 
 func (c Config) String() string {
@@ -52,6 +53,7 @@ func InitConfig() (*Config, error) {
 	v.BindEnv("log.level", "LOG_LEVEL")
 	v.BindEnv("receiving.timeout", "RECEIVING_TIMEOUT")
 	v.BindEnv("max.clients", "MAX_CLIENTS")
+	v.BindEnv("completion_after_done.timeout", "COMPLETION_AFTER_DONE_TIMEOUT")
 
 	heatbeatConf := HeartbeatConfig{
 		Host:     v.GetString("heartbeat.host"),
@@ -60,12 +62,13 @@ func InitConfig() (*Config, error) {
 	}
 
 	config := &Config{
-		MiddlewareAddress: v.GetString("middleware.address"),
-		Port:              int32(v.GetInt("port")),
-		LogLevel:          v.GetString("log.level"),
-		ReceivingTimeout:  v.GetInt("receiving.timeout"),
-		MaxClients:        v.GetInt("max.clients"),
-		Heartbeat:         heatbeatConf,
+		MiddlewareAddress:          v.GetString("middleware.address"),
+		Port:                       int32(v.GetInt("port")),
+		LogLevel:                   v.GetString("log.level"),
+		ReceivingTimeout:           v.GetInt("receiving.timeout"),
+		MaxClients:                 v.GetInt("max.clients"),
+		Heartbeat:                  heatbeatConf,
+		CompletionAfterDoneTimeout: time.Duration(v.GetInt("completion_after_done.timeout")) * time.Second,
 	}
 
 	return config, nil

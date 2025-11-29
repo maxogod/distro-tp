@@ -3,6 +3,7 @@ package task_executor
 import (
 	"fmt"
 
+	"github.com/maxogod/distro-tp/src/common/logger"
 	"github.com/maxogod/distro-tp/src/common/middleware"
 	"github.com/maxogod/distro-tp/src/common/models/enum"
 	"github.com/maxogod/distro-tp/src/common/models/protocol"
@@ -237,6 +238,8 @@ func (fe *FilterExecutor) HandleFinishClient(dataEnvelope *protocol.DataEnvelope
 	if dataEnvelope.GetTaskType() == int32(enum.T1) { // No more layers for this task
 		worker.SendDone(dataEnvelope.GetClientId(), enum.T1, m)
 	}
+
+	logger.Logger.Infof("[%s] Finished processing client in FilterExecutor", clientID)
 
 	delete(fe.processedQueues, clientID)
 
