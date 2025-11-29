@@ -2,9 +2,10 @@ data_path: "./.data"
 output_path: "./.output"
 batch_size: 1000
 server:
-  host: "gateway1"
+  host: "gateway"
   port: 8080
   connection_retries: 5
+  max_nodes: 3
 log:
   level: "development"
 paths:

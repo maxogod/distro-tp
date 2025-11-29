@@ -42,6 +42,7 @@ type Args struct {
 type Config struct {
 	ServerHost        string
 	ServerPort        int
+	MaxNodes          int
 	LogLevel          string
 	ConnectionRetries int
 	DataPath          string
@@ -54,7 +55,7 @@ type Config struct {
 }
 
 func (c *Config) String() string {
-	return fmt.Sprintf("ServerHost: %s, ServerPort: %d, DataPath: %s", c.ServerHost, c.ServerPort, c.DataPath)
+	return fmt.Sprintf("ServerHost: %s, ServerPort: %d, MaxNodes: %d, DataPath: %s", c.ServerHost, c.ServerPort, c.MaxNodes, c.DataPath)
 }
 
 const CONFIG_FILE_PATH = "./config.yaml"
@@ -72,6 +73,7 @@ func InitConfig() (*Config, error) {
 	config := &Config{
 		ServerHost:        v.GetString("server.host"),
 		ServerPort:        v.GetInt("server.port"),
+		MaxNodes:          v.GetInt("server.max_nodes"),
 		LogLevel:          v.GetString("log.level"),
 		ConnectionRetries: v.GetInt("server.connection_retries"),
 		DataPath:          v.GetString("data_path"),
