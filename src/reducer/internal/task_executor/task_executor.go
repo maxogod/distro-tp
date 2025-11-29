@@ -124,7 +124,8 @@ func (re *reducerExecutor) Close() error {
 	return nil
 }
 func (re *reducerExecutor) HandleFinishClient(dataEnvelope *protocol.DataEnvelope, ackHandler func(bool, bool) error) error {
-	panic("The reducer worker does not require client finishing handling")
+	ackHandler(true, false)
+	return nil
 }
 
 func (re *reducerExecutor) HandleTask1(dataEnvelope *protocol.DataEnvelope, ackHandler func(bool, bool) error) error {
