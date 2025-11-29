@@ -1,7 +1,9 @@
 package manager
 
 import (
-	"github.com/google/uuid"
+	"sync"
+
+	"github.com/maxogod/distro-tp/src/common/logger"
 	"github.com/maxogod/distro-tp/src/common/network"
 	"github.com/maxogod/distro-tp/src/gateway/config"
 	"github.com/maxogod/distro-tp/src/gateway/internal/handler"
@@ -9,40 +11,58 @@ import (
 )
 
 type clientManager struct {
-	clients map[string]clients.ClientSession
+	clients sync.Map
 	config  *config.Config
 }
 
 func NewClientManager(conf *config.Config) ClientManager {
 	return &clientManager{
-		clients: make(map[string]clients.ClientSession),
+		clients: sync.Map{},
 		config:  conf,
 	}
 }
 
 func (cm *clientManager) AddClient(connection network.ConnectionInterface) clients.ClientSession {
-	id := uuid.New().String()
+	idBytes, err := connection.ReceiveData()
+	if err != nil {
+		logger.Logger.Errorf("Error receiving ID for client: %v", err)
+		return nil
+	}
+
+	id := string(idBytes)
+	logger.Logger.Infof("Client connected with ID: %s", id)
+
 	messageHandler := handler.NewMessageHandler(cm.config.MiddlewareAddress, id, cm.config.ReceivingTimeout)
 	session := clients.NewClientSession(id, connection, messageHandler)
-	cm.clients[id] = session
+	cm.clients.Store(id, session)
 	return session
 }
 
 func (cm *clientManager) RemoveClient(id string) {
-	delete(cm.clients, id)
+	cm.clients.Delete(id)
 }
 
 func (cm *clientManager) ReapStaleClients() {
-	for id, session := range cm.clients {
+	cm.clients.Range(func(key, value any) bool {
+		id := key.(string)
+		session := value.(clients.ClientSession)
+
 		if session.IsFinished() {
-			delete(cm.clients, id)
+			cm.clients.Delete(id)
 		}
-	}
+
+		return true
+	})
 }
 
 func (cm *clientManager) Close() {
-	for id, session := range cm.clients {
+	cm.clients.Range(func(key, value any) bool {
+		id := key.(string)
+		session := value.(clients.ClientSession)
+
 		session.Close()
-		delete(cm.clients, id)
-	}
+		cm.clients.Delete(id)
+
+		return true
+	})
 }

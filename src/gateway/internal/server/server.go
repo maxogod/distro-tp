@@ -12,6 +12,7 @@ import (
 	"github.com/maxogod/distro-tp/src/common/leader_election"
 	"github.com/maxogod/distro-tp/src/common/logger"
 	"github.com/maxogod/distro-tp/src/common/models/enum"
+	commonNetwork "github.com/maxogod/distro-tp/src/common/network"
 	"github.com/maxogod/distro-tp/src/gateway/config"
 	"github.com/maxogod/distro-tp/src/gateway/internal/healthcheck"
 	"github.com/maxogod/distro-tp/src/gateway/internal/network"
@@ -84,9 +85,19 @@ func (s *Server) Run() error {
 			break
 		}
 
-		clientSession := s.clientManager.AddClient(clientConnection)
+		go func(conn commonNetwork.ConnectionInterface) {
+			clientSession := s.clientManager.AddClient(conn)
+			if clientSession == nil {
+				closeErr := conn.Close()
+				if closeErr != nil {
+					logger.Logger.Errorf("Failed to close connection: %v", closeErr)
+					return
+				}
+				return
+			}
 
-		go clientSession.ProcessRequest()
+			clientSession.ProcessRequest()
+		}(clientConnection)
 	}
 
 	return nil

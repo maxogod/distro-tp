@@ -6,6 +6,7 @@ import (
 	"os/signal"
 	"syscall"
 
+	"github.com/google/uuid"
 	"github.com/maxogod/distro-tp/src/client/business/task_executor"
 	"github.com/maxogod/distro-tp/src/client/config"
 	"github.com/maxogod/distro-tp/src/common/logger"
@@ -17,6 +18,7 @@ type client struct {
 	conn         network.ConnectionInterface
 	tastExecutor task_executor.TaskExecutor
 	running      bool
+	clientID     string
 }
 
 func NewClient(conf *config.Config) (Client, error) {
@@ -28,9 +30,16 @@ func NewClient(conf *config.Config) (Client, error) {
 		return nil, err
 	}
 
+	clientID := uuid.New().String()
+
+	if err = conn.SendData([]byte(clientID)); err != nil {
+		return nil, fmt.Errorf("failed to send client ID: %w", err)
+	}
+
 	return &client{
 		conf:         conf,
 		conn:         conn,
+		clientID:     clientID,
 		tastExecutor: task_executor.NewTaskExecutor(conf.DataPath, conf.OutputPath, conf.BatchSize, conn, conf),
 	}, nil
 }
