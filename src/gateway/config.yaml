@@ -10,6 +10,6 @@ middleware:
 log:
   level: "development"
 receiving:
-  timeout: 10
+  timeout: 30
 leader_election:
   maxNodes: 7

@@ -176,42 +176,21 @@ func (mh *messageHandler) startReportDataListener() {
 		logger.Logger.Debugf("[%s] Started listening for processed data", mh.clientID)
 		mh.routineReadyCh <- true
 		receiving := true
-		firstMessageReceived := false // To track if aggregator has started sending data
-
-		timer := time.NewTimer(mh.receivingTimeout)
-		defer timer.Stop()
 		defer close(mh.processedCh)
 
 		for receiving {
-			select {
-			case msg := <-msgs:
-				// Reset timer
-				if !timer.Stop() {
-					<-timer.C
-				}
-				timer.Reset(mh.receivingTimeout)
+			msg := <-msgs
+			envelope := &protocol.DataEnvelope{}
+			err := proto.Unmarshal(msg.Body, envelope)
+			if err != nil || envelope.GetClientId() != mh.clientID {
+				msg.Nack(false, false) // Discard unwanted messages
+				continue
+			}
 
-				envelope := &protocol.DataEnvelope{}
-				err := proto.Unmarshal(msg.Body, envelope)
-				if err != nil || envelope.GetClientId() != mh.clientID {
-					msg.Nack(false, false) // Discard unwanted messages
-					continue
-				}
-
-				mh.processedCh <- envelope
-				msg.Ack(false)
-				if envelope.GetIsDone() {
-					receiving = false
-				} else if !firstMessageReceived {
-					firstMessageReceived = true
-				}
-			case <-timer.C:
-				// Only stop receiving if at least one message was received before
-				if firstMessageReceived {
-					logger.Logger.Warnf("[%s] Timeout waiting for processed data", mh.clientID)
-					receiving = false
-				}
-				timer.Reset(mh.receivingTimeout)
+			mh.processedCh <- envelope
+			msg.Ack(false)
+			if envelope.GetIsDone() {
+				receiving = false
 			}
 		}
 		logger.Logger.Debugf("[%s] Finished listening for processed data", mh.clientID)

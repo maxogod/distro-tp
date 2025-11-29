@@ -15,3 +15,6 @@ compare:
 
 clean:
 	sudo rm -rf .output*
+
+check_clients:
+	docker compose logs | grep Pikachu
