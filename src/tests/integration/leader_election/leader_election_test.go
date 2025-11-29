@@ -56,6 +56,9 @@ func (u *testUpdatesCallbacks) ResetUpdates() {
 	u.resetted.Store(true)
 }
 
+func (u *testUpdatesCallbacks) Close() {
+}
+
 func TestSingleNode(t *testing.T) {
 	maxNodes := 1
 
