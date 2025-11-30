@@ -75,7 +75,7 @@ func (ch *controlHandler) AwaitForWorkers() error {
 	sentFromCurrentLayer := 0
 
 	ch.workersMonitoring[currentWorkerType].startOrFinishCh <- true
-	for currentWorkerType != enum.None {
+	for currentWorkerType != enum.None && currentWorkerType != enum.AggregatorWorker {
 		counter := <-ch.counterCh
 
 		receivedFromCurrentLayer++
@@ -115,15 +115,18 @@ func (ch *controlHandler) AwaitForWorkers() error {
 		}
 	}
 
-	select {
-	case <-ch.counterCh: // Only open routine is that of gateway
-		logger.Logger.Debugf("[%s] Final counter received from Gateway workers, data done", ch.clientID)
-	case <-time.After(ch.completionAfterDoneTimeout):
-		logger.Logger.Warnf("[%s] Timeout waiting for final counter from Gateway workers", ch.clientID)
-		clientQueue := middleware.GetProcessedDataExchange(ch.middlewareUrl, ch.clientID)
-		defer clientQueue.Close()
-		worker.SendDone(ch.clientID, ch.taskType, clientQueue)
-	}
+	<-ch.counterCh // TODO: block undefinitely? or timeout?
+	logger.Logger.Debugf("[%s] Final counter received from Gateway workers, data done", ch.clientID)
+
+	// select {
+	// case <-ch.counterCh: // Only open routine is that of gateway
+	// 	logger.Logger.Debugf("[%s] Final counter received from Gateway workers, data done", ch.clientID)
+	// case <-time.After(ch.completionAfterDoneTimeout):
+	// 	logger.Logger.Warnf("[%s] Timeout waiting for final counter from Gateway workers", ch.clientID)
+	// }
+	clientQueue := middleware.GetProcessedDataExchange(ch.middlewareUrl, ch.clientID)
+	defer clientQueue.Close()
+	worker.SendDone(ch.clientID, ch.taskType, clientQueue)
 	ch.workersMonitoring[enum.Gateway].startOrFinishCh <- false // Finally finish gateway layer
 
 	logger.Logger.Debugf("[%s] All workers done, proceed with finish sequence", ch.clientID)
