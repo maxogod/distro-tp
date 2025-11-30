@@ -1,6 +1,7 @@
 package task_executor
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 
@@ -39,6 +40,11 @@ func NewTaskExecutor(dataPath, outputPath string, batchSize int, conn network.Co
 func (t *taskExecutor) Task1() error {
 	if err := t.sendRequestForTask(enum.T1); err != nil {
 		logger.Logger.Errorf("Error making task request %v", err)
+	}
+
+	ackErr := t.awaitGatewayAck(enum.T1)
+	if ackErr != nil {
+		return ackErr
 	}
 
 	transactionsDir := t.dataPath + t.conf.Paths.Transactions
@@ -80,6 +86,11 @@ func (t *taskExecutor) Task1() error {
 func (t *taskExecutor) Task2() error {
 	if err := t.sendRequestForTask(enum.T2); err != nil {
 		logger.Logger.Errorf("Error making task request %v", err)
+	}
+
+	ackErr := t.awaitGatewayAck(enum.T2)
+	if ackErr != nil {
+		return ackErr
 	}
 
 	menuItemsDir := t.dataPath + t.conf.Paths.MenuItems
@@ -158,6 +169,11 @@ func (t *taskExecutor) Task3() error {
 		logger.Logger.Errorf("Error making task request %v", err)
 	}
 
+	ackErr := t.awaitGatewayAck(enum.T3)
+	if ackErr != nil {
+		return ackErr
+	}
+
 	storesDir := t.dataPath + t.conf.Paths.Stores
 	err := t.readAndSendData(
 		enum.T3,
@@ -208,6 +224,11 @@ func (t *taskExecutor) Task3() error {
 func (t *taskExecutor) Task4() error {
 	if err := t.sendRequestForTask(enum.T4); err != nil {
 		logger.Logger.Errorf("Error making task request %v", err)
+	}
+
+	ackErr := t.awaitGatewayAck(enum.T4)
+	if ackErr != nil {
+		return ackErr
 	}
 
 	usersDir := t.dataPath + t.conf.Paths.Users
@@ -421,4 +442,28 @@ func (t *taskExecutor) sendRequestForTask(taskType enum.TaskType) error {
 	}
 
 	return t.conn.SendData(payload)
+}
+
+func (t *taskExecutor) awaitGatewayAck(taskType enum.TaskType) error {
+	data, err := t.conn.ReceiveData()
+	if err != nil {
+		return err
+	}
+
+	controlMsg := &protocol.ControlMessage{}
+	if err = proto.Unmarshal(data, controlMsg); err != nil {
+		return err
+	}
+
+	if !controlMsg.GetIsAck() {
+		return fmt.Errorf("received non-ack control message for task %d", taskType)
+	}
+
+	if controlMsg.GetTaskType() != int32(taskType) {
+		return fmt.Errorf("received ack for unexpected task type %d", controlMsg.GetTaskType())
+	}
+
+	logger.Logger.Debugf("Received ack from gateway for task %d with client ID %s", taskType, controlMsg.GetClientId())
+
+	return nil
 }
