@@ -15,13 +15,6 @@ type HeartbeatConfig struct {
 	Interval time.Duration
 }
 
-type LeaderElectionConfig struct {
-	ID       int
-	MaxNodes int
-	Host     string
-	Port     int
-}
-
 type Config struct {
 	MiddlewareAddress string
 	Port              int32
@@ -29,7 +22,6 @@ type Config struct {
 	LogLevel          string
 	ReceivingTimeout  int
 	Heartbeat         HeartbeatConfig
-	LeaderElection    LeaderElectionConfig
 }
 
 func (c Config) String() string {
@@ -79,13 +71,6 @@ func initConfig(configFilePath string) (*Config, error) {
 		Interval: time.Duration(v.GetInt("heartbeat.interval")) * time.Second,
 	}
 
-	leaderElectionConf := LeaderElectionConfig{
-		ID:       v.GetInt("leader_election.id"),
-		MaxNodes: v.GetInt("leader_election.maxNodes"),
-		Host:     v.GetString("leader_election.host"),
-		Port:     v.GetInt("leader_election.port"),
-	}
-
 	config := &Config{
 		MiddlewareAddress: v.GetString("middleware.address"),
 		Port:              int32(v.GetInt("port")),
@@ -93,7 +78,6 @@ func initConfig(configFilePath string) (*Config, error) {
 		LogLevel:          v.GetString("log.level"),
 		ReceivingTimeout:  v.GetInt("receiving.timeout"),
 		Heartbeat:         heatbeatConf,
-		LeaderElection:    leaderElectionConf,
 	}
 
 	return config, nil
