@@ -58,9 +58,13 @@ func (s *Server) Run() error {
 	for s.running.Load() {
 		s.clientManager.ReapStaleClients()
 
-		clientConnection, err := s.connectionManager.AcceptConnection()
-		if err != nil {
-			logger.Logger.Errorf("Failed to accept connection: %v", err)
+		clientConnection, connErr := s.connectionManager.AcceptConnection()
+		if connErr != nil {
+			if !s.running.Load() {
+				logger.Logger.Infof("action: shutdown_signal | result: closing listener")
+				break
+			}
+			logger.Logger.Errorf("Failed to accept connection: %v", connErr)
 			break
 		}
 
