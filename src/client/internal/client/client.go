@@ -8,10 +8,10 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/google/uuid"
 	"github.com/maxogod/distro-tp/src/client/business/task_executor"
 	"github.com/maxogod/distro-tp/src/client/config"
 	"github.com/maxogod/distro-tp/src/common/logger"
+	"github.com/maxogod/distro-tp/src/common/models/enum"
 	"github.com/maxogod/distro-tp/src/common/network"
 )
 
@@ -24,7 +24,6 @@ type client struct {
 }
 
 func NewClient(conf *config.Config) (Client, error) {
-	clientID := uuid.New().String()
 	conn, err := connectToGateway(conf)
 	if err != nil {
 		logger.Logger.Errorf("could not connect to gateways: %v", err)
@@ -34,7 +33,6 @@ func NewClient(conf *config.Config) (Client, error) {
 	return &client{
 		conf:         conf,
 		conn:         conn,
-		clientID:     clientID,
 		taskExecutor: task_executor.NewTaskExecutor(conf.DataPath, conf.OutputPath, conf.BatchSize, conn, conf),
 	}, nil
 }
@@ -50,18 +48,40 @@ func (c *client) Start(task string) error {
 		return err
 	}
 
+	var taskType enum.TaskType
+	var taskExecutor func() error
+
 	switch task {
 	case c.conf.Args.T1:
-		return c.handleTaskError(c.taskExecutor.Task1())
+		taskType = enum.T1
+		taskExecutor = c.taskExecutor.Task1
 	case c.conf.Args.T2:
-		return c.handleTaskError(c.taskExecutor.Task2())
+		taskType = enum.T2
+		taskExecutor = c.taskExecutor.Task2
 	case c.conf.Args.T3:
-		return c.handleTaskError(c.taskExecutor.Task3())
+		taskType = enum.T3
+		taskExecutor = c.taskExecutor.Task3
 	case c.conf.Args.T4:
-		return c.handleTaskError(c.taskExecutor.Task4())
+		taskType = enum.T4
+		taskExecutor = c.taskExecutor.Task4
+	default:
+		return fmt.Errorf("unknown task: %s", task)
 	}
 
-	return fmt.Errorf("unknown task: %s", task)
+	if err := c.taskExecutor.SendRequestForTask(taskType); err != nil {
+		logger.Logger.Errorf("Error making task request %v", err)
+	}
+
+	clientId, ackErr := c.taskExecutor.AwaitRequestAck(taskType)
+	if ackErr != nil {
+		return ackErr
+	}
+
+	c.clientID = clientId
+
+	logger.Logger.Infof("Client ID %s starting task %s", c.clientID, task)
+
+	return c.handleTaskError(taskExecutor())
 }
 
 func (c *client) Shutdown() {

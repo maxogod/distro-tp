@@ -1,5 +1,9 @@
 package task_executor
 
+import (
+	"github.com/maxogod/distro-tp/src/common/models/enum"
+)
+
 // TaskExecutor handles the execution of tasks by communicating with the server
 // and fetching the processed data accordingly.
 type TaskExecutor interface {
@@ -21,4 +25,10 @@ type TaskExecutor interface {
 
 	// Close releases any resources held by the TaskExecutor.
 	Close()
+
+	// SendRequestForTask sends a request for a given task type to the server.
+	SendRequestForTask(taskType enum.TaskType) error
+
+	// AwaitRequestAck waits for the server to acknowledge the request for a given task type.
+	AwaitRequestAck(taskType enum.TaskType) (string, error)
 }
