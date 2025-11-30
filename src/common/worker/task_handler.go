@@ -108,7 +108,7 @@ func (th *taskHandler) HandleData(dataEnvelope *protocol.DataEnvelope, ackHandle
 func (th *taskHandler) handleTask(taskType enum.TaskType, dataEnvelope *protocol.DataEnvelope, ackHandler func(bool, bool) error) error {
 	handler, exists := th.taskHandlers[taskType]
 	if !exists {
-		if taskType == FINISH {
+		if taskType == FINISH { // TODO: is this necesary now?
 			return nil
 		}
 		return fmt.Errorf("unknown task type: %d", taskType)
