@@ -66,7 +66,10 @@ func (c *client) Start(task string) error {
 
 func (c *client) Shutdown() {
 	c.running = false
-	c.conn.Close()
+	err := c.conn.Close()
+	if err != nil {
+		logger.Logger.Errorf("failed to close Gateway connection: %v", err)
+	}
 	c.tastExecutor.Close()
 	logger.Logger.Infof("action: shutdown | result: success")
 }
