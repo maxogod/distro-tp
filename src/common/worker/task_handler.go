@@ -9,6 +9,7 @@ import (
 )
 
 const FINISH enum.TaskType = 0
+const REAP_AFTER_MSGS = 1000
 
 // Before creating a TaskHandler, a TaskExecutor is required to be implemented
 // for the specific tasks that the worker will handle via the TaskHandler.
@@ -28,6 +29,7 @@ type TaskExecutor interface {
 type taskHandler struct {
 	taskHandlers         map[enum.TaskType]func(*protocol.DataEnvelope, func(bool, bool) error) error
 	sequencesPerClient   map[string]map[int32]bool
+	finishedClients      map[string]bool
 	taskExecutor         TaskExecutor
 	shouldDropDuplicates bool
 
@@ -39,6 +41,7 @@ func NewTaskHandler(taskExecutor TaskExecutor, shouldDropDuplicates bool) DataHa
 	th := &taskHandler{
 		taskExecutor:           taskExecutor,
 		sequencesPerClient:     make(map[string]map[int32]bool),
+		finishedClients:        make(map[string]bool),
 		messagesReceived:       make(map[string]int32),
 		totalMessagesToReceive: make(map[string]int32),
 		shouldDropDuplicates:   shouldDropDuplicates,
@@ -56,6 +59,10 @@ func NewTaskHandler(taskExecutor TaskExecutor, shouldDropDuplicates bool) DataHa
 
 func (th *taskHandler) HandleData(dataEnvelope *protocol.DataEnvelope, ackHandler func(bool, bool) error) error {
 	clientID := dataEnvelope.GetClientId()
+	if th.finishedClients[clientID] {
+		logger.Logger.Debugf("[%s] Received message for finished client. Ignoring.", clientID)
+		return ackHandler(false, false)
+	}
 	seqNum := dataEnvelope.GetSequenceNumber()
 
 	if th.shouldDropDuplicates {
@@ -85,8 +92,14 @@ func (th *taskHandler) HandleData(dataEnvelope *protocol.DataEnvelope, ackHandle
 		th.messagesReceived[clientID] = 1
 	}
 
+	// logger.Logger.Debugf("[%s] COUNT - Messages received: %d", clientID, th.messagesReceived[clientID])
 	if total, exists := th.totalMessagesToReceive[clientID]; exists && total != 0 && th.messagesReceived[clientID] == total {
+		logger.Logger.Debugf("[%s] All messages received for client. Cleaning up.", clientID)
+		th.finishedClients[clientID] = true
+		th.reapFinishedClients(false)
 		return th.HandleFinishClient(dataEnvelope, func(bool, bool) error { return nil }) // TODO: what if it dies here
+	} else if th.messagesReceived[clientID]%REAP_AFTER_MSGS == 0 {
+		th.reapFinishedClients(true)
 	}
 
 	return nil
@@ -103,6 +116,17 @@ func (th *taskHandler) handleTask(taskType enum.TaskType, dataEnvelope *protocol
 	return handler(dataEnvelope, ackHandler)
 }
 
+func (th *taskHandler) reapFinishedClients(clearFinished bool) {
+	for clientID := range th.finishedClients {
+		delete(th.sequencesPerClient, clientID)
+		delete(th.messagesReceived, clientID)
+		delete(th.totalMessagesToReceive, clientID)
+	}
+	if clearFinished {
+		clear(th.finishedClients)
+	}
+}
+
 func (th *taskHandler) HandleFinishClient(dataEnvelope *protocol.DataEnvelope, ackHandler func(bool, bool) error) error {
 	// Remove client sequences tracking
 	clientID := dataEnvelope.GetClientId()
@@ -110,14 +134,14 @@ func (th *taskHandler) HandleFinishClient(dataEnvelope *protocol.DataEnvelope, a
 
 	logger.Logger.Infof("[%s] Finished processing client in TaskHandler. Received %d/%d messages", clientID, count, dataEnvelope.GetTotalMessages())
 	if dataEnvelope.GetTotalMessages() == 0 || count == dataEnvelope.GetTotalMessages() {
-		delete(th.sequencesPerClient, clientID)
-		delete(th.messagesReceived, clientID)
-		delete(th.totalMessagesToReceive, clientID)
-
+		th.finishedClients[clientID] = true
+		th.reapFinishedClients(false)
 		return th.taskExecutor.HandleFinishClient(dataEnvelope, ackHandler)
 	}
 
-	th.totalMessagesToReceive[clientID] = dataEnvelope.GetTotalMessages()
+	if dataEnvelope.GetTotalMessages() != 0 {
+		th.totalMessagesToReceive[clientID] = dataEnvelope.GetTotalMessages()
+	}
 	ackHandler(true, false)
 	return nil
 }
