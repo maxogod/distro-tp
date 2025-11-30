@@ -53,20 +53,8 @@ func (cs *clientSession) ProcessRequest() error {
 		return err
 	}
 
-	// Response to client request
-	requestAck := &protocol.ControlMessage{
-		ClientId: cs.Id,
-		TaskType: int32(taskType),
-		IsAck:    true,
-	}
-	ackBytes, err := proto.Marshal(requestAck)
+	err = cs.sendClientRequestAck(taskType)
 	if err != nil {
-		logger.Logger.Errorf("[%s] Error marshaling ack response: %v", cs.Id, err)
-		return err
-	}
-
-	if err = cs.clientConnection.SendData(ackBytes); err != nil {
-		logger.Logger.Errorf("[%s] Error sending ack response: %v", cs.Id, err)
 		return err
 	}
 
@@ -107,6 +95,26 @@ func (cs *clientSession) ProcessRequest() error {
 	cs.Close()
 	logger.Logger.Debugf("[%s] All report data sent to client, and session closed", cs.Id)
 
+	return nil
+}
+
+func (cs *clientSession) sendClientRequestAck(taskType enum.TaskType) error {
+	requestAck := &protocol.ControlMessage{
+		ClientId: cs.Id,
+		TaskType: int32(taskType),
+		IsAck:    true,
+	}
+
+	ackBytes, err := proto.Marshal(requestAck)
+	if err != nil {
+		logger.Logger.Errorf("[%s] Error marshaling ack response: %v", cs.Id, err)
+		return err
+	}
+
+	if err = cs.clientConnection.SendData(ackBytes); err != nil {
+		logger.Logger.Errorf("[%s] Error sending ack response: %v", cs.Id, err)
+		return err
+	}
 	return nil
 }
 
