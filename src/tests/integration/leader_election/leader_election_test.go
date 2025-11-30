@@ -1,7 +1,10 @@
 package leader_election_test
 
 import (
+	"os"
+	"os/signal"
 	"sync/atomic"
+	"syscall"
 	"testing"
 	"time"
 
@@ -302,4 +305,136 @@ func TestNewNodeLeaderDiesMidUpdates(t *testing.T) {
 
 	le1.Close()
 	le3.Close()
+}
+
+func TestLeaderFailureAndReinstatement(t *testing.T) {
+	maxNodes := 5
+
+	// Start 5 nodes
+	le1 := leader_election.NewLeaderElection("localhost", 9091, 1, url, enum.None, maxNodes, nil)
+	le2 := leader_election.NewLeaderElection("localhost", 9092, 2, url, enum.None, maxNodes, nil)
+	le3 := leader_election.NewLeaderElection("localhost", 9093, 3, url, enum.None, maxNodes, nil)
+	le4 := leader_election.NewLeaderElection("localhost", 9094, 4, url, enum.None, maxNodes, nil)
+	le5 := leader_election.NewLeaderElection("localhost", 9095, 5, url, enum.None, maxNodes, nil)
+
+	go le1.Start()
+	go le2.Start()
+	go le3.Start()
+	go le4.Start()
+	go le5.Start()
+
+	time.Sleep(sleepTime)
+
+	// Node 5 should be the leader (highest ID)
+	assert.False(t, le1.IsLeader(), "Node 1 should not be leader")
+	assert.False(t, le2.IsLeader(), "Node 2 should not be leader")
+	assert.False(t, le3.IsLeader(), "Node 3 should not be leader")
+	assert.False(t, le4.IsLeader(), "Node 4 should not be leader")
+	assert.True(t, le5.IsLeader(), "Node 5 should be leader")
+
+	// Kill node 5 (the leader)
+	le5.Close()
+	time.Sleep(sleepTime)
+
+	// Node 4 should now be the leader (highest remaining ID)
+	assert.False(t, le1.IsLeader(), "Node 1 should not be leader")
+	assert.False(t, le2.IsLeader(), "Node 2 should not be leader")
+	assert.False(t, le3.IsLeader(), "Node 3 should not be leader")
+	assert.True(t, le4.IsLeader(), "Node 4 should be leader after node 5 dies")
+
+	// Reinstate node 5
+	le5 = leader_election.NewLeaderElection("localhost", 9095, 5, url, enum.None, maxNodes, nil)
+	go le5.Start()
+	time.Sleep(sleepTime)
+
+	// Node 5 should be the leader again (highest ID)
+	assert.False(t, le1.IsLeader(), "Node 1 should not be leader")
+	assert.False(t, le2.IsLeader(), "Node 2 should not be leader")
+	assert.False(t, le3.IsLeader(), "Node 3 should not be leader")
+	assert.False(t, le4.IsLeader(), "Node 4 should not be leader after node 5 rejoins")
+	assert.True(t, le5.IsLeader(), "Node 5 should be leader after reinstatement")
+
+	// Cleanup
+	le1.Close()
+	le2.Close()
+	le3.Close()
+	le4.Close()
+	le5.Close()
+}
+
+func TestElectionWatchKillLeader(t *testing.T) {
+	maxNodes := 5
+
+	// Start 5 nodes
+	le1 := leader_election.NewLeaderElection("localhost", 9091, 1, url, enum.None, maxNodes, nil)
+	le2 := leader_election.NewLeaderElection("localhost", 9092, 2, url, enum.None, maxNodes, nil)
+	le3 := leader_election.NewLeaderElection("localhost", 9093, 3, url, enum.None, maxNodes, nil)
+	le4 := leader_election.NewLeaderElection("localhost", 9094, 4, url, enum.None, maxNodes, nil)
+	le5 := leader_election.NewLeaderElection("localhost", 9095, 5, url, enum.None, maxNodes, nil)
+
+	go le1.Start()
+	go le2.Start()
+	go le3.Start()
+	go le4.Start()
+	go le5.Start()
+
+	time.Sleep(sleepTime)
+
+	// Kill node 5 (the leader)
+	le5.Close()
+	time.Sleep(sleepTime)
+
+	// Reinstate node 5
+	le5 = leader_election.NewLeaderElection("localhost", 9095, 5, url, enum.None, maxNodes, nil)
+	go le5.Start()
+	time.Sleep(sleepTime)
+
+	sigCh := make(chan os.Signal, 1)
+	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
+
+	logger.Logger.Info("Election test running. Press Ctrl+C to stop...")
+
+	// Wait for signal
+	<-sigCh
+	logger.Logger.Info("Shutdown signal received, cleaning up...")
+	le1.Close()
+	le2.Close()
+	le3.Close()
+	le4.Close()
+	le5.Close()
+
+	logger.Logger.Info("Election test stopped successfully")
+}
+
+func TestElectionWatch(t *testing.T) {
+	maxNodes := 5
+
+	// Start 5 nodes
+	le1 := leader_election.NewLeaderElection("localhost", 9091, 1, url, enum.None, maxNodes, nil)
+	le2 := leader_election.NewLeaderElection("localhost", 9092, 2, url, enum.None, maxNodes, nil)
+	le3 := leader_election.NewLeaderElection("localhost", 9093, 3, url, enum.None, maxNodes, nil)
+	le4 := leader_election.NewLeaderElection("localhost", 9094, 4, url, enum.None, maxNodes, nil)
+	le5 := leader_election.NewLeaderElection("localhost", 9095, 5, url, enum.None, maxNodes, nil)
+
+	go le1.Start()
+	go le2.Start()
+	go le3.Start()
+	go le4.Start()
+	go le5.Start()
+
+	sigCh := make(chan os.Signal, 1)
+	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
+	logger.Logger.Info("\033[32m||||||||||||| ELECTION TEST RUNNING. PRESS CTRL+C TO STOP... |||||||||||||\u200b\033[0m")
+
+	<-sigCh
+
+	logger.Logger.Info("\033[32m||||||||||||| SHUTDOWN SIGNAL RECV, CLEANING UP... |||||||||||||\u200b\033[0m")
+
+	le1.Close()
+	le2.Close()
+	le3.Close()
+	le4.Close()
+	le5.Close()
+
+	logger.Logger.Info("\033[32m||||||||||||| ELECTION TEST STOPPED SUCCESSFULLY |||||||||||||\u200b\033[0m")
 }
