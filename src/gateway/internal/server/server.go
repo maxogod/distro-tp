@@ -9,9 +9,7 @@ import (
 	"time"
 
 	"github.com/maxogod/distro-tp/src/common/heartbeat"
-	"github.com/maxogod/distro-tp/src/common/leader_election"
 	"github.com/maxogod/distro-tp/src/common/logger"
-	"github.com/maxogod/distro-tp/src/common/models/enum"
 	commonNetwork "github.com/maxogod/distro-tp/src/common/network"
 	"github.com/maxogod/distro-tp/src/gateway/config"
 	"github.com/maxogod/distro-tp/src/gateway/internal/healthcheck"
@@ -26,27 +24,15 @@ type Server struct {
 	clientManager     manager.ClientManager
 	pingServer        healthcheck.PingServer // for service health checks
 	heartbeatSender   heartbeat.HeartBeatHandler
-	leaderElection    leader_election.LeaderElection
 }
 
 func NewServer(conf *config.Config) *Server {
-	leaderElection := leader_election.NewLeaderElection(
-		conf.LeaderElection.Host,
-		conf.LeaderElection.Port,
-		int32(conf.LeaderElection.ID),
-		conf.MiddlewareAddress,
-		enum.Gateway,
-		conf.LeaderElection.MaxNodes,
-		nil, // updateCallbacks
-	)
-
 	s := &Server{
 		config:            conf,
 		connectionManager: network.NewConnectionManager(conf.Port),
 		clientManager:     manager.NewClientManager(conf),
 		pingServer:        healthcheck.NewPingServer(int(conf.HealthCheckPort)), // for health check
 		heartbeatSender:   heartbeat.NewHeartBeatHandler(conf.Heartbeat.Host, conf.Heartbeat.Port, conf.Heartbeat.Interval),
-		leaderElection:    leaderElection,
 	}
 	s.running.Store(true)
 
@@ -68,13 +54,6 @@ func (s *Server) Run() error {
 	if err != nil {
 		logger.Logger.Errorf("action: start_heartbeat_sender | result: failed | error: %s", err.Error())
 	}
-
-	go func() {
-		err = s.leaderElection.Start()
-		if err != nil {
-			logger.Logger.Errorf("Failed to start leader election: %v", err)
-		}
-	}()
 
 	for s.running.Load() {
 		s.clientManager.ReapStaleClients()
