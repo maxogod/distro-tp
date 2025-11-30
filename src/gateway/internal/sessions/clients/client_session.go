@@ -41,6 +41,10 @@ func (cs *clientSession) ProcessRequest() error {
 
 	controlMsg, err := cs.getControlRequest()
 	if err != nil {
+		if cs.IsFinished() {
+			logger.Logger.Infof("[%s] Client session is finished, stopping control request processing", cs.Id)
+			return nil
+		}
 		logger.Logger.Errorf("[%s] Error getting task request: %v", cs.Id, err)
 		return err
 	}
@@ -53,11 +57,20 @@ func (cs *clientSession) ProcessRequest() error {
 		return err
 	}
 
+	err = cs.sendClientRequestAck(taskType)
+	if err != nil {
+		return err
+	}
+
 	// Start processing
 	processData := true
 	for processData {
 		request, err := cs.getRequest()
 		if err != nil {
+			if cs.IsFinished() {
+				logger.Logger.Infof("[%s] Client session is finished, stopping data request processing", cs.Id)
+				return nil
+			}
 			logger.Logger.Errorf("[%s] Error getting request from client: %v", cs.Id, err)
 			return err
 		}
@@ -93,11 +106,31 @@ func (cs *clientSession) ProcessRequest() error {
 	return nil
 }
 
+func (cs *clientSession) sendClientRequestAck(taskType enum.TaskType) error {
+	requestAck := &protocol.ControlMessage{
+		ClientId: cs.Id,
+		TaskType: int32(taskType),
+		IsAck:    true,
+	}
+
+	ackBytes, err := proto.Marshal(requestAck)
+	if err != nil {
+		logger.Logger.Errorf("[%s] Error marshaling ack response: %v", cs.Id, err)
+		return err
+	}
+
+	if err = cs.clientConnection.SendData(ackBytes); err != nil {
+		logger.Logger.Errorf("[%s] Error sending ack response: %v", cs.Id, err)
+		return err
+	}
+	return nil
+}
+
 func (cs *clientSession) Close() {
 	if !cs.IsFinished() {
+		cs.running.Store(false)
 		cs.clientConnection.Close()
 		cs.messageHandler.Close()
-		cs.running.Store(false)
 		logger.Logger.Debugf("[%s] Closed client session", cs.Id)
 	}
 }
@@ -129,7 +162,6 @@ func (cs *clientSession) processResponse() {
 func (cs *clientSession) getRequest() (*protocol.DataEnvelope, error) {
 	requestBytes, err := cs.clientConnection.ReceiveData()
 	if err != nil {
-		logger.Logger.Errorf("[%s] Error receiving data: %v", cs.Id, err)
 		return nil, err
 	}
 
@@ -146,7 +178,6 @@ func (cs *clientSession) getRequest() (*protocol.DataEnvelope, error) {
 func (cs *clientSession) getControlRequest() (*protocol.ControlMessage, error) {
 	requestBytes, err := cs.clientConnection.ReceiveData()
 	if err != nil {
-		logger.Logger.Errorf("[%s] Error receiving data: %v", cs.Id, err)
 		return nil, err
 	}
 

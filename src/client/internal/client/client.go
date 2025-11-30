@@ -2,45 +2,38 @@ package client
 
 import (
 	"fmt"
+	"math/rand"
 	"os"
 	"os/signal"
-	"strconv"
 	"syscall"
+	"time"
 
-	"github.com/google/uuid"
 	"github.com/maxogod/distro-tp/src/client/business/task_executor"
 	"github.com/maxogod/distro-tp/src/client/config"
 	"github.com/maxogod/distro-tp/src/common/logger"
+	"github.com/maxogod/distro-tp/src/common/models/enum"
 	"github.com/maxogod/distro-tp/src/common/network"
 )
 
 type client struct {
 	conf         *config.Config
 	conn         network.ConnectionInterface
-	tastExecutor task_executor.TaskExecutor
+	taskExecutor task_executor.TaskExecutor
 	running      bool
 	clientID     string
 }
 
 func NewClient(conf *config.Config) (Client, error) {
-	clientID := uuid.New().String()
-	connections, err := connectToGateways(conf, clientID)
+	conn, err := connectToGateway(conf)
 	if err != nil {
 		logger.Logger.Errorf("could not connect to gateways: %v", err)
-		return nil, err
-	}
-
-	conn, err := awaitLeaderGateway(connections)
-	if err != nil {
-		logger.Logger.Errorf("could not determine leader gateway: %v", err)
 		return nil, err
 	}
 
 	return &client{
 		conf:         conf,
 		conn:         conn,
-		clientID:     clientID,
-		tastExecutor: task_executor.NewTaskExecutor(conf.DataPath, conf.OutputPath, conf.BatchSize, conn, conf),
+		taskExecutor: task_executor.NewTaskExecutor(conf.DataPath, conf.OutputPath, conf.BatchSize, conn, conf),
 	}, nil
 }
 
@@ -55,25 +48,49 @@ func (c *client) Start(task string) error {
 		return err
 	}
 
+	var taskType enum.TaskType
+	var taskExecutor func() error
+
 	switch task {
 	case c.conf.Args.T1:
-		return c.handleTaskError(c.tastExecutor.Task1())
+		taskType = enum.T1
+		taskExecutor = c.taskExecutor.Task1
 	case c.conf.Args.T2:
-		return c.handleTaskError(c.tastExecutor.Task2())
+		taskType = enum.T2
+		taskExecutor = c.taskExecutor.Task2
 	case c.conf.Args.T3:
-		return c.handleTaskError(c.tastExecutor.Task3())
+		taskType = enum.T3
+		taskExecutor = c.taskExecutor.Task3
 	case c.conf.Args.T4:
-		return c.handleTaskError(c.tastExecutor.Task4())
+		taskType = enum.T4
+		taskExecutor = c.taskExecutor.Task4
+	default:
+		return fmt.Errorf("unknown task: %s", task)
 	}
 
-	return fmt.Errorf("unknown task: %s", task)
+	if err := c.taskExecutor.SendRequestForTask(taskType); err != nil {
+		logger.Logger.Errorf("Error making task request %v", err)
+	}
+
+	clientId, ackErr := c.taskExecutor.AwaitRequestAck(taskType)
+	if ackErr != nil {
+		return ackErr
+	}
+
+	c.clientID = clientId
+
+	logger.Logger.Infof("Client ID %s starting task %s", c.clientID, task)
+
+	return c.handleTaskError(taskExecutor())
 }
 
 func (c *client) Shutdown() {
 	c.running = false
-	// TODO: Cerrar todas las conexiones
-	c.conn.Close()
-	c.tastExecutor.Close()
+	err := c.conn.Close()
+	if err != nil {
+		logger.Logger.Errorf("failed to close Gateway connection: %v", err)
+	}
+	c.taskExecutor.Close()
 	logger.Logger.Infof("action: shutdown | result: success")
 }
 
@@ -97,73 +114,31 @@ func (c *client) handleTaskError(err error) error {
 	return err
 }
 
-func connectToGateways(conf *config.Config, clientID string) (map[int]network.ConnectionInterface, error) {
+func connectToGateway(conf *config.Config) (network.ConnectionInterface, error) {
 	if conf.MaxNodes <= 0 {
 		return nil, fmt.Errorf("gateway count must be positive")
 	}
 
-	connections := make(map[int]network.ConnectionInterface, conf.MaxNodes)
-	for i := 1; i <= conf.MaxNodes; i++ {
+	gatewayIds := make([]int, conf.MaxNodes)
+	for i := 0; i < conf.MaxNodes; i++ {
+		gatewayIds[i] = i + 1
+	}
+
+	rnd := rand.New(rand.NewSource(time.Now().UnixNano()))
+	rnd.Shuffle(len(gatewayIds), func(i, j int) { gatewayIds[i], gatewayIds[j] = gatewayIds[j], gatewayIds[i] })
+
+	for _, gatewayId := range gatewayIds {
 		conn := network.NewConnection()
-		serverAddr := fmt.Sprintf("%s%d:%d", conf.ServerHost, i, conf.ServerPort)
+		serverAddr := fmt.Sprintf("%s%d:%d", conf.ServerHost, gatewayId, conf.ServerPort)
 		if err := conn.Connect(serverAddr, conf.ConnectionRetries); err != nil {
-			logger.Logger.Debugf("could not connect to gateway %s: %v", serverAddr, err)
+			logger.Logger.Debugf("could not connect to gateway%d, trying with another", gatewayId)
 			continue
 		}
 
-		connections[i] = conn
+		logger.Logger.Infof("connected to gateway%d", gatewayId)
 
-		// TODO: Mandar un DataEnvelope en vez del ID directamente
-		if err := conn.SendData([]byte(clientID)); err != nil {
-			return nil, fmt.Errorf("failed to send client ID: %w", err)
-		}
+		return conn, nil
 	}
 
-	if len(connections) == 0 {
-		return nil, fmt.Errorf("could not connect to any gateway")
-	}
-
-	return connections, nil
-}
-
-func awaitLeaderGateway(conns map[int]network.ConnectionInterface) (network.ConnectionInterface, error) {
-	respCh := make(chan int, len(conns))
-
-	for idx, conn := range conns {
-		go func(index int, connection network.ConnectionInterface) {
-			idBytes, err := connection.ReceiveData()
-			if err != nil {
-				logger.Logger.Errorf("connection with gateway%d closed", index)
-				return
-			}
-
-			id := string(idBytes)
-			logger.Logger.Infof("ReadyForData received from gateway%s", id)
-
-			idInt, err := strconv.Atoi(id)
-			if err != nil {
-				logger.Logger.Errorf("invalid gateway id received from gateway%d: %v", index, err)
-				return
-			}
-
-			respCh <- idInt
-		}(idx, conn)
-	}
-
-	leaderIndex := -1
-	for {
-		idx := <-respCh
-		if idx > 0 {
-			leaderIndex = idx
-			break
-		}
-	}
-
-	logger.Logger.Infof("action: gateway_leader_found | gateway%d", leaderIndex)
-
-	conn, ok := conns[leaderIndex]
-	if !ok {
-		return nil, fmt.Errorf("leader gateway %d not found in connections", leaderIndex)
-	}
-	return conn, nil
+	return nil, fmt.Errorf("could not connect to any gateway")
 }

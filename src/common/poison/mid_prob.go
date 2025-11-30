@@ -2,4 +2,5 @@
 
 package poison
 
-const PROBABILITY = 0.0005 // E[~G(p)] = 2000
+// X: amount of messages until failure ~G(p)
+const PROBABILITY = 0.0002 // E[X] = 5000

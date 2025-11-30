@@ -45,9 +45,6 @@ func (fe *finishExecutor) SendAllData(clientID string, taskType enum.TaskType) e
 }
 
 func (fe *finishExecutor) finishTask2(clientID string) error {
-	defer func() {
-		fe.aggregatorService.RemoveData(clientID)
-	}()
 	subtotalResults, quantityResults, err := fe.aggregatorService.GetStoredTotalItems(clientID)
 	if err != nil {
 		return fmt.Errorf("[TASK 2] failed to get results for client %s: %v", clientID, err)
@@ -62,9 +59,6 @@ func (fe *finishExecutor) finishTask2(clientID string) error {
 }
 
 func (fe *finishExecutor) finishTask3(clientID string) error {
-	defer func() {
-		fe.aggregatorService.RemoveData(clientID)
-	}()
 	results, err := fe.aggregatorService.GetStoredTotalPaymentValue(clientID)
 	if err != nil {
 		return fmt.Errorf("[TASK 3] failed to get results for client %s: %v", clientID, err)
@@ -78,9 +72,6 @@ func (fe *finishExecutor) finishTask3(clientID string) error {
 }
 
 func (fe *finishExecutor) finishTask4(clientID string) error {
-	defer func() {
-		fe.aggregatorService.RemoveData(clientID)
-	}()
 	topUsersPerStore, err := fe.aggregatorService.GetStoredCountedUserTransactions(clientID)
 	if err != nil {
 		return fmt.Errorf("[TASK 4] failed to get results for client %s: %v", clientID, err)

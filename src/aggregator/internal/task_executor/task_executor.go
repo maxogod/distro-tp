@@ -72,8 +72,8 @@ func (ae *AggregatorExecutor) HandleTask2(dataEnvelope *protocol.DataEnvelope, a
 func (ae *AggregatorExecutor) HandleTask3(dataEnvelope *protocol.DataEnvelope, ackHandler func(bool, bool) error) error {
 	shouldAck := false
 	defer ackHandler(shouldAck, false)
-
 	clientID := dataEnvelope.GetClientId()
+
 	ae.aggregatorService.StoreData(clientID, dataEnvelope)
 	shouldAck = true
 
@@ -118,6 +118,7 @@ func (ae *AggregatorExecutor) HandleFinishClient(dataEnvelope *protocol.DataEnve
 	ae.finishedClients.LoadOrStore(clientID, taskType)
 
 	if dataEnvelope.GetSequenceNumber() == DELETE_ACTION {
+		logger.Logger.Debugf("Deleting client data for: %s", clientID)
 		ae.removeClientData(clientID)
 		shouldAck = true
 		return nil

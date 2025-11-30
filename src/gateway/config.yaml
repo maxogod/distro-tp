@@ -11,5 +11,3 @@ log:
   level: "development"
 receiving:
   timeout: 30
-leader_election:
-  maxNodes: 7

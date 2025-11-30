@@ -8,6 +8,7 @@ import (
 	"github.com/maxogod/distro-tp/src/common/middleware"
 	"github.com/maxogod/distro-tp/src/common/models/enum"
 	"github.com/maxogod/distro-tp/src/common/models/protocol"
+	"github.com/maxogod/distro-tp/src/common/worker"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -27,12 +28,13 @@ type controlHandler struct {
 	filterQueue             middleware.MessageMiddleware
 	clientControlExchange   middleware.MessageMiddleware
 
-	workersMonitoring map[enum.WorkerType]workerMonitor
-	routineReadyCh    chan bool
-	counterCh         chan *protocol.MessageCounter
+	workersMonitoring          map[enum.WorkerType]workerMonitor
+	routineReadyCh             chan bool
+	counterCh                  chan *protocol.MessageCounter
+	completionAfterDoneTimeout time.Duration
 }
 
-func NewControlHandler(middlewareUrl, clientID string, taskType enum.TaskType) ControlHandler {
+func NewControlHandler(middlewareUrl, clientID string, taskType enum.TaskType, completionAfterDoneTimeout time.Duration) ControlHandler {
 	h := &controlHandler{
 		clientID:      clientID,
 		taskType:      taskType,
@@ -43,9 +45,10 @@ func NewControlHandler(middlewareUrl, clientID string, taskType enum.TaskType) C
 		filterQueue:             middleware.GetFilterQueue(middlewareUrl),
 		clientControlExchange:   middleware.GetClientControlExchange(middlewareUrl, clientID),
 
-		workersMonitoring: make(map[enum.WorkerType]workerMonitor),
-		routineReadyCh:    make(chan bool),
-		counterCh:         make(chan *protocol.MessageCounter, 9999),
+		workersMonitoring:          make(map[enum.WorkerType]workerMonitor),
+		routineReadyCh:             make(chan bool),
+		counterCh:                  make(chan *protocol.MessageCounter, 9999),
+		completionAfterDoneTimeout: completionAfterDoneTimeout,
 	}
 
 	workers := []enum.WorkerType{
@@ -72,7 +75,7 @@ func (ch *controlHandler) AwaitForWorkers() error {
 	sentFromCurrentLayer := 0
 
 	ch.workersMonitoring[currentWorkerType].startOrFinishCh <- true
-	for currentWorkerType != enum.None {
+	for currentWorkerType != enum.None && currentWorkerType != enum.AggregatorWorker {
 		counter := <-ch.counterCh
 
 		receivedFromCurrentLayer++
@@ -100,6 +103,9 @@ func (ch *controlHandler) AwaitForWorkers() error {
 				ch.workersMonitoring[nextLayer].startOrFinishCh <- true // start next layer
 			} else if nextLayer == enum.AggregatorWorker {
 				ch.SendDone(nextLayer, sentFromCurrentLayer, false) // Notify aggregators the total msgs to wait
+			} else if nextLayer == enum.None && currentWorkerType == enum.FilterWorker {
+				logger.Logger.Debugf("[%s] No more layers after Filter, sending done to Filter workers", ch.clientID)
+				ch.SendDone(currentWorkerType, 0, false)
 			}
 			currentWorkerType = nextLayer
 			ch.messagesSentToNextLayer = sentFromCurrentLayer
@@ -109,12 +115,18 @@ func (ch *controlHandler) AwaitForWorkers() error {
 		}
 	}
 
-	select {
-	case <-ch.counterCh: // Only open routine is that of gateway
-		logger.Logger.Debugf("[%s] Final counter received from Gateway workers, data done", ch.clientID)
-	case <-time.After(10 * time.Second):
-		logger.Logger.Warnf("[%s] Timeout waiting for final counter from Gateway workers", ch.clientID)
-	}
+	<-ch.counterCh // TODO: block undefinitely? or timeout?
+	logger.Logger.Debugf("[%s] Final counter received from Gateway workers, data done", ch.clientID)
+
+	// select {
+	// case <-ch.counterCh: // Only open routine is that of gateway
+	// 	logger.Logger.Debugf("[%s] Final counter received from Gateway workers, data done", ch.clientID)
+	// case <-time.After(ch.completionAfterDoneTimeout):
+	// 	logger.Logger.Warnf("[%s] Timeout waiting for final counter from Gateway workers", ch.clientID)
+	// }
+	clientQueue := middleware.GetProcessedDataExchange(ch.middlewareUrl, ch.clientID)
+	defer clientQueue.Close()
+	worker.SendDone(ch.clientID, ch.taskType, clientQueue)
 	ch.workersMonitoring[enum.Gateway].startOrFinishCh <- false // Finally finish gateway layer
 
 	logger.Logger.Debugf("[%s] All workers done, proceed with finish sequence", ch.clientID)

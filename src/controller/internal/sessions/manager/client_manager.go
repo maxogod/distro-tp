@@ -20,7 +20,7 @@ func NewClientManager(conf *config.Config) ClientManager {
 }
 
 func (cm *clientManager) AddClient(id string, taskType enum.TaskType) clients.ClientSession {
-	controlHandler := handler.NewControlHandler(cm.config.MiddlewareAddress, id, taskType)
+	controlHandler := handler.NewControlHandler(cm.config.MiddlewareAddress, id, taskType, cm.config.CompletionAfterDoneTimeout)
 	session := clients.NewClientSession(id, controlHandler)
 	cm.clients[id] = session
 	return session

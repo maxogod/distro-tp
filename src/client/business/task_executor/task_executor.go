@@ -1,6 +1,7 @@
 package task_executor
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 
@@ -37,10 +38,6 @@ func NewTaskExecutor(dataPath, outputPath string, batchSize int, conn network.Co
 }
 
 func (t *taskExecutor) Task1() error {
-	if err := t.sendRequestForTask(enum.T1); err != nil {
-		logger.Logger.Errorf("Error making task request %v", err)
-	}
-
 	transactionsDir := t.dataPath + t.conf.Paths.Transactions
 	err := t.readAndSendData(
 		enum.T1,
@@ -78,10 +75,6 @@ func (t *taskExecutor) Task1() error {
 }
 
 func (t *taskExecutor) Task2() error {
-	if err := t.sendRequestForTask(enum.T2); err != nil {
-		logger.Logger.Errorf("Error making task request %v", err)
-	}
-
 	menuItemsDir := t.dataPath + t.conf.Paths.MenuItems
 	err := t.readAndSendData(
 		enum.T2,
@@ -154,10 +147,6 @@ func (t *taskExecutor) Task2() error {
 }
 
 func (t *taskExecutor) Task3() error {
-	if err := t.sendRequestForTask(enum.T3); err != nil {
-		logger.Logger.Errorf("Error making task request %v", err)
-	}
-
 	storesDir := t.dataPath + t.conf.Paths.Stores
 	err := t.readAndSendData(
 		enum.T3,
@@ -206,10 +195,6 @@ func (t *taskExecutor) Task3() error {
 }
 
 func (t *taskExecutor) Task4() error {
-	if err := t.sendRequestForTask(enum.T4); err != nil {
-		logger.Logger.Errorf("Error making task request %v", err)
-	}
-
 	usersDir := t.dataPath + t.conf.Paths.Users
 	err := t.readAndSendData(
 		enum.T4,
@@ -275,7 +260,7 @@ func (t *taskExecutor) Task4() error {
 
 /* --- UTILS --- */
 
-func (t taskExecutor) readAndSendData(
+func (t *taskExecutor) readAndSendData(
 	taskType enum.TaskType,
 	dataDir string,
 	isRef bool,
@@ -330,7 +315,7 @@ func (t taskExecutor) readAndSendData(
 	return nil
 }
 
-func (t taskExecutor) receiveAndSaveResults(
+func (t *taskExecutor) receiveAndSaveResults(
 	path,
 	header string,
 	generateStringObject func(*protocol.DataEnvelope, chan string),
@@ -363,7 +348,7 @@ func (t taskExecutor) receiveAndSaveResults(
 	return nil
 }
 
-func (t taskExecutor) receiveAndSaveEntireResults(
+func (t *taskExecutor) receiveAndSaveEntireResults(
 	path,
 	header string,
 	generateStringObject func(*protocol.DataEnvelope, chan string),
@@ -392,7 +377,7 @@ func (t taskExecutor) receiveAndSaveEntireResults(
 	return nil
 }
 
-func (t taskExecutor) saveEntireResults(
+func (t *taskExecutor) saveEntireResults(
 	path,
 	header string,
 	generateStringObject func(chan string),
@@ -411,7 +396,7 @@ func (t *taskExecutor) Close() {
 	t.fs.Close()
 }
 
-func (t *taskExecutor) sendRequestForTask(taskType enum.TaskType) error {
+func (t *taskExecutor) SendRequestForTask(taskType enum.TaskType) error {
 	msg := &protocol.ControlMessage{
 		TaskType: int32(taskType),
 	}
@@ -421,4 +406,29 @@ func (t *taskExecutor) sendRequestForTask(taskType enum.TaskType) error {
 	}
 
 	return t.conn.SendData(payload)
+}
+
+func (t *taskExecutor) AwaitRequestAck(taskType enum.TaskType) (string, error) {
+	data, err := t.conn.ReceiveData()
+	if err != nil {
+		return "", err
+	}
+
+	controlMsg := &protocol.ControlMessage{}
+	if err = proto.Unmarshal(data, controlMsg); err != nil {
+		return "", err
+	}
+
+	if !controlMsg.GetIsAck() {
+		return "", fmt.Errorf("received non-ack control message for task %d", taskType)
+	}
+
+	if controlMsg.GetTaskType() != int32(taskType) {
+		return "", fmt.Errorf("received ack for unexpected task type %d", controlMsg.GetTaskType())
+	}
+
+	clientId := controlMsg.GetClientId()
+	logger.Logger.Debugf("Received ack from gateway for task %d with client ID %s", taskType, clientId)
+
+	return clientId, nil
 }
