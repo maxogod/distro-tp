@@ -24,5 +24,5 @@ func main() {
 	server := server.InitServer(conf)
 
 	server.Run()
-	logger.Logger.Infof("Dugtrio thanks you for using the Aggregator Worker!")
+	logger.Logger.Infof("Merentiel thanks you for using the Joiner Worker!")
 }
