@@ -23,13 +23,13 @@ type AggregatorExecutor struct {
 	finishExecutor    FinishExecutor
 
 	leaderElection  leader_election.LeaderElection
-	finishedClients *sync.Map // map[string]bool
+	finishedClients *sync.Map // map[string]enum.TaskType
 }
 
 func NewAggregatorExecutor(config *config.Config,
 	connectedClients map[string]middleware.MessageMiddleware,
 	aggregatorService business.AggregatorService,
-	outputQueue middleware.MessageMiddleware,
+	finishExecutor FinishExecutor,
 	leaderElection leader_election.LeaderElection,
 	finishedClients *sync.Map,
 ) worker.TaskExecutor {
@@ -37,7 +37,7 @@ func NewAggregatorExecutor(config *config.Config,
 		config:            config,
 		connectedClients:  connectedClients,
 		aggregatorService: aggregatorService,
-		finishExecutor:    NewFinishExecutor(config.Address, aggregatorService, outputQueue, config.Limits),
+		finishExecutor:    finishExecutor,
 		leaderElection:    leaderElection,
 		finishedClients:   finishedClients,
 	}
@@ -113,6 +113,9 @@ func (ae *AggregatorExecutor) HandleFinishClient(dataEnvelope *protocol.DataEnve
 	defer ackHandler(shouldAck, false)
 
 	clientID := dataEnvelope.GetClientId()
+	taskType := dataEnvelope.GetTaskType()
+
+	ae.finishedClients.LoadOrStore(clientID, taskType)
 
 	if dataEnvelope.GetSequenceNumber() == DELETE_ACTION {
 		ae.removeClientData(clientID)
@@ -120,12 +123,11 @@ func (ae *AggregatorExecutor) HandleFinishClient(dataEnvelope *protocol.DataEnve
 		return nil
 	}
 
-	if ae.actionNonLeader(clientID) {
+	// only the leader should finish clients
+	if !ae.leaderElection.IsLeader() {
 		shouldAck = true
 		return nil
 	}
-
-	taskType := dataEnvelope.GetTaskType()
 
 	if taskType == int32(enum.T1) {
 		shouldAck = true
@@ -143,6 +145,7 @@ func (ae *AggregatorExecutor) HandleFinishClient(dataEnvelope *protocol.DataEnve
 		logger.Logger.Debug("Client Finished: ", clientID)
 		shouldAck = true
 	}()
+
 	return nil
 }
 
@@ -160,16 +163,8 @@ func (ae *AggregatorExecutor) Close() error {
 	return nil
 }
 
-func (ae *AggregatorExecutor) actionNonLeader(clientID string) bool {
-	if !ae.leaderElection.IsLeader() {
-		ae.finishedClients.LoadOrStore(clientID, true)
-		return true
-	}
-	return false
-}
-
 func (ae *AggregatorExecutor) removeClientData(clientID string) {
-	ae.aggregatorService.RemoveData(clientID)
+	//ae.aggregatorService.RemoveData(clientID)
 	if q, exists := ae.connectedClients[clientID]; exists {
 		q.Close()
 		delete(ae.connectedClients, clientID)
@@ -177,3 +172,6 @@ func (ae *AggregatorExecutor) removeClientData(clientID string) {
 	ae.finishedClients.LoadAndDelete(clientID)
 	logger.Logger.Debugf("Removed client data for: %s", clientID)
 }
+
+
+

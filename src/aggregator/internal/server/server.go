@@ -28,13 +28,22 @@ type Server struct {
 func InitServer(conf *config.Config) *Server {
 
 	// map to keep track of finished clients
-	finishedClients := sync.Map{} // map[string]bool
+	finishedClients := sync.Map{} // map[string]enum.TaskType
 
 	// initiate Queues and Exchanges
 	aggregatorInputQueue := middleware.GetAggregatorQueue(conf.Address)
 	joinerOutputQueue := middleware.GetJoinerQueue(conf.Address)
 	finishExchange := middleware.GetFinishExchange(conf.Address, []string{string(enum.AggregatorWorker)})
-	updateHandler := update_handler.NewUpdateHandler(&finishedClients)
+
+	// initiate internal components
+	cacheService := storage.NewDiskMemoryStorage()
+	connectedClients := make(map[string]middleware.MessageMiddleware)
+
+	aggregatorService := business.NewAggregatorService(cacheService)
+	finishExecutor := task_executor.NewFinishExecutor(conf.Address, aggregatorService, joinerOutputQueue, conf.Limits)
+
+	// leader election setup
+	updateHandler := update_handler.NewUpdateHandler(&finishedClients, finishExecutor)
 	leaderElection := leader_election.NewLeaderElection(
 		conf.LeaderElection.Host,
 		conf.LeaderElection.Port,
@@ -45,23 +54,16 @@ func InitServer(conf *config.Config) *Server {
 		updateHandler,
 	)
 
-	// initiate internal components
-	cacheService := storage.NewDiskMemoryStorage()
-	connectedClients := make(map[string]middleware.MessageMiddleware)
-
-	aggregatorService := business.NewAggregatorService(cacheService)
-
+	// message handler setup
 	taskExecutor := task_executor.NewAggregatorExecutor(
 		conf,
 		connectedClients,
 		aggregatorService,
-		joinerOutputQueue,
+		finishExecutor,
 		leaderElection,
 		&finishedClients,
 	)
-
 	taskHandler := worker.NewTaskHandler(taskExecutor, true)
-
 	messageHandler := worker.NewMessageHandler(
 		taskHandler,
 		[]middleware.MessageMiddleware{aggregatorInputQueue},

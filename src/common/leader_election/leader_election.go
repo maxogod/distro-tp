@@ -192,7 +192,7 @@ func (le *leaderElection) Close() error {
 	}
 	le.heartbeatHandler.Close()
 	// TODO: check if this breaks stuff
-	le.updateCallbacks.Close()
+	//le.updateCallbacks.Close()
 
 	if err := le.coordMiddleware.Close(); err != middleware.MessageMiddlewareSuccess {
 		return fmt.Errorf("error closing coord middleware: %d", int(err))

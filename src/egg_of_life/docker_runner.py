@@ -1,3 +1,4 @@
+import re
 import subprocess
 import threading
 from queue import Queue
@@ -27,10 +28,32 @@ class DockerRunner:
         self._commands_queue.put(CLOSE_SIGNAL) # Unblock queue
         self._runner_thread.join()
 
+    def _extract_container_number(self, container_name: str) -> str:
+        """Extract number from container name (e.g., 'aggregator1' -> '1')"""
+        match = re.search(r'(\d+)$', container_name)
+        return match.group(1) if match else ""
+
+    def _build_env_variables(self, container_name: str) -> str:
+        """Build environment variables string for the container"""
+        env_vars = ""
+
+        # Check if it's an aggregator, gateway, etc. that needs LEADER_ELECTION vars
+        if any(prefix in container_name for prefix in ["aggregator", "gateway"]):
+            node_id = self._extract_container_number(container_name)
+            if node_id:
+                env_vars = (
+                    f"-e LEADER_ELECTION_ID={node_id} "
+                    f"-e LEADER_ELECTION_HOST={container_name} "
+                    f"-e LEADER_ELECTION_PORT=9090"
+                )
+        print(f"Env vars for {container_name}: {env_vars}")
+        return env_vars
+
     def restart_container(self, name, image):
         print(f"Launching new container {name} (image: {image}) on network {self._network}")
 
         folder_name = image.split(":")[0]
+        env_vars = self._build_env_variables(name)
 
         cmd = (
             f"docker run -d --name {name} "
@@ -38,6 +61,7 @@ class DockerRunner:
             f"--label {CREATOR_LABEL} "
             f"--label com.docker.compose.project={PROJECT} "
             f"-v {self._host_path}/src/{folder_name}/config.yaml:/app/config.yaml "
+            f"{env_vars} "
             f"{image}"
         )
         print(cmd)
@@ -81,4 +105,3 @@ class DockerRunner:
         if res.returncode != 0:
             raise RuntimeError(f"Command failed: {cmd_str}\n{res.stderr}")
         return res.stdout.strip()
-

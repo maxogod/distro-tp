@@ -27,6 +27,10 @@ type LeaderElectionConfig struct {
 	Port     int
 }
 
+func (lec LeaderElectionConfig) String() string {
+	return fmt.Sprintf(" ID: %d | MaxNodes: %d | Host: %s | Port: %d", lec.ID, lec.MaxNodes, lec.Host, lec.Port)
+}
+
 type Config struct {
 	Address        string
 	LogLevel       string
@@ -37,7 +41,8 @@ type Config struct {
 
 func (c Config) String() string {
 	return fmt.Sprintf(
-		"Address: %s | LogLevel: %s | Limits: [TransactionSendLimit=%d, MaxAmountToSend=%d]",
+		" ID: %s | Address: %s | LogLevel: %s | Limits: [TransactionSendLimit=%d, MaxAmountToSend=%d]",
+		c.LeaderElection.String(),
 		c.Address,
 		c.LogLevel,
 		c.Limits.TransactionSendLimit,
