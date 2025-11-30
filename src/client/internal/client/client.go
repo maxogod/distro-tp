@@ -1,8 +1,10 @@
 package client
 
 import (
+	"errors"
 	"fmt"
 	"math/rand"
+	"net"
 	"os"
 	"os/signal"
 	"syscall"
@@ -26,7 +28,7 @@ type client struct {
 func NewClient(conf *config.Config) (Client, error) {
 	conn, err := connectToGateway(conf)
 	if err != nil {
-		logger.Logger.Errorf("could not connect to gateways: %v", err)
+		logger.Logger.Debugf("connection error: %v", err)
 		return nil, err
 	}
 
@@ -48,40 +50,7 @@ func (c *client) Start(task string) error {
 		return err
 	}
 
-	var taskType enum.TaskType
-	var taskExecutor func() error
-
-	switch task {
-	case c.conf.Args.T1:
-		taskType = enum.T1
-		taskExecutor = c.taskExecutor.Task1
-	case c.conf.Args.T2:
-		taskType = enum.T2
-		taskExecutor = c.taskExecutor.Task2
-	case c.conf.Args.T3:
-		taskType = enum.T3
-		taskExecutor = c.taskExecutor.Task3
-	case c.conf.Args.T4:
-		taskType = enum.T4
-		taskExecutor = c.taskExecutor.Task4
-	default:
-		return fmt.Errorf("unknown task: %s", task)
-	}
-
-	if err := c.taskExecutor.SendRequestForTask(taskType); err != nil {
-		logger.Logger.Errorf("Error making task request %v", err)
-	}
-
-	clientId, ackErr := c.taskExecutor.AwaitRequestAck(taskType)
-	if ackErr != nil {
-		return ackErr
-	}
-
-	c.clientID = clientId
-
-	logger.Logger.Infof("Client ID %s starting task %s", c.clientID, task)
-
-	return c.handleTaskError(taskExecutor())
+	return c.runTask(task)
 }
 
 func (c *client) Shutdown() {
@@ -96,6 +65,60 @@ func (c *client) Shutdown() {
 
 /* --- UTILS PRIVATE METHODS --- */
 
+func (c *client) getTaskTypeExecutor(task string) (enum.TaskType, func() error, error) {
+	switch task {
+	case c.conf.Args.T1:
+		return enum.T1, c.taskExecutor.Task1, nil
+	case c.conf.Args.T2:
+		return enum.T2, c.taskExecutor.Task2, nil
+	case c.conf.Args.T3:
+		return enum.T3, c.taskExecutor.Task3, nil
+	case c.conf.Args.T4:
+		return enum.T4, c.taskExecutor.Task4, nil
+	default:
+		return enum.TaskType(0), nil, fmt.Errorf("unknown task: %s", task)
+	}
+}
+
+func (c *client) runTask(task string) error {
+	taskType, taskExecutor, err := c.getTaskTypeExecutor(task)
+	if err != nil {
+		return err
+	}
+
+	// TODO: mandar la request con el clientId si existe y sino poner UUID.nil()
+	if err = c.taskExecutor.SendRequestForTask(taskType); err != nil {
+		logger.Logger.Errorf("Error making task request %v", err)
+		return err
+	}
+
+	clientId, ackErr := c.taskExecutor.AwaitRequestAck(taskType)
+	if ackErr != nil {
+		logger.Logger.Debugf("Error waiting for ack, reconnecting to another gateway")
+		return c.reconnectToGateway(task)
+	}
+
+	c.clientID = clientId
+
+	logger.Logger.Infof("Client ID %s starting task %s", c.clientID, task)
+
+	return c.handleTaskError(task, taskExecutor())
+}
+
+func (c *client) reconnectToGateway(task string) error {
+	conn, err := connectToGateway(c.conf)
+	if err != nil {
+		logger.Logger.Debugf("connection error: %v", err)
+		return err
+	}
+
+	c.conn = conn
+	c.taskExecutor.Close()
+	c.taskExecutor = task_executor.NewTaskExecutor(c.conf.DataPath, c.conf.OutputPath, c.conf.BatchSize, conn, c.conf)
+
+	return c.runTask(task)
+}
+
 func (c *client) setupGracefulShutdown() {
 	sigChannel := make(chan os.Signal, 1)
 	signal.Notify(sigChannel, syscall.SIGTERM, syscall.SIGINT)
@@ -107,10 +130,18 @@ func (c *client) setupGracefulShutdown() {
 	}()
 }
 
-func (c *client) handleTaskError(err error) error {
+func (c *client) handleTaskError(task string, err error) error {
 	if err != nil && !c.running {
 		return nil // Errors expected if connection is closed by shutdown mid processing
 	}
+
+	if errors.Is(err, syscall.EPIPE) ||
+		errors.Is(err, syscall.ECONNRESET) ||
+		errors.Is(err, net.ErrClosed) {
+		logger.Logger.Debugf("%v. Reconnecting to another gateway", err)
+		return c.reconnectToGateway(task)
+	}
+
 	return err
 }
 
@@ -127,6 +158,7 @@ func connectToGateway(conf *config.Config) (network.ConnectionInterface, error) 
 	rnd := rand.New(rand.NewSource(time.Now().UnixNano()))
 	rnd.Shuffle(len(gatewayIds), func(i, j int) { gatewayIds[i], gatewayIds[j] = gatewayIds[j], gatewayIds[i] })
 
+	// TODO: retry loop ConnectionRetries times
 	for _, gatewayId := range gatewayIds {
 		conn := network.NewConnection()
 		serverAddr := fmt.Sprintf("%s%d:%d", conf.ServerHost, gatewayId, conf.ServerPort)
