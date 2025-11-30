@@ -18,7 +18,7 @@ import (
 type client struct {
 	conf         *config.Config
 	conn         network.ConnectionInterface
-	tastExecutor task_executor.TaskExecutor
+	taskExecutor task_executor.TaskExecutor
 	running      bool
 	clientID     string
 }
@@ -35,7 +35,7 @@ func NewClient(conf *config.Config) (Client, error) {
 		conf:         conf,
 		conn:         conn,
 		clientID:     clientID,
-		tastExecutor: task_executor.NewTaskExecutor(conf.DataPath, conf.OutputPath, conf.BatchSize, conn, conf),
+		taskExecutor: task_executor.NewTaskExecutor(conf.DataPath, conf.OutputPath, conf.BatchSize, conn, conf),
 	}, nil
 }
 
@@ -52,13 +52,13 @@ func (c *client) Start(task string) error {
 
 	switch task {
 	case c.conf.Args.T1:
-		return c.handleTaskError(c.tastExecutor.Task1())
+		return c.handleTaskError(c.taskExecutor.Task1())
 	case c.conf.Args.T2:
-		return c.handleTaskError(c.tastExecutor.Task2())
+		return c.handleTaskError(c.taskExecutor.Task2())
 	case c.conf.Args.T3:
-		return c.handleTaskError(c.tastExecutor.Task3())
+		return c.handleTaskError(c.taskExecutor.Task3())
 	case c.conf.Args.T4:
-		return c.handleTaskError(c.tastExecutor.Task4())
+		return c.handleTaskError(c.taskExecutor.Task4())
 	}
 
 	return fmt.Errorf("unknown task: %s", task)
@@ -70,7 +70,7 @@ func (c *client) Shutdown() {
 	if err != nil {
 		logger.Logger.Errorf("failed to close Gateway connection: %v", err)
 	}
-	c.tastExecutor.Close()
+	c.taskExecutor.Close()
 	logger.Logger.Infof("action: shutdown | result: success")
 }
 
