@@ -296,7 +296,7 @@ func (t *taskExecutor) Task4() error {
 
 /* --- UTILS --- */
 
-func (t taskExecutor) readAndSendData(
+func (t *taskExecutor) readAndSendData(
 	taskType enum.TaskType,
 	dataDir string,
 	isRef bool,
@@ -351,7 +351,7 @@ func (t taskExecutor) readAndSendData(
 	return nil
 }
 
-func (t taskExecutor) receiveAndSaveResults(
+func (t *taskExecutor) receiveAndSaveResults(
 	path,
 	header string,
 	generateStringObject func(*protocol.DataEnvelope, chan string),
@@ -384,7 +384,7 @@ func (t taskExecutor) receiveAndSaveResults(
 	return nil
 }
 
-func (t taskExecutor) receiveAndSaveEntireResults(
+func (t *taskExecutor) receiveAndSaveEntireResults(
 	path,
 	header string,
 	generateStringObject func(*protocol.DataEnvelope, chan string),
@@ -413,7 +413,7 @@ func (t taskExecutor) receiveAndSaveEntireResults(
 	return nil
 }
 
-func (t taskExecutor) saveEntireResults(
+func (t *taskExecutor) saveEntireResults(
 	path,
 	header string,
 	generateStringObject func(chan string),
