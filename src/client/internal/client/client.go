@@ -2,9 +2,11 @@ package client
 
 import (
 	"fmt"
+	"math/rand"
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/maxogod/distro-tp/src/client/business/task_executor"
@@ -23,7 +25,6 @@ type client struct {
 
 func NewClient(conf *config.Config) (Client, error) {
 	clientID := uuid.New().String()
-	// TODO: Cambiar para conectarnos a un gateway random
 	conn, err := connectToGateway(conf)
 	if err != nil {
 		logger.Logger.Errorf("could not connect to gateways: %v", err)
@@ -95,13 +96,23 @@ func connectToGateway(conf *config.Config) (network.ConnectionInterface, error) 
 		return nil, fmt.Errorf("gateway count must be positive")
 	}
 
-	for i := 1; i <= conf.MaxNodes; i++ {
+	gatewayIds := make([]int, conf.MaxNodes)
+	for i := 0; i < conf.MaxNodes; i++ {
+		gatewayIds[i] = i + 1
+	}
+
+	rnd := rand.New(rand.NewSource(time.Now().UnixNano()))
+	rnd.Shuffle(len(gatewayIds), func(i, j int) { gatewayIds[i], gatewayIds[j] = gatewayIds[j], gatewayIds[i] })
+
+	for _, gatewayId := range gatewayIds {
 		conn := network.NewConnection()
-		serverAddr := fmt.Sprintf("%s%d:%d", conf.ServerHost, i, conf.ServerPort)
+		serverAddr := fmt.Sprintf("%s%d:%d", conf.ServerHost, gatewayId, conf.ServerPort)
 		if err := conn.Connect(serverAddr, conf.ConnectionRetries); err != nil {
-			logger.Logger.Debugf("could not connect to gateway %s: %v", serverAddr, err)
+			logger.Logger.Debugf("could not connect to gateway%d, trying with another", gatewayId)
 			continue
 		}
+
+		logger.Logger.Infof("connected to gateway%d", gatewayId)
 
 		return conn, nil
 	}
