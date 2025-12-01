@@ -32,11 +32,14 @@ type messageHandler struct {
 	ackReceived      chan bool
 	routineReadyCh   chan bool
 	receivingTimeout time.Duration
+	refDataSeqNumber int32
 }
 
 func NewMessageHandler(middlewareUrl, clientID string, receivingTimeout int) MessageHandler {
 	h := &messageHandler{
 		clientID: clientID,
+		clientID:         clientID,
+		refDataSeqNumber: 1,
 
 		filtersQueueMiddleware: middleware.GetFilterQueue(middlewareUrl),
 		joinerRefExchange:      middleware.GetRefDataExchange(middlewareUrl, ""),
@@ -139,6 +142,7 @@ func (mh *messageHandler) ForwardData(dataBatch *protocol.DataEnvelope) error {
 
 func (mh *messageHandler) ForwardReferenceData(dataBatch *protocol.DataEnvelope) error {
 	dataBatch.ClientId = mh.clientID
+	dataBatch.SequenceNumber = mh.refDataSeqNumber
 
 	dateBytes, err := proto.Marshal(dataBatch)
 	if err != nil {
@@ -149,6 +153,7 @@ func (mh *messageHandler) ForwardReferenceData(dataBatch *protocol.DataEnvelope)
 	if sendErr := mh.joinerRefExchange.Send(dateBytes); sendErr != middleware.MessageMiddlewareSuccess {
 		return fmt.Errorf("error sending reference data batch to joiner exchange")
 	}
+	mh.refDataSeqNumber++
 	return nil
 }
 
