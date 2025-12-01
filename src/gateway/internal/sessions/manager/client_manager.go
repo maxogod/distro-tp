@@ -42,7 +42,7 @@ func (cm *clientManager) ReapStaleClients() {
 		session := value.(clients.ClientSession)
 
 		if session.IsFinished() {
-			cm.clients.Delete(id)
+			cm.RemoveClient(id)
 		}
 
 		return true
@@ -55,7 +55,7 @@ func (cm *clientManager) Close() {
 		session := value.(clients.ClientSession)
 
 		session.Close()
-		cm.clients.Delete(id)
+		cm.RemoveClient(id)
 
 		return true
 	})
