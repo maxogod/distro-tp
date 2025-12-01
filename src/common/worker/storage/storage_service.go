@@ -95,13 +95,13 @@ func (c *diskMemoryStorage) ReadData(cacheReference string) (chan []byte, error)
 
 func (c *diskMemoryStorage) GetAllFilesReferences() []string {
 	var references []string
-	files, err := filepath.Glob("*" + CACHE_EXTENSION)
+	files, err := filepath.Glob(FOLDER_PATH + "*" + CACHE_EXTENSION)
 	if err != nil {
 		logger.Logger.Errorf("Error globbing cache files: %v", err)
 		return references
 	}
 	for _, file := range files {
-		references = append(references, file[:len(file)-len(CACHE_EXTENSION)])
+		references = append(references, file[len(FOLDER_PATH):len(file)-len(CACHE_EXTENSION)])
 	}
 	return references
 }
