@@ -170,7 +170,7 @@ func (t *taskExecutor) Task3() error {
 		return err
 	}
 
-	t.receiveAndSaveEntireResults(
+	err = t.receiveAndSaveEntireResults(
 		filepath.Join(t.outputPath, t.conf.OutputFiles.T3),
 		t.conf.Headers.T3,
 		func(dataBatch *protocol.DataEnvelope, ch chan string) {
@@ -185,7 +185,9 @@ func (t *taskExecutor) Task3() error {
 			}
 		},
 	)
-
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -231,7 +233,7 @@ func (t *taskExecutor) Task4() error {
 
 	// Receive and save results
 
-	t.receiveAndSaveEntireResults(
+	err = t.receiveAndSaveEntireResults(
 		filepath.Join(t.outputPath, t.conf.OutputFiles.T4),
 		t.conf.Headers.T4,
 		func(dataBatch *protocol.DataEnvelope, ch chan string) {
@@ -246,7 +248,9 @@ func (t *taskExecutor) Task4() error {
 			}
 		},
 	)
-
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -350,12 +354,12 @@ func (t *taskExecutor) receiveAndSaveEntireResults(
 	res, err := t.conn.ReceiveData()
 	if err != nil {
 		logger.Logger.Debugf("connection with server closed")
-		return nil
+		return err
 	}
 	dataEnvelope := &protocol.DataEnvelope{}
-	if err := proto.Unmarshal(res, dataEnvelope); err != nil {
+	if err = proto.Unmarshal(res, dataEnvelope); err != nil {
 		logger.Logger.Errorf("failed to unmarshal response from server: %v", err)
-		return nil
+		return err
 	}
 
 	go func() {
