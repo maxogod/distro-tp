@@ -80,6 +80,7 @@ services:
       - LEADER_ELECTION_ID=1
       - LEADER_ELECTION_HOST=aggregator1
       - LEADER_ELECTION_PORT=9090
+      - NODE_ADDRS=aggregator1:9090,aggregator2:9090,aggregator3:9090,aggregator4:9090,aggregator5:9090,aggregator6:9090,aggregator7:9090,aggregator8:9090,aggregator9:9090,aggregator10:9090
     volumes:
       - ./src/aggregator/config.yaml:/app/config.yaml
     depends_on:
@@ -97,6 +98,7 @@ services:
       - LEADER_ELECTION_ID=2
       - LEADER_ELECTION_HOST=aggregator2
       - LEADER_ELECTION_PORT=9090
+      - NODE_ADDRS=aggregator1:9090,aggregator2:9090,aggregator3:9090,aggregator4:9090,aggregator5:9090,aggregator6:9090,aggregator7:9090,aggregator8:9090,aggregator9:9090,aggregator10:9090
     volumes:
       - ./src/aggregator/config.yaml:/app/config.yaml
     depends_on:
@@ -114,6 +116,7 @@ services:
       - LEADER_ELECTION_ID=3
       - LEADER_ELECTION_HOST=aggregator3
       - LEADER_ELECTION_PORT=9090
+      - NODE_ADDRS=aggregator1:9090,aggregator2:9090,aggregator3:9090,aggregator4:9090,aggregator5:9090,aggregator6:9090,aggregator7:9090,aggregator8:9090,aggregator9:9090,aggregator10:9090
     volumes:
       - ./src/aggregator/config.yaml:/app/config.yaml
     depends_on:
@@ -131,6 +134,7 @@ services:
       - LEADER_ELECTION_ID=4
       - LEADER_ELECTION_HOST=aggregator4
       - LEADER_ELECTION_PORT=9090
+      - NODE_ADDRS=aggregator1:9090,aggregator2:9090,aggregator3:9090,aggregator4:9090,aggregator5:9090,aggregator6:9090,aggregator7:9090,aggregator8:9090,aggregator9:9090,aggregator10:9090
     volumes:
       - ./src/aggregator/config.yaml:/app/config.yaml
     depends_on:
@@ -148,6 +152,7 @@ services:
       - LEADER_ELECTION_ID=5
       - LEADER_ELECTION_HOST=aggregator5
       - LEADER_ELECTION_PORT=9090
+      - NODE_ADDRS=aggregator1:9090,aggregator2:9090,aggregator3:9090,aggregator4:9090,aggregator5:9090,aggregator6:9090,aggregator7:9090,aggregator8:9090,aggregator9:9090,aggregator10:9090
     volumes:
       - ./src/aggregator/config.yaml:/app/config.yaml
     depends_on:
@@ -165,6 +170,7 @@ services:
       - LEADER_ELECTION_ID=6
       - LEADER_ELECTION_HOST=aggregator6
       - LEADER_ELECTION_PORT=9090
+      - NODE_ADDRS=aggregator1:9090,aggregator2:9090,aggregator3:9090,aggregator4:9090,aggregator5:9090,aggregator6:9090,aggregator7:9090,aggregator8:9090,aggregator9:9090,aggregator10:9090
     volumes:
       - ./src/aggregator/config.yaml:/app/config.yaml
     depends_on:
@@ -182,6 +188,7 @@ services:
       - LEADER_ELECTION_ID=7
       - LEADER_ELECTION_HOST=aggregator7
       - LEADER_ELECTION_PORT=9090
+      - NODE_ADDRS=aggregator1:9090,aggregator2:9090,aggregator3:9090,aggregator4:9090,aggregator5:9090,aggregator6:9090,aggregator7:9090,aggregator8:9090,aggregator9:9090,aggregator10:9090
     volumes:
       - ./src/aggregator/config.yaml:/app/config.yaml
     depends_on:
@@ -199,6 +206,7 @@ services:
       - LEADER_ELECTION_ID=8
       - LEADER_ELECTION_HOST=aggregator8
       - LEADER_ELECTION_PORT=9090
+      - NODE_ADDRS=aggregator1:9090,aggregator2:9090,aggregator3:9090,aggregator4:9090,aggregator5:9090,aggregator6:9090,aggregator7:9090,aggregator8:9090,aggregator9:9090,aggregator10:9090
     volumes:
       - ./src/aggregator/config.yaml:/app/config.yaml
     depends_on:
@@ -216,6 +224,7 @@ services:
       - LEADER_ELECTION_ID=9
       - LEADER_ELECTION_HOST=aggregator9
       - LEADER_ELECTION_PORT=9090
+      - NODE_ADDRS=aggregator1:9090,aggregator2:9090,aggregator3:9090,aggregator4:9090,aggregator5:9090,aggregator6:9090,aggregator7:9090,aggregator8:9090,aggregator9:9090,aggregator10:9090
     volumes:
       - ./src/aggregator/config.yaml:/app/config.yaml
     depends_on:
@@ -233,6 +242,7 @@ services:
       - LEADER_ELECTION_ID=10
       - LEADER_ELECTION_HOST=aggregator10
       - LEADER_ELECTION_PORT=9090
+      - NODE_ADDRS=aggregator1:9090,aggregator2:9090,aggregator3:9090,aggregator4:9090,aggregator5:9090,aggregator6:9090,aggregator7:9090,aggregator8:9090,aggregator9:9090,aggregator10:9090
     volumes:
       - ./src/aggregator/config.yaml:/app/config.yaml
     depends_on:
@@ -343,6 +353,22 @@ services:
       rabbitmq:
         condition: service_healthy
 
+  client1:
+    container_name: client1
+    entrypoint: ["/app/app", "t1"]
+    build:
+      dockerfile: ./src/client/Dockerfile
+    image: client:latest
+    networks:
+      - tp_net
+    volumes:
+      - ./.data:/app/.data
+      - ./.output1:/app/.output
+      - ./src/client/config.yaml:/app/config.yaml
+    depends_on:
+      gateway1:
+        condition: service_healthy
+
   client2:
     container_name: client2
     entrypoint: ["/app/app", "t2"]
@@ -391,6 +417,22 @@ services:
       gateway1:
         condition: service_healthy
 
+  client5:
+    container_name: client5
+    entrypoint: ["/app/app", "t1"]
+    build:
+      dockerfile: ./src/client/Dockerfile
+    image: client:latest
+    networks:
+      - tp_net
+    volumes:
+      - ./.data:/app/.data
+      - ./.output5:/app/.output
+      - ./src/client/config.yaml:/app/config.yaml
+    depends_on:
+      gateway1:
+        condition: service_healthy
+
   client6:
     container_name: client6
     entrypoint: ["/app/app", "t2"]
@@ -434,6 +476,22 @@ services:
     volumes:
       - ./.data:/app/.data
       - ./.output8:/app/.output
+      - ./src/client/config.yaml:/app/config.yaml
+    depends_on:
+      gateway1:
+        condition: service_healthy
+
+  client9:
+    container_name: client9
+    entrypoint: ["/app/app", "t1"]
+    build:
+      dockerfile: ./src/client/Dockerfile
+    image: client:latest
+    networks:
+      - tp_net
+    volumes:
+      - ./.data:/app/.data
+      - ./.output9:/app/.output
       - ./src/client/config.yaml:/app/config.yaml
     depends_on:
       gateway1:

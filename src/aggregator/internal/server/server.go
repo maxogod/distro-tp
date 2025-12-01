@@ -50,7 +50,7 @@ func InitServer(conf *config.Config) *Server {
 		int32(conf.LeaderElection.ID),
 		conf.Address,
 		enum.AggregatorWorker,
-		conf.LeaderElection.MaxNodes,
+		conf.LeaderElection.ConnectedNodes,
 		updateHandler,
 	)
 

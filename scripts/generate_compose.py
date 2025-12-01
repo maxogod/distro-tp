@@ -141,6 +141,10 @@ def add_controller(count, tags=None):
 # Function to add aggregator
 # ==============================
 def add_aggregator(count, tags=None):
+
+    node_addrs = [f"aggregator{i}:9090" for i in range(1, count + 1)]
+    node_addrs_str = ",".join(node_addrs)
+
     for i in range(1, count + 1):
         cname = f"aggregator{i}"
         service_def = f"""  {cname}:
@@ -161,6 +165,7 @@ def add_aggregator(count, tags=None):
       - LEADER_ELECTION_ID={i}
       - LEADER_ELECTION_HOST=aggregator{i}
       - LEADER_ELECTION_PORT=9090
+      - NODE_ADDRS={node_addrs_str}
     volumes:
       - ./src/aggregator/config.yaml:/app/config.yaml
     depends_on:

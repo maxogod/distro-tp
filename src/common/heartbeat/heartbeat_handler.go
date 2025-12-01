@@ -177,6 +177,7 @@ func (h *heartbeatHandler) receiveHeartbeatsWithTimeout(onTimeoutFunc func(param
 		case <-h.ctx.Done():
 			return
 		case <-timeoutTimer.C:
+			//logger.Logger.Debugf("[%s:%d] Heartbeat timeout reached after receiving %d heartbeats", h.host, h.port, heartbeatCounter.Load())
 			onTimeoutFunc(int(heartbeatCounter.Load()))
 			return
 		default:
@@ -201,6 +202,8 @@ func (h *heartbeatHandler) receiveHeartbeatsWithTimeout(onTimeoutFunc func(param
 				continue
 			}
 			heartbeatCounter.Add(1)
+			//logger.Logger.Debugf("[%s:%d] Received heartbeats: %d", h.host, h.port, heartbeatCounter.Load())
+
 			timeoutTimer.Reset(timeoutAmount)
 		}
 	}

@@ -21,14 +21,16 @@ type Limits struct {
 }
 
 type LeaderElectionConfig struct {
-	ID       int
-	MaxNodes int
-	Host     string
-	Port     int
+	ID             int
+	Host           string
+	Port           int
+	MaxNodes       int
+	ConnectedNodes []string
 }
 
 func (lec LeaderElectionConfig) String() string {
-	return fmt.Sprintf(" ID: %d | MaxNodes: %d | Host: %s | Port: %d", lec.ID, lec.MaxNodes, lec.Host, lec.Port)
+	connected_nodes := strings.Join(lec.ConnectedNodes, ",")
+	return fmt.Sprintf(" ID: %d | ConnectedNodes: [%s] | Host: %s | Port: %d", lec.ID, connected_nodes, lec.Host, lec.Port)
 }
 
 type Config struct {
@@ -41,7 +43,7 @@ type Config struct {
 
 func (c Config) String() string {
 	return fmt.Sprintf(
-		" ID: %s | Address: %s | LogLevel: %s | Limits: [TransactionSendLimit=%d, MaxAmountToSend=%d]",
+		" %s | Middleware Address: %s | LogLevel: %s | Limits: [TransactionSendLimit=%d, MaxAmountToSend=%d]",
 		c.LeaderElection.String(),
 		c.Address,
 		c.LogLevel,
@@ -74,10 +76,11 @@ func InitConfig(configFilePath string) (*Config, error) {
 	}
 
 	leaderElectionConf := LeaderElectionConfig{
-		ID:       v.GetInt("leader_election.id"),
-		MaxNodes: v.GetInt("leader_election.maxNodes"),
-		Host:     v.GetString("leader_election.host"),
-		Port:     v.GetInt("leader_election.port"),
+		ID:             v.GetInt("leader_election.id"),
+		MaxNodes:       v.GetInt("leader_election.maxNodes"),
+		ConnectedNodes: ViperGetStringSliceWithDefault(v, "leader_election.connected_nodes", []string{}),
+		Host:           v.GetString("leader_election.host"),
+		Port:           v.GetInt("leader_election.port"),
 	}
 
 	limits := Limits{
@@ -94,4 +97,11 @@ func InitConfig(configFilePath string) (*Config, error) {
 	}
 
 	return config, nil
+}
+
+func ViperGetStringSliceWithDefault(v *viper.Viper, key string, defaultValue []string) []string {
+	if !v.IsSet(key) {
+		return defaultValue
+	}
+	return v.GetStringSlice(key)
 }
