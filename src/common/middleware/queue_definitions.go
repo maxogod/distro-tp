@@ -55,12 +55,6 @@ func GetAggregatorQueue(url string) MessageMiddleware {
 	})
 }
 
-func GetHeartbeatQueue(url string) MessageMiddleware {
-	return retryMiddlewareCreation(MIDDLEWARE_CONNECTION_RETRIES, WAIT_INTERVAL, func() (MessageMiddleware, error) {
-		return NewExchangeMiddleware(url, "control_heartbeat", "fanout", []string{})
-	})
-}
-
 /* --- Processed Data Queue --- */
 
 // GetProcessedDataQueue retrieves the middleware that the controller pops from to send the data back to the user.
