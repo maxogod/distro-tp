@@ -11,8 +11,8 @@ services:
   reducer:
     instances: 2
   aggregator:
-    instances: 4
+    instances: 3
   joiner:
     instances: 2
   client:
-    instances: 10
+    instances: 5

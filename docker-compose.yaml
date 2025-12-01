@@ -80,7 +80,7 @@ services:
       - LEADER_ELECTION_ID=1
       - LEADER_ELECTION_HOST=aggregator1
       - LEADER_ELECTION_PORT=9090
-      - LEADER_ELECTION_NODES=aggregator1:9090,aggregator2:9090,aggregator3:9090,aggregator4:9090
+      - LEADER_ELECTION_NODES=aggregator1:9090,aggregator2:9090,aggregator3:9090
     volumes:
       - ./src/aggregator/config.yaml:/app/config.yaml
     depends_on:
@@ -98,7 +98,7 @@ services:
       - LEADER_ELECTION_ID=2
       - LEADER_ELECTION_HOST=aggregator2
       - LEADER_ELECTION_PORT=9090
-      - LEADER_ELECTION_NODES=aggregator1:9090,aggregator2:9090,aggregator3:9090,aggregator4:9090
+      - LEADER_ELECTION_NODES=aggregator1:9090,aggregator2:9090,aggregator3:9090
     volumes:
       - ./src/aggregator/config.yaml:/app/config.yaml
     depends_on:
@@ -116,25 +116,7 @@ services:
       - LEADER_ELECTION_ID=3
       - LEADER_ELECTION_HOST=aggregator3
       - LEADER_ELECTION_PORT=9090
-      - LEADER_ELECTION_NODES=aggregator1:9090,aggregator2:9090,aggregator3:9090,aggregator4:9090
-    volumes:
-      - ./src/aggregator/config.yaml:/app/config.yaml
-    depends_on:
-      rabbitmq:
-        condition: service_healthy
-        
-  aggregator4:
-    container_name: aggregator4
-    build:
-      dockerfile: ./src/aggregator/Dockerfile
-    image: aggregator:latest
-    networks:
-      - tp_net
-    environment:
-      - LEADER_ELECTION_ID=4
-      - LEADER_ELECTION_HOST=aggregator4
-      - LEADER_ELECTION_PORT=9090
-      - LEADER_ELECTION_NODES=aggregator1:9090,aggregator2:9090,aggregator3:9090,aggregator4:9090
+      - LEADER_ELECTION_NODES=aggregator1:9090,aggregator2:9090,aggregator3:9090
     volumes:
       - ./src/aggregator/config.yaml:/app/config.yaml
     depends_on:
@@ -320,86 +302,6 @@ services:
     volumes:
       - ./.data:/app/.data
       - ./.output5:/app/.output
-      - ./src/client/config.yaml:/app/config.yaml
-    depends_on:
-      gateway1:
-        condition: service_healthy
-        
-  client6:
-    container_name: client6
-    entrypoint: ["/app/app", "t2"]
-    build:
-      dockerfile: ./src/client/Dockerfile
-    image: client:latest
-    networks:
-      - tp_net
-    volumes:
-      - ./.data:/app/.data
-      - ./.output6:/app/.output
-      - ./src/client/config.yaml:/app/config.yaml
-    depends_on:
-      gateway1:
-        condition: service_healthy
-        
-  client7:
-    container_name: client7
-    entrypoint: ["/app/app", "t3"]
-    build:
-      dockerfile: ./src/client/Dockerfile
-    image: client:latest
-    networks:
-      - tp_net
-    volumes:
-      - ./.data:/app/.data
-      - ./.output7:/app/.output
-      - ./src/client/config.yaml:/app/config.yaml
-    depends_on:
-      gateway1:
-        condition: service_healthy
-        
-  client8:
-    container_name: client8
-    entrypoint: ["/app/app", "t4"]
-    build:
-      dockerfile: ./src/client/Dockerfile
-    image: client:latest
-    networks:
-      - tp_net
-    volumes:
-      - ./.data:/app/.data
-      - ./.output8:/app/.output
-      - ./src/client/config.yaml:/app/config.yaml
-    depends_on:
-      gateway1:
-        condition: service_healthy
-        
-  client9:
-    container_name: client9
-    entrypoint: ["/app/app", "t1"]
-    build:
-      dockerfile: ./src/client/Dockerfile
-    image: client:latest
-    networks:
-      - tp_net
-    volumes:
-      - ./.data:/app/.data
-      - ./.output9:/app/.output
-      - ./src/client/config.yaml:/app/config.yaml
-    depends_on:
-      gateway1:
-        condition: service_healthy
-        
-  client10:
-    container_name: client10
-    entrypoint: ["/app/app", "t2"]
-    build:
-      dockerfile: ./src/client/Dockerfile
-    image: client:latest
-    networks:
-      - tp_net
-    volumes:
-      - ./.data:/app/.data
-      - ./.output10:/app/.output
       - ./src/client/config.yaml:/app/config.yaml
     depends_on:
       gateway1:
