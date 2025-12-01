@@ -54,7 +54,7 @@ func (fh *fileHandler) GetFileSize(path string) (int, error) {
 	limitedReader := io.LimitReader(file, fileInfo.Size())
 	scanner := bufio.NewScanner(limitedReader)
 
-	var lineCount int = 0
+	lineCount := 0
 	for scanner.Scan() {
 		lineCount++
 	}
