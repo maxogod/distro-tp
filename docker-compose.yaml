@@ -103,7 +103,7 @@ services:
       - LEADER_ELECTION_ID=1
       - LEADER_ELECTION_HOST=aggregator1
       - LEADER_ELECTION_PORT=9090
-      - LEADER_ELECTION_NODES=aggregator1:9090,aggregator2:9090,aggregator3:9090
+      - LEADER_ELECTION_NODES=3
     volumes:
       - ./src/aggregator/config.yaml:/app/config.yaml
     depends_on:
@@ -121,7 +121,7 @@ services:
       - LEADER_ELECTION_ID=2
       - LEADER_ELECTION_HOST=aggregator2
       - LEADER_ELECTION_PORT=9090
-      - LEADER_ELECTION_NODES=aggregator1:9090,aggregator2:9090,aggregator3:9090
+      - LEADER_ELECTION_NODES=3
     volumes:
       - ./src/aggregator/config.yaml:/app/config.yaml
     depends_on:
@@ -139,7 +139,7 @@ services:
       - LEADER_ELECTION_ID=3
       - LEADER_ELECTION_HOST=aggregator3
       - LEADER_ELECTION_PORT=9090
-      - LEADER_ELECTION_NODES=aggregator1:9090,aggregator2:9090,aggregator3:9090
+      - LEADER_ELECTION_NODES=3
     volumes:
       - ./src/aggregator/config.yaml:/app/config.yaml
     depends_on:

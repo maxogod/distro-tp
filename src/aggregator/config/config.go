@@ -24,15 +24,12 @@ type LeaderElectionConfig struct {
 	ID             int
 	Host           string
 	Port           int
-	MaxNodes       int
-	ConnectedNodes []string
+	ConnectedNodes int
 }
 
 func (lec LeaderElectionConfig) String() string {
 
-	connectedNodesStr := strings.Join(lec.ConnectedNodes, ", ")
-
-	return fmt.Sprintf(" ID: %d | ConnectedNodes: [%s], Amount: %d | Host: %s | Port: %d", lec.ID, connectedNodesStr, len(lec.ConnectedNodes), lec.Host, lec.Port)
+	return fmt.Sprintf(" ID: %d | ConnectedNodes: %d | Host: %s | Port: %d", lec.ID, lec.ConnectedNodes, lec.Host, lec.Port)
 }
 
 type Config struct {
@@ -74,8 +71,7 @@ func InitConfig() (*Config, error) {
 
 	leaderElectionConf := LeaderElectionConfig{
 		ID:             v.GetInt("leader_election.id"),
-		MaxNodes:       v.GetInt("leader_election.maxNodes"),
-		ConnectedNodes: ViperGetStringSliceWithDefault(v, "leader_election.nodes", []string{}),
+		ConnectedNodes: v.GetInt("leader_election.nodes"),
 		Host:           v.GetString("leader_election.host"),
 		Port:           v.GetInt("leader_election.port"),
 	}
@@ -94,19 +90,4 @@ func InitConfig() (*Config, error) {
 	}
 
 	return config, nil
-}
-
-func ViperGetStringSliceWithDefault(v *viper.Viper, key string, defaultValue []string) []string {
-	if !v.IsSet(key) {
-		return defaultValue
-	}
-	str := v.GetString(key)
-	if str != "" {
-		values := strings.Split(str, ",")
-		for i, v := range values {
-			values[i] = strings.TrimSpace(v)
-		}
-		return values
-	}
-	return defaultValue
 }

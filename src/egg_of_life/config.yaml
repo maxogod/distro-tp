@@ -2,4 +2,4 @@ port: 8080
 timeout_interval: 10
 check_interval: 1
 leader_election:
-  maxNodes: 3
+  maxNodes: 5

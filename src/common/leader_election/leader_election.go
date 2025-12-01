@@ -64,7 +64,6 @@ func NewLeaderElection(
 	middlewareUrl string,
 	workerType enum.WorkerType,
 	maxNodes int,
-	nodeAddrs []string,
 	updateCallbacks UpdateCallbacks,
 ) LeaderElection {
 	le := &leaderElection{
@@ -79,6 +78,8 @@ func NewLeaderElection(
 		nodeMiddleware:      middleware.GetLeaderElectionReceivingNodeExchange(middlewareUrl, workerType, strconv.Itoa(int(id))),
 		connectedNodes:      make(map[int32]middleware.MessageMiddleware),
 
+		nodeAddrs: make([]string, 0),
+
 		messagesCh: make(chan *protocol.SyncMessage, MAX_CHAN_BUFFER),
 		updatesCh:  make(chan *protocol.DataEnvelope, MAX_CHAN_BUFFER),
 	}
@@ -88,9 +89,16 @@ func NewLeaderElection(
 		if i == int(id) {
 			continue
 		}
+
+		workerName := fmt.Sprintf("%s%d", workerType, i)
+		addr := fmt.Sprintf("%s:%d", workerName, heartbeatPort)
+		le.nodeAddrs = append(le.nodeAddrs, addr)
+
 		logger.Logger.Debugf("[Node %d] connecting to node %d middleware", le.id, i)
 		le.connectedNodes[int32(i)] = middleware.GetLeaderElectionSendingNodeExchange(middlewareUrl, workerType, strconv.Itoa(i))
 	}
+	stringAddrs := strings.Join(le.nodeAddrs, ",")
+	logger.Logger.Infof("[Node %d] Heartbeat will be sent to nodes: [%s]", le.id, stringAddrs)
 
 	heartbeatHandler, err := heartbeat.NewListeningHeartBeatHandler(hostName, heartbeatPort, HEARTBEAT_INTERVAL)
 	if err != nil {
@@ -100,18 +108,6 @@ func NewLeaderElection(
 	le.heartbeatHandler = heartbeatHandler
 
 	le.electionHandler = handlers.NewElectionHandler(id, le.connectedNodes, le.coordMiddleware, ACK_TIMEOUT, COORDINATOR_TIMEOUT)
-
-	myAddr := fmt.Sprintf("%s:%d", hostName, heartbeatPort)
-	filteredAddrs := []string{}
-	for _, addr := range nodeAddrs {
-		if addr == myAddr {
-			continue
-		}
-		filteredAddrs = append(filteredAddrs, addr)
-	}
-	stringAddrs := strings.Join(filteredAddrs, ",")
-	logger.Logger.Infof("[Node %d] Heartbeat will be sent to nodes: [%s]", le.id, stringAddrs)
-	le.nodeAddrs = filteredAddrs
 
 	routineReadyCh := make(chan bool)
 	go le.nodeQueueListener(routineReadyCh)
