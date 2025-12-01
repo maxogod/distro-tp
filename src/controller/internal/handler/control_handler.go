@@ -78,17 +78,17 @@ func (ch *controlHandler) AwaitForWorkers() error {
 	for currentWorkerType != enum.None && currentWorkerType != enum.AggregatorWorker {
 		counter := <-ch.counterCh
 
-		receivedFromCurrentLayer++
-		sentFromCurrentLayer += int(counter.GetAmountSent())
 		seqNum := counter.GetSequenceNumber()
 
 		if _, ok := ch.sequencesSeen[seqNum]; ok {
 			logger.Logger.Debugf("[%s] Duplicate counter message received from %s workers with seq num %d, dropping",
 				ch.clientID, currentWorkerType, seqNum)
 			continue // Drop duplicated
-		} else {
-			ch.sequencesSeen[seqNum] = true // Save seq num
 		}
+
+		receivedFromCurrentLayer++
+		sentFromCurrentLayer += int(counter.GetAmountSent())
+		ch.sequencesSeen[seqNum] = true // Save seq num
 
 		if receivedFromCurrentLayer == ch.messagesSentToNextLayer {
 			nextLayer := enum.WorkerType(counter.GetNext())
@@ -96,7 +96,7 @@ func (ch *controlHandler) AwaitForWorkers() error {
 				ch.clientID, receivedFromCurrentLayer, currentWorkerType, nextLayer, sentFromCurrentLayer)
 
 			clear(ch.sequencesSeen)
-			if currentWorkerType != enum.Gateway {
+			if currentWorkerType != enum.Gateway { // Gateways routine will be used later
 				ch.workersMonitoring[currentWorkerType].startOrFinishCh <- false // finish current layer
 			}
 			if nextLayer != enum.None && nextLayer != enum.AggregatorWorker {
