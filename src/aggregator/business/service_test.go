@@ -7,7 +7,7 @@ import (
 	"github.com/maxogod/distro-tp/src/common/logger"
 	"github.com/maxogod/distro-tp/src/common/models/protocol"
 	"github.com/maxogod/distro-tp/src/common/models/reduced"
-	storage "github.com/maxogod/distro-tp/src/common/worker/storage"
+	"github.com/maxogod/distro-tp/src/common/worker/storage"
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/protobuf/proto"
 )
