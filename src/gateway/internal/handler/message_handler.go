@@ -28,21 +28,20 @@ type messageHandler struct {
 	// Controller middleware
 	initControlQueue     middleware.MessageMiddleware
 	controlReadyExchange middleware.MessageMiddleware
-	counterExchange      middleware.MessageMiddleware
 
 	startAwaitingAck chan bool
 	ackReceived      chan bool
 	routineReadyCh   chan bool
 	receivingTimeout time.Duration
 	refDataSeqNumber int32
+	middlewareUrl    string
 }
 
 func NewMessageHandler(middlewareUrl, clientID string, receivingTimeout int) MessageHandler {
 	h := &messageHandler{
-		clientID: clientID,
 		clientID:         clientID,
-		refDataSeqNumber: 1,
 		refDataSeqNumber: INITIAL_REF_DATA_SEQ_NUMBER,
+		middlewareUrl:    middlewareUrl,
 
 		filtersQueueMiddleware: middleware.GetFilterQueue(middlewareUrl),
 		joinerRefExchange:      middleware.GetRefDataExchange(middlewareUrl, ""),
@@ -52,7 +51,6 @@ func NewMessageHandler(middlewareUrl, clientID string, receivingTimeout int) Mes
 
 		initControlQueue:     middleware.GetInitControlQueue(middlewareUrl),
 		controlReadyExchange: middleware.GetClientControlExchange(middlewareUrl, clientID),
-		counterExchange:      middleware.GetCounterExchange(middlewareUrl, clientID+"@"+string(enum.Gateway)),
 
 		startAwaitingAck: make(chan bool),
 		ackReceived:      make(chan bool),
@@ -104,15 +102,19 @@ func (mh *messageHandler) NotifyClientMessagesCount() error {
 	if err != nil {
 		return err
 	}
-	if err := mh.counterExchange.Send(payload); err != middleware.MessageMiddlewareSuccess {
+
+	counterExchange := middleware.GetCounterExchange(mh.middlewareUrl, mh.clientID+"@"+string(enum.Gateway))
+	defer counterExchange.Close()
+
+	if sendErr := counterExchange.Send(payload); sendErr != middleware.MessageMiddlewareSuccess {
 		return fmt.Errorf("error sending messages count to controller")
 	}
 	return nil
 }
 
-func (mh *messageHandler) NotifyCompletion() error {
+func (mh *messageHandler) NotifyCompletion(clientId string) error {
 	countMessage := &protocol.MessageCounter{
-		ClientId: mh.clientID,
+		ClientId: clientId,
 		From:     string(enum.Gateway),
 		Next:     string(enum.None),
 	}
@@ -120,7 +122,11 @@ func (mh *messageHandler) NotifyCompletion() error {
 	if err != nil {
 		return err
 	}
-	if err := mh.counterExchange.Send(payload); err != middleware.MessageMiddlewareSuccess {
+
+	counterExchange := middleware.GetCounterExchange(mh.middlewareUrl, clientId+"@"+string(enum.Gateway))
+	defer counterExchange.Close()
+
+	if sendErr := counterExchange.Send(payload); sendErr != middleware.MessageMiddlewareSuccess {
 		return fmt.Errorf("error sending messages count to controller")
 	}
 	return nil

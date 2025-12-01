@@ -20,7 +20,7 @@ type MessageHandler interface {
 	NotifyClientMessagesCount() error
 
 	// NotifyCompletion informs the controller that all processed data was received and forwarded.
-	NotifyCompletion() error
+	NotifyCompletion(clientId string) error
 
 	// ForwardData sends a given data envelope to the corresponding worker layer to start processing it.
 	ForwardData(dataBatch *protocol.DataEnvelope) error

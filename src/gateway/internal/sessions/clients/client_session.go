@@ -54,7 +54,7 @@ func NewClientSession(conn network.ConnectionInterface, config *config.Config) C
 
 	cs.messageHandler = handler.NewMessageHandler(config.MiddlewareAddress, clientId, config.ReceivingTimeout)
 	if reconnected {
-		notifErr := cs.messageHandler.NotifyCompletion()
+		notifErr := cs.messageHandler.NotifyCompletion(cs.clientId)
 		if notifErr != nil {
 			logger.Logger.Errorf("[%s] Error notifying controller about client reconnection: %v", cs.clientId, notifErr)
 			return nil
@@ -126,7 +126,7 @@ func (cs *clientSession) ProcessRequest() error {
 	logger.Logger.Debugf("[%s] Starting to send report data to client", cs.clientId)
 	cs.processResponse()
 
-	err = cs.messageHandler.NotifyCompletion()
+	err = cs.messageHandler.NotifyCompletion(cs.clientId)
 	if err != nil {
 		logger.Logger.Errorf("[%s] Error notifying controller about client completion: %v", cs.clientId, err)
 		return err
