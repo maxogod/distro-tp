@@ -40,13 +40,27 @@ func NewClientSession(conn network.ConnectionInterface, config *config.Config) C
 	}
 
 	clientId := controlMsg.GetClientId()
+	reconnected := false
 	if clientId == uuid.Nil.String() {
 		clientId = uuid.New().String()
+		logger.Logger.Debugf("Generated new client ID: %s", clientId)
+	} else {
+		logger.Logger.Debugf("Reconnected client with ID: %s", clientId)
+		reconnected = true
 	}
 
 	cs.clientId = clientId
 	cs.taskType = enum.TaskType(controlMsg.GetTaskType())
+
 	cs.messageHandler = handler.NewMessageHandler(config.MiddlewareAddress, clientId, config.ReceivingTimeout)
+	if reconnected {
+		notifErr := cs.messageHandler.NotifyCompletion()
+		if notifErr != nil {
+			logger.Logger.Errorf("[%s] Error notifying controller about client reconnection: %v", cs.clientId, notifErr)
+			return nil
+		}
+	}
+
 	cs.running.Store(true)
 
 	return cs
