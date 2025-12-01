@@ -63,8 +63,7 @@ func NewMessageHandler(middlewareUrl, clientID string, receivingTimeout int) Mes
 	return h
 }
 
-func (mh *messageHandler) AwaitControllerInit(taskType enum.TaskType) error {
-	// Send init message to controller
+func (mh *messageHandler) SendControllerInit(taskType enum.TaskType) error {
 	controlMessage := &protocol.ControlMessage{
 		ClientId: mh.clientID,
 		TaskType: int32(taskType),
@@ -73,17 +72,18 @@ func (mh *messageHandler) AwaitControllerInit(taskType enum.TaskType) error {
 	if err != nil {
 		return err
 	}
-	if err := mh.initControlQueue.Send(payload); err != middleware.MessageMiddlewareSuccess {
+	if sendErr := mh.initControlQueue.Send(payload); sendErr != middleware.MessageMiddlewareSuccess {
 		return fmt.Errorf("error sending init control message to controller")
 	}
+	return nil
+}
 
-	// Await ack from controller
+func (mh *messageHandler) AwaitControllerInit() error {
 	mh.startAwaitingAck <- true
 	ackReceived := <-mh.ackReceived
 	if !ackReceived {
 		return fmt.Errorf("did not receive ack from controller")
 	}
-
 	return nil
 }
 

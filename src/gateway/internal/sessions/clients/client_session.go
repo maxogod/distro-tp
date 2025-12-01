@@ -78,7 +78,12 @@ func (cs *clientSession) ProcessRequest() error {
 	logger.Logger.Debugf("[%s] Starting to process client request", cs.clientId)
 
 	// Initialize session with controller
-	err := cs.messageHandler.AwaitControllerInit(cs.taskType)
+	err := cs.messageHandler.SendControllerInit(cs.taskType)
+	if err != nil {
+		return err
+	}
+
+	err = cs.messageHandler.AwaitControllerInit()
 	if err != nil {
 		logger.Logger.Errorf("[%s] Error awaiting controller init for client: %v", cs.clientId, err)
 		return err
