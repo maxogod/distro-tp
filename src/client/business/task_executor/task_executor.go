@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/google/uuid"
 	"github.com/maxogod/distro-tp/src/client/business/file_service"
 	"github.com/maxogod/distro-tp/src/client/config"
 	"github.com/maxogod/distro-tp/src/client/internal/utils"
@@ -387,9 +388,14 @@ func (t *taskExecutor) Close() {
 	t.fs.Close()
 }
 
-func (t *taskExecutor) SendRequestForTask(taskType enum.TaskType) error {
+func (t *taskExecutor) SendRequestForTask(taskType enum.TaskType, clientId string) error {
+	if clientId == "" {
+		clientId = uuid.Nil.String()
+	}
+
 	msg := &protocol.ControlMessage{
 		TaskType: int32(taskType),
+		ClientId: clientId,
 	}
 	payload, err := proto.Marshal(msg)
 	if err != nil {
