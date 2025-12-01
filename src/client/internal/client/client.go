@@ -86,8 +86,7 @@ func (c *client) runTask(task string) error {
 		return err
 	}
 
-	// TODO: mandar la request con el clientId si existe y sino poner UUID.nil()
-	if err = c.taskExecutor.SendRequestForTask(taskType); err != nil {
+	if err = c.taskExecutor.SendRequestForTask(taskType, c.clientID); err != nil {
 		logger.Logger.Errorf("Error making task request %v", err)
 		return err
 	}
