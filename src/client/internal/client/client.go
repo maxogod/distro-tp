@@ -157,19 +157,21 @@ func connectToGateway(conf *config.Config) (network.ConnectionInterface, error) 
 	rnd := rand.New(rand.NewSource(time.Now().UnixNano()))
 	rnd.Shuffle(len(gatewayIds), func(i, j int) { gatewayIds[i], gatewayIds[j] = gatewayIds[j], gatewayIds[i] })
 
-	// TODO: retry loop ConnectionRetries times
-	for _, gatewayId := range gatewayIds {
-		conn := network.NewConnection()
-		serverAddr := fmt.Sprintf("%s%d:%d", conf.ServerHost, gatewayId, conf.ServerPort)
-		if err := conn.Connect(serverAddr, conf.ConnectionRetries); err != nil {
-			logger.Logger.Debugf("could not connect to gateway%d, trying with another", gatewayId)
-			continue
+	for attempt := 0; attempt < conf.ConnectionRetries; attempt++ {
+		for _, gatewayId := range gatewayIds {
+			conn := network.NewConnection()
+			serverAddr := fmt.Sprintf("%s%d:%d", conf.ServerHost, gatewayId, conf.ServerPort)
+			if err := conn.Connect(serverAddr, conf.ConnectionRetries); err != nil {
+				logger.Logger.Debugf("could not connect to gateway%d on attempt %d/%d, trying another", gatewayId, attempt+1, conf.ConnectionRetries)
+				continue
+			}
+
+			logger.Logger.Infof("connected to gateway%d", gatewayId)
+
+			return conn, nil
 		}
 
-		logger.Logger.Infof("connected to gateway%d", gatewayId)
-
-		return conn, nil
+		time.Sleep(500 * time.Millisecond)
 	}
-
 	return nil, fmt.Errorf("could not connect to any gateway")
 }
