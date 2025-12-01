@@ -56,6 +56,29 @@ services:
     networks:
       - tp_net
         
+  gateway2:
+    container_name: gateway2
+    build:
+      dockerfile: ./src/gateway/Dockerfile
+    image: gateway:latest
+    environment:
+      - LEADER_ELECTION_ID=2
+      - LEADER_ELECTION_HOST=gateway2
+      - LEADER_ELECTION_PORT=9090
+    volumes:
+      - ./src/gateway/config.yaml:/app/config.yaml
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8081/ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - tp_net
+        
   controller:
     container_name: controller
     build:
@@ -123,6 +146,34 @@ services:
       rabbitmq:
         condition: service_healthy
         
+  joiner1:
+    container_name: joiner1
+    build:
+      dockerfile: ./src/joiner/Dockerfile
+    image: joiner:latest
+    networks:
+      - tp_net
+    volumes:
+      - ./src/joiner/config.yaml:/app/config.yaml
+      - ./.storage/joiner1:/app/storage
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+        
+  joiner2:
+    container_name: joiner2
+    build:
+      dockerfile: ./src/joiner/Dockerfile
+    image: joiner:latest
+    networks:
+      - tp_net
+    volumes:
+      - ./src/joiner/config.yaml:/app/config.yaml
+      - ./.storage/joiner2:/app/storage
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+        
   filter1:
     container_name: filter1
     build:
@@ -145,32 +196,6 @@ services:
       - tp_net
     volumes:
       - ./src/filter/config.yaml:/app/config.yaml
-    depends_on:
-      rabbitmq:
-        condition: service_healthy
-        
-  joiner1:
-    container_name: joiner1
-    build:
-      dockerfile: ./src/joiner/Dockerfile
-    image: joiner:latest
-    networks:
-      - tp_net
-    volumes:
-      - ./src/joiner/config.yaml:/app/config.yaml
-    depends_on:
-      rabbitmq:
-        condition: service_healthy
-        
-  joiner2:
-    container_name: joiner2
-    build:
-      dockerfile: ./src/joiner/Dockerfile
-    image: joiner:latest
-    networks:
-      - tp_net
-    volumes:
-      - ./src/joiner/config.yaml:/app/config.yaml
     depends_on:
       rabbitmq:
         condition: service_healthy

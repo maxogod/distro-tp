@@ -65,7 +65,7 @@ func (le *leaderElection) handleDiscoverMsg(nodeID, leaderID int32, leaderSearch
 // discovery msg && leaderID = -1 -> new node.
 func (le *leaderElection) sendDiscoveryMessage() {
 	discoveryMsg := &protocol.SyncMessage{
-		NodeId:   int32(le.id),
+		NodeId:   le.id,
 		Action:   int32(enum.DISCOVER),
 		LeaderId: -1, // Indicates discovery
 	}
@@ -85,7 +85,7 @@ func (le *leaderElection) sendDiscoveryMessage() {
 // respondDiscoveryMessage handles the sending of the response message to the new node, along with the known leaderID (or 0).
 func (le *leaderElection) respondDiscoveryMessage(nodeId int32) {
 	responseMsg := &protocol.SyncMessage{
-		NodeId:   int32(le.id),
+		NodeId:   le.id,
 		Action:   int32(enum.DISCOVER),
 		LeaderId: le.leaderId.Load(),
 	}

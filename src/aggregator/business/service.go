@@ -7,7 +7,7 @@ import (
 	"github.com/maxogod/distro-tp/src/common/models/protocol"
 	"github.com/maxogod/distro-tp/src/common/models/reduced"
 	"github.com/maxogod/distro-tp/src/common/utils"
-	storage "github.com/maxogod/distro-tp/src/common/worker/storage"
+	"github.com/maxogod/distro-tp/src/common/worker/storage"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -67,7 +67,7 @@ func (as *aggregatorService) GetStoredTotalItems(clientID string) ([]*reduced.To
 	bestBySubtotal := filterBestMonthValues(
 		data,
 		func(t *reduced.TotalSumItem) string { return t.GetYearMonth() },
-		func(t *reduced.TotalSumItem) float64 { return float64(t.GetSubtotal()) },
+		func(t *reduced.TotalSumItem) float64 { return t.GetSubtotal() },
 	)
 
 	bestByQuantity := filterBestMonthValues(

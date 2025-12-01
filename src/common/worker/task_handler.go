@@ -132,7 +132,8 @@ func (th *taskHandler) HandleFinishClient(dataEnvelope *protocol.DataEnvelope, a
 	clientID := dataEnvelope.GetClientId()
 	count := th.messagesReceived[clientID]
 
-	logger.Logger.Infof("[%s] Finished processing client in TaskHandler. Received %d/%d messages", clientID, count, dataEnvelope.GetTotalMessages())
+	logger.Logger.Infof("[%s] Finished processing client in TaskHandler. Received %d/%d messages and %d sequences.",
+		clientID, count, dataEnvelope.GetTotalMessages(), len(th.sequencesPerClient[clientID]))
 	if dataEnvelope.GetTotalMessages() == 0 || count == dataEnvelope.GetTotalMessages() {
 		th.finishedClients[clientID] = true
 		th.reapFinishedClients(false)

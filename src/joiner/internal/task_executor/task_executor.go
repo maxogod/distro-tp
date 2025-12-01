@@ -13,8 +13,6 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-const SEND_LIMIT = 1000
-
 type joinerExecutor struct {
 	config        *config.Config
 	joinerService business.JoinerService
@@ -31,7 +29,6 @@ func NewJoinerExecutor(config *config.Config,
 	}
 }
 
-// HandleTask2_2 is exclusively for reduced data
 func (je *joinerExecutor) HandleTask2(dataEnvelope *protocol.DataEnvelope, ackHandler func(bool, bool) error) error {
 	shouldAck := false
 	shouldRequeue := false

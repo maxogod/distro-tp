@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/google/uuid"
 	"github.com/maxogod/distro-tp/src/client/business/file_service"
 	"github.com/maxogod/distro-tp/src/client/config"
 	"github.com/maxogod/distro-tp/src/client/internal/utils"
@@ -48,7 +49,6 @@ func (t *taskExecutor) Task1() error {
 		utils.TransactionBatchFromList,
 	)
 	if err != nil {
-		logger.Logger.Errorf("failed to send transactions data: %v", err)
 		return err
 	}
 
@@ -85,7 +85,6 @@ func (t *taskExecutor) Task2() error {
 		utils.MenuItemBatchFromList,
 	)
 	if err != nil {
-		logger.Logger.Errorf("failed to send menu items data: %v", err)
 		return err
 	}
 
@@ -99,7 +98,6 @@ func (t *taskExecutor) Task2() error {
 		utils.TransactionItemsBatchFromList,
 	)
 	if err != nil {
-		logger.Logger.Errorf("failed to send transaction items data: %v", err)
 		return err
 	}
 
@@ -107,8 +105,7 @@ func (t *taskExecutor) Task2() error {
 
 	res, err := t.conn.ReceiveData()
 	if err != nil {
-		logger.Logger.Debugf("connection with server closed")
-		return nil
+		return err
 	}
 	dataEnvelope := &protocol.DataEnvelope{}
 	if err := proto.Unmarshal(res, dataEnvelope); err != nil {
@@ -157,7 +154,6 @@ func (t *taskExecutor) Task3() error {
 		utils.StoreBatchFromList,
 	)
 	if err != nil {
-		logger.Logger.Errorf("failed to send stores data: %v", err)
 		return err
 	}
 
@@ -171,11 +167,10 @@ func (t *taskExecutor) Task3() error {
 		utils.TransactionBatchFromList,
 	)
 	if err != nil {
-		logger.Logger.Errorf("failed to send transactions data: %v", err)
 		return err
 	}
 
-	t.receiveAndSaveEntireResults(
+	err = t.receiveAndSaveEntireResults(
 		filepath.Join(t.outputPath, t.conf.OutputFiles.T3),
 		t.conf.Headers.T3,
 		func(dataBatch *protocol.DataEnvelope, ch chan string) {
@@ -190,7 +185,9 @@ func (t *taskExecutor) Task3() error {
 			}
 		},
 	)
-
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -205,7 +202,6 @@ func (t *taskExecutor) Task4() error {
 		utils.UserBatchFromList,
 	)
 	if err != nil {
-		logger.Logger.Errorf("failed to send users data: %v", err)
 		return err
 	}
 
@@ -219,7 +215,6 @@ func (t *taskExecutor) Task4() error {
 		utils.StoreBatchFromList,
 	)
 	if err != nil {
-		logger.Logger.Errorf("failed to send stores data: %v", err)
 		return err
 	}
 
@@ -233,13 +228,12 @@ func (t *taskExecutor) Task4() error {
 		utils.TransactionBatchFromList,
 	)
 	if err != nil {
-		logger.Logger.Errorf("failed to send transactions data: %v", err)
 		return err
 	}
 
 	// Receive and save results
 
-	t.receiveAndSaveEntireResults(
+	err = t.receiveAndSaveEntireResults(
 		filepath.Join(t.outputPath, t.conf.OutputFiles.T4),
 		t.conf.Headers.T4,
 		func(dataBatch *protocol.DataEnvelope, ch chan string) {
@@ -254,7 +248,9 @@ func (t *taskExecutor) Task4() error {
 			}
 		},
 	)
-
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -358,12 +354,12 @@ func (t *taskExecutor) receiveAndSaveEntireResults(
 	res, err := t.conn.ReceiveData()
 	if err != nil {
 		logger.Logger.Debugf("connection with server closed")
-		return nil
+		return err
 	}
 	dataEnvelope := &protocol.DataEnvelope{}
-	if err := proto.Unmarshal(res, dataEnvelope); err != nil {
+	if err = proto.Unmarshal(res, dataEnvelope); err != nil {
 		logger.Logger.Errorf("failed to unmarshal response from server: %v", err)
-		return nil
+		return err
 	}
 
 	go func() {
@@ -396,9 +392,14 @@ func (t *taskExecutor) Close() {
 	t.fs.Close()
 }
 
-func (t *taskExecutor) SendRequestForTask(taskType enum.TaskType) error {
+func (t *taskExecutor) SendRequestForTask(taskType enum.TaskType, clientId string) error {
+	if clientId == "" {
+		clientId = uuid.Nil.String()
+	}
+
 	msg := &protocol.ControlMessage{
 		TaskType: int32(taskType),
+		ClientId: clientId,
 	}
 	payload, err := proto.Marshal(msg)
 	if err != nil {

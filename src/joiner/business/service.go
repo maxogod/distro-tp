@@ -2,7 +2,9 @@ package business
 
 import (
 	"fmt"
+	"os"
 	"strconv"
+	"strings"
 
 	"github.com/maxogod/distro-tp/src/common/logger"
 	"github.com/maxogod/distro-tp/src/common/models/enum"
@@ -13,9 +15,14 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-const MENU_ITEMS_REF = "MenuItems"
-const STORES_REF = "Stores"
-const USERS_REF = "Users"
+const (
+	MENU_ITEMS_REF = "@MenuItems"
+	STORES_REF     = "@Stores"
+	USERS_REF      = "@Users"
+
+	STORAGE_FOLDER_PATH        = "storage/"
+	IN_PROGRESS_FILE_EXTENSION = ".inprogress"
+)
 
 type joinerService struct {
 	inMemoryService      cache.InMemoryService
@@ -26,13 +33,28 @@ type joinerService struct {
 }
 
 func NewJoinerService(inMemoryService cache.InMemoryService, storageService storage.StorageService, userStorageGroupSize int) JoinerService {
-	return &joinerService{
+	js := &joinerService{
 		inMemoryService:      inMemoryService,
 		storageService:       storageService,
 		fullRefClients:       make(map[string]bool),
 		clientRefs:           make(map[string]map[string]bool),
 		userStorageGroupSize: userStorageGroupSize,
 	}
+
+	// Setup fullRefClients based on existing storage files
+	allClientsRefs := storageService.GetAllFilesReferences()
+	logger.Logger.Infof("Preexisting clients references found on disk: %d", len(allClientsRefs))
+	for _, ref := range allClientsRefs {
+		clientID := strings.Split(ref, "@")[0]
+		if clientDone(clientID) {
+			js.fullRefClients[clientID] = true
+			logger.Logger.Debugf("Preexisting Client %s marked as having full reference data on startup", clientID)
+		} else {
+			logger.Logger.Debugf("Preexisting Client %s does NOT have full reference data on startup", clientID)
+		}
+	}
+
+	return js
 }
 
 // ======= GENERIC HELPERS (Private) =======
@@ -77,6 +99,7 @@ func (js *joinerService) StoreUsers(clientID string, items []*raw.User) error {
 func (js *joinerService) FinishStoringRefData(clientID string) error {
 	logger.Logger.Debug("Received all reference data for client: ", clientID)
 	js.fullRefClients[clientID] = true // All reference data was received for this client
+	createOrRemoveProgressFile(clientID, false)
 	for ref := range js.clientRefs[clientID] {
 		js.storageService.StopWriting(ref)
 	}
@@ -102,6 +125,7 @@ func (js *joinerService) getUsersGroup(userID string) (int, error) {
 func (js *joinerService) trackClientRef(clientID string, ref string) {
 	if _, exists := js.clientRefs[clientID]; !exists {
 		js.clientRefs[clientID] = make(map[string]bool)
+		createOrRemoveProgressFile(clientID, true)
 	}
 	js.clientRefs[clientID][ref] = true
 }
@@ -272,4 +296,28 @@ func (js *joinerService) DeleteClientRefData(clientID string) error {
 func (js *joinerService) Close() error {
 	js.storageService.Close()
 	return js.inMemoryService.Close()
+}
+
+/* --- HELPERS --- */
+
+func createOrRemoveProgressFile(clientID string, create bool) error {
+	filePath := STORAGE_FOLDER_PATH + clientID + IN_PROGRESS_FILE_EXTENSION
+	if create {
+		file, err := os.Create(filePath)
+		if err != nil {
+			return err
+		}
+		defer file.Close()
+	} else {
+		err := os.Remove(filePath)
+		if err != nil && !os.IsNotExist(err) {
+			return err
+		}
+	}
+	return nil
+}
+
+func clientDone(clientID string) bool {
+	_, err := os.Stat(STORAGE_FOLDER_PATH + clientID + IN_PROGRESS_FILE_EXTENSION)
+	return err != nil // If progress file exists, then its not done
 }

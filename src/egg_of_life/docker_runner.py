@@ -55,11 +55,8 @@ class DockerRunner:
         print(f"Env vars for {container_name}: {env_vars}")
         return env_vars
 
-    def restart_container(self, name, image):
-        print(
-            f"Launching new container {name} (image: {image}) on network {self._network}"
-        )
-
+    def restart_container(self, name: str, image: str):
+        print(f"Launching new container {name} (image: {image}) on network {self._network}")
         folder_name = image.split(":")[0]
         env_vars = self._build_env_variables(name)
 
@@ -72,6 +69,9 @@ class DockerRunner:
             f"{env_vars} "
             f"{image}"
         )
+        if folder_name in ["joiner", "aggregator"]:
+            cmd += f"-v {self._host_path}/.storage/{name}:/app/storage "
+        cmd += image
         print(cmd)
         self._commands_queue.put(cmd)
 

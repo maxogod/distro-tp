@@ -3,11 +3,9 @@ package manager
 import (
 	"sync"
 
-	"github.com/google/uuid"
 	"github.com/maxogod/distro-tp/src/common/logger"
 	"github.com/maxogod/distro-tp/src/common/network"
 	"github.com/maxogod/distro-tp/src/gateway/config"
-	"github.com/maxogod/distro-tp/src/gateway/internal/handler"
 	"github.com/maxogod/distro-tp/src/gateway/internal/sessions/clients"
 )
 
@@ -24,11 +22,9 @@ func NewClientManager(conf *config.Config) ClientManager {
 }
 
 func (cm *clientManager) AddClient(connection network.ConnectionInterface) clients.ClientSession {
-	id := uuid.New().String()
-	logger.Logger.Infof("Client connected with ID: %s", id)
-	messageHandler := handler.NewMessageHandler(cm.config.MiddlewareAddress, id, cm.config.ReceivingTimeout)
-	session := clients.NewClientSession(id, connection, messageHandler)
-	cm.clients.Store(id, session)
+	session := clients.NewClientSession(connection, cm.config)
+	cm.clients.Store(session.GetClientId(), session)
+	logger.Logger.Infof("Client connected with ID: %s", session.GetClientId())
 	return session
 }
 
@@ -42,7 +38,7 @@ func (cm *clientManager) ReapStaleClients() {
 		session := value.(clients.ClientSession)
 
 		if session.IsFinished() {
-			cm.clients.Delete(id)
+			cm.RemoveClient(id)
 		}
 
 		return true
@@ -55,7 +51,7 @@ func (cm *clientManager) Close() {
 		session := value.(clients.ClientSession)
 
 		session.Close()
-		cm.clients.Delete(id)
+		cm.RemoveClient(id)
 
 		return true
 	})

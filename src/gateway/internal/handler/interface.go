@@ -9,9 +9,11 @@ import (
 // and managing client interactions.
 type MessageHandler interface {
 
-	// AwaitControllerInit comunicates with the controller to start a session and wait for it
-	// to be ready.
-	AwaitControllerInit(taskType enum.TaskType) error
+	// SendControllerInit comunicates with the controller to start a session
+	SendControllerInit(taskType enum.TaskType) error
+
+	// AwaitControllerInit waits until the controller acknowledges the session start.
+	AwaitControllerInit() error
 
 	// NotifyClientMessagesCount notifies the controller about the total number of messages
 	// that was sent by the client for processing.

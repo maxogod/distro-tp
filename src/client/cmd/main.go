@@ -24,11 +24,12 @@ func main() {
 	for _, t := range os.Args[1:] {
 		c, err := client.NewClient(conf)
 		if err != nil {
-			logger.Logger.Fatalf("failed to create client: %v", err)
+			logger.Logger.Debugf("failed to create client: %v", err)
+			continue
 		}
 
-		if err := c.Start(t); err != nil {
-			logger.Logger.Fatalln("Client error:", err)
+		if err = c.Start(t); err != nil {
+			logger.Logger.Debugf("Client error: %v", err)
 		}
 	}
 

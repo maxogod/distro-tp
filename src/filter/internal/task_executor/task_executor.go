@@ -3,7 +3,6 @@ package task_executor
 import (
 	"fmt"
 
-	"github.com/maxogod/distro-tp/src/common/logger"
 	"github.com/maxogod/distro-tp/src/common/middleware"
 	"github.com/maxogod/distro-tp/src/common/models/enum"
 	"github.com/maxogod/distro-tp/src/common/models/protocol"
@@ -12,6 +11,8 @@ import (
 	"github.com/maxogod/distro-tp/src/filter/business"
 	"google.golang.org/protobuf/proto"
 )
+
+const DELETE_ACTION_SEQ = -1
 
 type FilterExecutor struct {
 	config           TaskConfig
@@ -227,6 +228,10 @@ func (fe *FilterExecutor) Close() error {
 func (fe *FilterExecutor) HandleFinishClient(dataEnvelope *protocol.DataEnvelope, ackHandler func(bool, bool) error) error {
 	defer ackHandler(true, false)
 
+	if dataEnvelope.GetSequenceNumber() == DELETE_ACTION_SEQ || dataEnvelope.GetTaskType() != int32(enum.T1) {
+		return nil
+	}
+
 	clientID := dataEnvelope.GetClientId()
 
 	_, exists := fe.processedQueues[clientID]
@@ -235,11 +240,7 @@ func (fe *FilterExecutor) HandleFinishClient(dataEnvelope *protocol.DataEnvelope
 	}
 	m := fe.processedQueues[clientID]
 
-	if dataEnvelope.GetTaskType() == int32(enum.T1) { // No more layers for this task
-		worker.SendDone(dataEnvelope.GetClientId(), enum.T1, m)
-	}
-
-	logger.Logger.Infof("[%s] Finished processing client in FilterExecutor", clientID)
+	worker.SendDone(dataEnvelope.GetClientId(), enum.T1, m)
 
 	delete(fe.processedQueues, clientID)
 

@@ -11,4 +11,7 @@ type ClientSession interface {
 
 	// Close gracefully shuts down the client session, releasing any resources attached to the connection.
 	Close()
+
+	// GetClientId returns the client ID associated with the session.
+	GetClientId() string
 }

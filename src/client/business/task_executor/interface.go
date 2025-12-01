@@ -27,7 +27,7 @@ type TaskExecutor interface {
 	Close()
 
 	// SendRequestForTask sends a request for a given task type to the server.
-	SendRequestForTask(taskType enum.TaskType) error
+	SendRequestForTask(taskType enum.TaskType, clientId string) error
 
 	// AwaitRequestAck waits for the server to acknowledge the request for a given task type.
 	AwaitRequestAck(taskType enum.TaskType) (string, error)

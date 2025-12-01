@@ -1,6 +1,6 @@
 services:
   gateway:
-    instances: 1
+    instances: 2
   controller:
     instances: 1
   filter:
@@ -8,11 +8,14 @@ services:
     # tags: "poison low_prob"
   group_by:
     instances: 2
+    # tags: "poison low_prob"
   reducer:
     instances: 2
+    # tags: "poison low_prob"
   aggregator:
     instances: 3
   joiner:
     instances: 2
+    # tags: "poison low_prob"
   client:
     instances: 5
