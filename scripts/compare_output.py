@@ -55,6 +55,8 @@ def task4_comparison(file1: str, file2: str) -> bool:
     count1 = {}
     count2 = {}
     with open(file1, "r", encoding="utf-8") as f1, open(file2, "r", encoding="utf-8") as f2:
+        print(f"Comparing '{file1}' with '{file2}'")
+
         next(f1)  # Skip header
         next(f2)  # Skip header
         for line in f1:
