@@ -12,13 +12,21 @@ from protocol.heartbeat_pb2 import HeartBeat
 from google.protobuf.message import DecodeError
 
 # Config
-CONFIG_PATH="/app/config.yaml"
+CONFIG_PATH = "/app/config.yaml"
 
 
 class RevivalChansey:
-    def __init__(self, port: int, timeout_interval: int, check_interval: int, docker_network: str, host_path: str):
+    def __init__(
+        self,
+        port: int,
+        timeout_interval: int,
+        check_interval: int,
+        docker_network: str,
+        host_path: str,
+        max_nodes: int,
+    ):
         self._server = UDPServer(port=port)
-        self._docker_runner = DockerRunner(docker_network, host_path)
+        self._docker_runner = DockerRunner(docker_network, host_path, max_nodes)
 
         self._timeout_interval = timeout_interval
         self._check_interval = check_interval
@@ -32,7 +40,9 @@ class RevivalChansey:
 
     def start(self):
         print("Revival Chansey ready")
-        self._monitor_thread = threading.Thread(target=self._monitor_timeouts, daemon=True)
+        self._monitor_thread = threading.Thread(
+            target=self._monitor_timeouts, daemon=True
+        )
         self._monitor_thread.start()
         self._docker_runner.start()
 
@@ -47,8 +57,9 @@ class RevivalChansey:
                 self.shutdown()
 
     def shutdown(self):
-        if not self.running.is_set(): return
-        self.running.clear() # Sets flag to false
+        if not self.running.is_set():
+            return
+        self.running.clear()  # Sets flag to false
         self._server.close()
         self._monitor_thread.join()
         self._docker_runner.shutdown()
@@ -67,7 +78,7 @@ class RevivalChansey:
         return hostname
 
     def _get_image_name(self, container_name) -> str:
-        return re.sub(r'\d+$', '', container_name) + ":latest"
+        return re.sub(r"\d+$", "", container_name) + ":latest"
 
     def _update_timestamp(self, hostname):
         with self._heartbeat_lock:
@@ -77,28 +88,29 @@ class RevivalChansey:
 
     def _on_timeout(self, hostname):
         print(f"Timeout detected for {hostname}")
-        
+
         # Cleanup and restart
         image = self._get_image_name(hostname)
         self._docker_runner.cleanup_container(hostname)
         self._docker_runner.restart_container(hostname, image)
 
     def _monitor_timeouts(self):
-        """ Monitor heartbeats and handle timeouts on another Thread """
+        """Monitor heartbeats and handle timeouts on another Thread"""
         while self.running.is_set():
             current_time = time.time()
             timed_out = []
-            
+
             with self._heartbeat_lock:
                 for hostname, last_time in list(self._last_heartbeat.items()):
                     if current_time - last_time > self._timeout_interval:
                         timed_out.append(hostname)
                         del self._last_heartbeat[hostname]
-            
+
             for hostname in timed_out:
                 self._on_timeout(hostname)
-            
+
             time.sleep(self._check_interval)
+
 
 def setup_signal_handlers(rc: RevivalChansey):
     def signal_handler(_sig, _frame):
@@ -123,8 +135,11 @@ def main():
             cfg.get("port", port)
             cfg.get("timeout_interval", timeout_interval)
             cfg.get("check_interval", check_interval)
+            max_nodes = cfg.get("leader_election", {}).get("maxNodes", 10)
 
-    rc = RevivalChansey(port, timeout_interval, check_interval, docker_network, host_path)
+    rc = RevivalChansey(
+        port, timeout_interval, check_interval, docker_network, host_path, max_nodes
+    )
 
     setup_signal_handlers(rc)
 

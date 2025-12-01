@@ -102,7 +102,44 @@ services:
     environment:
       - LEADER_ELECTION_ID=1
       - LEADER_ELECTION_HOST=aggregator1
-      - LEADER_ELECTION_PORT=7070
+      - LEADER_ELECTION_PORT=9090
+      - LEADER_ELECTION_NODES=aggregator1:9090,aggregator2:9090,aggregator3:9090
+    volumes:
+      - ./src/aggregator/config.yaml:/app/config.yaml
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+        
+  aggregator2:
+    container_name: aggregator2
+    build:
+      dockerfile: ./src/aggregator/Dockerfile
+    image: aggregator:latest
+    networks:
+      - tp_net
+    environment:
+      - LEADER_ELECTION_ID=2
+      - LEADER_ELECTION_HOST=aggregator2
+      - LEADER_ELECTION_PORT=9090
+      - LEADER_ELECTION_NODES=aggregator1:9090,aggregator2:9090,aggregator3:9090
+    volumes:
+      - ./src/aggregator/config.yaml:/app/config.yaml
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+        
+  aggregator3:
+    container_name: aggregator3
+    build:
+      dockerfile: ./src/aggregator/Dockerfile
+    image: aggregator:latest
+    networks:
+      - tp_net
+    environment:
+      - LEADER_ELECTION_ID=3
+      - LEADER_ELECTION_HOST=aggregator3
+      - LEADER_ELECTION_PORT=9090
+      - LEADER_ELECTION_NODES=aggregator1:9090,aggregator2:9090,aggregator3:9090
     volumes:
       - ./src/aggregator/config.yaml:/app/config.yaml
     depends_on:
@@ -274,6 +311,22 @@ services:
     volumes:
       - ./.data:/app/.data
       - ./.output4:/app/.output
+      - ./src/client/config.yaml:/app/config.yaml
+    depends_on:
+      gateway1:
+        condition: service_healthy
+        
+  client5:
+    container_name: client5
+    entrypoint: ["/app/app", "t1"]
+    build:
+      dockerfile: ./src/client/Dockerfile
+    image: client:latest
+    networks:
+      - tp_net
+    volumes:
+      - ./.data:/app/.data
+      - ./.output5:/app/.output
       - ./src/client/config.yaml:/app/config.yaml
     depends_on:
       gateway1:

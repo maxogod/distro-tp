@@ -13,9 +13,9 @@ services:
     instances: 2
     # tags: "poison low_prob"
   aggregator:
-    instances: 1
+    instances: 3
   joiner:
     instances: 2
     # tags: "poison low_prob"
   client:
-    instances: 4
+    instances: 5

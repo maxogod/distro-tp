@@ -1,0 +1,9 @@
+syntax = "proto3";
+
+package data_transfer;
+
+option go_package = "./data_transfer";
+
+message AggregatorData {
+  repeated string finishingClients = 1;
+}

@@ -114,6 +114,7 @@ func (eh *electionHandler) runElectionTimeout() {
 
 	select {
 	case <-eh.electionCtx.Done():
+		logger.Logger.Infof("[Node %d] CANCELED_ELECTION", eh.id)
 	case t := <-timer.C:
 		elapsed := fmt.Sprintf("%.2f", time.Since(t.Add(-eh.ackTimeout)).Seconds())
 		logger.Logger.Infof("[Node %d] no one ACKed after %s seconds becoming coordinator", eh.id, elapsed)

@@ -10,6 +10,8 @@ type UpdateCallbacks interface {
 	GetUpdates(receivingCh chan *protocol.DataEnvelope)
 	// SendUpdates is called to send updates to other nodes.
 	SendUpdates(sendingCh chan *protocol.DataEnvelope, done chan bool)
+	// Close releases any used resources.
+	Close()
 }
 
 // LeaderElection interface defines the methods required for implementing

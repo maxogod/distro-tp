@@ -21,10 +21,18 @@ type Limits struct {
 }
 
 type LeaderElectionConfig struct {
-	ID       int
-	MaxNodes int
-	Host     string
-	Port     int
+	ID             int
+	Host           string
+	Port           int
+	MaxNodes       int
+	ConnectedNodes []string
+}
+
+func (lec LeaderElectionConfig) String() string {
+
+	connectedNodesStr := strings.Join(lec.ConnectedNodes, ", ")
+
+	return fmt.Sprintf(" ID: %d | ConnectedNodes: [%s], Amount: %d | Host: %s | Port: %d", lec.ID, connectedNodesStr, len(lec.ConnectedNodes), lec.Host, lec.Port)
 }
 
 type Config struct {
@@ -37,7 +45,8 @@ type Config struct {
 
 func (c Config) String() string {
 	return fmt.Sprintf(
-		"Address: %s | LogLevel: %s | Limits: [TransactionSendLimit=%d, MaxAmountToSend=%d]",
+		" %s | Middleware Address: %s | LogLevel: %s | Limits: [TransactionSendLimit=%d, MaxAmountToSend=%d]",
+		c.LeaderElection.String(),
 		c.Address,
 		c.LogLevel,
 		c.Limits.TransactionSendLimit,
@@ -47,19 +56,14 @@ func (c Config) String() string {
 
 const CONFIG_FILE_PATH = "./config.yaml"
 
-func InitConfig(configFilePath string) (*Config, error) {
+func InitConfig() (*Config, error) {
 	v := viper.New()
 	v.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 	v.AutomaticEnv()
 
-	configFile := CONFIG_FILE_PATH
-	if configFilePath != "" {
-		configFile = configFilePath
-	}
-
-	v.SetConfigFile(configFile)
+	v.SetConfigFile(CONFIG_FILE_PATH)
 	if err := v.ReadInConfig(); err != nil {
-		return nil, errors.Wrapf(err, "failed to read config file %s", configFile)
+		return nil, errors.Wrapf(err, "failed to read config file %s", CONFIG_FILE_PATH)
 	}
 
 	heatbeatConf := HeartbeatConfig{
@@ -69,10 +73,11 @@ func InitConfig(configFilePath string) (*Config, error) {
 	}
 
 	leaderElectionConf := LeaderElectionConfig{
-		ID:       v.GetInt("leader_election.id"),
-		MaxNodes: v.GetInt("leader_election.maxNodes"),
-		Host:     v.GetString("leader_election.host"),
-		Port:     v.GetInt("leader_election.port"),
+		ID:             v.GetInt("leader_election.id"),
+		MaxNodes:       v.GetInt("leader_election.maxNodes"),
+		ConnectedNodes: ViperGetStringSliceWithDefault(v, "leader_election.nodes", []string{}),
+		Host:           v.GetString("leader_election.host"),
+		Port:           v.GetInt("leader_election.port"),
 	}
 
 	limits := Limits{
@@ -89,4 +94,19 @@ func InitConfig(configFilePath string) (*Config, error) {
 	}
 
 	return config, nil
+}
+
+func ViperGetStringSliceWithDefault(v *viper.Viper, key string, defaultValue []string) []string {
+	if !v.IsSet(key) {
+		return defaultValue
+	}
+	str := v.GetString(key)
+	if str != "" {
+		values := strings.Split(str, ",")
+		for i, v := range values {
+			values[i] = strings.TrimSpace(v)
+		}
+		return values
+	}
+	return defaultValue
 }
