@@ -31,7 +31,7 @@ func NewServer(conf *config.Config) *Server {
 		config:            conf,
 		connectionManager: network.NewConnectionManager(conf.Port),
 		clientManager:     manager.NewClientManager(conf),
-		pingServer:        healthcheck.NewPingServer(int(conf.HealthCheckPort)), // for health check
+		pingServer:        healthcheck.NewPingServer(conf.HealthCheckPort), // for health check
 		heartbeatSender:   heartbeat.NewHeartBeatHandler(conf.Heartbeat.Host, conf.Heartbeat.Port, conf.Heartbeat.Interval),
 	}
 	s.running.Store(true)

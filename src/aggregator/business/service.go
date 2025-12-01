@@ -67,7 +67,7 @@ func (as *aggregatorService) GetStoredTotalItems(clientID string) ([]*reduced.To
 	bestBySubtotal := filterBestMonthValues(
 		data,
 		func(t *reduced.TotalSumItem) string { return t.GetYearMonth() },
-		func(t *reduced.TotalSumItem) float64 { return float64(t.GetSubtotal()) },
+		func(t *reduced.TotalSumItem) float64 { return t.GetSubtotal() },
 	)
 
 	bestByQuantity := filterBestMonthValues(
