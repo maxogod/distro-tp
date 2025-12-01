@@ -19,8 +19,8 @@ import (
 
 // TODO: THIS MUST BE BACKED UP WITH FACTS!!!
 const (
-	ACK_TIMEOUT         = 5 * time.Second
-	COORDINATOR_TIMEOUT = 20 * time.Second
+	ACK_TIMEOUT         = 2 * time.Second
+	COORDINATOR_TIMEOUT = 5 * time.Second
 	HEARTBEAT_INTERVAL  = 10 * time.Millisecond
 
 	MAX_CHAN_BUFFER = 2000
@@ -320,7 +320,10 @@ func (le *leaderElection) beginHeartbeatHandler() {
 
 func (le *leaderElection) startReceivingHeartbeats() {
 	initElectionFunc := func(params any) {
-		logger.Logger.Infof("[Node %d] Leader Heartbeat Timeout Detected! Starting Election...", le.id)
+
+		heatrbeatCounter := params.(int)
+
+		logger.Logger.Infof("[Node %d] Leader Heartbeat Timeout After %d heartbeats! Starting Election...", le.id, heatrbeatCounter)
 		le.heartbeatHandler.Stop() // Stop receiving heartbeats
 		le.electionHandler.StartElection()
 	}

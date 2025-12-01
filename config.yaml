@@ -15,4 +15,4 @@ services:
   joiner:
     instances: 2
   client:
-    instances: 10
+    instances: 3

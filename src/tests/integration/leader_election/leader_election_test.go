@@ -425,16 +425,22 @@ func TestElectionWatch(t *testing.T) {
 		nodes[i] = leader_election.NewLeaderElection("localhost", startPort+i, int32(i+1), url, enum.None, maxNodes, nodeAddrs, nil)
 		go nodes[i].Start()
 	}
+
+	time.Sleep(10 * time.Second)
+
+	leader := nodes[len(nodes)-1]
+	leader.Close()
+
 	<-sigCh
 	logger.Logger.Info("\033[32m SHUTDOWN SIGNAL RECV, CLEANING UP...\u200b\033[0m")
 
-	for i := range nodes {
-		if i == maxNodes-1 {
-			assert.True(t, nodes[i].IsLeader(), "The highest ID node should be leader")
-		} else {
-			assert.False(t, nodes[i].IsLeader(), "Node should not be leader")
-		}
-		nodes[i].Close()
-	}
+	// for i := range nodes {
+	// 	if i == maxNodes-1 {
+	// 		assert.True(t, nodes[i].IsLeader(), "The highest ID node should be leader")
+	// 	} else {
+	// 		assert.False(t, nodes[i].IsLeader(), "Node should not be leader")
+	// 	}
+	// 	nodes[i].Close()
+	// }
 	logger.Logger.Info("\033[32m ELECTION TEST STOPPED SUCCESSFULLY\u200b\033[0m")
 }

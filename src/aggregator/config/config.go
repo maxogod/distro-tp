@@ -29,8 +29,10 @@ type LeaderElectionConfig struct {
 }
 
 func (lec LeaderElectionConfig) String() string {
-	connected_nodes := strings.Join(lec.ConnectedNodes, ",")
-	return fmt.Sprintf(" ID: %d | ConnectedNodes: [%s] | Host: %s | Port: %d", lec.ID, connected_nodes, lec.Host, lec.Port)
+
+	connectedNodesStr := strings.Join(lec.ConnectedNodes, ", ")
+
+	return fmt.Sprintf(" ID: %d | ConnectedNodes: [%s], Amount: %d | Host: %s | Port: %d", lec.ID, connectedNodesStr, len(lec.ConnectedNodes), lec.Host, lec.Port)
 }
 
 type Config struct {
@@ -54,19 +56,14 @@ func (c Config) String() string {
 
 const CONFIG_FILE_PATH = "./config.yaml"
 
-func InitConfig(configFilePath string) (*Config, error) {
+func InitConfig() (*Config, error) {
 	v := viper.New()
 	v.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 	v.AutomaticEnv()
 
-	configFile := CONFIG_FILE_PATH
-	if configFilePath != "" {
-		configFile = configFilePath
-	}
-
-	v.SetConfigFile(configFile)
+	v.SetConfigFile(CONFIG_FILE_PATH)
 	if err := v.ReadInConfig(); err != nil {
-		return nil, errors.Wrapf(err, "failed to read config file %s", configFile)
+		return nil, errors.Wrapf(err, "failed to read config file %s", CONFIG_FILE_PATH)
 	}
 
 	heatbeatConf := HeartbeatConfig{
@@ -103,5 +100,13 @@ func ViperGetStringSliceWithDefault(v *viper.Viper, key string, defaultValue []s
 	if !v.IsSet(key) {
 		return defaultValue
 	}
-	return v.GetStringSlice(key)
+	str := v.GetString(key)
+	if str != "" {
+		values := strings.Split(str, ",")
+		for i, v := range values {
+			values[i] = strings.TrimSpace(v)
+		}
+		return values
+	}
+	return defaultValue
 }

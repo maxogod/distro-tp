@@ -8,8 +8,8 @@ services:
     image: rabbitmq:latest
     command: sh -c "rabbitmq-server > /dev/null 2>&1"
     ports:
-      - '5670:5672'
-      - '15670:15672'
+      - "5670:5672"
+      - "15670:15672"
     healthcheck:
       test: ["CMD", "rabbitmq-diagnostics", "ping"]
       interval: 10s
@@ -18,7 +18,7 @@ services:
       retries: 5
     networks:
       - tp_net
-    
+
   egg_of_life:
     container_name: egg_of_life
     build:
@@ -32,7 +32,7 @@ services:
     environment:
       - NETWORK=distro_tp_net
       - HOST_PROJECT_PATH=${PWD}
-    
+
   gateway1:
     container_name: gateway1
     build:
@@ -55,7 +55,7 @@ services:
       start_period: 10s
     networks:
       - tp_net
-        
+
   controller:
     container_name: controller
     build:
@@ -68,7 +68,7 @@ services:
         condition: service_healthy
     networks:
       - tp_net
-        
+
   aggregator1:
     container_name: aggregator1
     build:
@@ -86,7 +86,7 @@ services:
     depends_on:
       rabbitmq:
         condition: service_healthy
-        
+
   aggregator2:
     container_name: aggregator2
     build:
@@ -104,7 +104,7 @@ services:
     depends_on:
       rabbitmq:
         condition: service_healthy
-        
+
   aggregator3:
     container_name: aggregator3
     build:
@@ -122,7 +122,7 @@ services:
     depends_on:
       rabbitmq:
         condition: service_healthy
-        
+
   filter1:
     container_name: filter1
     build:
@@ -135,7 +135,7 @@ services:
     depends_on:
       rabbitmq:
         condition: service_healthy
-        
+
   filter2:
     container_name: filter2
     build:
@@ -148,7 +148,7 @@ services:
     depends_on:
       rabbitmq:
         condition: service_healthy
-        
+
   joiner1:
     container_name: joiner1
     build:
@@ -161,7 +161,7 @@ services:
     depends_on:
       rabbitmq:
         condition: service_healthy
-        
+
   joiner2:
     container_name: joiner2
     build:
@@ -174,7 +174,7 @@ services:
     depends_on:
       rabbitmq:
         condition: service_healthy
-        
+
   reducer1:
     container_name: reducer1
     build:
@@ -187,7 +187,7 @@ services:
     depends_on:
       rabbitmq:
         condition: service_healthy
-        
+
   reducer2:
     container_name: reducer2
     build:
@@ -200,7 +200,7 @@ services:
     depends_on:
       rabbitmq:
         condition: service_healthy
-        
+
   group_by1:
     container_name: group_by1
     build:
@@ -213,7 +213,7 @@ services:
     depends_on:
       rabbitmq:
         condition: service_healthy
-        
+
   group_by2:
     container_name: group_by2
     build:
@@ -226,7 +226,7 @@ services:
     depends_on:
       rabbitmq:
         condition: service_healthy
-        
+
   client1:
     container_name: client1
     entrypoint: ["/app/app", "t1"]
@@ -242,7 +242,7 @@ services:
     depends_on:
       gateway1:
         condition: service_healthy
-        
+
   client2:
     container_name: client2
     entrypoint: ["/app/app", "t2"]
@@ -258,7 +258,7 @@ services:
     depends_on:
       gateway1:
         condition: service_healthy
-        
+
   client3:
     container_name: client3
     entrypoint: ["/app/app", "t3"]
@@ -274,119 +274,7 @@ services:
     depends_on:
       gateway1:
         condition: service_healthy
-        
-  client4:
-    container_name: client4
-    entrypoint: ["/app/app", "t4"]
-    build:
-      dockerfile: ./src/client/Dockerfile
-    image: client:latest
-    networks:
-      - tp_net
-    volumes:
-      - ./.data:/app/.data
-      - ./.output4:/app/.output
-      - ./src/client/config.yaml:/app/config.yaml
-    depends_on:
-      gateway1:
-        condition: service_healthy
-        
-  client5:
-    container_name: client5
-    entrypoint: ["/app/app", "t1"]
-    build:
-      dockerfile: ./src/client/Dockerfile
-    image: client:latest
-    networks:
-      - tp_net
-    volumes:
-      - ./.data:/app/.data
-      - ./.output5:/app/.output
-      - ./src/client/config.yaml:/app/config.yaml
-    depends_on:
-      gateway1:
-        condition: service_healthy
-        
-  client6:
-    container_name: client6
-    entrypoint: ["/app/app", "t2"]
-    build:
-      dockerfile: ./src/client/Dockerfile
-    image: client:latest
-    networks:
-      - tp_net
-    volumes:
-      - ./.data:/app/.data
-      - ./.output6:/app/.output
-      - ./src/client/config.yaml:/app/config.yaml
-    depends_on:
-      gateway1:
-        condition: service_healthy
-        
-  client7:
-    container_name: client7
-    entrypoint: ["/app/app", "t3"]
-    build:
-      dockerfile: ./src/client/Dockerfile
-    image: client:latest
-    networks:
-      - tp_net
-    volumes:
-      - ./.data:/app/.data
-      - ./.output7:/app/.output
-      - ./src/client/config.yaml:/app/config.yaml
-    depends_on:
-      gateway1:
-        condition: service_healthy
-        
-  client8:
-    container_name: client8
-    entrypoint: ["/app/app", "t4"]
-    build:
-      dockerfile: ./src/client/Dockerfile
-    image: client:latest
-    networks:
-      - tp_net
-    volumes:
-      - ./.data:/app/.data
-      - ./.output8:/app/.output
-      - ./src/client/config.yaml:/app/config.yaml
-    depends_on:
-      gateway1:
-        condition: service_healthy
-        
-  client9:
-    container_name: client9
-    entrypoint: ["/app/app", "t1"]
-    build:
-      dockerfile: ./src/client/Dockerfile
-    image: client:latest
-    networks:
-      - tp_net
-    volumes:
-      - ./.data:/app/.data
-      - ./.output9:/app/.output
-      - ./src/client/config.yaml:/app/config.yaml
-    depends_on:
-      gateway1:
-        condition: service_healthy
-        
-  client10:
-    container_name: client10
-    entrypoint: ["/app/app", "t2"]
-    build:
-      dockerfile: ./src/client/Dockerfile
-    image: client:latest
-    networks:
-      - tp_net
-    volumes:
-      - ./.data:/app/.data
-      - ./.output10:/app/.output
-      - ./src/client/config.yaml:/app/config.yaml
-    depends_on:
-      gateway1:
-        condition: service_healthy
-        
+
 networks:
   tp_net:
     ipam:
