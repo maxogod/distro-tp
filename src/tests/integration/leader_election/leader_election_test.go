@@ -407,34 +407,24 @@ func TestElectionWatchKillLeader(t *testing.T) {
 }
 
 func TestElectionWatch(t *testing.T) {
-	maxNodes := 5
-
-	// Start 5 nodes
-	le1 := leader_election.NewLeaderElection("localhost", 9091, 1, url, enum.None, maxNodes, nil)
-	le2 := leader_election.NewLeaderElection("localhost", 9092, 2, url, enum.None, maxNodes, nil)
-	le3 := leader_election.NewLeaderElection("localhost", 9093, 3, url, enum.None, maxNodes, nil)
-	le4 := leader_election.NewLeaderElection("localhost", 9094, 4, url, enum.None, maxNodes, nil)
-	le5 := leader_election.NewLeaderElection("localhost", 9095, 5, url, enum.None, maxNodes, nil)
-
-	go le1.Start()
-	go le2.Start()
-	go le3.Start()
-	go le4.Start()
-	go le5.Start()
+	// /snap/go/current/bin/go test -v -run ^TestElectionWatch$ github.com/maxogod/distro-tp/src/tests/integration/leader_election --count=1
 
 	sigCh := make(chan os.Signal, 1)
 	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
-	logger.Logger.Info("\033[32m||||||||||||| ELECTION TEST RUNNING. PRESS CTRL+C TO STOP... |||||||||||||\u200b\033[0m")
+	maxNodes := 2
 
+	nodes := make([]leader_election.LeaderElection, maxNodes)
+
+	for i := 0; i < maxNodes; i++ {
+		nodes[i] = leader_election.NewLeaderElection("localhost", 9091+i, int32(i+1), url, enum.None, maxNodes, nil)
+		go nodes[i].Start()
+	}
 	<-sigCh
-
 	logger.Logger.Info("\033[32m||||||||||||| SHUTDOWN SIGNAL RECV, CLEANING UP... |||||||||||||\u200b\033[0m")
 
-	le1.Close()
-	le2.Close()
-	le3.Close()
-	le4.Close()
-	le5.Close()
+	for i := 0; i < maxNodes; i++ {
+		nodes[i].Close()
+	}
 
 	logger.Logger.Info("\033[32m||||||||||||| ELECTION TEST STOPPED SUCCESSFULLY |||||||||||||\u200b\033[0m")
 }
