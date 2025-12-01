@@ -8,8 +8,8 @@ services:
     image: rabbitmq:latest
     command: sh -c "rabbitmq-server > /dev/null 2>&1"
     ports:
-      - "5670:5672"
-      - "15670:15672"
+      - '5670:5672'
+      - '15670:15672'
     healthcheck:
       test: ["CMD", "rabbitmq-diagnostics", "ping"]
       interval: 10s
@@ -18,7 +18,7 @@ services:
       retries: 5
     networks:
       - tp_net
-
+    
   egg_of_life:
     container_name: egg_of_life
     build:
@@ -32,7 +32,7 @@ services:
     environment:
       - NETWORK=distro_tp_net
       - HOST_PROJECT_PATH=${PWD}
-
+    
   gateway1:
     container_name: gateway1
     build:
@@ -55,7 +55,7 @@ services:
       start_period: 10s
     networks:
       - tp_net
-
+        
   controller:
     container_name: controller
     build:
@@ -68,7 +68,7 @@ services:
         condition: service_healthy
     networks:
       - tp_net
-
+        
   aggregator1:
     container_name: aggregator1
     build:
@@ -80,13 +80,13 @@ services:
       - LEADER_ELECTION_ID=1
       - LEADER_ELECTION_HOST=aggregator1
       - LEADER_ELECTION_PORT=9090
-      - NODE_ADDRS=aggregator1:9090,aggregator2:9090,aggregator3:9090,aggregator4:9090,aggregator5:9090,aggregator6:9090,aggregator7:9090,aggregator8:9090,aggregator9:9090,aggregator10:9090
+      - LEADER_ELECTION_NODES=aggregator1:9090,aggregator2:9090,aggregator3:9090
     volumes:
       - ./src/aggregator/config.yaml:/app/config.yaml
     depends_on:
       rabbitmq:
         condition: service_healthy
-
+        
   aggregator2:
     container_name: aggregator2
     build:
@@ -98,13 +98,13 @@ services:
       - LEADER_ELECTION_ID=2
       - LEADER_ELECTION_HOST=aggregator2
       - LEADER_ELECTION_PORT=9090
-      - NODE_ADDRS=aggregator1:9090,aggregator2:9090,aggregator3:9090,aggregator4:9090,aggregator5:9090,aggregator6:9090,aggregator7:9090,aggregator8:9090,aggregator9:9090,aggregator10:9090
+      - LEADER_ELECTION_NODES=aggregator1:9090,aggregator2:9090,aggregator3:9090
     volumes:
       - ./src/aggregator/config.yaml:/app/config.yaml
     depends_on:
       rabbitmq:
         condition: service_healthy
-
+        
   aggregator3:
     container_name: aggregator3
     build:
@@ -116,139 +116,13 @@ services:
       - LEADER_ELECTION_ID=3
       - LEADER_ELECTION_HOST=aggregator3
       - LEADER_ELECTION_PORT=9090
-      - NODE_ADDRS=aggregator1:9090,aggregator2:9090,aggregator3:9090,aggregator4:9090,aggregator5:9090,aggregator6:9090,aggregator7:9090,aggregator8:9090,aggregator9:9090,aggregator10:9090
+      - LEADER_ELECTION_NODES=aggregator1:9090,aggregator2:9090,aggregator3:9090
     volumes:
       - ./src/aggregator/config.yaml:/app/config.yaml
     depends_on:
       rabbitmq:
         condition: service_healthy
-
-  aggregator4:
-    container_name: aggregator4
-    build:
-      dockerfile: ./src/aggregator/Dockerfile
-    image: aggregator:latest
-    networks:
-      - tp_net
-    environment:
-      - LEADER_ELECTION_ID=4
-      - LEADER_ELECTION_HOST=aggregator4
-      - LEADER_ELECTION_PORT=9090
-      - NODE_ADDRS=aggregator1:9090,aggregator2:9090,aggregator3:9090,aggregator4:9090,aggregator5:9090,aggregator6:9090,aggregator7:9090,aggregator8:9090,aggregator9:9090,aggregator10:9090
-    volumes:
-      - ./src/aggregator/config.yaml:/app/config.yaml
-    depends_on:
-      rabbitmq:
-        condition: service_healthy
-
-  aggregator5:
-    container_name: aggregator5
-    build:
-      dockerfile: ./src/aggregator/Dockerfile
-    image: aggregator:latest
-    networks:
-      - tp_net
-    environment:
-      - LEADER_ELECTION_ID=5
-      - LEADER_ELECTION_HOST=aggregator5
-      - LEADER_ELECTION_PORT=9090
-      - NODE_ADDRS=aggregator1:9090,aggregator2:9090,aggregator3:9090,aggregator4:9090,aggregator5:9090,aggregator6:9090,aggregator7:9090,aggregator8:9090,aggregator9:9090,aggregator10:9090
-    volumes:
-      - ./src/aggregator/config.yaml:/app/config.yaml
-    depends_on:
-      rabbitmq:
-        condition: service_healthy
-
-  aggregator6:
-    container_name: aggregator6
-    build:
-      dockerfile: ./src/aggregator/Dockerfile
-    image: aggregator:latest
-    networks:
-      - tp_net
-    environment:
-      - LEADER_ELECTION_ID=6
-      - LEADER_ELECTION_HOST=aggregator6
-      - LEADER_ELECTION_PORT=9090
-      - NODE_ADDRS=aggregator1:9090,aggregator2:9090,aggregator3:9090,aggregator4:9090,aggregator5:9090,aggregator6:9090,aggregator7:9090,aggregator8:9090,aggregator9:9090,aggregator10:9090
-    volumes:
-      - ./src/aggregator/config.yaml:/app/config.yaml
-    depends_on:
-      rabbitmq:
-        condition: service_healthy
-
-  aggregator7:
-    container_name: aggregator7
-    build:
-      dockerfile: ./src/aggregator/Dockerfile
-    image: aggregator:latest
-    networks:
-      - tp_net
-    environment:
-      - LEADER_ELECTION_ID=7
-      - LEADER_ELECTION_HOST=aggregator7
-      - LEADER_ELECTION_PORT=9090
-      - NODE_ADDRS=aggregator1:9090,aggregator2:9090,aggregator3:9090,aggregator4:9090,aggregator5:9090,aggregator6:9090,aggregator7:9090,aggregator8:9090,aggregator9:9090,aggregator10:9090
-    volumes:
-      - ./src/aggregator/config.yaml:/app/config.yaml
-    depends_on:
-      rabbitmq:
-        condition: service_healthy
-
-  aggregator8:
-    container_name: aggregator8
-    build:
-      dockerfile: ./src/aggregator/Dockerfile
-    image: aggregator:latest
-    networks:
-      - tp_net
-    environment:
-      - LEADER_ELECTION_ID=8
-      - LEADER_ELECTION_HOST=aggregator8
-      - LEADER_ELECTION_PORT=9090
-      - NODE_ADDRS=aggregator1:9090,aggregator2:9090,aggregator3:9090,aggregator4:9090,aggregator5:9090,aggregator6:9090,aggregator7:9090,aggregator8:9090,aggregator9:9090,aggregator10:9090
-    volumes:
-      - ./src/aggregator/config.yaml:/app/config.yaml
-    depends_on:
-      rabbitmq:
-        condition: service_healthy
-
-  aggregator9:
-    container_name: aggregator9
-    build:
-      dockerfile: ./src/aggregator/Dockerfile
-    image: aggregator:latest
-    networks:
-      - tp_net
-    environment:
-      - LEADER_ELECTION_ID=9
-      - LEADER_ELECTION_HOST=aggregator9
-      - LEADER_ELECTION_PORT=9090
-      - NODE_ADDRS=aggregator1:9090,aggregator2:9090,aggregator3:9090,aggregator4:9090,aggregator5:9090,aggregator6:9090,aggregator7:9090,aggregator8:9090,aggregator9:9090,aggregator10:9090
-    volumes:
-      - ./src/aggregator/config.yaml:/app/config.yaml
-    depends_on:
-      rabbitmq:
-        condition: service_healthy
-
-  aggregator10:
-    container_name: aggregator10
-    build:
-      dockerfile: ./src/aggregator/Dockerfile
-    image: aggregator:latest
-    networks:
-      - tp_net
-    environment:
-      - LEADER_ELECTION_ID=10
-      - LEADER_ELECTION_HOST=aggregator10
-      - LEADER_ELECTION_PORT=9090
-      - NODE_ADDRS=aggregator1:9090,aggregator2:9090,aggregator3:9090,aggregator4:9090,aggregator5:9090,aggregator6:9090,aggregator7:9090,aggregator8:9090,aggregator9:9090,aggregator10:9090
-    volumes:
-      - ./src/aggregator/config.yaml:/app/config.yaml
-    depends_on:
-      rabbitmq:
-        condition: service_healthy
-
+        
   filter1:
     container_name: filter1
     build:
@@ -261,7 +135,7 @@ services:
     depends_on:
       rabbitmq:
         condition: service_healthy
-
+        
   filter2:
     container_name: filter2
     build:
@@ -274,7 +148,7 @@ services:
     depends_on:
       rabbitmq:
         condition: service_healthy
-
+        
   joiner1:
     container_name: joiner1
     build:
@@ -287,7 +161,7 @@ services:
     depends_on:
       rabbitmq:
         condition: service_healthy
-
+        
   joiner2:
     container_name: joiner2
     build:
@@ -300,7 +174,7 @@ services:
     depends_on:
       rabbitmq:
         condition: service_healthy
-
+        
   reducer1:
     container_name: reducer1
     build:
@@ -313,7 +187,7 @@ services:
     depends_on:
       rabbitmq:
         condition: service_healthy
-
+        
   reducer2:
     container_name: reducer2
     build:
@@ -326,7 +200,7 @@ services:
     depends_on:
       rabbitmq:
         condition: service_healthy
-
+        
   group_by1:
     container_name: group_by1
     build:
@@ -339,7 +213,7 @@ services:
     depends_on:
       rabbitmq:
         condition: service_healthy
-
+        
   group_by2:
     container_name: group_by2
     build:
@@ -352,7 +226,7 @@ services:
     depends_on:
       rabbitmq:
         condition: service_healthy
-
+        
   client1:
     container_name: client1
     entrypoint: ["/app/app", "t1"]
@@ -368,7 +242,7 @@ services:
     depends_on:
       gateway1:
         condition: service_healthy
-
+        
   client2:
     container_name: client2
     entrypoint: ["/app/app", "t2"]
@@ -384,7 +258,7 @@ services:
     depends_on:
       gateway1:
         condition: service_healthy
-
+        
   client3:
     container_name: client3
     entrypoint: ["/app/app", "t3"]
@@ -400,7 +274,7 @@ services:
     depends_on:
       gateway1:
         condition: service_healthy
-
+        
   client4:
     container_name: client4
     entrypoint: ["/app/app", "t4"]
@@ -416,7 +290,7 @@ services:
     depends_on:
       gateway1:
         condition: service_healthy
-
+        
   client5:
     container_name: client5
     entrypoint: ["/app/app", "t1"]
@@ -432,7 +306,7 @@ services:
     depends_on:
       gateway1:
         condition: service_healthy
-
+        
   client6:
     container_name: client6
     entrypoint: ["/app/app", "t2"]
@@ -448,7 +322,7 @@ services:
     depends_on:
       gateway1:
         condition: service_healthy
-
+        
   client7:
     container_name: client7
     entrypoint: ["/app/app", "t3"]
@@ -464,7 +338,7 @@ services:
     depends_on:
       gateway1:
         condition: service_healthy
-
+        
   client8:
     container_name: client8
     entrypoint: ["/app/app", "t4"]
@@ -480,7 +354,7 @@ services:
     depends_on:
       gateway1:
         condition: service_healthy
-
+        
   client9:
     container_name: client9
     entrypoint: ["/app/app", "t1"]
@@ -496,7 +370,7 @@ services:
     depends_on:
       gateway1:
         condition: service_healthy
-
+        
   client10:
     container_name: client10
     entrypoint: ["/app/app", "t2"]
@@ -512,7 +386,7 @@ services:
     depends_on:
       gateway1:
         condition: service_healthy
-
+        
 networks:
   tp_net:
     ipam:

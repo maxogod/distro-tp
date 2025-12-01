@@ -78,7 +78,7 @@ func InitConfig(configFilePath string) (*Config, error) {
 	leaderElectionConf := LeaderElectionConfig{
 		ID:             v.GetInt("leader_election.id"),
 		MaxNodes:       v.GetInt("leader_election.maxNodes"),
-		ConnectedNodes: ViperGetStringSliceWithDefault(v, "leader_election.connected_nodes", []string{}),
+		ConnectedNodes: ViperGetStringSliceWithDefault(v, "leader_election.nodes", []string{}),
 		Host:           v.GetString("leader_election.host"),
 		Port:           v.GetInt("leader_election.port"),
 	}

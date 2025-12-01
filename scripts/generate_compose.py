@@ -165,7 +165,7 @@ def add_aggregator(count, tags=None):
       - LEADER_ELECTION_ID={i}
       - LEADER_ELECTION_HOST=aggregator{i}
       - LEADER_ELECTION_PORT=9090
-      - NODE_ADDRS={node_addrs_str}
+      - LEADER_ELECTION_NODES={node_addrs_str}
     volumes:
       - ./src/aggregator/config.yaml:/app/config.yaml
     depends_on:
