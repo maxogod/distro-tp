@@ -128,6 +128,8 @@ def add_controller(count, tags=None):
     image: controller:latest
     volumes:
       - ./src/controller/config.yaml:/app/config.yaml
+    environment:
+      - ID={cname}
     depends_on:
       rabbitmq:
         condition: service_healthy
@@ -158,6 +160,7 @@ def add_aggregator(count, tags=None):
     networks:
       - tp_net
     environment:
+      - ID={cname}
       - LEADER_ELECTION_ID={i}
       - LEADER_ELECTION_HOST=aggregator{i}
       - LEADER_ELECTION_PORT=7070
@@ -193,6 +196,8 @@ def add_services(name, count, tags=None):
       - tp_net
     volumes:
       - ./src/{name}/config.yaml:/app/config.yaml
+    environment:
+      - ID={cname}
     depends_on:
       rabbitmq:
         condition: service_healthy
@@ -221,7 +226,7 @@ def add_joiner(count, tags=None):
     networks:
       - tp_net
     environment:
-      - ID=joiner{i}
+      - ID={cname}
     volumes:
       - ./src/joiner/config.yaml:/app/config.yaml
       - ./.storage/joiner{i}:/app/storage

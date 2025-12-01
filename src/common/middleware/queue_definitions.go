@@ -99,9 +99,14 @@ func GetCounterExchange(url, clientID string) MessageMiddleware {
 // GetFinishExchange retrieves the middleware for the given exchange
 // to send or receive with apackage specific topic pass the topics parameter.
 // Possible topics: joiner, aggregator
-func GetFinishExchange(url string, topic []string) MessageMiddleware {
+func GetFinishExchange(url string, topic []string, receiverName string) MessageMiddleware {
+	if receiverName == "" {
+		return retryMiddlewareCreation(MIDDLEWARE_CONNECTION_RETRIES, WAIT_INTERVAL, func() (MessageMiddleware, error) {
+			return NewExchangeMiddleware(url, "finish_exchange", "direct", topic)
+		})
+	}
 	return retryMiddlewareCreation(MIDDLEWARE_CONNECTION_RETRIES, WAIT_INTERVAL, func() (MessageMiddleware, error) {
-		return NewExchangeMiddleware(url, "finish_exchange", "direct", topic)
+		return NewPersistentExchangeMiddleware(url, "finish_exchange", "direct", topic, "fin-"+receiverName)
 	})
 }
 

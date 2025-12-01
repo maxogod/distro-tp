@@ -28,6 +28,7 @@ type LeaderElectionConfig struct {
 }
 
 type Config struct {
+	ID             string
 	Address        string
 	LogLevel       string
 	Limits         Limits
@@ -62,6 +63,8 @@ func InitConfig(configFilePath string) (*Config, error) {
 		return nil, errors.Wrapf(err, "failed to read config file %s", configFile)
 	}
 
+	v.BindEnv("id", "ID")
+
 	heatbeatConf := HeartbeatConfig{
 		Host:     v.GetString("heartbeat.host"),
 		Port:     v.GetInt("heartbeat.port"),
@@ -81,6 +84,7 @@ func InitConfig(configFilePath string) (*Config, error) {
 	}
 
 	config := &Config{
+		ID:             v.GetString("id"),
 		Address:        v.GetString("gateway.address"),
 		LogLevel:       v.GetString("log.level"),
 		Limits:         limits,

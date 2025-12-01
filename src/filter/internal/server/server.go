@@ -35,7 +35,7 @@ func InitServer(conf *config.Config) *Server {
 	)
 	connectedClients := make(map[string]middleware.MessageMiddleware)
 	processedOutputQueue := make(map[string]middleware.MessageMiddleware)
-	finishExchange := middleware.GetFinishExchange(conf.Address, []string{string(enum.FilterWorker)})
+	finishExchange := middleware.GetFinishExchange(conf.Address, []string{string(enum.FilterWorker)}, conf.ID)
 
 	taskExecutor := task_executor.NewFilterExecutor(
 		conf.TaskConfig,

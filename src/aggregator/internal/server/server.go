@@ -26,14 +26,13 @@ type Server struct {
 }
 
 func InitServer(conf *config.Config) *Server {
-
 	// map to keep track of finished clients
 	finishedClients := sync.Map{} // map[string]bool
 
 	// initiate Queues and Exchanges
 	aggregatorInputQueue := middleware.GetAggregatorQueue(conf.Address)
 	joinerOutputQueue := middleware.GetJoinerQueue(conf.Address)
-	finishExchange := middleware.GetFinishExchange(conf.Address, []string{string(enum.AggregatorWorker)})
+	finishExchange := middleware.GetFinishExchange(conf.Address, []string{string(enum.AggregatorWorker)}, conf.ID)
 	updateHandler := update_handler.NewUpdateHandler(&finishedClients)
 	leaderElection := leader_election.NewLeaderElection(
 		conf.LeaderElection.Host,

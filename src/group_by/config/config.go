@@ -16,6 +16,7 @@ type HeartbeatConfig struct {
 }
 
 type Config struct {
+	ID        string
 	Address   string
 	LogLevel  string
 	Heartbeat HeartbeatConfig
@@ -32,7 +33,6 @@ func (c Config) String() string {
 const CONFIG_FILE_PATH = "./config.yaml"
 
 func InitConfig(configFilePath string) (*Config, error) {
-
 	v := viper.New()
 	v.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 	v.AutomaticEnv()
@@ -47,6 +47,8 @@ func InitConfig(configFilePath string) (*Config, error) {
 		return nil, errors.Wrapf(err, "failed to read config file %s", configFile)
 	}
 
+	v.BindEnv("id", "ID")
+
 	heatbeatConf := HeartbeatConfig{
 		Host:     v.GetString("heartbeat.host"),
 		Port:     v.GetInt("heartbeat.port"),
@@ -54,6 +56,7 @@ func InitConfig(configFilePath string) (*Config, error) {
 	}
 
 	config := &Config{
+		ID:        v.GetString("id"),
 		Address:   v.GetString("gateway.address"),
 		LogLevel:  v.GetString("log.level"),
 		Heartbeat: heatbeatConf,

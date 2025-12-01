@@ -21,11 +21,10 @@ type Server struct {
 }
 
 func InitServer(conf *config.Config) *Server {
-
 	// initiateOutputs
 	reducerInputQueue := middleware.GetReducerQueue(conf.Address)
 	aggregatorOutputQueue := middleware.GetAggregatorQueue(conf.Address)
-	finishExchange := middleware.GetFinishExchange(conf.Address, []string{string(enum.ReducerWorker)})
+	finishExchange := middleware.GetFinishExchange(conf.Address, []string{string(enum.ReducerWorker)}, conf.ID)
 
 	// initiate internal components
 	service := business.NewReducerService()

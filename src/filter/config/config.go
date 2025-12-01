@@ -17,6 +17,7 @@ type HeartbeatConfig struct {
 }
 
 type Config struct {
+	ID         string
 	Address    string
 	LogLevel   string
 	TaskConfig task_executor.TaskConfig
@@ -50,6 +51,8 @@ func InitConfig(configFilePath string) (*Config, error) {
 		return nil, errors.Wrapf(err, "failed to read config file %s", configFile)
 	}
 
+	v.BindEnv("id", "ID")
+
 	heatbeatConf := HeartbeatConfig{
 		Host:     v.GetString("heartbeat.host"),
 		Port:     v.GetInt("heartbeat.port"),
@@ -57,6 +60,7 @@ func InitConfig(configFilePath string) (*Config, error) {
 	}
 
 	config := &Config{
+		ID:       v.GetString("id"),
 		Address:  v.GetString("gateway.address"),
 		LogLevel: v.GetString("log.level"),
 		TaskConfig: task_executor.TaskConfig{

@@ -86,6 +86,8 @@ services:
     image: controller:latest
     volumes:
       - ./src/controller/config.yaml:/app/config.yaml
+    environment:
+      - ID=controller
     depends_on:
       rabbitmq:
         condition: service_healthy
@@ -100,6 +102,7 @@ services:
     networks:
       - tp_net
     environment:
+      - ID=aggregator1
       - LEADER_ELECTION_ID=1
       - LEADER_ELECTION_HOST=aggregator1
       - LEADER_ELECTION_PORT=7070
@@ -145,11 +148,15 @@ services:
     container_name: filter1
     build:
       dockerfile: ./src/filter/Dockerfile
+      args:
+        BUILD_TAGS: "poison low_prob" 
     image: filter:latest
     networks:
       - tp_net
     volumes:
       - ./src/filter/config.yaml:/app/config.yaml
+    environment:
+      - ID=filter1
     depends_on:
       rabbitmq:
         condition: service_healthy
@@ -158,11 +165,15 @@ services:
     container_name: filter2
     build:
       dockerfile: ./src/filter/Dockerfile
+      args:
+        BUILD_TAGS: "poison low_prob" 
     image: filter:latest
     networks:
       - tp_net
     volumes:
       - ./src/filter/config.yaml:/app/config.yaml
+    environment:
+      - ID=filter2
     depends_on:
       rabbitmq:
         condition: service_healthy
@@ -171,11 +182,15 @@ services:
     container_name: reducer1
     build:
       dockerfile: ./src/reducer/Dockerfile
+      args:
+        BUILD_TAGS: "poison low_prob" 
     image: reducer:latest
     networks:
       - tp_net
     volumes:
       - ./src/reducer/config.yaml:/app/config.yaml
+    environment:
+      - ID=reducer1
     depends_on:
       rabbitmq:
         condition: service_healthy
@@ -184,11 +199,15 @@ services:
     container_name: reducer2
     build:
       dockerfile: ./src/reducer/Dockerfile
+      args:
+        BUILD_TAGS: "poison low_prob" 
     image: reducer:latest
     networks:
       - tp_net
     volumes:
       - ./src/reducer/config.yaml:/app/config.yaml
+    environment:
+      - ID=reducer2
     depends_on:
       rabbitmq:
         condition: service_healthy
@@ -197,11 +216,15 @@ services:
     container_name: group_by1
     build:
       dockerfile: ./src/group_by/Dockerfile
+      args:
+        BUILD_TAGS: "poison low_prob" 
     image: group_by:latest
     networks:
       - tp_net
     volumes:
       - ./src/group_by/config.yaml:/app/config.yaml
+    environment:
+      - ID=group_by1
     depends_on:
       rabbitmq:
         condition: service_healthy
@@ -210,11 +233,15 @@ services:
     container_name: group_by2
     build:
       dockerfile: ./src/group_by/Dockerfile
+      args:
+        BUILD_TAGS: "poison low_prob" 
     image: group_by:latest
     networks:
       - tp_net
     volumes:
       - ./src/group_by/config.yaml:/app/config.yaml
+    environment:
+      - ID=group_by2
     depends_on:
       rabbitmq:
         condition: service_healthy

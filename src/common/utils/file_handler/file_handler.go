@@ -15,7 +15,7 @@ import (
 
 const FINISH_DATA_BYTE = 0xff
 const SYNC_DATA_BYTE = 0xfe
-const FLUSH_THRESHOLD = 64 * 1024 // aprox 64KB
+const FLUSH_THRESHOLD = 5 * 1024 // aprox 64KB
 
 type fileHandler struct {
 	ctx    context.Context

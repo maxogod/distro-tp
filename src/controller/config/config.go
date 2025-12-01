@@ -16,6 +16,7 @@ type HeartbeatConfig struct {
 }
 
 type Config struct {
+	ID                         string
 	MiddlewareAddress          string
 	Port                       int32
 	LogLevel                   string
@@ -54,6 +55,7 @@ func InitConfig() (*Config, error) {
 	v.BindEnv("receiving.timeout", "RECEIVING_TIMEOUT")
 	v.BindEnv("max.clients", "MAX_CLIENTS")
 	v.BindEnv("completion_after_done.timeout", "COMPLETION_AFTER_DONE_TIMEOUT")
+	v.BindEnv("id", "ID")
 
 	heatbeatConf := HeartbeatConfig{
 		Host:     v.GetString("heartbeat.host"),
@@ -62,6 +64,7 @@ func InitConfig() (*Config, error) {
 	}
 
 	config := &Config{
+		ID:                         v.GetString("id"),
 		MiddlewareAddress:          v.GetString("middleware.address"),
 		Port:                       int32(v.GetInt("port")),
 		LogLevel:                   v.GetString("log.level"),

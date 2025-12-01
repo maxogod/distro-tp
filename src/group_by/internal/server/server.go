@@ -24,7 +24,7 @@ func InitServer(conf *config.Config) *Server {
 	// initiateOutputs
 	groupByInputQueue := middleware.GetGroupByQueue(conf.Address)
 	reducerOutputQueue := middleware.GetReducerQueue(conf.Address)
-	finishExchange := middleware.GetFinishExchange(conf.Address, []string{string(enum.GroupbyWorker)})
+	finishExchange := middleware.GetFinishExchange(conf.Address, []string{string(enum.GroupbyWorker)}, conf.ID)
 
 	// initiate internal components
 	service := business.NewGroupService()

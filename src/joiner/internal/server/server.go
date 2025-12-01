@@ -26,7 +26,7 @@ func InitServer(conf *config.Config) *Server {
 	// initiate middlewares
 	joinerInputQueue := middleware.GetJoinerQueue(conf.Address)
 	refDataExchange := middleware.GetRefDataExchange(conf.Address, conf.ID)
-	finishExchange := middleware.GetFinishExchange(conf.Address, []string{string(enum.JoinerWorker)})
+	finishExchange := middleware.GetFinishExchange(conf.Address, []string{string(enum.JoinerWorker)}, conf.ID)
 
 	// initiate internal components
 	cacheService := cache.NewInMemoryCache()

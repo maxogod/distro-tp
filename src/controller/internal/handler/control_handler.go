@@ -160,7 +160,7 @@ func (ch *controlHandler) SendDone(worker enum.WorkerType, totalMsgs int, delete
 		return err
 	}
 
-	m := middleware.GetFinishExchange(ch.middlewareUrl, []string{string(worker)})
+	m := middleware.GetFinishExchange(ch.middlewareUrl, []string{string(worker)}, "")
 	defer m.Close()
 
 	sendErr := m.Send(dataBytes)
