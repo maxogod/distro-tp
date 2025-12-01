@@ -39,24 +39,23 @@ func NewClientSession(conn network.ConnectionInterface, config *config.Config) C
 		return nil
 	}
 
-	clientId := controlMsg.GetClientId()
-	reconnected := false
-	if clientId == uuid.Nil.String() {
-		clientId = uuid.New().String()
-		logger.Logger.Debugf("Generated new client ID: %s", clientId)
-	} else {
-		logger.Logger.Debugf("Reconnected client with ID: %s", clientId)
-		reconnected = true
-	}
-
-	cs.clientId = clientId
+	oldClientId := controlMsg.GetClientId()
 	cs.taskType = enum.TaskType(controlMsg.GetTaskType())
 
-	cs.messageHandler = handler.NewMessageHandler(config.MiddlewareAddress, clientId, config.ReceivingTimeout)
-	if reconnected {
-		notifErr := cs.messageHandler.NotifyCompletion(cs.clientId)
+	if oldClientId == uuid.Nil.String() || cs.taskType == enum.T1 {
+		logger.Logger.Debugf("New client connected, ID: %s", cs.clientId)
+		cs.clientId = uuid.New().String()
+	} else {
+		logger.Logger.Debugf("Reconnected client with ID: %s", cs.clientId)
+		cs.clientId = oldClientId
+	}
+
+	cs.messageHandler = handler.NewMessageHandler(config.MiddlewareAddress, cs.clientId, config.ReceivingTimeout)
+	if oldClientId != uuid.Nil.String() && cs.taskType == enum.T1 {
+		logger.Logger.Debugf("Aborting client with ID: %s for task %s", oldClientId, string(cs.taskType))
+		notifErr := cs.messageHandler.NotifyCompletion(oldClientId, true)
 		if notifErr != nil {
-			logger.Logger.Errorf("[%s] Error notifying controller about client reconnection: %v", cs.clientId, notifErr)
+			logger.Logger.Errorf("[%s] Error notifying controller about reconnection of clientId %s: %v", cs.clientId, oldClientId, notifErr)
 			return nil
 		}
 	}
@@ -126,7 +125,7 @@ func (cs *clientSession) ProcessRequest() error {
 	logger.Logger.Debugf("[%s] Starting to send report data to client", cs.clientId)
 	cs.processResponse()
 
-	err = cs.messageHandler.NotifyCompletion(cs.clientId)
+	err = cs.messageHandler.NotifyCompletion(cs.clientId, false)
 	if err != nil {
 		logger.Logger.Errorf("[%s] Error notifying controller about client completion: %v", cs.clientId, err)
 		return err

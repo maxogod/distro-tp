@@ -78,6 +78,13 @@ func (ch *controlHandler) AwaitForWorkers() error {
 	for currentWorkerType != enum.None && currentWorkerType != enum.AggregatorWorker {
 		counter := <-ch.counterCh
 
+		if enum.WorkerType(counter.GetFrom()) == enum.Gateway && enum.WorkerType(counter.GetNext()) == enum.Controller {
+			logger.Logger.Debugf("[%s] Receive Gateway abort for client %s", ch.clientID, ch.clientID)
+			ch.workersMonitoring[enum.Gateway].startOrFinishCh <- false      // Finally finish gateway layer
+			ch.workersMonitoring[enum.FilterWorker].startOrFinishCh <- false // Finally finish filter layer
+			return nil
+		}
+
 		seqNum := counter.GetSequenceNumber()
 
 		if _, ok := ch.sequencesSeen[seqNum]; ok {

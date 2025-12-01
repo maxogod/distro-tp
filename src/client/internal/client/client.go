@@ -143,6 +143,7 @@ func (c *client) handleTaskError(task string, err error) error {
 		return c.reconnectToGateway(task)
 	}
 
+	logger.Logger.Debugf("%v. Not reconnecting", err)
 	return err
 }
 

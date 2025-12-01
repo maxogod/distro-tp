@@ -112,11 +112,16 @@ func (mh *messageHandler) NotifyClientMessagesCount() error {
 	return nil
 }
 
-func (mh *messageHandler) NotifyCompletion(clientId string) error {
+func (mh *messageHandler) NotifyCompletion(clientId string, isAbort bool) error {
+	next := string(enum.None)
+	if isAbort {
+		next = string(enum.Controller)
+	}
+
 	countMessage := &protocol.MessageCounter{
 		ClientId: clientId,
 		From:     string(enum.Gateway),
-		Next:     string(enum.None),
+		Next:     next,
 	}
 	payload, err := proto.Marshal(countMessage)
 	if err != nil {
