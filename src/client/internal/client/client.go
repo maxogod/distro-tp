@@ -45,7 +45,7 @@ func (c *client) Start(task string) error {
 	defer c.Shutdown()
 
 	// Ensure output directory exists
-	if err := os.MkdirAll(c.conf.OutputPath, 0755); err != nil {
+	if err := os.MkdirAll(c.conf.OutputPath, 0777); err != nil {
 		logger.Logger.Errorf("failed to create output directory: %v", err)
 		return err
 	}

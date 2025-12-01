@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 
 	"github.com/maxogod/distro-tp/src/common/logger"
 )
@@ -68,8 +69,12 @@ func (fh *fileHandler) GetFileSize(path string) (int, error) {
 }
 
 func (fh *fileHandler) InitWriter(path string) (*FileWriter, error) {
-
-	outputFile, err := os.OpenFile(path, os.O_CREATE|os.O_RDWR|os.O_TRUNC, 0644)
+	dir := filepath.Dir(path)
+	if err := os.MkdirAll(dir, 0777); err != nil {
+		logger.Logger.Errorf("failed to create output directory: %v", err)
+		return nil, err
+	}
+	outputFile, err := os.OpenFile(path, os.O_CREATE|os.O_RDWR|os.O_TRUNC, 0666)
 
 	writeCh := make(chan []byte)
 	syncCh := make(chan bool)

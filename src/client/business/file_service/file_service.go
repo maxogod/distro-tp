@@ -61,7 +61,7 @@ func (fs *fileService) ReadAsBatches(path string, batches_ch chan []proto.Messag
 }
 
 func (fs *fileService) SaveCsvAsBatches(path string, batches_ch chan string, header string) error {
-	outputFile, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0644)
+	outputFile, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0666)
 	if err != nil {
 		logger.Logger.Errorf("failed to create output file: %v", err)
 		return err

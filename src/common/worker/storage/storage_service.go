@@ -10,6 +10,7 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
+const FOLDER_PATH = "storage/"
 const CACHE_EXTENSION = ".cache"
 
 type diskMemoryStorage struct {
@@ -24,7 +25,7 @@ func NewDiskMemoryStorage() StorageService {
 }
 
 func (c *diskMemoryStorage) StartWriting(cacheReference string, data [][]byte) error {
-	fileName := cacheReference + CACHE_EXTENSION
+	fileName := c.getFileName(cacheReference)
 
 	val, exists := c.storageChannels.Load(fileName)
 	var fileWriter *filehandler.FileWriter
@@ -48,7 +49,7 @@ func (c *diskMemoryStorage) StartWriting(cacheReference string, data [][]byte) e
 }
 
 func (c *diskMemoryStorage) StopWriting(cacheReference string) {
-	fileName := cacheReference + CACHE_EXTENSION
+	fileName := c.getFileName(cacheReference)
 	val, exists := c.storageChannels.Load(fileName)
 	if !exists {
 		logger.Logger.Warnf("No active writer for cache reference: %s", cacheReference)
@@ -60,7 +61,7 @@ func (c *diskMemoryStorage) StopWriting(cacheReference string) {
 }
 
 func (c *diskMemoryStorage) FlushWriting(cacheReference string) {
-	fileName := cacheReference + CACHE_EXTENSION
+	fileName := c.getFileName(cacheReference)
 	val, exists := c.storageChannels.Load(fileName)
 	if !exists {
 		logger.Logger.Warnf("No active writer for cache reference: %s", cacheReference)
@@ -71,12 +72,12 @@ func (c *diskMemoryStorage) FlushWriting(cacheReference string) {
 }
 
 func (c *diskMemoryStorage) ReadAllData(cacheReference string) (chan []byte, error) {
-	fileName := cacheReference + CACHE_EXTENSION
+	fileName := c.getFileName(cacheReference)
 	return c.fileHandler.InitReader(fileName)
 }
 
 func (c *diskMemoryStorage) ReadData(cacheReference string) (chan []byte, error) {
-	fileName := cacheReference + CACHE_EXTENSION
+	fileName := c.getFileName(cacheReference)
 
 	val, exists := c.storageChannels.Load(fileName)
 	if !exists {
@@ -106,13 +107,14 @@ func (c *diskMemoryStorage) GetAllFilesReferences() []string {
 }
 
 func (c *diskMemoryStorage) RemoveCache(cacheReference string) error {
-	files, err := filepath.Glob(cacheReference + "*")
+	files, err := filepath.Glob(FOLDER_PATH + cacheReference + "*")
 	if err != nil {
 		logger.Logger.Errorf("Error globbing files for %s: %v", cacheReference, err)
 		return err
 	}
 
-	c.storageChannels.Delete(cacheReference + CACHE_EXTENSION)
+	filename := c.getFileName(cacheReference)
+	c.storageChannels.Delete(filename)
 
 	for _, file := range files {
 		c.fileHandler.DeleteFile(file)
@@ -129,6 +131,10 @@ func (c *diskMemoryStorage) Close() error {
 	})
 	c.fileHandler.Close()
 	return nil
+}
+
+func (c *diskMemoryStorage) getFileName(cacheReference string) string {
+	return FOLDER_PATH + cacheReference + CACHE_EXTENSION
 }
 
 // ============ Helper methods ================
