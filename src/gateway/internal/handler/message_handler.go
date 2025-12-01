@@ -11,6 +11,8 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
+const INITIAL_REF_DATA_SEQ_NUMBER = 1
+
 type messageHandler struct {
 	clientID string
 
@@ -40,6 +42,7 @@ func NewMessageHandler(middlewareUrl, clientID string, receivingTimeout int) Mes
 		clientID: clientID,
 		clientID:         clientID,
 		refDataSeqNumber: 1,
+		refDataSeqNumber: INITIAL_REF_DATA_SEQ_NUMBER,
 
 		filtersQueueMiddleware: middleware.GetFilterQueue(middlewareUrl),
 		joinerRefExchange:      middleware.GetRefDataExchange(middlewareUrl, ""),
