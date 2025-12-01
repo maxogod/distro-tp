@@ -353,7 +353,7 @@ func (t *taskExecutor) receiveAndSaveEntireResults(
 
 	res, err := t.conn.ReceiveData()
 	if err != nil {
-		logger.Logger.Debugf("connection with server closed")
+		logger.Logger.Debugf("connection with server closed %v", err)
 		return err
 	}
 	dataEnvelope := &protocol.DataEnvelope{}
