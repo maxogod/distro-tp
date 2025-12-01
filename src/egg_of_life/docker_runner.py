@@ -38,6 +38,7 @@ class DockerRunner:
             f"--label {CREATOR_LABEL} "
             f"--label com.docker.compose.project={PROJECT} "
             f"-v {self._host_path}/src/{folder_name}/config.yaml:/app/config.yaml "
+            f"-e ID={name} "
         )
         if folder_name in ["joiner", "aggregator"]:
             cmd += f"-v {self._host_path}/.storage/{name}:/app/storage "

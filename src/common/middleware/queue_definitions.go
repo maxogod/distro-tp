@@ -41,9 +41,14 @@ func GetJoinerQueue(url string) MessageMiddleware {
 
 // GetRefDataExchange retrieves the middleware for the given exchange
 // to send or receive as fanout for joiners.
-func GetRefDataExchange(url string) MessageMiddleware {
+func GetRefDataExchange(url, receiverName string) MessageMiddleware {
+	if receiverName == "" {
+		return retryMiddlewareCreation(MIDDLEWARE_CONNECTION_RETRIES, WAIT_INTERVAL, func() (MessageMiddleware, error) {
+			return NewExchangeMiddleware(url, "ref_data_exchange", "fanout", []string{})
+		})
+	}
 	return retryMiddlewareCreation(MIDDLEWARE_CONNECTION_RETRIES, WAIT_INTERVAL, func() (MessageMiddleware, error) {
-		return NewExchangeMiddleware(url, "ref_data_exchange", "fanout", []string{})
+		return NewPersistentExchangeMiddleware(url, "ref_data_exchange", "fanout", []string{}, "ref-"+receiverName)
 	})
 }
 

@@ -26,7 +26,7 @@ services:
     image: egg_of_life:latest
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
-      - ./config.yaml:/app/config.yaml
+      - ./src/egg_of_life/config.yaml:/app/config.yaml
     networks:
       - tp_net
     environment:
@@ -116,6 +116,8 @@ services:
     image: joiner:latest
     networks:
       - tp_net
+    environment:
+      - ID=joiner1
     volumes:
       - ./src/joiner/config.yaml:/app/config.yaml
       - ./.storage/joiner1:/app/storage
@@ -130,6 +132,8 @@ services:
     image: joiner:latest
     networks:
       - tp_net
+    environment:
+      - ID=joiner2
     volumes:
       - ./src/joiner/config.yaml:/app/config.yaml
       - ./.storage/joiner2:/app/storage

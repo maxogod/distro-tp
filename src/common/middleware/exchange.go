@@ -79,7 +79,6 @@ func (me *MessageMiddlewareExchange) StartConsuming(onMessageCallback onMessageC
 		}
 	}
 
-	// TODO: prefetch count and size (Qos)
 	consumerTag := uuid.New().String()
 	me.consumerTag = consumerTag
 

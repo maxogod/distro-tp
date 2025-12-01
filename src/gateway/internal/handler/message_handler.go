@@ -39,7 +39,7 @@ func NewMessageHandler(middlewareUrl, clientID string, receivingTimeout int) Mes
 		clientID: clientID,
 
 		filtersQueueMiddleware: middleware.GetFilterQueue(middlewareUrl),
-		joinerRefExchange:      middleware.GetRefDataExchange(middlewareUrl),
+		joinerRefExchange:      middleware.GetRefDataExchange(middlewareUrl, ""),
 
 		processedDataExchangeMiddleware: middleware.GetProcessedDataExchange(middlewareUrl, clientID),
 		processedCh:                     make(chan *protocol.DataEnvelope, 9999),

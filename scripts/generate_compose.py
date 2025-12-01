@@ -220,6 +220,8 @@ def add_joiner(count, tags=None):
     image: joiner:latest
     networks:
       - tp_net
+    environment:
+      - ID=joiner{i}
     volumes:
       - ./src/joiner/config.yaml:/app/config.yaml
       - ./.storage/joiner{i}:/app/storage

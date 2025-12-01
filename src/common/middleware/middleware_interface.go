@@ -39,6 +39,17 @@ type MessageMiddlewareExchange struct {
 	consumerTag    string
 }
 
+type MessageMiddlewarePersistentExchange struct {
+	exchangeName string
+	queueName    string
+	conn         MiddlewareConnection
+	channel      MiddlewareChannel
+	routeKeys    []string
+
+	consumeChannel ConsumeChannel
+	consumerTag    string
+}
+
 // TODO: check if done channel is really necessary (probably not)
 type onMessageCallback func(consumeChannel ConsumeChannel, done chan error)
 
