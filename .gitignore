@@ -5,3 +5,5 @@
 .output*
 *.txt
 *.cache
+.storage/
+.storage/**/*

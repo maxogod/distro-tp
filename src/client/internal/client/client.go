@@ -3,6 +3,7 @@ package client
 import (
 	"errors"
 	"fmt"
+	"io"
 	"math/rand"
 	"net"
 	"os"
@@ -136,7 +137,8 @@ func (c *client) handleTaskError(task string, err error) error {
 
 	if errors.Is(err, syscall.EPIPE) ||
 		errors.Is(err, syscall.ECONNRESET) ||
-		errors.Is(err, net.ErrClosed) {
+		errors.Is(err, net.ErrClosed) ||
+		errors.Is(err, io.EOF) {
 		logger.Logger.Debugf("%v. Reconnecting to another gateway", err)
 		return c.reconnectToGateway(task)
 	}

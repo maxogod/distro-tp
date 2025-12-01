@@ -59,7 +59,7 @@ lines.append(
     image: egg_of_life:latest
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
-      - ./config.yaml:/app/config.yaml
+      - ./src/egg_of_life/config.yaml:/app/config.yaml
     networks:
       - tp_net
     environment:
