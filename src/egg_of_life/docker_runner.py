@@ -66,11 +66,11 @@ class DockerRunner:
             f"--label {CREATOR_LABEL} "
             f"--label com.docker.compose.project={PROJECT} "
             f"-v {self._host_path}/src/{folder_name}/config.yaml:/app/config.yaml "
-            f"{env_vars} "
-            f"{image}"
         )
         if folder_name in ["joiner", "aggregator"]:
             cmd += f"-v {self._host_path}/.storage/{name}:/app/storage "
+        if env_vars:
+            cmd += f"{env_vars} "
         cmd += image
         print(cmd)
         self._commands_queue.put(cmd)

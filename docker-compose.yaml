@@ -26,7 +26,7 @@ services:
     image: egg_of_life:latest
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
-      - ./config.yaml:/app/config.yaml
+      - ./src/egg_of_life/config.yaml:/app/config.yaml
     networks:
       - tp_net
     environment:
@@ -311,22 +311,6 @@ services:
     volumes:
       - ./.data:/app/.data
       - ./.output4:/app/.output
-      - ./src/client/config.yaml:/app/config.yaml
-    depends_on:
-      gateway1:
-        condition: service_healthy
-        
-  client5:
-    container_name: client5
-    entrypoint: ["/app/app", "t1"]
-    build:
-      dockerfile: ./src/client/Dockerfile
-    image: client:latest
-    networks:
-      - tp_net
-    volumes:
-      - ./.data:/app/.data
-      - ./.output5:/app/.output
       - ./src/client/config.yaml:/app/config.yaml
     depends_on:
       gateway1:

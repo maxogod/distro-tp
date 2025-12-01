@@ -18,4 +18,4 @@ services:
     instances: 2
     # tags: "poison low_prob"
   client:
-    instances: 5
+    instances: 4
