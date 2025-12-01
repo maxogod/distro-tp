@@ -201,6 +201,35 @@ def add_services(name, count, tags=None):
 
 
 # ==============================
+# Function to add joiner
+# ==============================
+def add_joiner(count, tags=None):
+    for i in range(1, count + 1):
+        cname = f"joiner{i}"
+        service_def = f"""  {cname}:
+    container_name: {cname}
+    build:
+      dockerfile: ./src/joiner/Dockerfile"""
+
+        if tags:
+            service_def += f"""
+      args:
+        BUILD_TAGS: "{tags}" """
+
+        service_def += f"""
+    image: joiner:latest
+    networks:
+      - tp_net
+    volumes:
+      - ./src/joiner/config.yaml:/app/config.yaml
+      - ./.storage/joiner{i}:/app/storage
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+        """
+        lines.append(service_def)
+
+# ==============================
 # Add gateway
 # ==============================
 gateway_config = services_config.get("gateway", {})
@@ -249,9 +278,25 @@ if count > 0:
     add_aggregator(count, tags)
 
 # ==============================
+# Add joiners
+# ==============================
+joiner_config = services_config.get("joiner", {})
+if isinstance(joiner_config, dict):
+    count = joiner_config.get("instances", 0)
+    tags = joiner_config.get("tags", None)
+else:
+    count = joiner_config if isinstance(joiner_config, int) else 0
+    tags = None
+
+if count > 0:
+    tag_info = f" with tags '{tags}'" if tags else ""
+    print(f"Adding {count} joiner(s){tag_info}")
+    add_joiner(count, tags)
+
+# ==============================
 # Add other services
 # ==============================
-for svc in ["filter", "joiner", "reducer", "group_by"]:
+for svc in ["filter", "reducer", "group_by"]:
     svc_config = services_config.get(svc, {})
 
     # Handle both dict and int formats for backwards compatibility

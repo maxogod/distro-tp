@@ -9,7 +9,6 @@ import (
 )
 
 func main() {
-
 	var configPath string
 	if len(os.Args) > 1 {
 		configPath = os.Args[1]
@@ -18,11 +17,11 @@ func main() {
 	conf, _ := config.InitConfig(configPath)
 
 	logger.InitLogger(logger.LoggerEnvironment(conf.LogLevel))
-
 	logger.Logger.Infof(conf.String())
 
 	server := server.InitServer(conf)
 
 	server.Run()
-	logger.Logger.Infof("Merentiel thanks you for using the Joiner Worker!")
+
+	logger.Logger.Infof("Cinderace thanks you for using the Joiner Worker!")
 }

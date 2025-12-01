@@ -14,7 +14,7 @@ compare:
 	./scripts/compare_all_outputs.sh .expected_full/
 
 clean:
-	sudo rm -rf .output*
+	sudo rm -rf .output* .storage
 
 check_clients:
 	docker compose logs | grep Pikachu
