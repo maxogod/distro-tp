@@ -1,6 +1,6 @@
 services:
   gateway:
-    instances: 1
+    instances: 2
   controller:
     instances: 1
   filter:
