@@ -22,6 +22,9 @@ type FileHandler interface {
 
 	// Delete the file
 	DeleteFile(path string)
+
+	// RenameFile renames a file from oldPath to newPath.
+	RenameFile(oldPath string, newPath string) error
 }
 
 type FileWriter struct {

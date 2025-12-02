@@ -12,6 +12,7 @@ import (
 
 const FOLDER_PATH = "storage/"
 const CACHE_EXTENSION = ".cache"
+const TEMP_FILE_SUFFIX = "_temp"
 
 type diskMemoryStorage struct {
 	fileHandler     filehandler.FileHandler
@@ -64,7 +65,7 @@ func (c *diskMemoryStorage) FlushWriting(cacheReference string) error {
 	fileName := c.getFileName(cacheReference)
 	val, exists := c.storageChannels.Load(fileName)
 	if !exists {
-		return fmt.Errorf("No active writer for cache reference: %s", cacheReference)
+		return fmt.Errorf("no active writer for cache reference: %s", cacheReference)
 	}
 	fileWriter := val.(*filehandler.FileWriter)
 	fileWriter.Sync()
@@ -137,6 +138,17 @@ func (c *diskMemoryStorage) getFileName(cacheReference string) string {
 	return FOLDER_PATH + cacheReference + CACHE_EXTENSION
 }
 
+func (c *diskMemoryStorage) SaveTempFile(cacheReference string) string {
+	tempFileName := cacheReference + TEMP_FILE_SUFFIX
+	finalFileName := c.getFileName(cacheReference)
+	err := c.fileHandler.RenameFile(tempFileName, finalFileName)
+	if err != nil {
+		logger.Logger.Errorf("Error renaming temp file %s to %s: %v", tempFileName, finalFileName, err)
+		return ""
+	}
+	return cacheReference
+}
+
 // ============ Helper methods ================
 
 func StoreBatch[T proto.Message](cs StorageService, cacheReference string, data []T) error {
@@ -152,6 +164,24 @@ func StoreBatch[T proto.Message](cs StorageService, cacheReference string, data 
 	err := cs.StartWriting(cacheReference, listBytes)
 	if err != nil {
 		logger.Logger.Errorf("Error storing data for client [%s]: %v", cacheReference, err)
+	}
+	return nil
+}
+
+func StoreTempBatch[T proto.Message](cs StorageService, cacheReference string, data []T) error {
+	tempCacheReference := cacheReference + TEMP_FILE_SUFFIX
+	listBytes := make([][]byte, len(data))
+	for i := range data {
+		bytes, err := proto.Marshal(data[i])
+		if err != nil {
+			logger.Logger.Errorf("Error marshalling proto message: %v", err)
+			return err
+		}
+		listBytes[i] = bytes
+	}
+	err := cs.StartWriting(tempCacheReference, listBytes)
+	if err != nil {
+		logger.Logger.Errorf("Error storing data for client [%s]: %v", tempCacheReference, err)
 	}
 	return nil
 }

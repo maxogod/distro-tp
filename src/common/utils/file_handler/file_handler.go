@@ -138,6 +138,10 @@ func (fh *fileHandler) DeleteFile(path string) {
 	os.Remove(path)
 }
 
+func (fh *fileHandler) RenameFile(oldPath string, newPath string) error {
+	return os.Rename(oldPath, newPath)
+}
+
 func (fh *fileHandler) readFile(path string, limit int) (chan []byte, error) {
 	readFile, err := os.Open(path)
 	if err != nil {
