@@ -62,8 +62,6 @@ Después, creamos el `TaskExecutor` propio del Group By (`GroupExecutor`), que i
 
 Luego, simplemente llamamos al metodo `Start()` del `MessageHandler` para que comience a escuchar mensajes y procesarlos. Cada mensaje consumido de la input queue del Group By (`group_by_queue`) le llegará al MessageHandler por medio de un channel, para que luego sea procesado por el método correspondiente del `GroupExecutor`, que aplicará el agrupamiento (según lo indicado antes para cada task) y enviará el resultado a la queue correspondiente (`reducer_queue`) y se quedará con un grupo por cada criterio definido en cada tarea. Luego, todos los grupos generados son envíados en un único `GroupTransactionsBatch` al `Reducer`.
 
-Hay un caso especial en la task 2 para este worker. Cada conjunto de grupos que se generó en esta tarea es enviada dos veces, una vez bajo la task `2_1` y otra vez bajo la task `2_2`. Esto es necesario para que el `Reducer` pueda calcular por separado la suma de los montos de los ítems agrupados (most profits items) y el conteo de los ítems agrupados (best selling items).
-
 ## Config
 
 En el archivo de `config.yaml` del worker Group By solo se define la configuración necesaria para conectarse a RabbitMQ y el nivel de logger.Logger. No hay configuraciones específicas para este worker en particular.
