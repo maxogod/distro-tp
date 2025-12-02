@@ -9,7 +9,7 @@ type StorageService interface {
 	// StopWriting stops writing data to the cache identified by cacheReference.
 	StopWriting(cacheReference string)
 	// FlushWriting flushes any buffered data to the cache identified by cacheReference.
-	FlushWriting(cacheReference string)
+	FlushWriting(cacheReference string) error
 	// ReadAllData reads all data from the cache identified by cacheReference.
 	ReadAllData(cacheReference string) (chan []byte, error)
 	// ReadData reads the data from the specific point it was called

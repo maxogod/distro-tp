@@ -60,15 +60,15 @@ func (c *diskMemoryStorage) StopWriting(cacheReference string) {
 	c.storageChannels.Delete(fileName)
 }
 
-func (c *diskMemoryStorage) FlushWriting(cacheReference string) {
+func (c *diskMemoryStorage) FlushWriting(cacheReference string) error {
 	fileName := c.getFileName(cacheReference)
 	val, exists := c.storageChannels.Load(fileName)
 	if !exists {
-		logger.Logger.Warnf("No active writer for cache reference: %s", cacheReference)
-		return
+		return fmt.Errorf("No active writer for cache reference: %s", cacheReference)
 	}
 	fileWriter := val.(*filehandler.FileWriter)
 	fileWriter.Sync()
+	return nil
 }
 
 func (c *diskMemoryStorage) ReadAllData(cacheReference string) (chan []byte, error) {

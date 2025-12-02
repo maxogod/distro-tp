@@ -45,6 +45,7 @@ func (je *joinerExecutor) HandleTask2(dataEnvelope *protocol.DataEnvelope, ackHa
 		} else {
 			err = je.joinerService.FinishStoringRefData(clientID)
 			je.flushRefData()
+			ackHandler(true, shouldRequeue)
 		}
 
 		if err != nil {
@@ -70,6 +71,7 @@ func (je *joinerExecutor) HandleTask2(dataEnvelope *protocol.DataEnvelope, ackHa
 	for _, itemData := range reportData.GetTotalSumItemsBySubtotal() {
 		if err := je.joinerService.JoinTotalSumItem(itemData, clientID); err != nil {
 			// if the ref data is not present yet, requeue the message
+			dataEnvelope.SequenceNumber -= 1 // decrement to retry same message
 			payload, _ := proto.Marshal(dataEnvelope)
 			je.joinerQueue.Send(payload)
 			shouldAck = true
@@ -104,6 +106,7 @@ func (je *joinerExecutor) HandleTask3(dataEnvelope *protocol.DataEnvelope, ackHa
 		} else {
 			err = je.joinerService.FinishStoringRefData(clientID)
 			je.flushRefData()
+			ackHandler(true, shouldRequeue)
 		}
 
 		if err != nil {
@@ -130,6 +133,7 @@ func (je *joinerExecutor) HandleTask3(dataEnvelope *protocol.DataEnvelope, ackHa
 		err := je.joinerService.JoinTotalPaymentValue(rData, clientID)
 		if err != nil {
 			// if the ref data is not present yet, requeue the message
+			dataEnvelope.SequenceNumber -= 1 // decrement to retry same message
 			payload, _ := proto.Marshal(dataEnvelope)
 			je.joinerQueue.Send(payload)
 			shouldAck = true
@@ -159,6 +163,7 @@ func (je *joinerExecutor) HandleTask4(dataEnvelope *protocol.DataEnvelope, ackHa
 		} else {
 			err = je.joinerService.FinishStoringRefData(clientID)
 			je.flushRefData()
+			ackHandler(true, shouldRequeue)
 		}
 
 		if err != nil {
@@ -184,6 +189,7 @@ func (je *joinerExecutor) HandleTask4(dataEnvelope *protocol.DataEnvelope, ackHa
 		err := je.joinerService.JoinCountedUserTransactions(countedData, clientID)
 		if err != nil {
 			// if the ref data is not present yet, requeue the message
+			dataEnvelope.SequenceNumber -= 1 // decrement to retry same message
 			payload, _ := proto.Marshal(dataEnvelope)
 			je.joinerQueue.Send(payload)
 			shouldAck = true
@@ -271,7 +277,11 @@ func (je *joinerExecutor) handleRefData(batch *protocol.DataEnvelope, clientID s
 }
 
 func (je *joinerExecutor) flushRefData() {
-	je.joinerService.SyncData()
+	err := je.joinerService.SyncData()
+	if err != nil {
+		logger.Logger.Errorf("Error flushing ref data: %s", err)
+		return
+	}
 	for _, handler := range je.ackHandlers {
 		handler(true, false)
 	}

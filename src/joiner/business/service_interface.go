@@ -21,7 +21,7 @@ type JoinerService interface {
 	FinishStoringRefData(clientID string) error
 
 	// SyncData ensures that all written data is flushed and synchronized for all refecerence data.
-	SyncData()
+	SyncData() error
 
 	/* --- Join Data --- */
 

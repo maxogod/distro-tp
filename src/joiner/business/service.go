@@ -106,13 +106,16 @@ func (js *joinerService) FinishStoringRefData(clientID string) error {
 	return nil
 }
 
-func (js *joinerService) SyncData() {
+func (js *joinerService) SyncData() error {
 	logger.Logger.Debug("Syncing all reference data to disk . . .")
 	for clientID := range js.clientRefs {
 		for ref := range js.clientRefs[clientID] {
-			js.storageService.FlushWriting(ref)
+			if err := js.storageService.FlushWriting(ref); err != nil {
+				return err
+			}
 		}
 	}
+	return nil
 }
 
 // ======= PRIVATE METHODS =======
@@ -183,7 +186,13 @@ func (js *joinerService) getMenuItemRef(clientID string, menuItemId string) (*ra
 		}
 		js.inMemoryService.StoreMenuItems(clientID, menuItemsList)
 		logger.Logger.Debugf("Amount of menu items loaded for client %s: %d", clientID, len(diskMenuItems))
-		return diskMenuItems[menuItemId], nil
+		actualRef, err := js.inMemoryService.GetMenuItem(clientID, menuItemId)
+		if err != nil {
+			return nil, fmt.Errorf("error retrieving menu %s from in-memory cache after loading from disk: %w", menuItemId, err)
+		}
+
+		return actualRef, nil
+
 	}
 	return inMemoryMenuItemRef, nil
 }
@@ -206,7 +215,13 @@ func (js *joinerService) getShopRef(clientID string, shopId string) (*raw.Store,
 		}
 		js.inMemoryService.StoreShops(clientID, storesList)
 		logger.Logger.Debugf("Amount of stores loaded for client %s: %d", clientID, len(diskStores))
-		return diskStores[shopId], nil
+
+		actualRef, err := js.inMemoryService.GetShop(clientID, shopId)
+		if err != nil {
+			return nil, fmt.Errorf("error retrieving shop %s from in-memory cache after loading from disk: %w", shopId, err)
+		}
+
+		return actualRef, nil
 	}
 	return inMemoryStoreRef, nil
 }
@@ -226,7 +241,7 @@ func (js *joinerService) getUserRef(clientID string, userId string) (*raw.User, 
 			return nil, fmt.Errorf("error getting user group for user %s: %w", userId, err)
 		}
 		referenceID := fmt.Sprintf("%s%s%d", clientID, USERS_REF, groupNum)
-		logger.Logger.Debugf("DATA MISS for userID: %s Loading users for client %s from disk, group %d", userId, clientID, groupNum)
+		//logger.Logger.Debugf("DATA MISS for userID: %s Loading users for client %s from disk, group %d", userId, clientID, groupNum)
 		diskUsers, usersList, err := loadReferenceData(js, referenceID, factory, getRefKey)
 		if err != nil {
 			logger.Logger.Debugf("Error loading users for client %s: %v", clientID, err)
@@ -236,7 +251,13 @@ func (js *joinerService) getUserRef(clientID string, userId string) (*raw.User, 
 		js.inMemoryService.RemoveRefData(clientID, enum.Users)
 		js.inMemoryService.StoreUsers(clientID, usersList)
 		logger.Logger.Debugf("Amount of users loaded for client %s: %d", clientID, len(diskUsers))
-		return diskUsers[userId], nil
+
+		actualRef, err := js.inMemoryService.GetUser(clientID, userId)
+		if err != nil {
+			return nil, fmt.Errorf("error retrieving user %s from in-memory cache after loading from disk: %w", userId, err)
+		}
+
+		return actualRef, nil
 	}
 	return inMemoryUserRef, nil
 }
