@@ -73,7 +73,7 @@ func (fh *fileHandler) InitWriter(path string) (*FileWriter, error) {
 		logger.Logger.Errorf("failed to create output directory: %v", err)
 		return nil, err
 	}
-	outputFile, err := os.OpenFile(path, os.O_CREATE|os.O_RDWR|os.O_TRUNC, 0666)
+	outputFile, err := os.OpenFile(path, os.O_CREATE|os.O_RDWR, 0666)
 
 	writeCh := make(chan []byte)
 	syncCh := make(chan bool)
