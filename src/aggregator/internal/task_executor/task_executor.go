@@ -18,7 +18,6 @@ const DELETE_ACTION = -1
 
 type AggregatorExecutor struct {
 	config            *config.Config // TODO: maybe remove config from here
-	connectedClients  map[string]middleware.MessageMiddleware
 	aggregatorService business.AggregatorService
 	finishExecutor    FinishExecutor
 
@@ -27,7 +26,6 @@ type AggregatorExecutor struct {
 }
 
 func NewAggregatorExecutor(config *config.Config,
-	connectedClients map[string]middleware.MessageMiddleware,
 	aggregatorService business.AggregatorService,
 	outputQueue middleware.MessageMiddleware,
 	leaderElection leader_election.LeaderElection,
@@ -35,7 +33,6 @@ func NewAggregatorExecutor(config *config.Config,
 ) worker.TaskExecutor {
 	return &AggregatorExecutor{
 		config:            config,
-		connectedClients:  connectedClients,
 		aggregatorService: aggregatorService,
 		finishExecutor:    NewFinishExecutor(config.Address, aggregatorService, outputQueue, config.Limits),
 		leaderElection:    leaderElection,
@@ -57,15 +54,6 @@ func (ae *AggregatorExecutor) HandleTask2(dataEnvelope *protocol.DataEnvelope, a
 	ae.aggregatorService.StoreData(clientID, dataEnvelope)
 	shouldAck = true
 
-	_, exists := ae.connectedClients[clientID]
-	if !exists {
-		ae.connectedClients[clientID] = middleware.GetCounterExchange(ae.config.Address, clientID+"@"+string(enum.AggregatorWorker))
-	}
-	counterExchange := ae.connectedClients[clientID]
-	if err := worker.SendCounterMessage(clientID, 0, int(dataEnvelope.SequenceNumber), enum.AggregatorWorker, enum.None, counterExchange); err != nil {
-		return err
-	}
-
 	return nil
 }
 
@@ -76,15 +64,6 @@ func (ae *AggregatorExecutor) HandleTask3(dataEnvelope *protocol.DataEnvelope, a
 
 	ae.aggregatorService.StoreData(clientID, dataEnvelope)
 	shouldAck = true
-
-	_, exists := ae.connectedClients[clientID]
-	if !exists {
-		ae.connectedClients[clientID] = middleware.GetCounterExchange(ae.config.Address, clientID+"@"+string(enum.AggregatorWorker))
-	}
-	counterExchange := ae.connectedClients[clientID]
-	if err := worker.SendCounterMessage(clientID, 0, int(dataEnvelope.SequenceNumber), enum.AggregatorWorker, enum.None, counterExchange); err != nil {
-		return err
-	}
 
 	return nil
 }
@@ -97,14 +76,6 @@ func (ae *AggregatorExecutor) HandleTask4(dataEnvelope *protocol.DataEnvelope, a
 	ae.aggregatorService.StoreData(clientID, dataEnvelope)
 	shouldAck = true
 
-	_, exists := ae.connectedClients[clientID]
-	if !exists {
-		ae.connectedClients[clientID] = middleware.GetCounterExchange(ae.config.Address, clientID+"@"+string(enum.AggregatorWorker))
-	}
-	counterExchange := ae.connectedClients[clientID]
-	if err := worker.SendCounterMessage(clientID, 0, int(dataEnvelope.SequenceNumber), enum.AggregatorWorker, enum.None, counterExchange); err != nil {
-		return err
-	}
 	return nil
 }
 
@@ -151,13 +122,6 @@ func (ae *AggregatorExecutor) Close() error {
 	if err := ae.aggregatorService.Close(); err != nil {
 		return fmt.Errorf("failed to close aggregator service: %v", err)
 	}
-
-	for clientID, q := range ae.connectedClients {
-		if e := q.Close(); e != middleware.MessageMiddlewareSuccess {
-			logger.Logger.Errorf("failed to close middleware for client %s: %v", clientID, e)
-		}
-	}
-
 	return nil
 }
 
@@ -171,10 +135,6 @@ func (ae *AggregatorExecutor) actionNonLeader(clientID string) bool {
 
 func (ae *AggregatorExecutor) removeClientData(clientID string) {
 	ae.aggregatorService.RemoveData(clientID)
-	if q, exists := ae.connectedClients[clientID]; exists {
-		q.Close()
-		delete(ae.connectedClients, clientID)
-	}
 	ae.finishedClients.LoadAndDelete(clientID)
 	logger.Logger.Debugf("Removed client data for: %s", clientID)
 }
