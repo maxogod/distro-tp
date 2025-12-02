@@ -44,7 +44,7 @@ func (je *joinerExecutor) HandleTask2(dataEnvelope *protocol.DataEnvelope, ackHa
 			err = je.handleRefData(dataEnvelope, clientID, ackHandler)
 		} else {
 			err = je.joinerService.FinishStoringRefData(clientID)
-			ackHandler(true, shouldRequeue)
+			je.flushRefData()
 		}
 
 		if err != nil {
@@ -103,7 +103,7 @@ func (je *joinerExecutor) HandleTask3(dataEnvelope *protocol.DataEnvelope, ackHa
 			err = je.handleRefData(dataEnvelope, clientID, ackHandler)
 		} else {
 			err = je.joinerService.FinishStoringRefData(clientID)
-			ackHandler(true, shouldRequeue)
+			je.flushRefData()
 		}
 
 		if err != nil {
@@ -158,8 +158,7 @@ func (je *joinerExecutor) HandleTask4(dataEnvelope *protocol.DataEnvelope, ackHa
 			err = je.handleRefData(dataEnvelope, clientID, ackHandler)
 		} else {
 			err = je.joinerService.FinishStoringRefData(clientID)
-			ackHandler(true, shouldRequeue)
-
+			je.flushRefData()
 		}
 
 		if err != nil {
@@ -264,13 +263,17 @@ func (je *joinerExecutor) handleRefData(batch *protocol.DataEnvelope, clientID s
 	}
 
 	if len(je.ackHandlers) == FLUSH_AMOUNT {
-		je.joinerService.SyncData()
-		for _, handler := range je.ackHandlers {
-			handler(true, false)
-		}
-		je.ackHandlers = make([]func(bool, bool) error, 0)
+		je.flushRefData()
 	}
 
 	return nil
 
+}
+
+func (je *joinerExecutor) flushRefData() {
+	je.joinerService.SyncData()
+	for _, handler := range je.ackHandlers {
+		handler(true, false)
+	}
+	je.ackHandlers = make([]func(bool, bool) error, 0)
 }
