@@ -14,10 +14,10 @@ EGG_OF_LIFE_CONTAINER = "egg_of_life"
 def run_cmd(cmd_str):
     arg_list = cmd_str.split(" ")
     res = subprocess.run(
-            arg_list,
-            capture_output=True,
-            text=True,
-        )
+        arg_list,
+        capture_output=True,
+        text=True,
+    )
     if res.stderr != "":
         print(res.stderr)
     return res.stdout
@@ -28,11 +28,12 @@ class HoundDoom:
         self.time_wait = time_wait
         self.prefix = prefix or []
         self.exeption_prefix = exeption_prefix or []
-        containers = self._get_container_names()
-        self.containers = [value.strip("'").split(",") for value in containers]
-        self.containers.pop(-1) # remove last empty string
+        self.containers = []
 
     def unleash_doom(self):
+        containers = self._get_container_names()
+        self.containers = [value.strip("'").split(",") for value in containers if value]
+
         eligible_containers = [
             container for container in self.containers
             if self._is_eligible_for_doom(container[CONTAINER_NAME_POS])
@@ -97,10 +98,18 @@ def main():
     print(f"  - Time wait between dooms: {time_wait} seconds")
     print(f"  - Target prefixes: {prefix}")
     print(f"  - Exception prefixes: {exeption_prefix}\n")
-    hound = HoundDoom(amount, time_wait, prefix=prefix, exeption_prefix=exeption_prefix)
-    hound.unleash_doom()
 
-    print("Houndoom is finished.")
+    hound = HoundDoom(amount, time_wait, prefix=prefix, exeption_prefix=exeption_prefix)
+
+    try:
+        while True:
+            hound.unleash_doom()
+            sleep_time = random.randint(30, 60)
+            print(f"\n[Loop] Waiting {sleep_time} seconds before next doom cycle...\n")
+            time.sleep(sleep_time)
+
+    except KeyboardInterrupt:
+        print("\n\nHoundoom is finished.\n")
 
 if __name__ == "__main__":
     main()
