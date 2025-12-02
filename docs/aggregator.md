@@ -46,15 +46,15 @@ El worker almacena todos los batches que recibe de cada una de las tasks, difere
 
 En esencia, lo que hace el Aggregator (al igual que el resto de workers) es utilizar todos los componentes comunes definidos en `common/worker`, y definir su propia logica de negocio en el `TaskExecutor`.
 
-Dado que el Aggregator solo va a comunicarse con el `Gateway Controller`, iniciamos obteniendo exchange del `Gateway Controller` para mandar la data (`processed_data_exchange`) y la queue donde le llegará la data al Aggregator desde el `Joiner` (`aggregator_queue`).
+Dado que el Aggregator solo va a comunicarse con el `Joiner`, iniciamos obteniendo exchange del `Joiner` para mandar la data (`joiner_queue`) y la queue donde le llegará la data al Aggregator desde el `Reducer` (`reducer_queue`).
 
 Luego, inicializamos el `AggregatorService` que contiene toda la logica de negocio de necesaria para realizar la agregación de la data que nos llega de los workers..
 
-Después, creamos el `TaskExecutor` propio del Joiner (`AggregatorExecutor`), que implementa los metodos necesarios para cada task (1 a 4), y que instancia un `FinishExecutor` que será utilizado para realizar acciones finales (envío de data procesada) una vez que se complete todo el procesamiento. Finalmente, inicializamos el `MessageHandler` con la queue de input del Aggregator y el `TaskHandler` creado a partir del `TaskExecutor`.
+Después, creamos el `TaskExecutor` propio del Joiner (`AggregatorExecutor`), que implementa los metodos necesarios para cada task (2 a 4), y que instancia un `FinishExecutor` que será utilizado para realizar acciones finales (envío de data procesada) una vez que se complete todo el procesamiento. Finalmente, inicializamos el `MessageHandler` con la queue de input del Aggregator y el `TaskHandler` creado a partir del `TaskExecutor`.
 
-Luego, simplemente llamamos al metodo `Start()` del `MessageHandler` para que comience a escuchar mensajes y procesarlos. Cada mensaje consumido de la input queue del Aggregator (`aggregator_queue`) le llegará al MessageHandler por medio de un channel, para que luego sea procesado por el método correspondiente del `AggregatorExecutor`. Como dijimos antes, lo que se hará en cada task es almacenar la data recibida usando un `CacheService` para luego, al finalizar el procesamiento de todos los batches de data para un cliente en particular, enviar la data agregada al `Gateway Controller` mediante la `processed_data_exchange` usando el `clientId` como la routing key.
+Luego, simplemente llamamos al metodo `Start()` del `MessageHandler` para que comience a escuchar mensajes y procesarlos. Cada mensaje consumido de la input queue del Aggregator (`aggregator_queue`) le llegará al MessageHandler por medio de un channel, para que luego sea procesado por el método correspondiente del `AggregatorExecutor`. Como dijimos antes, lo que se hará en cada task es almacenar la data recibida usando un `CacheService` para luego, al finalizar el procesamiento de todos los batches de data para un cliente en particular, enviar la data agregada al `Joiner` mediante la `joiner_queue`.
 
-Al finalizar el procesamiento de todos los batches de data para un cliente en particular, el Aggregator recibirá un mensaje por el `FinishExchange`, el cual hará que se ejecute el `HandleFinishClient`, haciendo que comience a enviarse la data agregada al `Gateway Controller` como se indicó antes.
+Al finalizar el procesamiento de todos los batches de data para un cliente en particular, el Aggregator recibirá un mensaje por el `FinishExchange`, el cual hará que se ejecute el `HandleFinishClient`, haciendo que se borre la data que tenía almacenada para ese cliente en particular.
 
 ## Config
 
