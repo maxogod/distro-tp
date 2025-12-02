@@ -51,7 +51,7 @@ El worker ejecuta un join sobre transacciones y sus ítems con reference dataset
 
 En esencia, lo que hace el Joiner (al igual que el resto de workers) es utilizar todos los componentes comunes definidos en `common/worker`, y definir su propia logica de negocio en el `TaskExecutor`.
 
-Dado que el Joiner solo va a comunicarse con el `Aggregator`, iniciamos obteniendo la queue del `Aggregator` (`aggregator_queue`) y la queue donde le llegará la data al Joiner desde el `Reducer` (`joiner_queue`).
+Dado que el Joiner solo va a comunicarse con el `Gateway`, iniciamos obteniendo exchange del `Gateway` para mandar la data (`processed_data_exchange`) y la queue donde le llegará la data al Joiner desde el `Aggregator` (`joiner_queue`).
 
 Luego, inicializamos el `JoinerService` que contiene toda la logica de negocio de necesaria para realizar el join con los reference datasets en las tasks.
 
@@ -63,9 +63,9 @@ En el caso del Joiner, tenemos que hacer una distinción entre los batches que r
 
 En el caso de los batches de reference dataset, lo que hace el joiner es almacenar esa data usando un `CacheService` para luego poder utilizarla en el proceso de join con los batches de data.
 
-En el caso de los batches de data, se aplicará el join del batch con el reference dataset correspondiente (según lo indicado antes para cada task) y enviará el resultado a la queue correspondiente (`joiner_queue`). Luego, se envía cada batch joineado al `Aggregator`. En el caso de la task 4, el Joiner recibe un único `CountedUserTransactionBatch` con varios `CountedUserTransactions`. Por cada uno de estos, se aplica el join correspondiente (obteniendo nuevamente un `CountedUserTransactions`) y se colocan todos juntos en un nuevo `CountedUserTransactionBatch` con toda la data joineada, y este último es enviado al Aggregator.
+En el caso de los batches de data, se aplicará el join del batch con el reference dataset correspondiente (según lo indicado antes para cada task) y enviará el resultado a la queue correspondiente (`joiner_queue`). Luego, se envía cada batch joineado al `Gateway` mediante la `processed_data_exchange` usando el `clientId` como la routing key.
 
-Al finalizar el procesamiento de todos los batches de data para un cliente en particular, el Joiner recibirá un mensaje por el `FinishExchange`, el cual hará que se ejecute el `HandleFinishClient` haciendo que toda la reference data almacenada para ese cliente sea eliminada de la cache. El mensaje de finish es enviado por el `Gateway Controller` una vez que recibió toda la data procesada desde el `Aggregator`.
+Al finalizar el procesamiento de todos los batches de data para un cliente en particular, el Joiner recibirá un mensaje por el `FinishExchange`, el cual hará que se ejecute el `HandleFinishClient` haciendo que toda la reference data almacenada para ese cliente sea eliminada de la cache. El mensaje de finish es enviado por el `Controller` una vez que el cliente recibió toda la data procesada desde el `Joiner`.
 
 ## Config
 
