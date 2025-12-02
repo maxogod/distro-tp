@@ -63,7 +63,7 @@ func NewControlHandler(middlewareUrl, clientID string, taskType enum.TaskType, c
 		<-h.routineReadyCh
 	}
 
-	h.sendControllerReady()
+	h.SendControllerReady()
 
 	return h
 }
@@ -177,9 +177,7 @@ func (ch *controlHandler) Close() {
 	}
 }
 
-/* --- UTIL PRIVATE METHODS --- */
-
-func (ch *controlHandler) sendControllerReady() {
+func (ch *controlHandler) SendControllerReady() {
 	readyMessage := &protocol.ControlMessage{
 		ClientId: ch.clientID,
 		IsAck:    true,
@@ -198,6 +196,8 @@ func (ch *controlHandler) sendControllerReady() {
 
 	logger.Logger.Infof("[%s] Controller ready message sent", ch.clientID)
 }
+
+/* --- UTIL PRIVATE METHODS --- */
 
 // startCounterListener starts a goroutine that listens for counter messages from workers.
 func (ch *controlHandler) startCounterListener(workerRoute enum.WorkerType) {

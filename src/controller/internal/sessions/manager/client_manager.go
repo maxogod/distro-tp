@@ -1,6 +1,7 @@
 package manager
 
 import (
+	"github.com/maxogod/distro-tp/src/common/logger"
 	"github.com/maxogod/distro-tp/src/common/models/enum"
 	"github.com/maxogod/distro-tp/src/controller/config"
 	"github.com/maxogod/distro-tp/src/controller/internal/handler"
@@ -20,6 +21,13 @@ func NewClientManager(conf *config.Config) ClientManager {
 }
 
 func (cm *clientManager) AddClient(id string, taskType enum.TaskType) clients.ClientSession {
+	if _, exists := cm.clients[id]; exists {
+		logger.Logger.Debugf("action: add_client | client_id: %s already exists for tasktype %s", id, string(taskType))
+		clientSession := cm.clients[id]
+		clientSession.SendControllerReady()
+		return nil
+	}
+
 	controlHandler := handler.NewControlHandler(cm.config.MiddlewareAddress, id, taskType, cm.config.CompletionAfterDoneTimeout)
 	session := clients.NewClientSession(id, controlHandler)
 	cm.clients[id] = session

@@ -11,4 +11,7 @@ type ClientSession interface {
 
 	// Close gracefully shuts down the client session, releasing any resources attached to the connection.
 	Close()
+
+	// SendControllerReady notifies the gateway that the controller is ready to receive messages
+	SendControllerReady()
 }

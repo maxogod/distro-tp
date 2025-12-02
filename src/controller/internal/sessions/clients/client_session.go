@@ -55,6 +55,10 @@ func (cs *clientSession) InitiateControlSequence() error {
 	return nil
 }
 
+func (cs *clientSession) SendControllerReady() {
+	cs.controlHandler.SendControllerReady()
+}
+
 func (cs *clientSession) Close() {
 	if !cs.IsFinished() {
 		cs.controlHandler.Close()
