@@ -157,8 +157,8 @@ func loadReferenceData[T proto.Message](js *joinerService, referenceID string, f
 		protoData := factory()
 		err := proto.Unmarshal(protoBytes, protoData)
 		if err != nil {
-			logger.Logger.Errorf("Error unmarshalling proto message: %v", err)
-			return nil, nil, err
+			logger.Logger.Warnf("Error unmarshalling proto message: %v", err)
+			continue
 		}
 		result[getKey(protoData)] = protoData
 		resultsList = append(resultsList, protoData)
