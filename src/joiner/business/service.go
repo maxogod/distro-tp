@@ -100,9 +100,9 @@ func (js *joinerService) FinishStoringRefData(clientID string) error {
 	logger.Logger.Debug("Received all reference data for client: ", clientID)
 	js.fullRefClients[clientID] = true // All reference data was received for this client
 	createOrRemoveProgressFile(clientID, false)
-	for ref := range js.clientRefs[clientID] {
-		js.storageService.StopWriting(ref)
-	}
+	// for ref := range js.clientRefs[clientID] {
+	// 	js.storageService.StopWriting(ref)
+	// }
 	return nil
 }
 

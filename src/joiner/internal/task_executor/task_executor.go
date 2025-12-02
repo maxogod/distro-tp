@@ -43,8 +43,8 @@ func (je *joinerExecutor) HandleTask2(dataEnvelope *protocol.DataEnvelope, ackHa
 		if !dataEnvelope.GetIsDone() {
 			err = je.handleRefData(dataEnvelope, clientID, ackHandler)
 		} else {
-			err = je.joinerService.FinishStoringRefData(clientID)
 			je.flushRefData()
+			err = je.joinerService.FinishStoringRefData(clientID)
 			ackHandler(true, shouldRequeue)
 		}
 
@@ -104,8 +104,8 @@ func (je *joinerExecutor) HandleTask3(dataEnvelope *protocol.DataEnvelope, ackHa
 		if !dataEnvelope.GetIsDone() {
 			err = je.handleRefData(dataEnvelope, clientID, ackHandler)
 		} else {
-			err = je.joinerService.FinishStoringRefData(clientID)
 			je.flushRefData()
+			err = je.joinerService.FinishStoringRefData(clientID)
 			ackHandler(true, shouldRequeue)
 		}
 
@@ -161,8 +161,8 @@ func (je *joinerExecutor) HandleTask4(dataEnvelope *protocol.DataEnvelope, ackHa
 		if !dataEnvelope.GetIsDone() {
 			err = je.handleRefData(dataEnvelope, clientID, ackHandler)
 		} else {
-			err = je.joinerService.FinishStoringRefData(clientID)
 			je.flushRefData()
+			err = je.joinerService.FinishStoringRefData(clientID)
 			ackHandler(true, shouldRequeue)
 		}
 
@@ -177,7 +177,6 @@ func (je *joinerExecutor) HandleTask4(dataEnvelope *protocol.DataEnvelope, ackHa
 	defer func() {
 		ackHandler(shouldAck, shouldRequeue)
 		processedDataQueue.Close()
-		logger.Logger.Debugf("Finished & Deleted ref data for client %s", clientID)
 	}()
 
 	countedDataBatch := &reduced.CountedUserTransactionBatch{}
@@ -193,6 +192,7 @@ func (je *joinerExecutor) HandleTask4(dataEnvelope *protocol.DataEnvelope, ackHa
 			payload, _ := proto.Marshal(dataEnvelope)
 			je.joinerQueue.Send(payload)
 			shouldAck = true
+			logger.Logger.Debugf("[%s] Requeued report for later joining", clientID)
 			return nil
 		}
 	}
@@ -204,6 +204,7 @@ func (je *joinerExecutor) HandleTask4(dataEnvelope *protocol.DataEnvelope, ackHa
 		return err
 	}
 	worker.SendDone(clientID, enum.T4, processedDataQueue)
+	logger.Logger.Debugf("[%s] Report sent to processed data queue", clientID)
 	shouldAck = true
 	return nil
 }
