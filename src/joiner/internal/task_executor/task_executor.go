@@ -13,10 +13,13 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
+const FLUSH_AMOUNT = 1000
+
 type joinerExecutor struct {
 	config        *config.Config
 	joinerService business.JoinerService
 	joinerQueue   middleware.MessageMiddleware
+	ackHandlers   []func(bool, bool) error
 }
 
 func NewJoinerExecutor(config *config.Config,
@@ -26,6 +29,7 @@ func NewJoinerExecutor(config *config.Config,
 		config:        config,
 		joinerService: joinerService,
 		joinerQueue:   middleware.GetJoinerQueue(config.Address),
+		ackHandlers:   make([]func(bool, bool) error, 0),
 	}
 }
 
@@ -35,18 +39,17 @@ func (je *joinerExecutor) HandleTask2(dataEnvelope *protocol.DataEnvelope, ackHa
 	clientID := dataEnvelope.GetClientId()
 
 	if dataEnvelope.GetIsRef() {
-		defer ackHandler(shouldAck, shouldRequeue)
 		var err error
 		if !dataEnvelope.GetIsDone() {
-			err = je.handleRefData(dataEnvelope, clientID)
+			err = je.handleRefData(dataEnvelope, clientID, ackHandler)
 		} else {
 			err = je.joinerService.FinishStoringRefData(clientID)
+			ackHandler(true, shouldRequeue)
 		}
 
 		if err != nil {
 			return err
 		}
-		shouldAck = true
 		return nil
 	}
 
@@ -95,12 +98,12 @@ func (je *joinerExecutor) HandleTask3(dataEnvelope *protocol.DataEnvelope, ackHa
 	clientID := dataEnvelope.GetClientId()
 
 	if dataEnvelope.GetIsRef() {
-		defer ackHandler(shouldAck, shouldRequeue)
 		var err error
 		if !dataEnvelope.GetIsDone() {
-			err = je.handleRefData(dataEnvelope, clientID)
+			err = je.handleRefData(dataEnvelope, clientID, ackHandler)
 		} else {
 			err = je.joinerService.FinishStoringRefData(clientID)
+			ackHandler(true, shouldRequeue)
 		}
 
 		if err != nil {
@@ -150,12 +153,13 @@ func (je *joinerExecutor) HandleTask4(dataEnvelope *protocol.DataEnvelope, ackHa
 	clientID := dataEnvelope.GetClientId()
 
 	if dataEnvelope.GetIsRef() {
-		defer ackHandler(shouldAck, shouldRequeue)
 		var err error
 		if !dataEnvelope.GetIsDone() {
-			err = je.handleRefData(dataEnvelope, clientID)
+			err = je.handleRefData(dataEnvelope, clientID, ackHandler)
 		} else {
 			err = je.joinerService.FinishStoringRefData(clientID)
+			ackHandler(true, shouldRequeue)
+
 		}
 
 		if err != nil {
@@ -219,12 +223,13 @@ func (je *joinerExecutor) HandleTask1(dataEnvelope *protocol.DataEnvelope, ackHa
 
 /* --- PRIVATE UTIL METHODS --- */
 
-func (je *joinerExecutor) handleRefData(batch *protocol.DataEnvelope, clientID string) error {
+func (je *joinerExecutor) handleRefData(batch *protocol.DataEnvelope, clientID string, ackHandler func(bool, bool) error) error {
 	refData := &protocol.ReferenceEnvelope{}
 	err := proto.Unmarshal(batch.GetPayload(), refData)
 	if err != nil {
 		return err
 	}
+	je.ackHandlers = append(je.ackHandlers, ackHandler)
 
 	switch enum.ReferenceType(refData.GetReferenceType()) {
 	case enum.MenuItems:
@@ -233,23 +238,39 @@ func (je *joinerExecutor) handleRefData(batch *protocol.DataEnvelope, clientID s
 		if err != nil {
 			return err
 		}
-		return je.joinerService.StoreMenuItems(clientID, menuItemBatch.MenuItems)
+		if err := je.joinerService.StoreMenuItems(clientID, menuItemBatch.MenuItems); err != nil {
+			return err
+		}
 	case enum.Users:
 		userBatch := &raw.UserBatch{}
 		err := proto.Unmarshal(refData.GetPayload(), userBatch)
 		if err != nil {
 			return err
 		}
-		return je.joinerService.StoreUsers(clientID, userBatch.Users)
+		if err := je.joinerService.StoreUsers(clientID, userBatch.Users); err != nil {
+			return err
+		}
 	case enum.Stores:
 		storeBatch := &raw.StoreBatch{}
 		err := proto.Unmarshal(refData.GetPayload(), storeBatch)
 		if err != nil {
 			return err
 		}
-		return je.joinerService.StoreShops(clientID, storeBatch.Stores)
+		if err := je.joinerService.StoreShops(clientID, storeBatch.Stores); err != nil {
+			return err
+		}
 	default:
 		logger.Logger.Errorf("Unknown reference type: %v", refData.GetReferenceType())
-		return nil
 	}
+
+	if len(je.ackHandlers) == FLUSH_AMOUNT {
+		je.joinerService.SyncData()
+		for _, handler := range je.ackHandlers {
+			handler(true, false)
+		}
+		je.ackHandlers = make([]func(bool, bool) error, 0)
+	}
+
+	return nil
+
 }

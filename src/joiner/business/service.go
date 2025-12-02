@@ -106,6 +106,15 @@ func (js *joinerService) FinishStoringRefData(clientID string) error {
 	return nil
 }
 
+func (js *joinerService) SyncData() {
+	logger.Logger.Debug("Syncing all reference data to disk . . .")
+	for clientID := range js.clientRefs {
+		for ref := range js.clientRefs[clientID] {
+			js.storageService.FlushWriting(ref)
+		}
+	}
+}
+
 // ======= PRIVATE METHODS =======
 
 func (js *joinerService) hasAllReferenceData(clientID string) bool {

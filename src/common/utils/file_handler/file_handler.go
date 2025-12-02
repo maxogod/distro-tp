@@ -15,7 +15,6 @@ import (
 
 const FINISH_DATA_BYTE = 0xff
 const SYNC_DATA_BYTE = 0xfe
-const FLUSH_THRESHOLD = 5 * 1024 // aprox 64KB
 
 type fileHandler struct {
 	ctx    context.Context
@@ -122,12 +121,6 @@ func (fh *fileHandler) InitWriter(path string) (*FileWriter, error) {
 				return
 			}
 
-			if writer.Buffered() > FLUSH_THRESHOLD {
-				if err := writer.Flush(); err != nil {
-					logger.Logger.Errorf("failed to flush to file: %v", err)
-					return
-				}
-			}
 		}
 	}()
 

@@ -20,6 +20,9 @@ type JoinerService interface {
 	// FinishStoringRefData marks the completion of reference data storage for a client.
 	FinishStoringRefData(clientID string) error
 
+	// SyncData ensures that all written data is flushed and synchronized for all refecerence data.
+	SyncData()
+
 	/* --- Join Data --- */
 
 	// JoinTotalSumItem is responsible for joining TotalSumItem with MenuItem data
