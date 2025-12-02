@@ -12,7 +12,7 @@ import (
 
 const FOLDER_PATH = "storage/"
 const CACHE_EXTENSION = ".cache"
-const TEMP_FILE_SUFFIX = "_temp"
+const TEMP_FILE_SUFFIX = "TEMP%"
 
 type diskMemoryStorage struct {
 	fileHandler     filehandler.FileHandler
@@ -139,7 +139,7 @@ func (c *diskMemoryStorage) getFileName(cacheReference string) string {
 }
 
 func (c *diskMemoryStorage) SaveTempFile(cacheReference string) string {
-	tempFileName := cacheReference + TEMP_FILE_SUFFIX
+	tempFileName := FOLDER_PATH + TEMP_FILE_SUFFIX + cacheReference + CACHE_EXTENSION
 	finalFileName := c.getFileName(cacheReference)
 	err := c.fileHandler.RenameFile(tempFileName, finalFileName)
 	if err != nil {
@@ -169,7 +169,7 @@ func StoreBatch[T proto.Message](cs StorageService, cacheReference string, data 
 }
 
 func StoreTempBatch[T proto.Message](cs StorageService, cacheReference string, data []T) error {
-	tempCacheReference := cacheReference + TEMP_FILE_SUFFIX
+	tempCacheReference := TEMP_FILE_SUFFIX + cacheReference
 	listBytes := make([][]byte, len(data))
 	for i := range data {
 		bytes, err := proto.Marshal(data[i])

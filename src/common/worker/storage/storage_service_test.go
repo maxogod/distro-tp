@@ -199,3 +199,18 @@ func TestDiskMemoryCache_ReadUpTo(t *testing.T) {
 	assert.NotEqual(t, 0, len(readBack), "The amout of read items should be less than stored items")
 
 }
+
+func TestDiskMemoryCache_TempFileStorage(t *testing.T) {
+	logger.InitLogger(logger.LoggerEnvDevelopment)
+	c := storage.NewDiskMemoryStorage()
+	cacheRef := "test"
+	defer c.RemoveCache(cacheRef)
+
+	storage.StoreTempBatch(c, cacheRef, Transactions)
+	assert.FileExists(t, "storage/TEMP%test.cache", "test_temp file should exist in the current directory")
+
+	savedRef := c.SaveTempFile(cacheRef)
+	assert.Equal(t, cacheRef, savedRef, "Saved cache reference should match original")
+
+	assert.NoError(t, c.Close())
+}
