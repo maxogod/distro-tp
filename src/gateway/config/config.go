@@ -20,16 +20,14 @@ type Config struct {
 	Port              int32
 	HealthCheckPort   int
 	LogLevel          string
-	ReceivingTimeout  int
 	Heartbeat         HeartbeatConfig
 }
 
 func (c Config) String() string {
 	return fmt.Sprintf(
-		"[CONFIG: Port: %d | LogLevel: %s | ReceivingTimeout: %d]",
+		"[CONFIG: Port: %d | LogLevel: %s]",
 		c.Port,
 		c.LogLevel,
-		c.ReceivingTimeout,
 	)
 }
 
@@ -63,7 +61,6 @@ func initConfig(configFilePath string) (*Config, error) {
 	v.BindEnv("port", "PORT")
 	v.BindEnv("healthcheck.port", "HEALTHCHECK_PORT")
 	v.BindEnv("log.level", "LOG_LEVEL")
-	v.BindEnv("receiving.timeout", "RECEIVING_TIMEOUT")
 
 	heatbeatConf := HeartbeatConfig{
 		Host:     v.GetString("heartbeat.host"),
@@ -76,7 +73,6 @@ func initConfig(configFilePath string) (*Config, error) {
 		Port:              int32(v.GetInt("port")),
 		HealthCheckPort:   v.GetInt("healthcheck.port"),
 		LogLevel:          v.GetString("log.level"),
-		ReceivingTimeout:  v.GetInt("receiving.timeout"),
 		Heartbeat:         heatbeatConf,
 	}
 

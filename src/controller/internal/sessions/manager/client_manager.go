@@ -36,7 +36,6 @@ func (cm *clientManager) AddClient(id string, taskType enum.TaskType, storedCoun
 		cm.config.MiddlewareAddress,
 		id,
 		taskType,
-		cm.config.CompletionAfterDoneTimeout,
 		cm.storage,
 		storedCounters,
 	)

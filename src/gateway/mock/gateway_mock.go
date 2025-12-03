@@ -20,7 +20,7 @@ func StartGatewayMock(configPath, clientID string) (*MockGateway, error) {
 	logger.InitLogger(logger.LoggerEnvDevelopment)
 
 	return &MockGateway{
-		handler: handler.NewMessageHandler(conf.MiddlewareAddress, clientID, conf.ReceivingTimeout),
+		handler: handler.NewMessageHandler(conf.MiddlewareAddress, clientID),
 	}, nil
 }
 
