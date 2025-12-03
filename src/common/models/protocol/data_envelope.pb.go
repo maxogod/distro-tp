@@ -29,7 +29,8 @@ type DataEnvelope struct {
 	TotalMessages  int32                  `protobuf:"varint,4,opt,name=total_messages,json=totalMessages,proto3" json:"total_messages,omitempty"`
 	IsDone         bool                   `protobuf:"varint,5,opt,name=is_done,json=isDone,proto3" json:"is_done,omitempty"`
 	IsRef          bool                   `protobuf:"varint,6,opt,name=is_ref,json=isRef,proto3" json:"is_ref,omitempty"`
-	Payload        []byte                 `protobuf:"bytes,7,opt,name=payload,proto3" json:"payload,omitempty"`
+	Ttl            int32                  `protobuf:"varint,7,opt,name=ttl,proto3" json:"ttl,omitempty"`
+	Payload        []byte                 `protobuf:"bytes,8,opt,name=payload,proto3" json:"payload,omitempty"`
 	unknownFields  protoimpl.UnknownFields
 	sizeCache      protoimpl.SizeCache
 }
@@ -106,6 +107,13 @@ func (x *DataEnvelope) GetIsRef() bool {
 	return false
 }
 
+func (x *DataEnvelope) GetTtl() int32 {
+	if x != nil {
+		return x.Ttl
+	}
+	return 0
+}
+
 func (x *DataEnvelope) GetPayload() []byte {
 	if x != nil {
 		return x.Payload
@@ -117,15 +125,16 @@ var File_protocol_data_envelope_proto protoreflect.FileDescriptor
 
 const file_protocol_data_envelope_proto_rawDesc = "" +
 	"\n" +
-	"\x1cprotocol/data_envelope.proto\x12\bprotocol\"\xe2\x01\n" +
+	"\x1cprotocol/data_envelope.proto\x12\bprotocol\"\xf4\x01\n" +
 	"\fDataEnvelope\x12\x1b\n" +
 	"\tclient_id\x18\x01 \x01(\tR\bclientId\x12\x1b\n" +
 	"\ttask_type\x18\x02 \x01(\x05R\btaskType\x12'\n" +
 	"\x0fsequence_number\x18\x03 \x01(\x05R\x0esequenceNumber\x12%\n" +
 	"\x0etotal_messages\x18\x04 \x01(\x05R\rtotalMessages\x12\x17\n" +
 	"\ais_done\x18\x05 \x01(\bR\x06isDone\x12\x15\n" +
-	"\x06is_ref\x18\x06 \x01(\bR\x05isRef\x12\x18\n" +
-	"\apayload\x18\a \x01(\fR\apayloadB\fZ\n" +
+	"\x06is_ref\x18\x06 \x01(\bR\x05isRef\x12\x10\n" +
+	"\x03ttl\x18\a \x01(\x05R\x03ttl\x12\x18\n" +
+	"\apayload\x18\b \x01(\fR\apayloadB\fZ\n" +
 	"./protocolb\x06proto3"
 
 var (

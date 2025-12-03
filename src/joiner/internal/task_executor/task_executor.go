@@ -13,7 +13,10 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-const FLUSH_AMOUNT = 1000
+const (
+	FLUSH_AMOUNT    = 1000
+	MAX_REQUEUE_TTL = 2000 * 3
+)
 
 type joinerExecutor struct {
 	config        *config.Config
@@ -69,11 +72,9 @@ func (je *joinerExecutor) HandleTask2(dataEnvelope *protocol.DataEnvelope, ackHa
 
 	// here we join the data
 	for _, itemData := range reportData.GetTotalSumItemsBySubtotal() {
-		if err := je.joinerService.JoinTotalSumItem(itemData, clientID); err != nil {
-			// if the ref data is not present yet, requeue the message
-			dataEnvelope.SequenceNumber -= 1 // decrement to retry same message
-			payload, _ := proto.Marshal(dataEnvelope)
-			je.joinerQueue.Send(payload)
+		err := je.joinerService.JoinTotalSumItem(itemData, clientID)
+		if err != nil {
+			je.handleRequeue(dataEnvelope, clientID)
 			shouldAck = true
 			return nil
 		}
@@ -132,10 +133,7 @@ func (je *joinerExecutor) HandleTask3(dataEnvelope *protocol.DataEnvelope, ackHa
 	for _, rData := range reducedData.GetTotalPaymentValues() {
 		err := je.joinerService.JoinTotalPaymentValue(rData, clientID)
 		if err != nil {
-			// if the ref data is not present yet, requeue the message
-			dataEnvelope.SequenceNumber -= 1 // decrement to retry same message
-			payload, _ := proto.Marshal(dataEnvelope)
-			je.joinerQueue.Send(payload)
+			je.handleRequeue(dataEnvelope, clientID)
 			shouldAck = true
 			return nil
 		}
@@ -187,12 +185,8 @@ func (je *joinerExecutor) HandleTask4(dataEnvelope *protocol.DataEnvelope, ackHa
 	for _, countedData := range countedDataBatch.GetCountedUserTransactions() {
 		err := je.joinerService.JoinCountedUserTransactions(countedData, clientID)
 		if err != nil {
-			// if the ref data is not present yet, requeue the message
-			dataEnvelope.SequenceNumber -= 1 // decrement to retry same message
-			payload, _ := proto.Marshal(dataEnvelope)
-			je.joinerQueue.Send(payload)
+			je.handleRequeue(dataEnvelope, clientID)
 			shouldAck = true
-			logger.Logger.Debugf("[%s] Requeued report for later joining", clientID)
 			return nil
 		}
 	}
@@ -274,7 +268,18 @@ func (je *joinerExecutor) handleRefData(batch *protocol.DataEnvelope, clientID s
 	}
 
 	return nil
+}
 
+func (je *joinerExecutor) handleRequeue(dataEnvelope *protocol.DataEnvelope, clientID string) {
+	// if the ref data is not present yet, requeue the message
+	dataEnvelope.SequenceNumber -= 1 // decrement to retry same message
+	dataEnvelope.Ttl += 1
+	if dataEnvelope.GetTtl() == MAX_REQUEUE_TTL {
+		logger.Logger.Debugf("[%s] Dropping report after too many requeues", clientID)
+	}
+	payload, _ := proto.Marshal(dataEnvelope)
+	je.joinerQueue.Send(payload)
+	logger.Logger.Debugf("[%s] Requeued report for later joining with TTL: %d", clientID, dataEnvelope.Ttl)
 }
 
 func (je *joinerExecutor) flushRefData() {

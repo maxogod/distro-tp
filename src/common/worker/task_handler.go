@@ -9,7 +9,7 @@ import (
 )
 
 const FINISH enum.TaskType = 0
-const REAP_AFTER_MSGS = 1000
+const REAP_AFTER_MSGS = 10000
 
 // Before creating a TaskHandler, a TaskExecutor is required to be implemented
 // for the specific tasks that the worker will handle via the TaskHandler.
