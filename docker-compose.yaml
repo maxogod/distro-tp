@@ -110,6 +110,22 @@ services:
       rabbitmq:
         condition: service_healthy
         
+  aggregator2:
+    container_name: aggregator2
+    build:
+      dockerfile: ./src/aggregator/Dockerfile
+    image: aggregator:latest
+    networks:
+      - tp_net
+    environment:
+      - ID=aggregator2
+    volumes:
+      - ./src/aggregator/config.yaml:/app/config.yaml
+      - ./.storage/aggregator2:/app/storage
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+        
   joiner1:
     container_name: joiner1
     build:
