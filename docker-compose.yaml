@@ -79,15 +79,16 @@ services:
     networks:
       - tp_net
         
-  controller:
-    container_name: controller
+  controller1:
+    container_name: controller1
     build:
       dockerfile: ./src/controller/Dockerfile
     image: controller:latest
     volumes:
       - ./src/controller/config.yaml:/app/config.yaml
+      - ./.storage/controller1:/app/storage
     environment:
-      - ID=controller
+      - ID=controller1
     depends_on:
       rabbitmq:
         condition: service_healthy

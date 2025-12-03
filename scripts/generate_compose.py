@@ -113,7 +113,7 @@ def add_gateway(count, tags=None):
 # ==============================
 def add_controller(count, tags=None):
     for i in range(1, count + 1):
-        cname = "controller" if count == 1 else f"controller{i}"
+        cname = f"controller{i}"
         service_def = f"""  {cname}:
     container_name: {cname}
     build:
@@ -128,6 +128,7 @@ def add_controller(count, tags=None):
     image: controller:latest
     volumes:
       - ./src/controller/config.yaml:/app/config.yaml
+      - ./.storage/{cname}:/app/storage
     environment:
       - ID={cname}
     depends_on:
