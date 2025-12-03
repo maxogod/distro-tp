@@ -9,5 +9,6 @@ log:
   level: "development"
 max:
   clients: 100
+  unacked_counters: 1000
 storage:
   path: "storage"

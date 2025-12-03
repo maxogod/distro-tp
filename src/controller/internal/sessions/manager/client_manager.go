@@ -38,6 +38,7 @@ func (cm *clientManager) AddClient(id string, taskType enum.TaskType, storedCoun
 		taskType,
 		cm.storage,
 		storedCounters,
+		cm.config.MaxUnackedCounters,
 	)
 	session := clients.NewClientSession(id, controlHandler)
 	cm.clients[id] = session

@@ -16,13 +16,14 @@ type HeartbeatConfig struct {
 }
 
 type Config struct {
-	ID                string
-	MiddlewareAddress string
-	Port              int32
-	LogLevel          string
-	MaxClients        int
-	StoragePath       string
-	Heartbeat         HeartbeatConfig
+	ID                 string
+	MiddlewareAddress  string
+	Port               int32
+	LogLevel           string
+	MaxClients         int
+	MaxUnackedCounters int
+	StoragePath        string
+	Heartbeat          HeartbeatConfig
 }
 
 func (c Config) String() string {
@@ -55,6 +56,7 @@ func InitConfig() (*Config, error) {
 	v.BindEnv("max.clients", "MAX_CLIENTS")
 	v.BindEnv("id", "ID")
 	v.BindEnv("storage.path", "STORAGE_PATH")
+	v.BindEnv("max.unacked_counters", "MAX_UNACKED_COUNTERS")
 
 	heatbeatConf := HeartbeatConfig{
 		Host:     v.GetString("heartbeat.host"),
@@ -63,13 +65,14 @@ func InitConfig() (*Config, error) {
 	}
 
 	config := &Config{
-		ID:                v.GetString("id"),
-		MiddlewareAddress: v.GetString("middleware.address"),
-		Port:              int32(v.GetInt("port")),
-		LogLevel:          v.GetString("log.level"),
-		MaxClients:        v.GetInt("max.clients"),
-		StoragePath:       v.GetString("storage.path"),
-		Heartbeat:         heatbeatConf,
+		ID:                 v.GetString("id"),
+		MiddlewareAddress:  v.GetString("middleware.address"),
+		Port:               int32(v.GetInt("port")),
+		LogLevel:           v.GetString("log.level"),
+		MaxClients:         v.GetInt("max.clients"),
+		MaxUnackedCounters: v.GetInt("max.unacked_counters"),
+		StoragePath:        v.GetString("storage.path"),
+		Heartbeat:          heatbeatConf,
 	}
 
 	return config, nil

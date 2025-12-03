@@ -23,9 +23,6 @@ type counterMessage struct {
 	persisted  bool
 }
 
-// TODO: mover a config
-const maxUnackedCounters = 1000
-
 type controlHandler struct {
 	clientID      string
 	taskType      enum.TaskType
@@ -41,8 +38,9 @@ type controlHandler struct {
 	routineReadyCh    chan bool
 	counterCh         chan counterMessage
 
-	counterStore      storage.CounterStorage
-	preloadedCounters []*protocol.MessageCounter
+	counterStore       storage.CounterStorage
+	preloadedCounters  []*protocol.MessageCounter
+	maxUnackedCounters int
 }
 
 func NewControlHandler(
@@ -50,6 +48,7 @@ func NewControlHandler(
 	taskType enum.TaskType,
 	counterStore storage.CounterStorage,
 	storedCounters []*protocol.MessageCounter,
+	maxUnackedCounters int,
 ) ControlHandler {
 	h := &controlHandler{
 		clientID:      clientID,
@@ -65,8 +64,9 @@ func NewControlHandler(
 		routineReadyCh:    make(chan bool),
 		counterCh:         make(chan counterMessage, 9999),
 
-		counterStore:      counterStore,
-		preloadedCounters: storedCounters,
+		counterStore:       counterStore,
+		preloadedCounters:  storedCounters,
+		maxUnackedCounters: maxUnackedCounters,
 	}
 
 	workers := []enum.WorkerType{
@@ -92,7 +92,7 @@ func (ch *controlHandler) AwaitForWorkers() error {
 	receivedFromCurrentLayer := 0
 	sentFromCurrentLayer := 0
 
-	pendingCounters := make([]counterMessage, 0, maxUnackedCounters)
+	pendingCounters := make([]counterMessage, 0, ch.maxUnackedCounters)
 
 	go ch.enqueueStoredCounters()
 
@@ -133,7 +133,7 @@ func (ch *controlHandler) AwaitForWorkers() error {
 
 		if !counterMsg.persisted {
 			pendingCounters = append(pendingCounters, counterMsg)
-			if len(pendingCounters) >= maxUnackedCounters {
+			if len(pendingCounters) >= ch.maxUnackedCounters {
 				ch.flushPendingCounters(&pendingCounters)
 			}
 		}
@@ -331,7 +331,7 @@ func (ch *controlHandler) flushPendingCounters(pendingCounters *[]counterMessage
 		}
 	}
 
-	*pendingCounters = make([]counterMessage, 0, maxUnackedCounters)
+	*pendingCounters = make([]counterMessage, 0, ch.maxUnackedCounters)
 }
 
 // ackHandler returns a function that can be used to ack/nack a message.
