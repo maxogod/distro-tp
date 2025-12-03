@@ -21,7 +21,9 @@ type StorageService interface {
 	// GetAllFilesReferences returns a list of all file references currently stored in the cache.
 	GetAllFilesReferences() []string
 	// SaveTempFile renames the temporary file to a permanent cache file and returns its reference.
-	SaveTempFile(cacheReference string) string
+	SaveTempFile(cacheReference string) error
+	// RemoveAllTempFiles removes all temporary files from the storage.
+	RemoveAllTempFiles() error
 	// Close closes the storage service, releasing any resources.
 	Close() error
 }

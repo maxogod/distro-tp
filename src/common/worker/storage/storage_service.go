@@ -138,15 +138,27 @@ func (c *diskMemoryStorage) getFileName(cacheReference string) string {
 	return FOLDER_PATH + cacheReference + CACHE_EXTENSION
 }
 
-func (c *diskMemoryStorage) SaveTempFile(cacheReference string) string {
+func (c *diskMemoryStorage) SaveTempFile(cacheReference string) error {
 	tempFileName := FOLDER_PATH + TEMP_FILE_SUFFIX + cacheReference + CACHE_EXTENSION
 	finalFileName := c.getFileName(cacheReference)
 	err := c.fileHandler.RenameFile(tempFileName, finalFileName)
 	if err != nil {
 		logger.Logger.Errorf("Error renaming temp file %s to %s: %v", tempFileName, finalFileName, err)
-		return ""
+		return err
 	}
-	return cacheReference
+	return nil
+}
+
+func (c *diskMemoryStorage) RemoveAllTempFiles() error {
+	tempFiles, err := filepath.Glob(FOLDER_PATH + TEMP_FILE_SUFFIX + "*" + CACHE_EXTENSION)
+	if err != nil {
+		logger.Logger.Errorf("Error globbing temp files: %v", err)
+		return err
+	}
+	for _, file := range tempFiles {
+		c.fileHandler.DeleteFile(file)
+	}
+	return nil
 }
 
 // ============ Helper methods ================
