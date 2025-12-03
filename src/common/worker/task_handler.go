@@ -2,6 +2,10 @@ package worker
 
 import (
 	"fmt"
+	"os"
+	"path/filepath"
+	"strconv"
+	"strings"
 
 	"github.com/maxogod/distro-tp/src/common/logger"
 	"github.com/maxogod/distro-tp/src/common/models/enum"
@@ -9,7 +13,19 @@ import (
 )
 
 const FINISH enum.TaskType = 0
-const REAP_AFTER_MSGS = 10000
+
+const (
+	REAP_AFTER_MSGS = 10000
+
+	STORAGE_FOLDER_PATH        = "storage/"
+	SEPARATOR                  = "@"
+	TOTAL_COUNT_FILE_EXTENSION = ".count"
+)
+
+type clientDiskTuple struct {
+	total    int32
+	taskType enum.TaskType
+}
 
 // Before creating a TaskHandler, a TaskExecutor is required to be implemented
 // for the specific tasks that the worker will handle via the TaskHandler.
@@ -37,6 +53,8 @@ type taskHandler struct {
 	totalMessagesToReceive map[string]int32
 }
 
+// NewTaskHandler creates a new TaskHandler with the provided TaskExecutor
+// If shouldDropDuplicates is true, the handler will track and drop duplicate messages based on sequence numbers.
 func NewTaskHandler(taskExecutor TaskExecutor, shouldDropDuplicates bool) DataHandler {
 	th := &taskHandler{
 		taskExecutor:           taskExecutor,
@@ -52,6 +70,45 @@ func NewTaskHandler(taskExecutor TaskExecutor, shouldDropDuplicates bool) DataHa
 		enum.T2: th.taskExecutor.HandleTask2,
 		enum.T3: th.taskExecutor.HandleTask3,
 		enum.T4: th.taskExecutor.HandleTask4,
+	}
+
+	return th
+}
+
+// NewTaskHandlerWithSeqs creates a new TaskHandler with the provided TaskExecutor
+// and initializes it with existing sequences per client to track duplicates.
+func NewTaskHandlerWithSeqs(taskExecutor TaskExecutor, shouldDropDuplicates bool, seqs map[string][]int32) DataHandler {
+	th := NewTaskHandler(taskExecutor, shouldDropDuplicates).(*taskHandler)
+
+	for clientID, seqList := range seqs {
+		seqMap := make(map[int32]bool)
+		for _, seq := range seqList {
+			seqMap[seq] = true
+		}
+		th.sequencesPerClient[clientID] = seqMap
+	}
+
+	totals := getTotals()
+	if totals == nil {
+		return th
+	}
+
+	for clientID, client := range totals {
+		currentSeqs, ok := th.sequencesPerClient[clientID]
+		if !ok {
+			// TODO: remove bad total file?
+			logger.Logger.Warnf("[%s] No sequences found for client with total file. Ignoring total file.", clientID)
+			continue
+		}
+		th.totalMessagesToReceive[clientID] = client.total
+		if int32(len(currentSeqs)) >= client.total {
+			done := &protocol.DataEnvelope{
+				ClientId: clientID,
+				IsDone:   true,
+				TaskType: int32(client.taskType),
+			}
+			taskExecutor.HandleFinishClient(done, func(bool, bool) error { return nil })
+		}
 	}
 
 	return th
@@ -97,7 +154,13 @@ func (th *taskHandler) HandleData(dataEnvelope *protocol.DataEnvelope, ackHandle
 		logger.Logger.Debugf("[%s] All messages received for client. Cleaning up.", clientID)
 		th.finishedClients[clientID] = true
 		th.reapFinishedClients(false)
-		return th.HandleFinishClient(dataEnvelope, func(bool, bool) error { return nil }) // TODO: what if it dies here
+		// TODO: what if it dies here?
+		if err := th.HandleFinishClient(dataEnvelope, func(bool, bool) error { return nil }); err != nil {
+			return err
+		}
+		if err := removeTotalFile(clientID); err != nil {
+			logger.Logger.Errorf("[%s] Error removing progress file: %v", clientID, err)
+		}
 	} else if th.messagesReceived[clientID]%REAP_AFTER_MSGS == 0 {
 		th.reapFinishedClients(true)
 	}
@@ -134,10 +197,20 @@ func (th *taskHandler) HandleFinishClient(dataEnvelope *protocol.DataEnvelope, a
 
 	logger.Logger.Infof("[%s] Finished processing client in TaskHandler. Received %d/%d messages and %d sequences.",
 		clientID, count, dataEnvelope.GetTotalMessages(), len(th.sequencesPerClient[clientID]))
+
+	if err := createTotalFile(clientID, dataEnvelope.GetTotalMessages(), dataEnvelope.GetTaskType()); err != nil {
+		logger.Logger.Errorf("[%s] Error creating progress file: %v", clientID, err)
+	}
+
 	if dataEnvelope.GetTotalMessages() == 0 || count == dataEnvelope.GetTotalMessages() {
 		th.finishedClients[clientID] = true
 		th.reapFinishedClients(false)
-		return th.taskExecutor.HandleFinishClient(dataEnvelope, ackHandler)
+		if err := th.taskExecutor.HandleFinishClient(dataEnvelope, ackHandler); err != nil {
+			return err
+		}
+		if err := removeTotalFile(clientID); err != nil {
+			logger.Logger.Errorf("[%s] Error removing progress file: %v", clientID, err)
+		}
 	}
 
 	if dataEnvelope.GetTotalMessages() != 0 {
@@ -149,4 +222,59 @@ func (th *taskHandler) HandleFinishClient(dataEnvelope *protocol.DataEnvelope, a
 
 func (th *taskHandler) Close() error {
 	return th.taskExecutor.Close()
+}
+
+/* --- HELPERS --- */
+
+func createTotalFile(clientID string, total int32, task int32) error {
+	filePath := STORAGE_FOLDER_PATH + clientID + SEPARATOR + strconv.Itoa(int(total)) + SEPARATOR + strconv.Itoa(int(task)) + TOTAL_COUNT_FILE_EXTENSION
+	file, err := os.Create(filePath)
+	if err != nil {
+		return err
+	}
+	return file.Close()
+}
+
+func removeTotalFile(clientID string) error {
+	pattern := STORAGE_FOLDER_PATH + clientID + SEPARATOR + "*" + TOTAL_COUNT_FILE_EXTENSION
+	files, err := filepath.Glob(pattern)
+	if err != nil {
+		return err
+	}
+	for _, file := range files {
+		err := os.Remove(file)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func getTotals() map[string]clientDiskTuple {
+	references := make(map[string]clientDiskTuple)
+	files, err := filepath.Glob(STORAGE_FOLDER_PATH + "*" + TOTAL_COUNT_FILE_EXTENSION)
+	if err != nil {
+		logger.Logger.Errorf("Error globbing cache files: %v", err)
+		return nil
+	}
+	for _, file := range files {
+		reference := file[len(STORAGE_FOLDER_PATH) : len(file)-len(TOTAL_COUNT_FILE_EXTENSION)]
+		clientID := strings.Split(reference, SEPARATOR)[0]
+		total, err := strconv.Atoi(strings.Split(reference, SEPARATOR)[1])
+		if err != nil {
+			logger.Logger.Errorf("Error parsing total count from file %s: %v", file, err)
+			continue
+		}
+		taskType, err := strconv.Atoi(strings.Split(reference, SEPARATOR)[2])
+		if err != nil {
+			logger.Logger.Errorf("Error parsing task type from file %s: %v", file, err)
+			continue
+		}
+
+		references[clientID] = clientDiskTuple{
+			total:    int32(total),
+			taskType: enum.TaskType(taskType),
+		}
+	}
+	return references
 }
