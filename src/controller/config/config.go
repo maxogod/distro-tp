@@ -27,7 +27,7 @@ type Config struct {
 
 func (c Config) String() string {
 	return fmt.Sprintf(
-		"[CONFIG: Port: %d | LogLevel: %s | ReceivingTimeout: %d | MaxClients: %d]",
+		"[CONFIG: Port: %d | LogLevel: %s | MaxClients: %d]",
 		c.Port,
 		c.LogLevel,
 		c.MaxClients,
@@ -52,9 +52,7 @@ func InitConfig() (*Config, error) {
 	v.BindEnv("middleware.address", "MIDDLEWARE_ADDRESS")
 	v.BindEnv("port", "PORT")
 	v.BindEnv("log.level", "LOG_LEVEL")
-	v.BindEnv("receiving.timeout", "RECEIVING_TIMEOUT")
 	v.BindEnv("max.clients", "MAX_CLIENTS")
-	v.BindEnv("completion_after_done.timeout", "COMPLETION_AFTER_DONE_TIMEOUT")
 	v.BindEnv("id", "ID")
 	v.BindEnv("storage.path", "STORAGE_PATH")
 
