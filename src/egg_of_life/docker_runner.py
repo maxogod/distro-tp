@@ -40,7 +40,7 @@ class DockerRunner:
             f"-v {self._host_path}/src/{folder_name}/config.yaml:/app/config.yaml "
             f"-e ID={name} "
         )
-        if folder_name in ["joiner", "aggregator"]:
+        if folder_name in ["joiner", "aggregator", "controller"]:
             cmd += f"-v {self._host_path}/.storage/{name}:/app/storage "
         cmd += image
         print(cmd)
