@@ -19,21 +19,12 @@ type Limits struct {
 	TransactionSendLimit int32
 	MaxAmountToSend      int
 }
-
-type LeaderElectionConfig struct {
-	ID       int
-	MaxNodes int
-	Host     string
-	Port     int
-}
-
 type Config struct {
-	ID             string
-	Address        string
-	LogLevel       string
-	Limits         Limits
-	Heartbeat      HeartbeatConfig
-	LeaderElection LeaderElectionConfig
+	ID        string
+	Address   string
+	LogLevel  string
+	Limits    Limits
+	Heartbeat HeartbeatConfig
 }
 
 func (c Config) String() string {
@@ -71,25 +62,17 @@ func InitConfig(configFilePath string) (*Config, error) {
 		Interval: time.Duration(v.GetInt("heartbeat.interval")) * time.Second,
 	}
 
-	leaderElectionConf := LeaderElectionConfig{
-		ID:       v.GetInt("leader_election.id"),
-		MaxNodes: v.GetInt("leader_election.maxNodes"),
-		Host:     v.GetString("leader_election.host"),
-		Port:     v.GetInt("leader_election.port"),
-	}
-
 	limits := Limits{
 		TransactionSendLimit: v.GetInt32("limits.transaction_send_limit"),
 		MaxAmountToSend:      v.GetInt("limits.max_amount_to_send"),
 	}
 
 	config := &Config{
-		ID:             v.GetString("id"),
-		Address:        v.GetString("gateway.address"),
-		LogLevel:       v.GetString("log.level"),
-		Limits:         limits,
-		Heartbeat:      heatbeatConf,
-		LeaderElection: leaderElectionConf,
+		ID:        v.GetString("id"),
+		Address:   v.GetString("gateway.address"),
+		LogLevel:  v.GetString("log.level"),
+		Limits:    limits,
+		Heartbeat: heatbeatConf,
 	}
 
 	return config, nil

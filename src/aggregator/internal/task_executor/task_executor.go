@@ -6,7 +6,6 @@ import (
 
 	"github.com/maxogod/distro-tp/src/aggregator/business"
 	"github.com/maxogod/distro-tp/src/aggregator/config"
-	"github.com/maxogod/distro-tp/src/common/leader_election"
 	"github.com/maxogod/distro-tp/src/common/logger"
 	"github.com/maxogod/distro-tp/src/common/middleware"
 	"github.com/maxogod/distro-tp/src/common/models/enum"
@@ -21,22 +20,19 @@ type AggregatorExecutor struct {
 	aggregatorService business.AggregatorService
 	finishExecutor    FinishExecutor
 
-	leaderElection  leader_election.LeaderElection
-	finishedClients *sync.Map // map[string]bool
+	ackHandlers sync.Map // map[clientTask]func(bool, bool) error
 }
 
 func NewAggregatorExecutor(config *config.Config,
 	aggregatorService business.AggregatorService,
 	outputQueue middleware.MessageMiddleware,
-	leaderElection leader_election.LeaderElection,
 	finishedClients *sync.Map,
 ) worker.TaskExecutor {
 	return &AggregatorExecutor{
 		config:            config,
 		aggregatorService: aggregatorService,
 		finishExecutor:    NewFinishExecutor(config.Address, aggregatorService, outputQueue, config.Limits),
-		leaderElection:    leaderElection,
-		finishedClients:   finishedClients,
+		ackHandlers:       sync.Map{},
 	}
 }
 
@@ -92,11 +88,6 @@ func (ae *AggregatorExecutor) HandleFinishClient(dataEnvelope *protocol.DataEnve
 		return nil
 	}
 
-	if ae.actionNonLeader(clientID) {
-		shouldAck = true
-		return nil
-	}
-
 	taskType := dataEnvelope.GetTaskType()
 
 	if taskType == int32(enum.T1) {
@@ -125,16 +116,7 @@ func (ae *AggregatorExecutor) Close() error {
 	return nil
 }
 
-func (ae *AggregatorExecutor) actionNonLeader(clientID string) bool {
-	if !ae.leaderElection.IsLeader() {
-		ae.finishedClients.LoadOrStore(clientID, true)
-		return true
-	}
-	return false
-}
-
 func (ae *AggregatorExecutor) removeClientData(clientID string) {
 	ae.aggregatorService.RemoveData(clientID)
-	ae.finishedClients.LoadAndDelete(clientID)
 	logger.Logger.Debugf("Removed client data for: %s", clientID)
 }
