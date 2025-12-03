@@ -14,6 +14,8 @@ type AggregatorService interface {
 	// this is stored in a temp file, and only finalized upon ConfirmStorage call.
 	StoreData(clientID string, data *protocol.DataEnvelope) error
 
+	// ConfirmStorage finalizes the storage of data for a client.
+	FlushData(clientID string) error
 	// ------------ Retreival Functions -----------
 
 	// GetStoredTotalItems retrieves stored reduced TotalSumItem data for a client as part of T2 task.

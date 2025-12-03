@@ -49,8 +49,31 @@ func (fe *finishExecutor) SendAllData(clientID string, taskType enum.TaskType) e
 		return err
 	}
 
-	return fe.finishClientAcks(clientID)
+	return fe.AckClientMessages(clientID)
 }
+
+func (fe *finishExecutor) AckClientMessages(clientID string) error {
+	value, ok := fe.ackHandlers.Load(clientID)
+	if !ok {
+		return nil
+	}
+	handlers, ok := value.([]func(bool, bool) error)
+	if !ok {
+		return fmt.Errorf("invalid ack handlers type for client %s", clientID)
+	}
+	for i, handler := range handlers {
+		if err := handler(true, false); err != nil {
+			return fmt.Errorf("error executing ack handler %d for client %s: %v", i, clientID, err)
+		}
+	}
+	fe.ackHandlers.Delete(clientID)
+
+	logger.Logger.Debugf("[%s] Acked %d messages", clientID, len(handlers))
+
+	return nil
+}
+
+// ----------------- private finish handlers ----------------
 
 func (fe *finishExecutor) finishTask2(clientID string) error {
 	subtotalResults, quantityResults, err := fe.aggregatorService.GetStoredTotalItems(clientID)
@@ -99,25 +122,4 @@ func (fe *finishExecutor) finishTask4(clientID string) error {
 	// we send 1 message to the joiner
 	return worker.SendDataToMiddleware(reportData, enum.T4, clientID, 0, fe.outputQueue)
 
-}
-
-func (fe *finishExecutor) finishClientAcks(clientID string) error {
-	value, ok := fe.ackHandlers.Load(clientID)
-	if !ok {
-		return nil
-	}
-	handlers, ok := value.([]func(bool, bool) error)
-	if !ok {
-		return fmt.Errorf("invalid ack handlers type for client %s", clientID)
-	}
-	for i, handler := range handlers {
-		if err := handler(true, false); err != nil {
-			return fmt.Errorf("error executing ack handler %d for client %s: %v", i, clientID, err)
-		}
-	}
-	fe.ackHandlers.Delete(clientID)
-
-	logger.Logger.Debugf("[%s] DONE | Ack'ed %d messages", clientID, len(handlers))
-
-	return nil
 }

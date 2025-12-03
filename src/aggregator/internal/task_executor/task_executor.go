@@ -13,7 +13,10 @@ import (
 	"github.com/maxogod/distro-tp/src/common/worker"
 )
 
-const DELETE_ACTION = -1
+const (
+	FLUSH_THRESHOLD = 1000
+	DELETE_ACTION   = -1
+)
 
 type AggregatorExecutor struct {
 	config            *config.Config
@@ -47,20 +50,23 @@ func (ae *AggregatorExecutor) HandleTask1(dataEnvelope *protocol.DataEnvelope, a
 func (ae *AggregatorExecutor) HandleTask2(dataEnvelope *protocol.DataEnvelope, ackHandler func(bool, bool) error) error {
 	clientID := dataEnvelope.GetClientId()
 	ae.addToAckHandlers(clientID, ackHandler)
-	return ae.aggregatorService.StoreData(clientID, dataEnvelope)
+	ae.aggregatorService.StoreData(clientID, dataEnvelope)
+	return ae.flushAckHandlers(clientID)
 }
 
 func (ae *AggregatorExecutor) HandleTask3(dataEnvelope *protocol.DataEnvelope, ackHandler func(bool, bool) error) error {
 	clientID := dataEnvelope.GetClientId()
 	ae.addToAckHandlers(clientID, ackHandler)
-	return ae.aggregatorService.StoreData(clientID, dataEnvelope)
+	ae.aggregatorService.StoreData(clientID, dataEnvelope)
+	return ae.flushAckHandlers(clientID)
 
 }
 
 func (ae *AggregatorExecutor) HandleTask4(dataEnvelope *protocol.DataEnvelope, ackHandler func(bool, bool) error) error {
 	clientID := dataEnvelope.GetClientId()
 	ae.addToAckHandlers(clientID, ackHandler)
-	return ae.aggregatorService.StoreData(clientID, dataEnvelope)
+	ae.aggregatorService.StoreData(clientID, dataEnvelope)
+	return ae.flushAckHandlers(clientID)
 }
 
 func (ae *AggregatorExecutor) HandleFinishClient(dataEnvelope *protocol.DataEnvelope, ackHandler func(bool, bool) error) error {
@@ -119,4 +125,21 @@ func (ae *AggregatorExecutor) addToAckHandlers(clientID string, ackHandler func(
 
 	// Store back to map
 	ae.ackHandlers.Store(clientID, handlers)
+}
+
+func (ae *AggregatorExecutor) flushAckHandlers(clientID string) error {
+	value, ok := ae.ackHandlers.Load(clientID)
+	if !ok {
+		return fmt.Errorf("no ack handlers for client %s", clientID)
+	}
+	handlers, ok := value.([]func(bool, bool) error)
+	if !ok {
+		return fmt.Errorf("invalid ack handlers type for client %s", clientID)
+	}
+
+	if len(handlers) >= FLUSH_THRESHOLD {
+		ae.aggregatorService.FlushData(clientID)
+		ae.finishExecutor.AckClientMessages(clientID)
+	}
+	return nil
 }
