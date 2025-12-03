@@ -92,7 +92,7 @@ func GetClientControlExchange(url, clientID string) MessageMiddleware {
 // to send or receive with a specific topic pass the clientID parameter.
 func GetCounterExchange(url, clientID string) MessageMiddleware {
 	return retryMiddlewareCreation(MIDDLEWARE_CONNECTION_RETRIES, WAIT_INTERVAL, func() (MessageMiddleware, error) {
-		return NewExchangeMiddleware(url, "counter_exchange", "direct", []string{clientID})
+		return NewPersistentExchangeMiddleware(url, "counter_exchange", "direct", []string{clientID}, "counter-"+clientID)
 	})
 }
 
