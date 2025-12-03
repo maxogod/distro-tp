@@ -61,7 +61,7 @@ func (c *diskMemoryStorage) FlushWriting(cacheReference string) error {
 	fileName := c.getFileName(cacheReference)
 	val, exists := c.storageChannels.Load(fileName)
 	if !exists {
-		return fmt.Errorf("no active writer for cache reference: %s", cacheReference)
+		return fmt.Errorf("[Write] no active writer for cache reference: %s", cacheReference)
 	}
 	fileWriter := val.(*filehandler.FileWriter)
 	fileWriter.Sync()
@@ -78,7 +78,7 @@ func (c *diskMemoryStorage) ReadData(cacheReference string) (chan []byte, error)
 
 	val, exists := c.storageChannels.Load(fileName)
 	if !exists {
-		return nil, fmt.Errorf("no active writer for cache reference: %s", cacheReference)
+		return nil, fmt.Errorf("[Read] no active writer for cache reference: %s", cacheReference)
 	}
 	fileWriter := val.(*filehandler.FileWriter)
 	fileWriter.Sync()
@@ -174,7 +174,7 @@ func (c *diskMemoryStorage) stopWritingInternal(cacheReference string) {
 	fileName := c.getFileName(cacheReference)
 	val, exists := c.storageChannels.Load(fileName)
 	if !exists {
-		logger.Logger.Warnf("No active writer for cache reference: %s", cacheReference)
+		logger.Logger.Warnf("[Stop] no active writer for cache reference: %s", cacheReference)
 		return
 	}
 	fileWriter := val.(*filehandler.FileWriter)
