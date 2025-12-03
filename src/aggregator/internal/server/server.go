@@ -24,7 +24,7 @@ type Server struct {
 func InitServer(conf *config.Config) *Server {
 
 	// initiate Queues and Exchanges
-	aggregatorInputQueue := middleware.GetAggregatorQueue(conf.Address)
+	aggregatorInputQueue := middleware.GetAggregatorQueue(conf.Address, conf.ID)
 	joinerOutputQueue := middleware.GetJoinerQueue(conf.Address)
 	finishExchange := middleware.GetFinishExchange(conf.Address, []string{string(enum.AggregatorWorker)}, conf.ID)
 
