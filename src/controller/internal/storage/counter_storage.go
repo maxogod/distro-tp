@@ -134,6 +134,12 @@ func (cs *diskCounterStorage) RemoveClient(clientID string) error {
 
 // InitializeClientCounter creates a new counter file for the given client with the given task type
 func (cs *diskCounterStorage) InitializeClientCounter(clientID string, taskType enum.TaskType) error {
+	logger.Logger.Debugf("initializing counter for client %s", clientID)
+
+	if clientID == "" {
+		return fmt.Errorf("client id cannot be empty")
+	}
+
 	if err := os.MkdirAll(cs.basePath, 0o755); err != nil {
 		return fmt.Errorf("failed to create storage dir: %w", err)
 	}
