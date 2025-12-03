@@ -175,15 +175,9 @@ func (ch *controlHandler) AwaitForWorkers() error {
 		}
 	}
 
-	<-ch.counterCh // TODO: block undefinitely? or timeout?
+	<-ch.counterCh
 	logger.Logger.Debugf("[%s] Final counter received from Gateway workers, data done", ch.clientID)
 
-	// select {
-	// case <-ch.counterCh: // Only open routine is that of gateway
-	// 	logger.Logger.Debugf("[%s] Final counter received from Gateway workers, data done", ch.clientID)
-	// case <-time.After(ch.completionAfterDoneTimeout):
-	// 	logger.Logger.Warnf("[%s] Timeout waiting for final counter from Gateway workers", ch.clientID)
-	// }
 	clientQueue := middleware.GetProcessedDataExchange(ch.middlewareUrl, ch.clientID)
 	defer clientQueue.Close()
 	worker.SendDone(ch.clientID, ch.taskType, clientQueue)
