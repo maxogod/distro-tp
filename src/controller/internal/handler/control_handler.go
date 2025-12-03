@@ -23,6 +23,9 @@ type counterMessage struct {
 	persisted  bool
 }
 
+// TODO: mover a config
+const maxUnackedCounters = 1000
+
 type controlHandler struct {
 	clientID      string
 	taskType      enum.TaskType
@@ -89,6 +92,8 @@ func (ch *controlHandler) AwaitForWorkers() error {
 	receivedFromCurrentLayer := 0
 	sentFromCurrentLayer := 0
 
+	pendingCounters := make([]counterMessage, 0, maxUnackedCounters)
+
 	go ch.enqueueStoredCounters()
 
 	logger.Logger.Debugf("[%s] Starting to wait for %s workers", ch.clientID, currentWorkerType)
@@ -127,15 +132,9 @@ func (ch *controlHandler) AwaitForWorkers() error {
 		}
 
 		if !counterMsg.persisted {
-			err := ch.counterStore.AppendCounter(ch.clientID, counter)
-			if err != nil {
-				logger.Logger.Errorf("[%s] failed to persist counter: %v. Requeuing message", ch.clientID, err)
-				counterBytes, _ := proto.Marshal(counterMsg.counter)
-				ch.workersMonitoring[currentWorkerType].queue.Send(counterBytes)
-				if counterMsg.ackHandler != nil {
-					counterMsg.ackHandler(true, false)
-				}
-				continue
+			pendingCounters = append(pendingCounters, counterMsg)
+			if len(pendingCounters) >= maxUnackedCounters {
+				ch.flushPendingCounters(&pendingCounters)
 			}
 		}
 
@@ -166,10 +165,9 @@ func (ch *controlHandler) AwaitForWorkers() error {
 			receivedFromCurrentLayer = 0
 			logger.Logger.Debugf("[%s] Proceeding to wait for %s workers", ch.clientID, currentWorkerType)
 		}
-		if counterMsg.ackHandler != nil {
-			counterMsg.ackHandler(true, false)
-		}
 	}
+
+	ch.flushPendingCounters(&pendingCounters)
 
 	<-ch.counterCh
 	logger.Logger.Debugf("[%s] Final counter received from Gateway workers, data done", ch.clientID)
@@ -309,6 +307,31 @@ func (ch *controlHandler) startCounterListener(workerRoute enum.WorkerType) {
 	}
 
 	logger.Logger.Debugf("[%s] Counter listener for %s stopped", ch.clientID, workerRoute)
+}
+
+func (ch *controlHandler) flushPendingCounters(pendingCounters *[]counterMessage) {
+	if len(*pendingCounters) == 0 {
+		return
+	}
+
+	for _, counterMsg := range *pendingCounters {
+		counter := counterMsg.counter
+		err := ch.counterStore.AppendCounter(ch.clientID, counter)
+		if err != nil {
+			logger.Logger.Errorf("[%s] failed to persist counter: %v. Requeuing message", ch.clientID, err)
+			counterBytes, _ := proto.Marshal(counter)
+
+			if monitor, ok := ch.workersMonitoring[enum.WorkerType(counter.GetFrom())]; ok {
+				monitor.queue.Send(counterBytes)
+			}
+		}
+
+		if counterMsg.ackHandler != nil {
+			counterMsg.ackHandler(true, false)
+		}
+	}
+
+	*pendingCounters = make([]counterMessage, 0, maxUnackedCounters)
 }
 
 // ackHandler returns a function that can be used to ack/nack a message.
