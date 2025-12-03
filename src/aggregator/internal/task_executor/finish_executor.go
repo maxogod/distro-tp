@@ -6,7 +6,6 @@ import (
 
 	"github.com/maxogod/distro-tp/src/aggregator/business"
 	"github.com/maxogod/distro-tp/src/aggregator/config"
-	"github.com/maxogod/distro-tp/src/common/logger"
 	"github.com/maxogod/distro-tp/src/common/middleware"
 	"github.com/maxogod/distro-tp/src/common/models/enum"
 	"github.com/maxogod/distro-tp/src/common/models/reduced"
@@ -68,7 +67,7 @@ func (fe *finishExecutor) AckClientMessages(clientID string) error {
 	}
 	fe.ackHandlers.Delete(clientID)
 
-	logger.Logger.Debugf("[%s] Acked %d messages", clientID, len(handlers))
+	//logger.Logger.Debugf("[%s] Acked %d messages", clientID, len(handlers))
 
 	return nil
 }

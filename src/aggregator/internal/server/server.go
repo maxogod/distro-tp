@@ -41,7 +41,10 @@ func InitServer(conf *config.Config) *Server {
 		joinerOutputQueue,
 	)
 
-	taskHandler := worker.NewTaskHandler(taskExecutor, true)
+	// get last state from cache
+	lastState := getLastState(cacheService)
+
+	taskHandler := worker.NewTaskHandlerWithSeqs(taskExecutor, true, lastState)
 
 	messageHandler := worker.NewMessageHandler(
 		taskHandler,
@@ -98,7 +101,9 @@ func (s *Server) Shutdown() {
 	logger.Logger.Debug("aggregator Worker server shut down successfully.")
 }
 
-func (s *Server) getLastState(cacheService storage.StorageService) map[string][]int32 {
+// ----------- private helper function to get last state from cache ------------
+
+func getLastState(cacheService storage.StorageService) map[string][]int32 {
 
 	files := cacheService.GetAllFilesReferences()
 
@@ -111,20 +116,20 @@ func (s *Server) getLastState(cacheService storage.StorageService) map[string][]
 			logger.Logger.Warnf("[%s] file could not be opened: %s", file, err.Error())
 			continue
 		}
-		sequenceNumbers := s.getSequenceNumbers(read_ch)
+		sequenceNumbers := getSequenceNumbers(read_ch)
 		lastState[file] = sequenceNumbers
 		logger.Logger.Infof("[%s] file read successfully, %d sequence numbers found", file, len(sequenceNumbers))
 	}
 	return lastState
 }
 
-func (s *Server) getSequenceNumbers(read_ch chan []byte) []int32 {
+func getSequenceNumbers(read_ch chan []byte) []int32 {
 	sequenceNumbers := []int32{}
 	for dataEnvelope := range read_ch {
 		protoData := &protocol.DataEnvelope{}
 		err := proto.Unmarshal(dataEnvelope, protoData)
 		if err != nil {
-			logger.Logger.Warnf("Dirty Message found, ignoring: %v", err)
+			logger.Logger.Debugf("Dirty Message found, ignoring: %v", err)
 			continue
 		}
 		sequenceNumbers = append(sequenceNumbers, protoData.SequenceNumber)
