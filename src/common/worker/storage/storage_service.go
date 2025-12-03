@@ -50,15 +50,11 @@ func (c *diskMemoryStorage) StartWriting(cacheReference string, data [][]byte) e
 }
 
 func (c *diskMemoryStorage) StopWriting(cacheReference string) {
-	fileName := c.getFileName(cacheReference)
-	val, exists := c.storageChannels.Load(fileName)
-	if !exists {
-		logger.Logger.Warnf("No active writer for cache reference: %s", cacheReference)
-		return
-	}
-	fileWriter := val.(*filehandler.FileWriter)
-	fileWriter.FinishWriting()
-	c.storageChannels.Delete(fileName)
+	c.stopWritingInternal(cacheReference)
+}
+
+func (c *diskMemoryStorage) StopWritingTemp(cacheReference string) {
+	c.stopWritingInternal(TEMP_FILE_SUFFIX + cacheReference)
 }
 
 func (c *diskMemoryStorage) FlushWriting(cacheReference string) error {
@@ -134,10 +130,6 @@ func (c *diskMemoryStorage) Close() error {
 	return nil
 }
 
-func (c *diskMemoryStorage) getFileName(cacheReference string) string {
-	return FOLDER_PATH + cacheReference + CACHE_EXTENSION
-}
-
 func (c *diskMemoryStorage) SaveTempFile(cacheReference string) error {
 	tempFileName := FOLDER_PATH + TEMP_FILE_SUFFIX + cacheReference + CACHE_EXTENSION
 	finalFileName := c.getFileName(cacheReference)
@@ -169,6 +161,25 @@ func (c *diskMemoryStorage) RemoveAllTempFiles() error {
 		c.fileHandler.DeleteFile(file)
 	}
 	return nil
+}
+
+// ============ Private methods ===============
+
+func (c *diskMemoryStorage) getFileName(cacheReference string) string {
+	return FOLDER_PATH + cacheReference + CACHE_EXTENSION
+}
+
+// Private helper method to handle the common logic
+func (c *diskMemoryStorage) stopWritingInternal(cacheReference string) {
+	fileName := c.getFileName(cacheReference)
+	val, exists := c.storageChannels.Load(fileName)
+	if !exists {
+		logger.Logger.Warnf("No active writer for cache reference: %s", cacheReference)
+		return
+	}
+	fileWriter := val.(*filehandler.FileWriter)
+	fileWriter.FinishWriting()
+	c.storageChannels.Delete(fileName)
 }
 
 // ============ Helper methods ================

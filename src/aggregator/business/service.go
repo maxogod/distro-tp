@@ -21,23 +21,26 @@ func NewAggregatorService(storageService storage.StorageService) AggregatorServi
 	as := &aggregatorService{
 		storageService: storageService,
 	}
+	storageService.RemoveAllTempFiles()
 	return as
 }
 
 // ======= STORAGE FUNCTIONS =======
 
 func (as *aggregatorService) StoreData(clientID string, data *protocol.DataEnvelope) error {
-	return storage.StoreBatch(as.storageService, clientID, []*protocol.DataEnvelope{data})
+	return storage.StoreTempBatch(as.storageService, clientID, []*protocol.DataEnvelope{data})
 }
 
 func (as *aggregatorService) confirmStorage(clientID string) error {
+	as.storageService.StopWritingTemp(clientID)
 	return as.storageService.SaveTempFile(clientID)
 }
 
 // ======= RETRIEVAL FUNCTIONS =======
 
 func (as *aggregatorService) GetStoredTotalItems(clientID string) ([]*reduced.TotalSumItem, []*reduced.TotalSumItem, error) {
-	as.storageService.StopWriting(clientID)
+	//as.storageService.StopWriting(clientID)
+	as.confirmStorage(clientID)
 
 	unwrapper := func(dataEnvelopes []*protocol.DataEnvelope) []*reduced.TotalSumItem {
 		results := make([]*reduced.TotalSumItem, 0)
@@ -84,7 +87,8 @@ func (as *aggregatorService) GetStoredTotalItems(clientID string) ([]*reduced.To
 }
 
 func (as *aggregatorService) GetStoredTotalPaymentValue(clientID string) ([]*reduced.TotalPaymentValue, error) {
-	as.storageService.StopWriting(clientID)
+	//as.storageService.StopWriting(clientID)
+	as.confirmStorage(clientID)
 
 	unwrapper := func(dataEnvelopes []*protocol.DataEnvelope) []*reduced.TotalPaymentValue {
 		results := make([]*reduced.TotalPaymentValue, 0)
@@ -127,7 +131,8 @@ func (as *aggregatorService) GetStoredTotalPaymentValue(clientID string) ([]*red
 }
 
 func (as *aggregatorService) GetStoredCountedUserTransactions(clientID string) (map[string][]*reduced.CountedUserTransactions, error) {
-	as.storageService.StopWriting(clientID)
+	//as.storageService.StopWriting(clientID)
+	as.confirmStorage(clientID)
 
 	unwrapper := func(dataEnvelopes []*protocol.DataEnvelope) []*reduced.CountedUserTransactions {
 		results := make([]*reduced.CountedUserTransactions, 0)

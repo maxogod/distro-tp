@@ -9,6 +9,8 @@ type StorageService interface {
 	StartWriting(cacheReference string, data [][]byte) error
 	// StopWriting stops writing data to the cache identified by cacheReference.
 	StopWriting(cacheReference string)
+	// StopWritingTemp stops writing data to the temporary cache identified by cacheReference.
+	StopWritingTemp(cacheReference string)
 	// FlushWriting flushes any buffered data to the cache identified by cacheReference.
 	FlushWriting(cacheReference string) error
 	// ReadAllData reads all data from the cache identified by cacheReference.
