@@ -50,7 +50,7 @@ func NewClientSession(conn network.ConnectionInterface, config *config.Config) C
 		cs.clientId = oldClientId
 	}
 
-	cs.messageHandler = handler.NewMessageHandler(config.MiddlewareAddress, cs.clientId, config.ReceivingTimeout)
+	cs.messageHandler = handler.NewMessageHandler(config.MiddlewareAddress, cs.clientId)
 	if oldClientId != uuid.Nil.String() && cs.taskType == enum.T1 {
 		logger.Logger.Debugf("Aborting client with ID: %s for task %s", oldClientId, string(cs.taskType))
 		notifErr := cs.messageHandler.NotifyCompletion(oldClientId, true)

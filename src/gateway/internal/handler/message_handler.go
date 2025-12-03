@@ -2,7 +2,6 @@ package handler
 
 import (
 	"fmt"
-	"time"
 
 	"github.com/maxogod/distro-tp/src/common/logger"
 	"github.com/maxogod/distro-tp/src/common/middleware"
@@ -33,12 +32,11 @@ type messageHandler struct {
 	startAwaitingAck chan bool
 	ackReceived      chan bool
 	routineReadyCh   chan bool
-	receivingTimeout time.Duration
 	refDataSeqNumber int32
 	middlewareUrl    string
 }
 
-func NewMessageHandler(middlewareUrl, clientID string, receivingTimeout int) MessageHandler {
+func NewMessageHandler(middlewareUrl, clientID string) MessageHandler {
 	h := &messageHandler{
 		clientID:         clientID,
 		taskType:         enum.TaskType(0),
@@ -57,7 +55,6 @@ func NewMessageHandler(middlewareUrl, clientID string, receivingTimeout int) Mes
 		startAwaitingAck: make(chan bool),
 		ackReceived:      make(chan bool),
 		routineReadyCh:   make(chan bool),
-		receivingTimeout: time.Duration(receivingTimeout) * time.Second,
 	}
 
 	go h.startReportDataListener()
