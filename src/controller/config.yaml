@@ -7,11 +7,7 @@ heartbeat:
   interval: 1
 log:
   level: "development"
-receiving:
-  timeout: 10
 max:
   clients: 100
-completion_after_done:
-  timeout: 20
 storage:
   path: "storage"

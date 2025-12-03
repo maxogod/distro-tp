@@ -16,15 +16,13 @@ type HeartbeatConfig struct {
 }
 
 type Config struct {
-	ID                         string
-	MiddlewareAddress          string
-	Port                       int32
-	LogLevel                   string
-	ReceivingTimeout           int
-	MaxClients                 int
-	StoragePath                string
-	Heartbeat                  HeartbeatConfig
-	CompletionAfterDoneTimeout time.Duration
+	ID                string
+	MiddlewareAddress string
+	Port              int32
+	LogLevel          string
+	MaxClients        int
+	StoragePath       string
+	Heartbeat         HeartbeatConfig
 }
 
 func (c Config) String() string {
@@ -32,7 +30,6 @@ func (c Config) String() string {
 		"[CONFIG: Port: %d | LogLevel: %s | ReceivingTimeout: %d | MaxClients: %d]",
 		c.Port,
 		c.LogLevel,
-		c.ReceivingTimeout,
 		c.MaxClients,
 	)
 }
@@ -68,15 +65,13 @@ func InitConfig() (*Config, error) {
 	}
 
 	config := &Config{
-		ID:                         v.GetString("id"),
-		MiddlewareAddress:          v.GetString("middleware.address"),
-		Port:                       int32(v.GetInt("port")),
-		LogLevel:                   v.GetString("log.level"),
-		ReceivingTimeout:           v.GetInt("receiving.timeout"),
-		MaxClients:                 v.GetInt("max.clients"),
-		StoragePath:                v.GetString("storage.path"),
-		Heartbeat:                  heatbeatConf,
-		CompletionAfterDoneTimeout: time.Duration(v.GetInt("completion_after_done.timeout")) * time.Second,
+		ID:                v.GetString("id"),
+		MiddlewareAddress: v.GetString("middleware.address"),
+		Port:              int32(v.GetInt("port")),
+		LogLevel:          v.GetString("log.level"),
+		MaxClients:        v.GetInt("max.clients"),
+		StoragePath:       v.GetString("storage.path"),
+		Heartbeat:         heatbeatConf,
 	}
 
 	return config, nil

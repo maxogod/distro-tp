@@ -2,7 +2,6 @@ package handler
 
 import (
 	"fmt"
-	"time"
 
 	"github.com/maxogod/distro-tp/src/common/logger"
 	"github.com/maxogod/distro-tp/src/common/middleware"
@@ -35,10 +34,9 @@ type controlHandler struct {
 	filterQueue             middleware.MessageMiddleware
 	clientControlExchange   middleware.MessageMiddleware
 
-	workersMonitoring          map[enum.WorkerType]workerMonitor
-	routineReadyCh             chan bool
-	counterCh                  chan counterMessage
-	completionAfterDoneTimeout time.Duration
+	workersMonitoring map[enum.WorkerType]workerMonitor
+	routineReadyCh    chan bool
+	counterCh         chan counterMessage
 
 	counterStore      storage.CounterStorage
 	preloadedCounters []*protocol.MessageCounter
@@ -47,7 +45,6 @@ type controlHandler struct {
 func NewControlHandler(
 	middlewareUrl, clientID string,
 	taskType enum.TaskType,
-	completionAfterDoneTimeout time.Duration,
 	counterStore storage.CounterStorage,
 	storedCounters []*protocol.MessageCounter,
 ) ControlHandler {
@@ -61,10 +58,9 @@ func NewControlHandler(
 		filterQueue:             middleware.GetFilterQueue(middlewareUrl),
 		clientControlExchange:   middleware.GetClientControlExchange(middlewareUrl, clientID),
 
-		workersMonitoring:          make(map[enum.WorkerType]workerMonitor),
-		routineReadyCh:             make(chan bool),
-		counterCh:                  make(chan counterMessage, 9999),
-		completionAfterDoneTimeout: completionAfterDoneTimeout,
+		workersMonitoring: make(map[enum.WorkerType]workerMonitor),
+		routineReadyCh:    make(chan bool),
+		counterCh:         make(chan counterMessage, 9999),
 
 		counterStore:      counterStore,
 		preloadedCounters: storedCounters,
