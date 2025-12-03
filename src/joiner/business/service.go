@@ -320,6 +320,7 @@ func (js *joinerService) DeleteClientRefData(clientID string) error {
 	for ref := range js.clientRefs[clientID] {
 		js.storageService.StopWriting(ref)
 	}
+	delete(js.clientRefs, clientID)
 	return nil
 }
 
