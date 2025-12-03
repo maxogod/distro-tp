@@ -21,4 +21,7 @@ type ControlHandler interface {
 
 	// SendControllerReady notifies the gateway that the controller is ready to receive messages
 	SendControllerReady()
+
+	// CleanupStorage removes any persisted counters for the client
+	CleanupStorage()
 }

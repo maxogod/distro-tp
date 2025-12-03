@@ -49,6 +49,7 @@ func (cs *clientSession) InitiateControlSequence() error {
 			return err
 		}
 	}
+	cs.controlHandler.CleanupStorage()
 	cs.Close()
 	logger.Logger.Debugf("[%s] EOF delivered, and session closed", cs.Id)
 
@@ -61,6 +62,7 @@ func (cs *clientSession) SendControllerReady() {
 
 func (cs *clientSession) Close() {
 	if !cs.IsFinished() {
+		cs.controlHandler.CleanupStorage()
 		cs.controlHandler.Close()
 		cs.running.Store(false)
 		logger.Logger.Debugf("[%s] Closed client session", cs.Id)

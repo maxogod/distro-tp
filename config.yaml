@@ -2,7 +2,7 @@ services:
   gateway:
     instances: 2
   controller:
-    instances: 1
+    instances: 2
   filter:
     instances: 2
    #  tags: "poison low_prob"

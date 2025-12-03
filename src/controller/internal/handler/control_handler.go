@@ -9,12 +9,19 @@ import (
 	"github.com/maxogod/distro-tp/src/common/models/enum"
 	"github.com/maxogod/distro-tp/src/common/models/protocol"
 	"github.com/maxogod/distro-tp/src/common/worker"
+	"github.com/maxogod/distro-tp/src/controller/internal/storage"
 	"google.golang.org/protobuf/proto"
 )
 
 type workerMonitor struct {
 	queue           middleware.MessageMiddleware
 	startOrFinishCh chan bool
+}
+
+type counterMessage struct {
+	counter    *protocol.MessageCounter
+	ackHandler func(bool, bool) error
+	persisted  bool
 }
 
 type controlHandler struct {
@@ -30,11 +37,20 @@ type controlHandler struct {
 
 	workersMonitoring          map[enum.WorkerType]workerMonitor
 	routineReadyCh             chan bool
-	counterCh                  chan *protocol.MessageCounter
+	counterCh                  chan counterMessage
 	completionAfterDoneTimeout time.Duration
+
+	counterStore      storage.CounterStorage
+	preloadedCounters []*protocol.MessageCounter
 }
 
-func NewControlHandler(middlewareUrl, clientID string, taskType enum.TaskType, completionAfterDoneTimeout time.Duration) ControlHandler {
+func NewControlHandler(
+	middlewareUrl, clientID string,
+	taskType enum.TaskType,
+	completionAfterDoneTimeout time.Duration,
+	counterStore storage.CounterStorage,
+	storedCounters []*protocol.MessageCounter,
+) ControlHandler {
 	h := &controlHandler{
 		clientID:      clientID,
 		taskType:      taskType,
@@ -47,8 +63,11 @@ func NewControlHandler(middlewareUrl, clientID string, taskType enum.TaskType, c
 
 		workersMonitoring:          make(map[enum.WorkerType]workerMonitor),
 		routineReadyCh:             make(chan bool),
-		counterCh:                  make(chan *protocol.MessageCounter, 9999),
+		counterCh:                  make(chan counterMessage, 9999),
 		completionAfterDoneTimeout: completionAfterDoneTimeout,
+
+		counterStore:      counterStore,
+		preloadedCounters: storedCounters,
 	}
 
 	workers := []enum.WorkerType{
@@ -74,14 +93,29 @@ func (ch *controlHandler) AwaitForWorkers() error {
 	receivedFromCurrentLayer := 0
 	sentFromCurrentLayer := 0
 
+	go ch.enqueueStoredCounters()
+
+	logger.Logger.Debugf("[%s] Starting to wait for %s workers", ch.clientID, currentWorkerType)
+
 	ch.workersMonitoring[currentWorkerType].startOrFinishCh <- true
 	for currentWorkerType != enum.None && currentWorkerType != enum.AggregatorWorker {
-		counter := <-ch.counterCh
+
+		counterMsg := <-ch.counterCh
+		counter := counterMsg.counter
 
 		if enum.WorkerType(counter.GetFrom()) == enum.Gateway && enum.WorkerType(counter.GetNext()) == enum.Controller {
 			logger.Logger.Debugf("[%s] Receive Gateway abort for client %s", ch.clientID, ch.clientID)
 			ch.workersMonitoring[enum.Gateway].startOrFinishCh <- false      // Finally finish gateway layer
 			ch.workersMonitoring[enum.FilterWorker].startOrFinishCh <- false // Finally finish filter layer
+
+			err := ch.counterStore.RemoveClient(ch.clientID)
+			if err != nil {
+				logger.Logger.Errorf("[%s] Error removing client from storage: %v", ch.clientID, err)
+			}
+
+			if counterMsg.ackHandler != nil {
+				counterMsg.ackHandler(true, false)
+			}
 			return nil
 		}
 
@@ -90,7 +124,23 @@ func (ch *controlHandler) AwaitForWorkers() error {
 		if _, ok := ch.sequencesSeen[seqNum]; ok {
 			logger.Logger.Debugf("[%s] Duplicate counter message received from %s workers with seq num %d, dropping",
 				ch.clientID, currentWorkerType, seqNum)
+			if counterMsg.ackHandler != nil {
+				counterMsg.ackHandler(true, false)
+			}
 			continue // Drop duplicated
+		}
+
+		if !counterMsg.persisted {
+			err := ch.counterStore.AppendCounter(ch.clientID, counter)
+			if err != nil {
+				logger.Logger.Errorf("[%s] failed to persist counter: %v. Requeuing message", ch.clientID, err)
+				counterBytes, _ := proto.Marshal(counterMsg.counter)
+				ch.workersMonitoring[currentWorkerType].queue.Send(counterBytes)
+				if counterMsg.ackHandler != nil {
+					counterMsg.ackHandler(true, false)
+				}
+				continue
+			}
 		}
 
 		receivedFromCurrentLayer++
@@ -119,6 +169,9 @@ func (ch *controlHandler) AwaitForWorkers() error {
 			sentFromCurrentLayer = 0
 			receivedFromCurrentLayer = 0
 			logger.Logger.Debugf("[%s] Proceeding to wait for %s workers", ch.clientID, currentWorkerType)
+		}
+		if counterMsg.ackHandler != nil {
+			counterMsg.ackHandler(true, false)
 		}
 	}
 
@@ -173,7 +226,15 @@ func (ch *controlHandler) SendDone(worker enum.WorkerType, totalMsgs int, delete
 func (ch *controlHandler) Close() {
 	for _, monitor := range ch.workersMonitoring {
 		monitor.startOrFinishCh <- false
+		monitor.queue.Delete()
 		monitor.queue.Close()
+	}
+}
+
+func (ch *controlHandler) CleanupStorage() {
+	logger.Logger.Debugf("[%s] Cleaning up storage", ch.clientID)
+	if ch.counterStore != nil {
+		_ = ch.counterStore.RemoveClient(ch.clientID)
 	}
 }
 
@@ -198,6 +259,18 @@ func (ch *controlHandler) SendControllerReady() {
 }
 
 /* --- UTIL PRIVATE METHODS --- */
+
+func (ch *controlHandler) enqueueStoredCounters() {
+	logger.Logger.Debugf("[%s] Enqueuing %d stored counters", ch.clientID, len(ch.preloadedCounters))
+	for _, counter := range ch.preloadedCounters {
+		ch.counterCh <- counterMessage{
+			counter:    counter,
+			ackHandler: nil,
+			persisted:  true,
+		}
+	}
+	ch.preloadedCounters = nil
+}
 
 // startCounterListener starts a goroutine that listens for counter messages from workers.
 func (ch *controlHandler) startCounterListener(workerRoute enum.WorkerType) {
@@ -231,9 +304,12 @@ func (ch *controlHandler) startCounterListener(workerRoute enum.WorkerType) {
 				continue
 			}
 
-			ch.counterCh <- counter
+			newCounterMessage := counterMessage{
+				counter:    counter,
+				ackHandler: ackHandler(msg),
+			}
 
-			msg.Ack(false)
+			ch.counterCh <- newCounterMessage
 		}
 		doneCh <- true
 	})
@@ -243,4 +319,14 @@ func (ch *controlHandler) startCounterListener(workerRoute enum.WorkerType) {
 	}
 
 	logger.Logger.Debugf("[%s] Counter listener for %s stopped", ch.clientID, workerRoute)
+}
+
+// ackHandler returns a function that can be used to ack/nack a message.
+func ackHandler(msg middleware.MessageDelivery) func(bool, bool) error {
+	return func(ack, requeue bool) error {
+		if ack {
+			return msg.Ack(false)
+		}
+		return msg.Nack(false, requeue)
+	}
 }

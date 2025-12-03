@@ -95,6 +95,22 @@ services:
     networks:
       - tp_net
         
+  controller2:
+    container_name: controller2
+    build:
+      dockerfile: ./src/controller/Dockerfile
+    image: controller:latest
+    volumes:
+      - ./src/controller/config.yaml:/app/config.yaml
+      - ./.storage/controller2:/app/storage
+    environment:
+      - ID=controller2
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - tp_net
+        
   aggregator1:
     container_name: aggregator1
     build:
@@ -123,6 +139,22 @@ services:
     volumes:
       - ./src/aggregator/config.yaml:/app/config.yaml
       - ./.storage/aggregator2:/app/storage
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+        
+  aggregator3:
+    container_name: aggregator3
+    build:
+      dockerfile: ./src/aggregator/Dockerfile
+    image: aggregator:latest
+    networks:
+      - tp_net
+    environment:
+      - ID=aggregator3
+    volumes:
+      - ./src/aggregator/config.yaml:/app/config.yaml
+      - ./.storage/aggregator3:/app/storage
     depends_on:
       rabbitmq:
         condition: service_healthy
