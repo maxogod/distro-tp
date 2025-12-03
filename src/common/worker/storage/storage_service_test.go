@@ -214,3 +214,33 @@ func TestDiskMemoryCache_TempFileStorage(t *testing.T) {
 
 	assert.NoError(t, c.Close())
 }
+
+func TestGetAllFilesReferences(t *testing.T) {
+	logger.InitLogger(logger.LoggerEnvDevelopment)
+	c := storage.NewDiskMemoryStorage()
+	cacheRef1 := "test1"
+	cacheRef2 := "test2"
+	defer c.RemoveCache(cacheRef1)
+	defer c.RemoveCache(cacheRef2)
+
+	for _, tr := range Transactions {
+		data, _ := proto.Marshal(tr)
+		var transactionDataBytes [][]byte
+		transactionDataBytes = append(transactionDataBytes, data)
+		if err := c.StartWriting(cacheRef1, transactionDataBytes); err != nil {
+			panic(err)
+		}
+		if err := c.StartWriting(cacheRef2, transactionDataBytes); err != nil {
+			panic(err)
+		}
+	}
+	c.StopWriting(cacheRef1)
+	c.StopWriting(cacheRef2)
+
+	files := c.GetAllFilesReferences()
+	t.Log(files)
+	assert.Contains(t, files, cacheRef1, "Cache references should contain cacheRef1")
+	assert.Contains(t, files, cacheRef2, "Cache references should contain cacheRef2")
+
+	assert.NoError(t, c.Close())
+}
