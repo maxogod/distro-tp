@@ -130,6 +130,11 @@ func (fh *fileHandler) InitWriter(path string) (*FileWriter, error) {
 	}, nil
 }
 
+func (fh *fileHandler) IsFilePresent(path string) bool {
+	_, err := os.Stat(path)
+	return !os.IsNotExist(err)
+}
+
 func (fh *fileHandler) Close() {
 	fh.cancel()
 }

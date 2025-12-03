@@ -14,6 +14,9 @@ type FileHandler interface {
 	// the retuned value is a snapshot of the number of lines at the time of the call.
 	GetFileSize(path string) (int, error)
 
+	// IsFilePresent checks if the file at the given path exists.
+	IsFilePresent(path string) bool
+
 	// InitWriter writes data to the file at path from the byte_ch channel.
 	InitWriter(path string) (*FileWriter, error)
 

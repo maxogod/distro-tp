@@ -141,6 +141,16 @@ func (c *diskMemoryStorage) getFileName(cacheReference string) string {
 func (c *diskMemoryStorage) SaveTempFile(cacheReference string) error {
 	tempFileName := FOLDER_PATH + TEMP_FILE_SUFFIX + cacheReference + CACHE_EXTENSION
 	finalFileName := c.getFileName(cacheReference)
+
+	if c.fileHandler.IsFilePresent(finalFileName) {
+		logger.Logger.Debug("Final file %s already exists, skipping rename from temp file %s", finalFileName, tempFileName)
+		return nil
+	}
+
+	if !c.fileHandler.IsFilePresent(tempFileName) {
+		return fmt.Errorf("temp file %s does not exist", tempFileName)
+	}
+
 	err := c.fileHandler.RenameFile(tempFileName, finalFileName)
 	if err != nil {
 		logger.Logger.Errorf("Error renaming temp file %s to %s: %v", tempFileName, finalFileName, err)
