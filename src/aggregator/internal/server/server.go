@@ -69,14 +69,11 @@ func (s *Server) Run() error {
 	// This is a blocking call, it will run until an error occurs or
 	// the Close() method is called via a signal
 
-	go func() {
-		e := s.messageHandler.Start()
-		if e != nil {
-			logger.Logger.Errorf("Error starting message handler: %v", e)
-			s.Shutdown()
-			return
-		}
-	}()
+	e := s.messageHandler.Start()
+	if e != nil {
+		logger.Logger.Errorf("Error starting message handler: %v", e)
+		s.Shutdown()
+	}
 
 	return nil
 }
