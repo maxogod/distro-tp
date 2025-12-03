@@ -3,7 +3,6 @@ package server
 import (
 	"os"
 	"os/signal"
-	"sync"
 	"syscall"
 
 	"github.com/maxogod/distro-tp/src/aggregator/business"
@@ -23,8 +22,6 @@ type Server struct {
 }
 
 func InitServer(conf *config.Config) *Server {
-	// map to keep track of finished clients
-	finishedClients := sync.Map{} // map[string]bool
 
 	// initiate Queues and Exchanges
 	aggregatorInputQueue := middleware.GetAggregatorQueue(conf.Address)
@@ -40,7 +37,6 @@ func InitServer(conf *config.Config) *Server {
 		conf,
 		aggregatorService,
 		joinerOutputQueue,
-		&finishedClients,
 	)
 
 	taskHandler := worker.NewTaskHandler(taskExecutor, true)

@@ -108,6 +108,7 @@ services:
       - LEADER_ELECTION_PORT=7070
     volumes:
       - ./src/aggregator/config.yaml:/app/config.yaml
+      - ./.storage/aggregator1:/app/storage
     depends_on:
       rabbitmq:
         condition: service_healthy

@@ -30,7 +30,7 @@ func (as *aggregatorService) StoreData(clientID string, data *protocol.DataEnvel
 	return storage.StoreBatch(as.storageService, clientID, []*protocol.DataEnvelope{data})
 }
 
-func (as *aggregatorService) ConfirmStorage(clientID string) error {
+func (as *aggregatorService) confirmStorage(clientID string) error {
 	return as.storageService.SaveTempFile(clientID)
 }
 

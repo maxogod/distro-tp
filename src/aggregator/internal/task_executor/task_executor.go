@@ -16,24 +16,26 @@ import (
 const DELETE_ACTION = -1
 
 type AggregatorExecutor struct {
-	config            *config.Config // TODO: maybe remove config from here
+	config            *config.Config
 	aggregatorService business.AggregatorService
 	finishExecutor    FinishExecutor
 
-	ackHandlers sync.Map // map[clientTask]func(bool, bool) error
+	ackHandlers *sync.Map // map[clientTask][]func(bool, bool) error
 }
 
 func NewAggregatorExecutor(config *config.Config,
 	aggregatorService business.AggregatorService,
 	outputQueue middleware.MessageMiddleware,
-	finishedClients *sync.Map,
 ) worker.TaskExecutor {
-	return &AggregatorExecutor{
+	ackHandlers := sync.Map{}
+	ae := &AggregatorExecutor{
 		config:            config,
 		aggregatorService: aggregatorService,
-		finishExecutor:    NewFinishExecutor(config.Address, aggregatorService, outputQueue, config.Limits),
-		ackHandlers:       sync.Map{},
+		ackHandlers:       &ackHandlers,
+		finishExecutor:    NewFinishExecutor(config.Address, aggregatorService, outputQueue, config.Limits, &ackHandlers),
 	}
+	return ae
+
 }
 
 func (ae *AggregatorExecutor) HandleTask1(dataEnvelope *protocol.DataEnvelope, ackHandler func(bool, bool) error) error {
@@ -43,36 +45,22 @@ func (ae *AggregatorExecutor) HandleTask1(dataEnvelope *protocol.DataEnvelope, a
 }
 
 func (ae *AggregatorExecutor) HandleTask2(dataEnvelope *protocol.DataEnvelope, ackHandler func(bool, bool) error) error {
-	shouldAck := false
-	defer ackHandler(shouldAck, false)
 	clientID := dataEnvelope.GetClientId()
-
-	ae.aggregatorService.StoreData(clientID, dataEnvelope)
-	shouldAck = true
-
-	return nil
+	ae.addToAckHandlers(clientID, ackHandler)
+	return ae.aggregatorService.StoreData(clientID, dataEnvelope)
 }
 
 func (ae *AggregatorExecutor) HandleTask3(dataEnvelope *protocol.DataEnvelope, ackHandler func(bool, bool) error) error {
-	shouldAck := false
-	defer ackHandler(shouldAck, false)
 	clientID := dataEnvelope.GetClientId()
+	ae.addToAckHandlers(clientID, ackHandler)
+	return ae.aggregatorService.StoreData(clientID, dataEnvelope)
 
-	ae.aggregatorService.StoreData(clientID, dataEnvelope)
-	shouldAck = true
-
-	return nil
 }
 
 func (ae *AggregatorExecutor) HandleTask4(dataEnvelope *protocol.DataEnvelope, ackHandler func(bool, bool) error) error {
-	shouldAck := false
-	defer ackHandler(shouldAck, false)
-
 	clientID := dataEnvelope.GetClientId()
-	ae.aggregatorService.StoreData(clientID, dataEnvelope)
-	shouldAck = true
-
-	return nil
+	ae.addToAckHandlers(clientID, ackHandler)
+	return ae.aggregatorService.StoreData(clientID, dataEnvelope)
 }
 
 func (ae *AggregatorExecutor) HandleFinishClient(dataEnvelope *protocol.DataEnvelope, ackHandler func(bool, bool) error) error {
@@ -119,4 +107,16 @@ func (ae *AggregatorExecutor) Close() error {
 func (ae *AggregatorExecutor) removeClientData(clientID string) {
 	ae.aggregatorService.RemoveData(clientID)
 	logger.Logger.Debugf("Removed client data for: %s", clientID)
+}
+
+func (ae *AggregatorExecutor) addToAckHandlers(clientID string, ackHandler func(bool, bool) error) {
+	// Load existing handlers or create new slice
+	handlersInterface, _ := ae.ackHandlers.LoadOrStore(clientID, []func(bool, bool) error{})
+	handlers := handlersInterface.([]func(bool, bool) error)
+
+	// Append the new handler
+	handlers = append(handlers, ackHandler)
+
+	// Store back to map
+	ae.ackHandlers.Store(clientID, handlers)
 }

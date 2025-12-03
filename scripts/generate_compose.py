@@ -166,6 +166,7 @@ def add_aggregator(count, tags=None):
       - LEADER_ELECTION_PORT=7070
     volumes:
       - ./src/aggregator/config.yaml:/app/config.yaml
+      - ./.storage/aggregator{i}:/app/storage
     depends_on:
       rabbitmq:
         condition: service_healthy

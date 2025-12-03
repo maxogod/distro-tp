@@ -2,9 +2,11 @@ package task_executor
 
 import (
 	"fmt"
+	"sync"
 
 	"github.com/maxogod/distro-tp/src/aggregator/business"
 	"github.com/maxogod/distro-tp/src/aggregator/config"
+	"github.com/maxogod/distro-tp/src/common/logger"
 	"github.com/maxogod/distro-tp/src/common/middleware"
 	"github.com/maxogod/distro-tp/src/common/models/enum"
 	"github.com/maxogod/distro-tp/src/common/models/reduced"
@@ -17,14 +19,16 @@ type finishExecutor struct {
 	finishExecutors   map[enum.TaskType]func(clientID string) error
 	outputQueue       middleware.MessageMiddleware
 	limits            config.Limits
+	ackHandlers       *sync.Map // map[clientTask][]func(bool, bool) error
 }
 
-func NewFinishExecutor(address string, aggregatorService business.AggregatorService, outputQueue middleware.MessageMiddleware, limits config.Limits) FinishExecutor {
+func NewFinishExecutor(address string, aggregatorService business.AggregatorService, outputQueue middleware.MessageMiddleware, limits config.Limits, ackHandlers *sync.Map) FinishExecutor {
 	fe := finishExecutor{
 		address:           address,
 		aggregatorService: aggregatorService,
 		outputQueue:       outputQueue,
 		limits:            limits,
+		ackHandlers:       ackHandlers,
 	}
 
 	fe.finishExecutors = map[enum.TaskType]func(clientID string) error{
@@ -41,7 +45,11 @@ func (fe *finishExecutor) SendAllData(clientID string, taskType enum.TaskType) e
 		return fmt.Errorf("no finish executor found for task type: %v", taskType)
 	}
 
-	return finishFunc(clientID)
+	if err := finishFunc(clientID); err != nil {
+		return err
+	}
+
+	return fe.finishClientAcks(clientID)
 }
 
 func (fe *finishExecutor) finishTask2(clientID string) error {
@@ -91,4 +99,25 @@ func (fe *finishExecutor) finishTask4(clientID string) error {
 	// we send 1 message to the joiner
 	return worker.SendDataToMiddleware(reportData, enum.T4, clientID, 0, fe.outputQueue)
 
+}
+
+func (fe *finishExecutor) finishClientAcks(clientID string) error {
+	value, ok := fe.ackHandlers.Load(clientID)
+	if !ok {
+		return nil
+	}
+	handlers, ok := value.([]func(bool, bool) error)
+	if !ok {
+		return fmt.Errorf("invalid ack handlers type for client %s", clientID)
+	}
+	for i, handler := range handlers {
+		if err := handler(true, false); err != nil {
+			return fmt.Errorf("error executing ack handler %d for client %s: %v", i, clientID, err)
+		}
+	}
+	fe.ackHandlers.Delete(clientID)
+
+	logger.Logger.Debugf("[%s] DONE | Ack'ed %d messages", clientID, len(handlers))
+
+	return nil
 }
