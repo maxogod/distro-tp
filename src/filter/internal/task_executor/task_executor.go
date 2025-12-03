@@ -79,7 +79,7 @@ func (fe *FilterExecutor) HandleTask1(dataEnvelope *protocol.DataEnvelope, ackHa
 	}
 	shouldAck = true
 
-	if err := worker.SendCounterMessage(clientID, amountSent, int(dataEnvelope.SequenceNumber), enum.FilterWorker, enum.None, counterExchange); err != nil {
+	if err := worker.SendCounterMessage(enum.TaskType(dataEnvelope.GetTaskType()), clientID, amountSent, int(dataEnvelope.SequenceNumber), enum.FilterWorker, enum.None, counterExchange); err != nil {
 		return err
 	}
 
@@ -118,7 +118,7 @@ func (fe *FilterExecutor) HandleTask2(dataEnvelope *protocol.DataEnvelope, ackHa
 	}
 	shouldAck = true
 
-	if err := worker.SendCounterMessage(clientID, amountSent, int(dataEnvelope.SequenceNumber), enum.FilterWorker, enum.AggregatorWorker, counterExchange); err != nil {
+	if err := worker.SendCounterMessage(enum.TaskType(dataEnvelope.GetTaskType()), clientID, amountSent, int(dataEnvelope.SequenceNumber), enum.FilterWorker, enum.AggregatorWorker, counterExchange); err != nil {
 		return err
 	}
 
@@ -158,7 +158,7 @@ func (fe *FilterExecutor) HandleTask3(dataEnvelope *protocol.DataEnvelope, ackHa
 	}
 	shouldAck = true
 
-	if err := worker.SendCounterMessage(clientID, amountSent, int(dataEnvelope.SequenceNumber), enum.FilterWorker, enum.AggregatorWorker, counterExchange); err != nil {
+	if err := worker.SendCounterMessage(enum.TaskType(dataEnvelope.GetTaskType()), clientID, amountSent, int(dataEnvelope.SequenceNumber), enum.FilterWorker, enum.AggregatorWorker, counterExchange); err != nil {
 		return err
 	}
 
@@ -198,7 +198,7 @@ func (fe *FilterExecutor) HandleTask4(dataEnvelope *protocol.DataEnvelope, ackHa
 	}
 	shouldAck = true
 
-	if err := worker.SendCounterMessage(clientID, amountSent, int(dataEnvelope.SequenceNumber), enum.FilterWorker, enum.AggregatorWorker, counterExchange); err != nil {
+	if err := worker.SendCounterMessage(enum.TaskType(dataEnvelope.GetTaskType()), clientID, amountSent, int(dataEnvelope.SequenceNumber), enum.FilterWorker, enum.AggregatorWorker, counterExchange); err != nil {
 		return err
 	}
 

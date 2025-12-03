@@ -15,6 +15,7 @@ const INITIAL_REF_DATA_SEQ_NUMBER = 1
 
 type messageHandler struct {
 	clientID string
+	taskType enum.TaskType
 
 	// Data forwarding middlewares
 	messagesSentToNextLayer int
@@ -40,6 +41,7 @@ type messageHandler struct {
 func NewMessageHandler(middlewareUrl, clientID string, receivingTimeout int) MessageHandler {
 	h := &messageHandler{
 		clientID:         clientID,
+		taskType:         enum.TaskType(0),
 		refDataSeqNumber: INITIAL_REF_DATA_SEQ_NUMBER,
 		middlewareUrl:    middlewareUrl,
 
@@ -68,6 +70,7 @@ func NewMessageHandler(middlewareUrl, clientID string, receivingTimeout int) Mes
 }
 
 func (mh *messageHandler) SendControllerInit(taskType enum.TaskType) error {
+	mh.taskType = taskType
 	controlMessage := &protocol.ControlMessage{
 		ClientId: mh.clientID,
 		TaskType: int32(taskType),
@@ -97,6 +100,7 @@ func (mh *messageHandler) NotifyClientMessagesCount() error {
 		From:       string(enum.Gateway),
 		Next:       string(enum.FilterWorker),
 		AmountSent: int32(mh.messagesSentToNextLayer),
+		TaskType:   int32(mh.taskType),
 	}
 	payload, err := proto.Marshal(countMessage)
 	if err != nil {
@@ -122,6 +126,7 @@ func (mh *messageHandler) NotifyCompletion(clientId string, isAbort bool) error 
 		ClientId: clientId,
 		From:     string(enum.Gateway),
 		Next:     next,
+		TaskType: int32(mh.taskType),
 	}
 	payload, err := proto.Marshal(countMessage)
 	if err != nil {

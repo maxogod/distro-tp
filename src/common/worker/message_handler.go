@@ -180,13 +180,14 @@ func SendDataToMiddleware(data proto.Message, taskType enum.TaskType, clientID s
 }
 
 // SendCounterMessage is a utility function to send counter messages to a middleware.
-func SendCounterMessage(clientID string, amount, seq int, from, next enum.WorkerType, counterExchange middleware.MessageMiddleware) error {
+func SendCounterMessage(taskType enum.TaskType, clientID string, amount, seq int, from, next enum.WorkerType, counterExchange middleware.MessageMiddleware) error {
 	counterMessage := &protocol.MessageCounter{
 		ClientId:       clientID,
 		AmountSent:     int32(amount),
 		From:           string(from),
 		Next:           string(next),
 		SequenceNumber: int32(seq),
+		TaskType:       int32(taskType),
 	}
 	counterBytes, err := proto.Marshal(counterMessage)
 	if err != nil {
