@@ -13,3 +13,5 @@ max:
   clients: 100
 completion_after_done:
   timeout: 20
+storage:
+  path: "storage"
