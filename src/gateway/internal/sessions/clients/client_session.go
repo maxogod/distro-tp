@@ -43,8 +43,8 @@ func NewClientSession(conn network.ConnectionInterface, config *config.Config) C
 	cs.taskType = enum.TaskType(controlMsg.GetTaskType())
 
 	if oldClientId == uuid.Nil.String() || cs.taskType == enum.T1 {
-		logger.Logger.Debugf("New client connected, ID: %s", cs.clientId)
 		cs.clientId = uuid.New().String()
+		logger.Logger.Debugf("New client connected, ID: %s", cs.clientId)
 	} else {
 		logger.Logger.Debugf("Reconnected client with ID: %s", cs.clientId)
 		cs.clientId = oldClientId
