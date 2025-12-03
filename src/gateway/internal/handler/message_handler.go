@@ -87,10 +87,7 @@ func (mh *messageHandler) SendControllerInit(taskType enum.TaskType) error {
 
 func (mh *messageHandler) AwaitControllerInit() error {
 	mh.startAwaitingAck <- true
-	ackReceived := <-mh.ackReceived
-	if !ackReceived {
-		return fmt.Errorf("did not receive ack from controller")
-	}
+	<-mh.ackReceived
 	return nil
 }
 
@@ -235,27 +232,21 @@ func (mh *messageHandler) awaitControllerAckListener() {
 		ackReceived := false
 
 		for waiting {
-			select {
-			case msg := <-msgs:
-				controlMessage := &protocol.ControlMessage{}
-				err := proto.Unmarshal(msg.Body, controlMessage)
-				if err != nil || controlMessage.GetClientId() != mh.clientID {
-					msg.Nack(false, false) // Discard unwanted messages
-					logger.Logger.Warnf("[%s] Received invalid control message while waiting for ack", mh.clientID)
-					continue
-				}
-
-				if controlMessage.GetIsAck() {
-					waiting = false
-					ackReceived = true
-					logger.Logger.Infof("[%s] Received controller ack for initialization", mh.clientID)
-				}
-				msg.Ack(false)
-			case <-time.After(mh.receivingTimeout):
-				waiting = false
-				ackReceived = false
-				logger.Logger.Warnf("[%s] Timeout waiting for controller ack after %v", mh.clientID, mh.receivingTimeout)
+			msg := <-msgs
+			controlMessage := &protocol.ControlMessage{}
+			err := proto.Unmarshal(msg.Body, controlMessage)
+			if err != nil || controlMessage.GetClientId() != mh.clientID {
+				msg.Nack(false, false) // Discard unwanted messages
+				logger.Logger.Warnf("[%s] Received invalid control message while waiting for ack", mh.clientID)
+				continue
 			}
+
+			if controlMessage.GetIsAck() {
+				waiting = false
+				ackReceived = true
+				logger.Logger.Infof("[%s] Received controller ack for initialization", mh.clientID)
+			}
+			msg.Ack(false)
 		}
 
 		mh.ackReceived <- ackReceived
