@@ -43,11 +43,13 @@ type TaskExecutor interface {
 // This is not required for every worker, but highly recommended to use it
 // You only create this struct and pass it to the MessageHandler
 type taskHandler struct {
-	taskHandlers         map[enum.TaskType]func(*protocol.DataEnvelope, func(bool, bool) error) error
-	sequencesPerClient   map[string]map[int32]bool
-	finishedClients      map[string]bool
-	taskExecutor         TaskExecutor
+	taskHandlers       map[enum.TaskType]func(*protocol.DataEnvelope, func(bool, bool) error) error
+	sequencesPerClient map[string]map[int32]bool
+	finishedClients    map[string]bool
+	taskExecutor       TaskExecutor
+
 	shouldDropDuplicates bool
+	shouldPersistTotals  bool
 
 	messagesReceived       map[string]int32
 	totalMessagesToReceive map[string]int32
@@ -79,6 +81,7 @@ func NewTaskHandler(taskExecutor TaskExecutor, shouldDropDuplicates bool) DataHa
 // and initializes it with existing sequences per client to track duplicates.
 func NewTaskHandlerWithSeqs(taskExecutor TaskExecutor, shouldDropDuplicates bool, seqs map[string][]int32) DataHandler {
 	th := NewTaskHandler(taskExecutor, shouldDropDuplicates).(*taskHandler)
+	th.shouldPersistTotals = true
 
 	for clientID, seqList := range seqs {
 		seqMap := make(map[int32]bool)
@@ -88,7 +91,7 @@ func NewTaskHandlerWithSeqs(taskExecutor TaskExecutor, shouldDropDuplicates bool
 		th.sequencesPerClient[clientID] = seqMap
 	}
 
-	totals := getTotals()
+	totals := th.getTotals()
 	if totals == nil {
 		return th
 	}
@@ -158,7 +161,7 @@ func (th *taskHandler) HandleData(dataEnvelope *protocol.DataEnvelope, ackHandle
 		if err := th.HandleFinishClient(dataEnvelope, func(bool, bool) error { return nil }); err != nil {
 			return err
 		}
-		if err := removeTotalFile(clientID); err != nil {
+		if err := th.removeTotalFile(clientID); err != nil {
 			logger.Logger.Errorf("[%s] Error removing progress file: %v", clientID, err)
 		}
 	} else if th.messagesReceived[clientID]%REAP_AFTER_MSGS == 0 {
@@ -198,7 +201,7 @@ func (th *taskHandler) HandleFinishClient(dataEnvelope *protocol.DataEnvelope, a
 	logger.Logger.Infof("[%s] Finished processing client in TaskHandler. Received %d/%d messages and %d sequences.",
 		clientID, count, dataEnvelope.GetTotalMessages(), len(th.sequencesPerClient[clientID]))
 
-	if err := createTotalFile(clientID, dataEnvelope.GetTotalMessages(), dataEnvelope.GetTaskType()); err != nil {
+	if err := th.createTotalFile(clientID, dataEnvelope.GetTotalMessages(), dataEnvelope.GetTaskType()); err != nil {
 		logger.Logger.Errorf("[%s] Error creating progress file: %v", clientID, err)
 	}
 
@@ -208,7 +211,7 @@ func (th *taskHandler) HandleFinishClient(dataEnvelope *protocol.DataEnvelope, a
 		if err := th.taskExecutor.HandleFinishClient(dataEnvelope, ackHandler); err != nil {
 			return err
 		}
-		if err := removeTotalFile(clientID); err != nil {
+		if err := th.removeTotalFile(clientID); err != nil {
 			logger.Logger.Errorf("[%s] Error removing progress file: %v", clientID, err)
 		}
 	}
@@ -226,7 +229,11 @@ func (th *taskHandler) Close() error {
 
 /* --- HELPERS --- */
 
-func createTotalFile(clientID string, total int32, task int32) error {
+func (th *taskHandler) createTotalFile(clientID string, total int32, task int32) error {
+	if !th.shouldPersistTotals {
+		return nil
+	}
+
 	filePath := STORAGE_FOLDER_PATH + clientID + SEPARATOR + strconv.Itoa(int(total)) + SEPARATOR + strconv.Itoa(int(task)) + TOTAL_COUNT_FILE_EXTENSION
 	file, err := os.Create(filePath)
 	if err != nil {
@@ -235,7 +242,11 @@ func createTotalFile(clientID string, total int32, task int32) error {
 	return file.Close()
 }
 
-func removeTotalFile(clientID string) error {
+func (th *taskHandler) removeTotalFile(clientID string) error {
+	if !th.shouldPersistTotals {
+		return nil
+	}
+
 	pattern := STORAGE_FOLDER_PATH + clientID + SEPARATOR + "*" + TOTAL_COUNT_FILE_EXTENSION
 	files, err := filepath.Glob(pattern)
 	if err != nil {
@@ -250,7 +261,7 @@ func removeTotalFile(clientID string) error {
 	return nil
 }
 
-func getTotals() map[string]clientDiskTuple {
+func (th *taskHandler) getTotals() map[string]clientDiskTuple {
 	references := make(map[string]clientDiskTuple)
 	files, err := filepath.Glob(STORAGE_FOLDER_PATH + "*" + TOTAL_COUNT_FILE_EXTENSION)
 	if err != nil {
