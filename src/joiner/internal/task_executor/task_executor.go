@@ -91,6 +91,7 @@ func (je *joinerExecutor) HandleTask2(dataEnvelope *protocol.DataEnvelope, ackHa
 		return err
 	}
 	worker.SendDone(clientID, enum.T2, processedDataQueue)
+	logger.Logger.Debugf("[%s] Report sent to processed data queue", clientID)
 	shouldAck = true
 	return nil
 }
@@ -145,6 +146,7 @@ func (je *joinerExecutor) HandleTask3(dataEnvelope *protocol.DataEnvelope, ackHa
 		return err
 	}
 	worker.SendDone(clientID, enum.T3, processedDataQueue)
+	logger.Logger.Debugf("[%s] Report sent to processed data queue", clientID)
 	shouldAck = true
 	return nil
 }
@@ -274,7 +276,7 @@ func (je *joinerExecutor) handleRequeue(dataEnvelope *protocol.DataEnvelope, cli
 	// if the ref data is not present yet, requeue the message
 	dataEnvelope.SequenceNumber -= 1 // decrement to retry same message
 	dataEnvelope.Ttl += 1
-	if dataEnvelope.GetTtl() == MAX_REQUEUE_TTL {
+	if dataEnvelope.GetTtl() >= MAX_REQUEUE_TTL {
 		logger.Logger.Debugf("[%s] Dropping report after too many requeues", clientID)
 	}
 	payload, _ := proto.Marshal(dataEnvelope)
