@@ -162,9 +162,6 @@ def add_aggregator(count, tags=None):
       - tp_net
     environment:
       - ID={cname}
-      - LEADER_ELECTION_ID={i}
-      - LEADER_ELECTION_HOST=aggregator{i}
-      - LEADER_ELECTION_PORT=7070
     volumes:
       - ./src/aggregator/config.yaml:/app/config.yaml
       - ./.storage/aggregator{i}:/app/storage

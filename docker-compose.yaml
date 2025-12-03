@@ -104,12 +104,25 @@ services:
       - tp_net
     environment:
       - ID=aggregator1
-      - LEADER_ELECTION_ID=1
-      - LEADER_ELECTION_HOST=aggregator1
-      - LEADER_ELECTION_PORT=7070
     volumes:
       - ./src/aggregator/config.yaml:/app/config.yaml
       - ./.storage/aggregator1:/app/storage
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+        
+  aggregator2:
+    container_name: aggregator2
+    build:
+      dockerfile: ./src/aggregator/Dockerfile
+    image: aggregator:latest
+    networks:
+      - tp_net
+    environment:
+      - ID=aggregator2
+    volumes:
+      - ./src/aggregator/config.yaml:/app/config.yaml
+      - ./.storage/aggregator2:/app/storage
     depends_on:
       rabbitmq:
         condition: service_healthy
