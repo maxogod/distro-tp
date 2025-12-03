@@ -20,15 +20,6 @@ const (
 	counterExtension = ".counter"
 )
 
-type CounterStorage interface {
-	GetClientIds() ([]string, error)
-	ReadClientCounters(clientID string) ([]*protocol.MessageCounter, error)
-	AppendCounter(clientID string, counter *protocol.MessageCounter) error
-	RewriteClientFile(clientID string, counters []*protocol.MessageCounter) error
-	RemoveClient(clientID string) error
-	InitializeClientCounter(clientID string, taskType enum.TaskType) error
-}
-
 type diskCounterStorage struct {
 	basePath string
 }
@@ -132,8 +123,43 @@ func (cs *diskCounterStorage) AppendCounter(clientID string, messageCounter *pro
 	return nil
 }
 
-// RewriteClientFile replaces the counter file for the given client with a new one containing the given counters
-func (cs *diskCounterStorage) RewriteClientFile(clientID string, counters []*protocol.MessageCounter) error {
+// RemoveClient removes the counter file for the given client
+func (cs *diskCounterStorage) RemoveClient(clientID string) error {
+	if err := os.Remove(cs.getFilePath(clientID)); err != nil && !errors.Is(err, os.ErrNotExist) {
+		return fmt.Errorf("failed to remove counter file: %w", err)
+	}
+	logger.Logger.Debugf("removed counters for client %s", clientID)
+	return nil
+}
+
+// InitializeClientCounter creates a new counter file for the given client with the given task type
+func (cs *diskCounterStorage) InitializeClientCounter(clientID string, taskType enum.TaskType) error {
+	if err := os.MkdirAll(cs.basePath, 0o755); err != nil {
+		return fmt.Errorf("failed to create storage dir: %w", err)
+	}
+
+	if err := cs.touchFiles(clientID); err != nil {
+		return err
+	}
+
+	counter := &protocol.MessageCounter{
+		ClientId: clientID,
+		TaskType: int32(taskType),
+	}
+
+	counterBytes, err := proto.Marshal(counter)
+	if err != nil {
+		return fmt.Errorf("failed to marshal initial counter: %w", err)
+	}
+	encoded := base64.StdEncoding.EncodeToString(counterBytes) + "\n"
+
+	return os.WriteFile(cs.getFilePath(clientID), []byte(encoded), 0o644)
+}
+
+// ==== Helper functions ====
+
+// rewriteClientFile replaces the counter file for the given client with a new one containing the given counters
+func (cs *diskCounterStorage) rewriteClientFile(clientID string, counters []*protocol.MessageCounter) error {
 	if err := os.MkdirAll(cs.basePath, 0o755); err != nil {
 		return fmt.Errorf("failed to prepare storage dir: %w", err)
 	}
@@ -169,41 +195,6 @@ func (cs *diskCounterStorage) RewriteClientFile(clientID string, counters []*pro
 	logger.Logger.Debugf("rewritten counters for client %s", clientID)
 	return nil
 }
-
-// RemoveClient removes the counter file for the given client
-func (cs *diskCounterStorage) RemoveClient(clientID string) error {
-	if err := os.Remove(cs.getFilePath(clientID)); err != nil && !errors.Is(err, os.ErrNotExist) {
-		return fmt.Errorf("failed to remove counter file: %w", err)
-	}
-	logger.Logger.Debugf("removed counters for client %s", clientID)
-	return nil
-}
-
-// InitializeClientCounter creates a new counter file for the given client with the given task type
-func (cs *diskCounterStorage) InitializeClientCounter(clientID string, taskType enum.TaskType) error {
-	if err := os.MkdirAll(cs.basePath, 0o755); err != nil {
-		return fmt.Errorf("failed to create storage dir: %w", err)
-	}
-
-	if err := cs.touchFiles(clientID); err != nil {
-		return err
-	}
-
-	counter := &protocol.MessageCounter{
-		ClientId: clientID,
-		TaskType: int32(taskType),
-	}
-
-	counterBytes, err := proto.Marshal(counter)
-	if err != nil {
-		return fmt.Errorf("failed to marshal initial counter: %w", err)
-	}
-	encoded := base64.StdEncoding.EncodeToString(counterBytes) + "\n"
-
-	return os.WriteFile(cs.getFilePath(clientID), []byte(encoded), 0o644)
-}
-
-// ==== Helper functions ====
 
 func (cs *diskCounterStorage) getCounterFromLine(clientID string, counterLine []byte, counters []*protocol.MessageCounter, err error) (*protocol.MessageCounter, error) {
 	decoded, decodeErr := base64.StdEncoding.DecodeString(string(counterLine))
@@ -244,7 +235,7 @@ func (cs *diskCounterStorage) getFiles() ([]string, error) {
 
 func (cs *diskCounterStorage) handleCorruption(clientID string, counters []*protocol.MessageCounter, cause error, msg string) error {
 	logger.Logger.Warnf("[%s] counter file corrupted, rewriting file: %v", clientID, cause)
-	if writeErr := cs.RewriteClientFile(clientID, counters); writeErr != nil {
+	if writeErr := cs.rewriteClientFile(clientID, counters); writeErr != nil {
 		return fmt.Errorf("[%s] failed to rewrite corrupted counter file: %w", clientID, writeErr)
 	}
 	return fmt.Errorf("%s: %w", msg, cause)
