@@ -145,7 +145,6 @@ func (fh *fileHandler) RenameFile(oldPath string, newPath string) error {
 func (fh *fileHandler) readFile(path string, limit int) (chan []byte, error) {
 	readFile, err := os.Open(path)
 	if err != nil {
-		logger.Logger.Errorf("failed to open file: %v", err)
 		return nil, err
 	}
 

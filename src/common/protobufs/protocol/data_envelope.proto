@@ -11,5 +11,6 @@ message DataEnvelope {
   int32 total_messages = 4;
   bool is_done = 5;
   bool  is_ref = 6;
-  bytes payload = 7;
+  int32 ttl = 7;
+  bytes payload = 8;
 }
