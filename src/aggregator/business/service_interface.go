@@ -11,7 +11,11 @@ type AggregatorService interface {
 	// ------------ Store Functions -----------
 
 	// StoreData stores raw data envelopes
+	// this is stored in a temp file, and only finalized upon ConfirmStorage call.
 	StoreData(clientID string, data *protocol.DataEnvelope) error
+
+	// ConfirmStorage finalizes the storage of temp data for a client.
+	ConfirmStorage(clientID string) error
 
 	// ------------ Retreival Functions -----------
 

@@ -27,7 +27,11 @@ func NewAggregatorService(storageService storage.StorageService) AggregatorServi
 // ======= STORAGE FUNCTIONS =======
 
 func (as *aggregatorService) StoreData(clientID string, data *protocol.DataEnvelope) error {
-	return storage.StoreBatch(as.storageService, clientID, []*protocol.DataEnvelope{data})
+	return storage.StoreTempBatch(as.storageService, clientID, []*protocol.DataEnvelope{data})
+}
+
+func (as *aggregatorService) ConfirmStorage(clientID string) error {
+	return as.storageService.SaveTempFile(clientID)
 }
 
 // ======= RETRIEVAL FUNCTIONS =======
