@@ -278,6 +278,7 @@ func (je *joinerExecutor) handleRequeue(dataEnvelope *protocol.DataEnvelope, cli
 	dataEnvelope.Ttl += 1
 	if dataEnvelope.GetTtl() >= MAX_REQUEUE_TTL {
 		logger.Logger.Debugf("[%s] Dropping report after too many requeues", clientID)
+		return
 	}
 	payload, _ := proto.Marshal(dataEnvelope)
 	je.joinerQueue.Send(payload)
