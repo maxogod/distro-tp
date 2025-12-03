@@ -12,8 +12,10 @@ import (
 	"github.com/maxogod/distro-tp/src/common/logger"
 	"github.com/maxogod/distro-tp/src/common/middleware"
 	"github.com/maxogod/distro-tp/src/common/models/enum"
+	"github.com/maxogod/distro-tp/src/common/models/protocol"
 	"github.com/maxogod/distro-tp/src/common/worker"
 	"github.com/maxogod/distro-tp/src/common/worker/storage"
+	"google.golang.org/protobuf/proto"
 )
 
 type Server struct {
@@ -94,4 +96,39 @@ func (s *Server) Shutdown() {
 	}
 	s.heatbeatSender.Close()
 	logger.Logger.Debug("aggregator Worker server shut down successfully.")
+}
+
+func (s *Server) getLastState(cacheService storage.StorageService) map[string][]int32 {
+
+	files := cacheService.GetAllFilesReferences()
+
+	lastState := make(map[string][]int32)
+
+	for _, file := range files {
+
+		read_ch, err := cacheService.ReadAllData(file)
+		if err != nil {
+			logger.Logger.Warnf("[%s] file could not be opened: %s", file, err.Error())
+			continue
+		}
+		sequenceNumbers := s.getSequenceNumbers(read_ch)
+		lastState[file] = sequenceNumbers
+		logger.Logger.Infof("[%s] file read successfully, %d sequence numbers found", file, len(sequenceNumbers))
+	}
+	return lastState
+}
+
+func (s *Server) getSequenceNumbers(read_ch chan []byte) []int32 {
+	sequenceNumbers := []int32{}
+	for dataEnvelope := range read_ch {
+		protoData := &protocol.DataEnvelope{}
+		err := proto.Unmarshal(dataEnvelope, protoData)
+		if err != nil {
+			logger.Logger.Warnf("Dirty Message found, ignoring: %v", err)
+			continue
+		}
+		sequenceNumbers = append(sequenceNumbers, protoData.SequenceNumber)
+	}
+	return sequenceNumbers
+
 }

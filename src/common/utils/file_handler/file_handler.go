@@ -206,7 +206,7 @@ func (fh *fileHandler) readFile(path string, limit int) (chan []byte, error) {
 
 func parseToString(bytes []byte) string {
 	encodedData := base64.StdEncoding.EncodeToString(bytes)
-	return encodedData + "\n"
+	return "\n" + encodedData
 }
 
 func parseEncodedBytes(line []byte) ([]byte, error) {

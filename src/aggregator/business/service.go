@@ -21,7 +21,6 @@ func NewAggregatorService(storageService storage.StorageService) AggregatorServi
 	as := &aggregatorService{
 		storageService: storageService,
 	}
-	storageService.RemoveAllTempFiles()
 	return as
 }
 
