@@ -201,8 +201,8 @@ func (th *taskHandler) HandleFinishClient(dataEnvelope *protocol.DataEnvelope, a
 	clientID := dataEnvelope.GetClientId()
 	count := th.messagesReceived[clientID]
 
-	logger.Logger.Infof("[%s] Finished processing client in TaskHandler. Received %d/%d messages and %d sequences.",
-		clientID, count, dataEnvelope.GetTotalMessages(), len(th.sequencesPerClient[clientID]))
+	logger.Logger.Infof("[%s] Finished processing client in TaskHandler. Received %d/%d messages and %d sequences is ABS: %v.",
+		clientID, count, dataEnvelope.GetTotalMessages(), len(th.sequencesPerClient[clientID]), dataEnvelope.GetSequenceNumber() == -1)
 
 	if err := th.createTotalFile(clientID, dataEnvelope.GetTotalMessages(), dataEnvelope.GetTaskType()); err != nil {
 		logger.Logger.Errorf("[%s] Error creating progress file: %v", clientID, err)
