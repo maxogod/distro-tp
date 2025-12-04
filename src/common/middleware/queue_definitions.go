@@ -2,8 +2,6 @@ package middleware
 
 import (
 	"time"
-
-	"github.com/maxogod/distro-tp/src/common/models/enum"
 )
 
 const MIDDLEWARE_CONNECTION_RETRIES = 10
@@ -112,38 +110,6 @@ func GetFinishExchange(url string, topic []string, receiverName string) MessageM
 	}
 	return retryMiddlewareCreation(MIDDLEWARE_CONNECTION_RETRIES, WAIT_INTERVAL, func() (MessageMiddleware, error) {
 		return NewPersistentExchangeMiddleware(url, "finish_exchange", "direct", topic, "fin-"+receiverName)
-	})
-}
-
-/* --- Leader Election Exchanges --- */
-
-func GetLeaderElectionCoordExchange(url string, workerType enum.WorkerType) MessageMiddleware {
-	return retryMiddlewareCreation(MIDDLEWARE_CONNECTION_RETRIES, WAIT_INTERVAL, func() (MessageMiddleware, error) {
-		return NewExchangeMiddleware(url, "leader_election_exchange@"+string(workerType), "direct", []string{"coordinator"})
-	})
-}
-
-func GetLeaderElectionDiscoveryExchange(url string, workerType enum.WorkerType) MessageMiddleware {
-	return retryMiddlewareCreation(MIDDLEWARE_CONNECTION_RETRIES, WAIT_INTERVAL, func() (MessageMiddleware, error) {
-		return NewExchangeMiddleware(url, "leader_election_exchange@"+string(workerType), "direct", []string{"discovery"})
-	})
-}
-
-func GetLeaderElectionReceivingNodeExchange(url string, workerType enum.WorkerType, route string) MessageMiddleware {
-	return retryMiddlewareCreation(MIDDLEWARE_CONNECTION_RETRIES, WAIT_INTERVAL, func() (MessageMiddleware, error) {
-		return NewExchangeMiddleware(url, "leader_election_exchange@"+string(workerType), "direct", []string{"coordinator", "discovery", route})
-	})
-}
-
-func GetLeaderElectionSendingNodeExchange(url string, workerType enum.WorkerType, route string) MessageMiddleware {
-	return retryMiddlewareCreation(MIDDLEWARE_CONNECTION_RETRIES, WAIT_INTERVAL, func() (MessageMiddleware, error) {
-		return NewExchangeMiddleware(url, "leader_election_exchange@"+string(workerType), "direct", []string{route})
-	})
-}
-
-func GetLeaderElectionUpdatesExchange(url string, workerType enum.WorkerType, route string) MessageMiddleware {
-	return retryMiddlewareCreation(MIDDLEWARE_CONNECTION_RETRIES, WAIT_INTERVAL, func() (MessageMiddleware, error) {
-		return NewExchangeMiddleware(url, "leader_election_exchange@"+string(workerType), "direct", []string{"updates@" + route})
 	})
 }
 
