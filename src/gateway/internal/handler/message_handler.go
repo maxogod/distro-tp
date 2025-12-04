@@ -2,6 +2,7 @@ package handler
 
 import (
 	"fmt"
+	"hash/crc32"
 
 	"github.com/maxogod/distro-tp/src/common/logger"
 	"github.com/maxogod/distro-tp/src/common/middleware"
@@ -11,6 +12,9 @@ import (
 )
 
 const INITIAL_REF_DATA_SEQ_NUMBER = 1
+
+// TODO: Sacar a config
+const MaxControllerNodes = 2
 
 type messageHandler struct {
 	clientID string
@@ -69,8 +73,9 @@ func NewMessageHandler(middlewareUrl, clientID string) MessageHandler {
 func (mh *messageHandler) SendControllerInit(taskType enum.TaskType) error {
 	mh.taskType = taskType
 	controlMessage := &protocol.ControlMessage{
-		ClientId: mh.clientID,
-		TaskType: int32(taskType),
+		ClientId:     mh.clientID,
+		TaskType:     int32(taskType),
+		ControllerId: getControllerIDForClient(mh.clientID),
 	}
 	payload, err := proto.Marshal(controlMessage)
 	if err != nil {
@@ -250,4 +255,9 @@ func (mh *messageHandler) awaitControllerAckListener() {
 		done <- true
 	})
 	<-done
+}
+
+func getControllerIDForClient(clientID string) int32 {
+	hashValue := crc32.ChecksumIEEE([]byte(clientID))
+	return int32(hashValue%MaxControllerNodes) + 1
 }

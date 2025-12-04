@@ -106,8 +106,12 @@ func (ch *controlHandler) AwaitForWorkers() error {
 
 		if enum.WorkerType(counter.GetFrom()) == enum.Gateway && enum.WorkerType(counter.GetNext()) == enum.Controller {
 			logger.Logger.Debugf("[%s] Receive Gateway abort for client %s", ch.clientID, ch.clientID)
-			ch.workersMonitoring[enum.Gateway].startOrFinishCh <- false      // Finally finish gateway layer
-			ch.workersMonitoring[enum.FilterWorker].startOrFinishCh <- false // Finally finish filter layer
+
+			for _, monitor := range ch.workersMonitoring {
+				monitor.startOrFinishCh <- false
+				monitor.queue.Delete()
+				monitor.queue.Close()
+			}
 
 			err := ch.counterStore.RemoveClient(ch.clientID)
 			if err != nil {
@@ -169,13 +173,20 @@ func (ch *controlHandler) AwaitForWorkers() error {
 
 	ch.flushPendingCounters(&pendingCounters)
 
-	<-ch.counterCh
+	counterMsg := <-ch.counterCh
+
 	logger.Logger.Debugf("[%s] Final counter received from Gateway workers, data done", ch.clientID)
 
 	clientQueue := middleware.GetProcessedDataExchange(ch.middlewareUrl, ch.clientID)
 	defer clientQueue.Close()
 	worker.SendDone(ch.clientID, ch.taskType, clientQueue)
 	ch.workersMonitoring[enum.Gateway].startOrFinishCh <- false // Finally finish gateway layer
+
+	if enum.WorkerType(counterMsg.counter.GetFrom()) == enum.Gateway {
+		if counterMsg.ackHandler != nil {
+			counterMsg.ackHandler(true, false)
+		}
+	}
 
 	logger.Logger.Debugf("[%s] All workers done, proceed with finish sequence", ch.clientID)
 
@@ -214,7 +225,6 @@ func (ch *controlHandler) SendDone(worker enum.WorkerType, totalMsgs int, delete
 func (ch *controlHandler) Close() {
 	for _, monitor := range ch.workersMonitoring {
 		monitor.startOrFinishCh <- false
-		monitor.queue.Delete()
 		monitor.queue.Close()
 	}
 }

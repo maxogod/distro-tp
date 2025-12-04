@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 
@@ -17,6 +18,7 @@ type HeartbeatConfig struct {
 
 type Config struct {
 	ID                 string
+	NumericID          int32
 	MiddlewareAddress  string
 	Port               int32
 	LogLevel           string
@@ -36,6 +38,7 @@ func (c Config) String() string {
 }
 
 const CONFIG_FILE_PATH = "./config.yaml"
+const prefix = "controller"
 
 func InitConfig() (*Config, error) {
 	v := viper.New()
@@ -64,8 +67,14 @@ func InitConfig() (*Config, error) {
 		Interval: time.Duration(v.GetInt("heartbeat.interval")) * time.Second,
 	}
 
+	numericID, err := parseControllerID(v.GetString("id"))
+	if err != nil {
+		return nil, err
+	}
+
 	config := &Config{
 		ID:                 v.GetString("id"),
+		NumericID:          numericID,
 		MiddlewareAddress:  v.GetString("middleware.address"),
 		Port:               int32(v.GetInt("port")),
 		LogLevel:           v.GetString("log.level"),
@@ -76,4 +85,16 @@ func InitConfig() (*Config, error) {
 	}
 
 	return config, nil
+}
+
+func parseControllerID(id string) (int32, error) {
+	numStr := strings.TrimPrefix(id, prefix)
+	if numStr == "" {
+		return 0, fmt.Errorf("controller id %s has no numeric suffix", id)
+	}
+	n, err := strconv.Atoi(numStr)
+	if err != nil {
+		return 0, err
+	}
+	return int32(n), nil
 }

@@ -9,4 +9,5 @@ message ControlMessage {
   int32 taskType = 2;
   bool is_ack = 3;
   string error = 4;
+  int32 controller_id = 5;
 }

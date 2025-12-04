@@ -27,6 +27,7 @@ type ControlMessage struct {
 	TaskType      int32                  `protobuf:"varint,2,opt,name=taskType,proto3" json:"taskType,omitempty"`
 	IsAck         bool                   `protobuf:"varint,3,opt,name=is_ack,json=isAck,proto3" json:"is_ack,omitempty"`
 	Error         string                 `protobuf:"bytes,4,opt,name=error,proto3" json:"error,omitempty"`
+	ControllerId  int32                  `protobuf:"varint,5,opt,name=controller_id,json=controllerId,proto3" json:"controller_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -89,16 +90,24 @@ func (x *ControlMessage) GetError() string {
 	return ""
 }
 
+func (x *ControlMessage) GetControllerId() int32 {
+	if x != nil {
+		return x.ControllerId
+	}
+	return 0
+}
+
 var File_protocol_control_message_proto protoreflect.FileDescriptor
 
 const file_protocol_control_message_proto_rawDesc = "" +
 	"\n" +
-	"\x1eprotocol/control_message.proto\x12\bprotocol\"v\n" +
+	"\x1eprotocol/control_message.proto\x12\bprotocol\"\x9b\x01\n" +
 	"\x0eControlMessage\x12\x1b\n" +
 	"\tclient_id\x18\x01 \x01(\tR\bclientId\x12\x1a\n" +
 	"\btaskType\x18\x02 \x01(\x05R\btaskType\x12\x15\n" +
 	"\x06is_ack\x18\x03 \x01(\bR\x05isAck\x12\x14\n" +
-	"\x05error\x18\x04 \x01(\tR\x05errorB\fZ\n" +
+	"\x05error\x18\x04 \x01(\tR\x05error\x12#\n" +
+	"\rcontroller_id\x18\x05 \x01(\x05R\fcontrollerIdB\fZ\n" +
 	"./protocolb\x06proto3"
 
 var (

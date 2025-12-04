@@ -130,6 +130,16 @@ func (s *Server) acceptNewClients() {
 				continue
 			}
 
+			if controlMsg.GetControllerId() != 0 && controlMsg.GetControllerId() != s.config.NumericID {
+				logger.Logger.Debugf(
+					"action: accept_new_clients | client_id: %s | controller_id: %d | result: not_mine",
+					controlMsg.GetClientId(),
+					controlMsg.GetControllerId(),
+				)
+				msg.Nack(false, true)
+				continue
+			}
+
 			if err = s.counterStore.InitializeClientCounter(controlMsg.GetClientId(), enum.TaskType(controlMsg.GetTaskType())); err != nil {
 				logger.Logger.Errorf("action: ensure_client_storage | client_id: %s | result: failed | error: %s", controlMsg.GetClientId(), err.Error())
 				msg.Nack(false, true)
