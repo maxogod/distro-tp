@@ -161,6 +161,7 @@ func (fh *fileHandler) readFile(path string, limit int) (chan []byte, error) {
 		defer close(reachCh)
 
 		count := 0
+		emptyLines := 0
 		for scanner.Scan() {
 			// Check if context is cancelled
 			select {
@@ -177,12 +178,13 @@ func (fh *fileHandler) readFile(path string, limit int) (chan []byte, error) {
 
 			line := scanner.Bytes()
 			if len(line) == 0 {
+				emptyLines++
 				continue
 			}
 
 			protoBytes, err := parseEncodedBytes(line)
 			if err != nil {
-				logger.Logger.Errorf("failed to parse from bytes: %v", err)
+				logger.Logger.Debugf("LINE %d | failed to parse from bytes: %v", count+emptyLines+1, err)
 				continue
 			}
 
