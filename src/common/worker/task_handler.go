@@ -15,6 +15,7 @@ import (
 const FINISH enum.TaskType = 0
 
 const (
+	DELETE_ACTION   = -1
 	REAP_AFTER_MSGS = 10000
 
 	STORAGE_FOLDER_PATH        = "storage/"
@@ -155,9 +156,6 @@ func (th *taskHandler) HandleData(dataEnvelope *protocol.DataEnvelope, ackHandle
 		if err := th.HandleFinishClient(dataEnvelope, func(bool, bool) error { return nil }); err != nil {
 			return err
 		}
-		if err := th.removeTotalFile(clientID); err != nil {
-			logger.Logger.Errorf("[%s] Error removing progress file: %v", clientID, err)
-		}
 	} else if len(th.sequencesPerClient[clientID])%REAP_AFTER_MSGS == 0 {
 		th.reapFinishedClients(true)
 	}
@@ -192,10 +190,16 @@ func (th *taskHandler) HandleFinishClient(dataEnvelope *protocol.DataEnvelope, a
 	count := len(th.sequencesPerClient[clientID])
 
 	logger.Logger.Infof("[%s] Finished processing client in TaskHandler. Received %d/%d messages and %d sequences is ABS: %v.",
-		clientID, count, dataEnvelope.GetTotalMessages(), len(th.sequencesPerClient[clientID]), dataEnvelope.GetSequenceNumber() == -1)
+		clientID, count, dataEnvelope.GetTotalMessages(), len(th.sequencesPerClient[clientID]), dataEnvelope.GetSequenceNumber() == DELETE_ACTION)
 
 	if err := th.createTotalFile(clientID, dataEnvelope.GetTotalMessages(), dataEnvelope.GetTaskType()); err != nil {
 		logger.Logger.Errorf("[%s] Error creating progress file: %v", clientID, err)
+	}
+
+	if dataEnvelope.GetSequenceNumber() == DELETE_ACTION {
+		if err := th.removeTotalFile(clientID); err != nil {
+			logger.Logger.Errorf("[%s] Error removing progress file: %v", clientID, err)
+		}
 	}
 
 	if dataEnvelope.GetTotalMessages() == 0 || count == int(dataEnvelope.GetTotalMessages()) {
@@ -205,9 +209,6 @@ func (th *taskHandler) HandleFinishClient(dataEnvelope *protocol.DataEnvelope, a
 		if err := th.taskExecutor.HandleFinishClient(dataEnvelope, ackHandler); err != nil {
 			logger.Logger.Errorf("[%s] Error handling finish for client %v", clientID, err)
 			return err
-		}
-		if err := th.removeTotalFile(clientID); err != nil {
-			logger.Logger.Errorf("[%s] Error removing progress file: %v", clientID, err)
 		}
 		return nil
 	}
@@ -226,7 +227,7 @@ func (th *taskHandler) Close() error {
 /* --- HELPERS --- */
 
 func (th *taskHandler) createTotalFile(clientID string, total int32, task int32) error {
-	if !th.shouldPersistTotals {
+	if !th.shouldPersistTotals || total == 0 {
 		return nil
 	}
 	logger.Logger.Debugf("[%s] Creating total file with total %d", clientID, total)
