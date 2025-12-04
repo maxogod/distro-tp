@@ -141,7 +141,7 @@ func (s *Server) acceptNewClients() {
 			}
 
 			if err = s.counterStore.InitializeClientCounter(controlMsg.GetClientId(), enum.TaskType(controlMsg.GetTaskType())); err != nil {
-				logger.Logger.Errorf("action: ensure_client_storage | client_id: %s | result: failed | error: %s", controlMsg.GetClientId(), err.Error())
+				logger.Logger.Debugf("action: ensure_client_storage | client_id: %s | result: failed | error: %s", controlMsg.GetClientId(), err.Error())
 				msg.Nack(false, true)
 				continue
 			}

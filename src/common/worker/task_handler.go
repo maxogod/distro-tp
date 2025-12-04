@@ -88,6 +88,7 @@ func NewTaskHandlerWithSeqs(taskExecutor TaskExecutor, shouldDropDuplicates bool
 			seqMap[seq] = true
 		}
 		th.sequencesPerClient[clientID] = seqMap
+		logger.Logger.Debugf("Loaded %d sequences for client %s", len(seqList), clientID)
 	}
 
 	totals := th.getTotals()
@@ -102,6 +103,8 @@ func NewTaskHandlerWithSeqs(taskExecutor TaskExecutor, shouldDropDuplicates bool
 			logger.Logger.Warnf("[%s] No sequences found for client with total file. Ignoring total file.", clientID)
 			continue
 		}
+		logger.Logger.Debugf("[%s] Found total file. Count: %d/%d", clientID, len(currentSeqs), client.total)
+
 		th.totalMessagesToReceive[clientID] = client.total
 		if int32(len(currentSeqs)) >= client.total {
 			done := &protocol.DataEnvelope{

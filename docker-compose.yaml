@@ -195,6 +195,8 @@ services:
     container_name: filter1
     build:
       dockerfile: ./src/filter/Dockerfile
+      args:
+        BUILD_TAGS: "poison low_prob" 
     image: filter:latest
     networks:
       - tp_net
@@ -210,6 +212,8 @@ services:
     container_name: filter2
     build:
       dockerfile: ./src/filter/Dockerfile
+      args:
+        BUILD_TAGS: "poison low_prob" 
     image: filter:latest
     networks:
       - tp_net
@@ -225,6 +229,8 @@ services:
     container_name: reducer1
     build:
       dockerfile: ./src/reducer/Dockerfile
+      args:
+        BUILD_TAGS: "poison low_prob" 
     image: reducer:latest
     networks:
       - tp_net
@@ -240,6 +246,8 @@ services:
     container_name: reducer2
     build:
       dockerfile: ./src/reducer/Dockerfile
+      args:
+        BUILD_TAGS: "poison low_prob" 
     image: reducer:latest
     networks:
       - tp_net
@@ -255,6 +263,8 @@ services:
     container_name: group_by1
     build:
       dockerfile: ./src/group_by/Dockerfile
+      args:
+        BUILD_TAGS: "poison low_prob" 
     image: group_by:latest
     networks:
       - tp_net
@@ -270,6 +280,8 @@ services:
     container_name: group_by2
     build:
       dockerfile: ./src/group_by/Dockerfile
+      args:
+        BUILD_TAGS: "poison low_prob" 
     image: group_by:latest
     networks:
       - tp_net

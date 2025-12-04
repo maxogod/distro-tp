@@ -5,7 +5,7 @@ heartbeat:
   port: 7777
   interval: 200
 log:
-  level: "development"
+  level: "production"
 limits:
   transaction_send_limit: 1000
   max_amount_to_send: 35

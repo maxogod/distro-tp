@@ -5,7 +5,7 @@ heartbeat:
   port: 7777
   interval: 200
 log:
-  level: "development"
+  level: "production"
 filter:
   year:
     from: 2024

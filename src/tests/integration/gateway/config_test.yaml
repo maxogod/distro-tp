@@ -8,6 +8,6 @@ heartbeat:
 middleware:
   address: "amqp://guest:guest@localhost:5672/"
 log:
-  level: "development"
+  level: "production"
 receiving:
   timeout: 10
