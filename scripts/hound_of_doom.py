@@ -11,6 +11,9 @@ DEFAULT_EXEPTIONS = "none"
 RABBITMQ_CONTAINER = "rabbitmq"
 EGG_OF_LIFE_CONTAINER = "egg_of_life"
 
+MIN_SLEEP_INTERVAL=30
+MAX_SLEEP_INTERVAL=60
+
 def run_cmd(cmd_str):
     arg_list = cmd_str.split(" ")
     res = subprocess.run(
@@ -104,7 +107,7 @@ def main():
     try:
         while True:
             hound.unleash_doom()
-            sleep_time = random.randint(30, 60)
+            sleep_time = random.randint(MIN_SLEEP_INTERVAL, MAX_SLEEP_INTERVAL)
             print(f"\n[Loop] Waiting {sleep_time} seconds before next doom cycle...\n")
             time.sleep(sleep_time)
 
