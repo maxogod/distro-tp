@@ -89,7 +89,7 @@ func (c *client) runTask(task string) error {
 
 	if err = c.taskExecutor.SendRequestForTask(taskType, c.clientID); err != nil {
 		logger.Logger.Errorf("Error making task request %v", err)
-		return err
+		return c.reconnectToGateway(task)
 	}
 
 	clientId, ackErr := c.taskExecutor.AwaitRequestAck(taskType)

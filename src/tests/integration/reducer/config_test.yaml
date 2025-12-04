@@ -5,4 +5,4 @@ log:
 heartbeat:
   host: "egg_of_life"
   port: 7777
-  interval: 1
+  interval: 200

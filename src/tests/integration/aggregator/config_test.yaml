@@ -7,7 +7,7 @@ persistence:
 heartbeat:
   host: "egg_of_life"
   port: 7777
-  interval: 1
+  interval: 200
 limits:
   transaction_send_limit: 1000
   max_amount_to_send: 35

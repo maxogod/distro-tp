@@ -59,7 +59,7 @@ func InitConfig(configFilePath string) (*Config, error) {
 	heatbeatConf := HeartbeatConfig{
 		Host:     v.GetString("heartbeat.host"),
 		Port:     v.GetInt("heartbeat.port"),
-		Interval: time.Duration(v.GetInt("heartbeat.interval")) * time.Second,
+		Interval: time.Duration(v.GetInt("heartbeat.interval")) * time.Millisecond,
 	}
 
 	limits := Limits{
