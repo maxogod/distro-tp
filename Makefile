@@ -11,7 +11,13 @@ down:
 	docker compose down -v
 
 compare:
-	./compare_all_outputs.sh .expected_full/
+	./scripts/compare_all_outputs.sh .expected_full/
 
 clean:
-	sudo rm -rf .output*
+	sudo rm -rf .output* .storage
+
+check_clients:
+	docker compose logs | grep Pikachu
+
+create_dirs:
+	./scripts/create_dirs.sh ./config.yaml

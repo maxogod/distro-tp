@@ -4,10 +4,8 @@ healthcheck:
 heartbeat:
   host: "egg_of_life"
   port: 7777
-  interval: 1
+  interval: 200
 middleware:
   address: "amqp://guest:guest@rabbitmq:5672/"
 log:
-  level: "development"
-receiving:
-  timeout: 10
+  level: "production"

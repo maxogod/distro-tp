@@ -11,4 +11,5 @@ message MessageCounter {
   string next = 4;
   int32 sequence_number = 6;
   bytes payload = 7;
+  int32 task_type = 8;
 }

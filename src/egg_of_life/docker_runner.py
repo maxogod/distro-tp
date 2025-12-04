@@ -27,7 +27,7 @@ class DockerRunner:
         self._commands_queue.put(CLOSE_SIGNAL) # Unblock queue
         self._runner_thread.join()
 
-    def restart_container(self, name, image):
+    def restart_container(self, name: str, image: str):
         print(f"Launching new container {name} (image: {image}) on network {self._network}")
 
         folder_name = image.split(":")[0]
@@ -38,8 +38,11 @@ class DockerRunner:
             f"--label {CREATOR_LABEL} "
             f"--label com.docker.compose.project={PROJECT} "
             f"-v {self._host_path}/src/{folder_name}/config.yaml:/app/config.yaml "
-            f"{image}"
+            f"-e ID={name} "
         )
+        if folder_name in ["joiner", "aggregator", "controller"]:
+            cmd += f"-v {self._host_path}/.storage/{name}:/app/storage "
+        cmd += image
         print(cmd)
         self._commands_queue.put(cmd)
 

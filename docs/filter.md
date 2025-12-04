@@ -61,13 +61,13 @@ El worker ejecuta filtros sobre transacciones y sus ítems según el tipo de tar
 
 En esencia, lo que hace el Filter (al igual que el resto de workers) es utilizar todos los componentes comunes definidos en `common/worker`, y definir su propia logica de negocio en el `TaskExecutor`.
 
-Dado que el Filter solo va a comunicarse con los workers `Group By` o `Aggregator` (dependiendo de la task a realizar), iniciamos obteniendo estas queues y la queue donde le llegará la data al Filter desde el `Gateway Controller`.
+Dado que el Filter solo va a comunicarse con los workers `Group By` o directamente con el `Gateway` (dependiendo de la task a realizar), iniciamos obteniendo estas queues y la queue donde le llegará la data al Filter desde el `Gateway`.
 
 Luego, inicializamos el `FilterService` que contiene toda la logica de negocio de filtrado necesaria para realizar las tasks.
 
 Después, creamos el `TaskExecutor` propio del Filter (`FilterExecutor`), que implementa los metodos necesarios para cada task (1 a 4), y finalmente inicializamos el `MessageHandler` con la queue de input del Filter y el `TaskHandler` creado a partir del `TaskExecutor`.
 
-Luego, simplemente llamamos al metodo `Start()` del `MessageHandler` para que comience a escuchar mensajes y procesarlos. Cada mensaje consumido de la input queue del Filter (`filter_queue`) le llegará al MessageHandler por medio de un channel, para que luego sea procesado por el método correspondiente del `FilterExecutor`, que aplicará los filtros (según lo indicado antes para cada task) y enviará el resultado a la queue correspondiente (`group_by_queue` en las tasks 2, 3 y 4, y `aggregator_queue` en la task 1).
+Luego, simplemente llamamos al metodo `Start()` del `MessageHandler` para que comience a escuchar mensajes y procesarlos. Cada mensaje consumido de la input queue del Filter (`filter_queue`) le llegará al MessageHandler por medio de un channel, para que luego sea procesado por el método correspondiente del `FilterExecutor`, que aplicará los filtros (según lo indicado antes para cada task) y enviará el resultado a la queue correspondiente (`group_by_queue` en las tasks 2, 3 y 4, y `processed_data_exchange` en la task 1).
 
 ## Config
 

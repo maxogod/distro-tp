@@ -20,10 +20,10 @@ func NewFileService(batchSize int) FileService {
 	}
 }
 
-func (fs *fileService) ReadAsBatches(path string, batches_ch chan []proto.Message, newObject func([]string) proto.Message) {
+func (fs *fileService) ReadAsBatches(path string, batchesCh chan []proto.Message, newObject func([]string) proto.Message) {
 	logger.Logger.Debugln("Reading from file:", path)
 
-	defer close(batches_ch)
+	defer close(batchesCh)
 	file, err := os.Open(path)
 	if err != nil {
 		return
@@ -50,18 +50,20 @@ func (fs *fileService) ReadAsBatches(path string, batches_ch chan []proto.Messag
 		batch = append(batch, t)
 
 		if len(batch) >= fs.batchSize {
-			batches_ch <- batch
+			batchesCh <- batch
 			batch = make([]proto.Message, 0, fs.batchSize)
 		}
 	}
 
 	if len(batch) > 0 {
-		batches_ch <- batch
+		batchesCh <- batch
 	}
 }
 
-func (fs *fileService) SaveCsvAsBatches(path string, batches_ch chan string, header string) error {
-	outputFile, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0644)
+func (fs *fileService) SaveCsvAsBatches(path string, batchesCh chan string, header string, done chan bool) error {
+	logger.Logger.Debugln("Creating file:", path)
+
+	outputFile, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0666)
 	if err != nil {
 		logger.Logger.Errorf("failed to create output file: %v", err)
 		return err
@@ -69,12 +71,18 @@ func (fs *fileService) SaveCsvAsBatches(path string, batches_ch chan string, hea
 	fs.openFiles = append(fs.openFiles, outputFile)
 	defer outputFile.Close()
 
+	logger.Logger.Debugln("Writing to file:", path)
+
 	outputFile.WriteString(header)
-	for entry := range batches_ch {
+	for entry := range batchesCh {
 		if _, err := outputFile.WriteString(entry); err != nil {
 			break
 		}
 	}
+
+	logger.Logger.Debugln("Finished writing to file:", path)
+
+	done <- true
 
 	return nil
 }

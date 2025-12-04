@@ -3,3 +3,7 @@
 .data/
 .idea
 .output*
+*.txt
+*.cache
+.storage/
+.storage/**/*

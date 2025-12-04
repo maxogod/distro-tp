@@ -3,8 +3,8 @@ gateway:
 heartbeat:
   host: "egg_of_life"
   port: 7777
-  interval: 1
+  interval: 200
 log:
-  level: "development"
+  level: "production"
 amount_of_users_per_file: 3_000_000
 

@@ -10,7 +10,7 @@ import (
 	"github.com/maxogod/distro-tp/src/common/middleware"
 	"github.com/maxogod/distro-tp/src/common/models/enum"
 	"github.com/maxogod/distro-tp/src/common/worker"
-	disk_storage "github.com/maxogod/distro-tp/src/common/worker/storage/disk_memory"
+	"github.com/maxogod/distro-tp/src/common/worker/storage"
 	"github.com/maxogod/distro-tp/src/joiner/business"
 	"github.com/maxogod/distro-tp/src/joiner/cache"
 	"github.com/maxogod/distro-tp/src/joiner/config"
@@ -25,12 +25,12 @@ type Server struct {
 func InitServer(conf *config.Config) *Server {
 	// initiate middlewares
 	joinerInputQueue := middleware.GetJoinerQueue(conf.Address)
-	refDataExchange := middleware.GetRefDataExchange(conf.Address)
-	finishExchange := middleware.GetFinishExchange(conf.Address, []string{string(enum.JoinerWorker)})
+	refDataExchange := middleware.GetRefDataExchange(conf.Address, conf.ID)
+	finishExchange := middleware.GetFinishExchange(conf.Address, []string{string(enum.JoinerWorker)}, conf.ID)
 
 	// initiate internal components
 	cacheService := cache.NewInMemoryCache()
-	storageService := disk_storage.NewDiskMemoryStorage()
+	storageService := storage.NewDiskMemoryStorage()
 
 	joinerService := business.NewJoinerService(cacheService, storageService, conf.AmountOfUsersPerFile)
 
@@ -39,7 +39,7 @@ func InitServer(conf *config.Config) *Server {
 		joinerService,
 	)
 
-	taskHandler := worker.NewTaskHandler(taskExecutor, false)
+	taskHandler := worker.NewTaskHandler(taskExecutor, true)
 
 	messageHandler := worker.NewMessageHandler(
 		taskHandler,

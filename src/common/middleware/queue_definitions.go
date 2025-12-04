@@ -2,8 +2,6 @@ package middleware
 
 import (
 	"time"
-
-	"github.com/maxogod/distro-tp/src/common/models/enum"
 )
 
 const MIDDLEWARE_CONNECTION_RETRIES = 10
@@ -41,16 +39,27 @@ func GetJoinerQueue(url string) MessageMiddleware {
 
 // GetRefDataExchange retrieves the middleware for the given exchange
 // to send or receive as fanout for joiners.
-func GetRefDataExchange(url string) MessageMiddleware {
+func GetRefDataExchange(url, receiverName string) MessageMiddleware {
+	if receiverName == "" {
+		return retryMiddlewareCreation(MIDDLEWARE_CONNECTION_RETRIES, WAIT_INTERVAL, func() (MessageMiddleware, error) {
+			return NewExchangeMiddleware(url, "ref_data_exchange", "fanout", []string{})
+		})
+	}
 	return retryMiddlewareCreation(MIDDLEWARE_CONNECTION_RETRIES, WAIT_INTERVAL, func() (MessageMiddleware, error) {
-		return NewExchangeMiddleware(url, "ref_data_exchange", "fanout", []string{})
+		return NewPersistentExchangeMiddleware(url, "ref_data_exchange", "fanout", []string{}, "ref-"+receiverName)
 	})
 }
 
 // GetAggregatorQueue retrieves the middleware that the controller uses to put work on the aggregator queues
-func GetAggregatorQueue(url string) MessageMiddleware {
+func GetAggregatorQueue(url string, receiverName string) MessageMiddleware {
+	if receiverName == "" {
+		return retryMiddlewareCreation(MIDDLEWARE_CONNECTION_RETRIES, WAIT_INTERVAL, func() (MessageMiddleware, error) {
+			return NewExchangeMiddleware(url, "aggregator", "fanout", []string{})
+		})
+	}
+
 	return retryMiddlewareCreation(MIDDLEWARE_CONNECTION_RETRIES, WAIT_INTERVAL, func() (MessageMiddleware, error) {
-		return NewQueueMiddleware(url, "aggregator")
+		return NewPersistentExchangeMiddleware(url, "aggregator", "fanout", []string{}, "aggregator-"+receiverName)
 	})
 }
 
@@ -86,48 +95,21 @@ func GetClientControlExchange(url, clientID string) MessageMiddleware {
 // to send or receive with a specific topic pass the clientID parameter.
 func GetCounterExchange(url, clientID string) MessageMiddleware {
 	return retryMiddlewareCreation(MIDDLEWARE_CONNECTION_RETRIES, WAIT_INTERVAL, func() (MessageMiddleware, error) {
-		return NewExchangeMiddleware(url, "counter_exchange", "direct", []string{clientID})
+		return NewPersistentExchangeMiddleware(url, "counter_exchange", "direct", []string{clientID}, "counter-"+clientID)
 	})
 }
 
 // GetFinishExchange retrieves the middleware for the given exchange
 // to send or receive with apackage specific topic pass the topics parameter.
 // Possible topics: joiner, aggregator
-func GetFinishExchange(url string, topic []string) MessageMiddleware {
+func GetFinishExchange(url string, topic []string, receiverName string) MessageMiddleware {
+	if receiverName == "" {
+		return retryMiddlewareCreation(MIDDLEWARE_CONNECTION_RETRIES, WAIT_INTERVAL, func() (MessageMiddleware, error) {
+			return NewExchangeMiddleware(url, "finish_exchange", "direct", topic)
+		})
+	}
 	return retryMiddlewareCreation(MIDDLEWARE_CONNECTION_RETRIES, WAIT_INTERVAL, func() (MessageMiddleware, error) {
-		return NewExchangeMiddleware(url, "finish_exchange", "direct", topic)
-	})
-}
-
-/* --- Leader Election Exchanges --- */
-
-func GetLeaderElectionCoordExchange(url string, workerType enum.WorkerType) MessageMiddleware {
-	return retryMiddlewareCreation(MIDDLEWARE_CONNECTION_RETRIES, WAIT_INTERVAL, func() (MessageMiddleware, error) {
-		return NewExchangeMiddleware(url, "leader_election_exchange@"+string(workerType), "direct", []string{"coordinator"})
-	})
-}
-
-func GetLeaderElectionDiscoveryExchange(url string, workerType enum.WorkerType) MessageMiddleware {
-	return retryMiddlewareCreation(MIDDLEWARE_CONNECTION_RETRIES, WAIT_INTERVAL, func() (MessageMiddleware, error) {
-		return NewExchangeMiddleware(url, "leader_election_exchange@"+string(workerType), "direct", []string{"discovery"})
-	})
-}
-
-func GetLeaderElectionReceivingNodeExchange(url string, workerType enum.WorkerType, route string) MessageMiddleware {
-	return retryMiddlewareCreation(MIDDLEWARE_CONNECTION_RETRIES, WAIT_INTERVAL, func() (MessageMiddleware, error) {
-		return NewExchangeMiddleware(url, "leader_election_exchange@"+string(workerType), "direct", []string{"coordinator", "discovery", route})
-	})
-}
-
-func GetLeaderElectionSendingNodeExchange(url string, workerType enum.WorkerType, route string) MessageMiddleware {
-	return retryMiddlewareCreation(MIDDLEWARE_CONNECTION_RETRIES, WAIT_INTERVAL, func() (MessageMiddleware, error) {
-		return NewExchangeMiddleware(url, "leader_election_exchange@"+string(workerType), "direct", []string{route})
-	})
-}
-
-func GetLeaderElectionUpdatesExchange(url string, workerType enum.WorkerType, route string) MessageMiddleware {
-	return retryMiddlewareCreation(MIDDLEWARE_CONNECTION_RETRIES, WAIT_INTERVAL, func() (MessageMiddleware, error) {
-		return NewExchangeMiddleware(url, "leader_election_exchange@"+string(workerType), "direct", []string{"updates@" + route})
+		return NewPersistentExchangeMiddleware(url, "finish_exchange", "direct", topic, "fin-"+receiverName)
 	})
 }
 

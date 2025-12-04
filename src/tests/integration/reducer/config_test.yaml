@@ -2,3 +2,7 @@ gateway:
   address: "amqp://guest:guest@localhost:5672/"
 log:
   level: "DEBUG"
+heartbeat:
+  host: "egg_of_life"
+  port: 7777
+  interval: 200

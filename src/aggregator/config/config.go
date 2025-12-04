@@ -3,6 +3,7 @@ package config
 import (
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/pkg/errors"
 	"github.com/spf13/viper"
@@ -11,28 +12,26 @@ import (
 type HeartbeatConfig struct {
 	Host     string
 	Port     int
-	Interval int
+	Interval time.Duration
 }
 
 type Limits struct {
 	TransactionSendLimit int32
 	MaxAmountToSend      int
 }
-
 type Config struct {
-	Address            string
-	LogLevel           string
-	PersistenceEnabled bool
-	Limits             Limits
-	Heartbeat          HeartbeatConfig
+	ID        string
+	Address   string
+	LogLevel  string
+	Limits    Limits
+	Heartbeat HeartbeatConfig
 }
 
 func (c Config) String() string {
 	return fmt.Sprintf(
-		"Address: %s | LogLevel: %s | PersistenceEnabled: %t | Limits: [TransactionSendLimit=%d, MaxAmountToSend=%d]",
+		"Address: %s | LogLevel: %s | Limits: [TransactionSendLimit=%d, MaxAmountToSend=%d]",
 		c.Address,
 		c.LogLevel,
-		c.PersistenceEnabled,
 		c.Limits.TransactionSendLimit,
 		c.Limits.MaxAmountToSend,
 	)
@@ -55,20 +54,24 @@ func InitConfig(configFilePath string) (*Config, error) {
 		return nil, errors.Wrapf(err, "failed to read config file %s", configFile)
 	}
 
+	v.BindEnv("id", "ID")
+
 	heatbeatConf := HeartbeatConfig{
 		Host:     v.GetString("heartbeat.host"),
 		Port:     v.GetInt("heartbeat.port"),
-		Interval: v.GetInt("heartbeat.interval"),
+		Interval: time.Duration(v.GetInt("heartbeat.interval")) * time.Millisecond,
+	}
+
+	limits := Limits{
+		TransactionSendLimit: v.GetInt32("limits.transaction_send_limit"),
+		MaxAmountToSend:      v.GetInt("limits.max_amount_to_send"),
 	}
 
 	config := &Config{
-		Address:            v.GetString("gateway.address"),
-		LogLevel:           v.GetString("log.level"),
-		PersistenceEnabled: v.GetBool("persistence.enabled"),
-		Limits: Limits{
-			TransactionSendLimit: v.GetInt32("limits.transaction_send_limit"),
-			MaxAmountToSend:      v.GetInt("limits.max_amount_to_send"),
-		},
+		ID:        v.GetString("id"),
+		Address:   v.GetString("gateway.address"),
+		LogLevel:  v.GetString("log.level"),
+		Limits:    limits,
 		Heartbeat: heatbeatConf,
 	}
 

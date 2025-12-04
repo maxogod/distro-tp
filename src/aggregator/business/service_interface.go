@@ -1,7 +1,7 @@
 package business
 
 import (
-	"github.com/maxogod/distro-tp/src/common/models/raw"
+	"github.com/maxogod/distro-tp/src/common/models/protocol"
 	"github.com/maxogod/distro-tp/src/common/models/reduced"
 )
 
@@ -10,22 +10,13 @@ type AggregatorService interface {
 
 	// ------------ Store Functions -----------
 
-	// StoreTransactions stores raw transactions for a client as part of T1 task.
-	StoreTransactions(clientID string, transactions []*raw.Transaction) error
+	// StoreData stores raw data envelopes
+	// this is stored in a temp file, and only finalized upon ConfirmStorage call.
+	StoreData(clientID string, data *protocol.DataEnvelope) error
 
-	// StoreTotalProfitBySubtotal stores reduced TotalSumItem data for a client as part of T2_1 task.
-	StoreTotalItems(clientID string, reducedData *reduced.TotalSumItem) error
-
-	// StoreTotalPaymentValue stores reduced TotalPaymentValue data for a client as part of T3 task.
-	StoreTotalPaymentValue(clientID string, reducedData *reduced.TotalPaymentValue) error
-
-	// StoreCountedUserTransactions stores reduced CountedUserTransactions data for a client as part of T4 task.
-	StoreCountedUserTransactions(clientID string, reducedData *reduced.CountedUserTransactions) error
-
+	// ConfirmStorage finalizes the storage of data for a client.
+	FlushData(clientID string) error
 	// ------------ Retreival Functions -----------
-
-	// GetStoredTransactions retrieves stored raw transactions for a client as part of T1 task.
-	GetStoredTransactions(clientID string) ([]*raw.Transaction, error)
 
 	// GetStoredTotalItems retrieves stored reduced TotalSumItem data for a client as part of T2 task.
 	GetStoredTotalItems(clientID string) ([]*reduced.TotalSumItem, []*reduced.TotalSumItem, error)

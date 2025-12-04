@@ -10,6 +10,7 @@ import (
 
 	"github.com/maxogod/distro-tp/src/common/heartbeat"
 	"github.com/maxogod/distro-tp/src/common/logger"
+	commonNetwork "github.com/maxogod/distro-tp/src/common/network"
 	"github.com/maxogod/distro-tp/src/gateway/config"
 	"github.com/maxogod/distro-tp/src/gateway/internal/healthcheck"
 	"github.com/maxogod/distro-tp/src/gateway/internal/network"
@@ -30,7 +31,7 @@ func NewServer(conf *config.Config) *Server {
 		config:            conf,
 		connectionManager: network.NewConnectionManager(conf.Port),
 		clientManager:     manager.NewClientManager(conf),
-		pingServer:        healthcheck.NewPingServer(int(conf.HealthCheckPort)), // for health check
+		pingServer:        healthcheck.NewPingServer(conf.HealthCheckPort), // for health check
 		heartbeatSender:   heartbeat.NewHeartBeatHandler(conf.Heartbeat.Host, conf.Heartbeat.Port, conf.Heartbeat.Interval),
 	}
 	s.running.Store(true)
@@ -57,15 +58,29 @@ func (s *Server) Run() error {
 	for s.running.Load() {
 		s.clientManager.ReapStaleClients()
 
-		clientConnection, err := s.connectionManager.AcceptConnection()
-		if err != nil {
-			logger.Logger.Errorf("Failed to accept connection: %v", err)
+		clientConnection, connErr := s.connectionManager.AcceptConnection()
+		if connErr != nil {
+			if !s.running.Load() {
+				logger.Logger.Infof("action: shutdown_signal | result: closing listener")
+				break
+			}
+			logger.Logger.Errorf("Failed to accept connection: %v", connErr)
 			break
 		}
 
-		clientSession := s.clientManager.AddClient(clientConnection)
+		go func(conn commonNetwork.ConnectionInterface) {
+			clientSession := s.clientManager.AddClient(conn)
+			if clientSession == nil {
+				closeErr := conn.Close()
+				if closeErr != nil {
+					logger.Logger.Errorf("Failed to close connection: %v", closeErr)
+					return
+				}
+				return
+			}
 
-		go clientSession.ProcessRequest()
+			clientSession.ProcessRequest()
+		}(clientConnection)
 	}
 
 	return nil

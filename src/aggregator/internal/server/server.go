@@ -12,8 +12,10 @@ import (
 	"github.com/maxogod/distro-tp/src/common/logger"
 	"github.com/maxogod/distro-tp/src/common/middleware"
 	"github.com/maxogod/distro-tp/src/common/models/enum"
+	"github.com/maxogod/distro-tp/src/common/models/protocol"
 	"github.com/maxogod/distro-tp/src/common/worker"
-	cache "github.com/maxogod/distro-tp/src/common/worker/storage/disk_memory"
+	"github.com/maxogod/distro-tp/src/common/worker/storage"
+	"google.golang.org/protobuf/proto"
 )
 
 type Server struct {
@@ -24,24 +26,25 @@ type Server struct {
 func InitServer(conf *config.Config) *Server {
 
 	// initiate Queues and Exchanges
-	aggregatorInputQueue := middleware.GetAggregatorQueue(conf.Address)
+	aggregatorInputQueue := middleware.GetAggregatorQueue(conf.Address, conf.ID)
 	joinerOutputQueue := middleware.GetJoinerQueue(conf.Address)
-	finishExchange := middleware.GetFinishExchange(conf.Address, []string{string(enum.AggregatorWorker)})
+	finishExchange := middleware.GetFinishExchange(conf.Address, []string{string(enum.AggregatorWorker)}, conf.ID)
 
 	// initiate internal components
-	cacheService := cache.NewDiskMemoryStorage()
-	connectedClients := make(map[string]middleware.MessageMiddleware)
+	cacheService := storage.NewDiskMemoryStorage()
 
 	aggregatorService := business.NewAggregatorService(cacheService)
 
 	taskExecutor := task_executor.NewAggregatorExecutor(
 		conf,
-		connectedClients,
 		aggregatorService,
 		joinerOutputQueue,
 	)
 
-	taskHandler := worker.NewTaskHandler(taskExecutor, true)
+	// get last state from cache
+	lastState := getLastState(cacheService)
+
+	taskHandler := worker.NewTaskHandlerWithSeqs(taskExecutor, true, lastState)
 
 	messageHandler := worker.NewMessageHandler(
 		taskHandler,
@@ -66,12 +69,13 @@ func (s *Server) Run() error {
 
 	// This is a blocking call, it will run until an error occurs or
 	// the Close() method is called via a signal
+
 	e := s.messageHandler.Start()
 	if e != nil {
 		logger.Logger.Errorf("Error starting message handler: %v", e)
 		s.Shutdown()
-		return e
 	}
+
 	return nil
 }
 
@@ -93,7 +97,43 @@ func (s *Server) Shutdown() {
 	if err != nil {
 		logger.Logger.Errorf("Error closing message handler: %v", err)
 	}
-
 	s.heatbeatSender.Close()
 	logger.Logger.Debug("aggregator Worker server shut down successfully.")
+}
+
+// ----------- private helper function to get last state from cache ------------
+
+func getLastState(cacheService storage.StorageService) map[string][]int32 {
+
+	files := cacheService.GetAllFilesReferences()
+
+	lastState := make(map[string][]int32)
+
+	for _, file := range files {
+
+		read_ch, err := cacheService.ReadAllData(file)
+		if err != nil {
+			logger.Logger.Warnf("[%s] file could not be opened: %s", file, err.Error())
+			continue
+		}
+		sequenceNumbers := getSequenceNumbers(read_ch)
+		lastState[file] = sequenceNumbers
+		logger.Logger.Infof("[%s] file read successfully, %d sequence numbers found", file, len(sequenceNumbers))
+	}
+	return lastState
+}
+
+func getSequenceNumbers(read_ch chan []byte) []int32 {
+	sequenceNumbers := []int32{}
+	for dataEnvelope := range read_ch {
+		protoData := &protocol.DataEnvelope{}
+		err := proto.Unmarshal(dataEnvelope, protoData)
+		if err != nil {
+			logger.Logger.Debugf("Dirty Message found, ignoring: %v", err)
+			continue
+		}
+		sequenceNumbers = append(sequenceNumbers, protoData.SequenceNumber)
+	}
+	return sequenceNumbers
+
 }

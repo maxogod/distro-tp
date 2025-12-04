@@ -3,6 +3,7 @@ package config
 import (
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/maxogod/distro-tp/src/filter/internal/task_executor"
 	"github.com/pkg/errors"
@@ -12,10 +13,11 @@ import (
 type HeartbeatConfig struct {
 	Host     string
 	Port     int
-	Interval int
+	Interval time.Duration
 }
 
 type Config struct {
+	ID         string
 	Address    string
 	LogLevel   string
 	TaskConfig task_executor.TaskConfig
@@ -49,13 +51,16 @@ func InitConfig(configFilePath string) (*Config, error) {
 		return nil, errors.Wrapf(err, "failed to read config file %s", configFile)
 	}
 
+	v.BindEnv("id", "ID")
+
 	heatbeatConf := HeartbeatConfig{
 		Host:     v.GetString("heartbeat.host"),
 		Port:     v.GetInt("heartbeat.port"),
-		Interval: v.GetInt("heartbeat.interval"),
+		Interval: time.Duration(v.GetInt("heartbeat.interval")) * time.Millisecond,
 	}
 
 	config := &Config{
+		ID:       v.GetString("id"),
 		Address:  v.GetString("gateway.address"),
 		LogLevel: v.GetString("log.level"),
 		TaskConfig: task_executor.TaskConfig{

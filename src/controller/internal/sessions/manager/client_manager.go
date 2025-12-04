@@ -1,25 +1,45 @@
 package manager
 
 import (
+	"github.com/maxogod/distro-tp/src/common/logger"
+	"github.com/maxogod/distro-tp/src/common/models/enum"
+	"github.com/maxogod/distro-tp/src/common/models/protocol"
 	"github.com/maxogod/distro-tp/src/controller/config"
 	"github.com/maxogod/distro-tp/src/controller/internal/handler"
 	"github.com/maxogod/distro-tp/src/controller/internal/sessions/clients"
+	"github.com/maxogod/distro-tp/src/controller/internal/storage"
 )
 
 type clientManager struct {
 	clients map[string]clients.ClientSession
 	config  *config.Config
+	storage storage.CounterStorage
 }
 
-func NewClientManager(conf *config.Config) ClientManager {
+func NewClientManager(conf *config.Config, storage storage.CounterStorage) ClientManager {
 	return &clientManager{
 		clients: make(map[string]clients.ClientSession),
 		config:  conf,
+		storage: storage,
 	}
 }
 
-func (cm *clientManager) AddClient(id string) clients.ClientSession {
-	controlHandler := handler.NewControlHandler(cm.config.MiddlewareAddress, id)
+func (cm *clientManager) AddClient(id string, taskType enum.TaskType, storedCounters []*protocol.MessageCounter) clients.ClientSession {
+	if _, exists := cm.clients[id]; exists {
+		logger.Logger.Debugf("action: add_client | client_id: %s already exists for tasktype %s", id, string(taskType))
+		clientSession := cm.clients[id]
+		clientSession.SendControllerReady()
+		return nil
+	}
+
+	controlHandler := handler.NewControlHandler(
+		cm.config.MiddlewareAddress,
+		id,
+		taskType,
+		cm.storage,
+		storedCounters,
+		cm.config.MaxUnackedCounters,
+	)
 	session := clients.NewClientSession(id, controlHandler)
 	cm.clients[id] = session
 	return session

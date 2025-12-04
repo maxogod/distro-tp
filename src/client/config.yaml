@@ -5,8 +5,9 @@ server:
   host: "gateway"
   port: 8080
   connection_retries: 5
+  max_nodes: 3
 log:
-  level: "development"
+  level: "production"
 paths:
   transactions: "/transactions"
   transaction_items: "/transaction_items"

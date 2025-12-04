@@ -9,12 +9,18 @@ FROM golang:1.24.6 AS builder
 
 WORKDIR /app
 
+ARG BUILD_TAGS=""
+
 COPY go.sum go.mod ./
 COPY --from=deps /go/pkg/mod /go/pkg/mod
 COPY src/common/ ./src/common/
 COPY src/gateway/ ./src/gateway/
 
-RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -v -o ./app ./src/gateway/cmd
+RUN if [ -n "$BUILD_TAGS" ]; then \
+    CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -tags="$BUILD_TAGS" -ldflags="-s -w" -v -o ./app ./src/gateway/cmd; \
+    else \
+    CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -v -o ./app ./src/gateway/cmd; \
+    fi
 
 # ** Run binary **
 FROM alpine:latest AS runner

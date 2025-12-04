@@ -2,12 +2,12 @@ package task_executor
 
 import (
 	"fmt"
+	"sync"
 
 	"github.com/maxogod/distro-tp/src/aggregator/business"
 	"github.com/maxogod/distro-tp/src/aggregator/config"
 	"github.com/maxogod/distro-tp/src/common/middleware"
 	"github.com/maxogod/distro-tp/src/common/models/enum"
-	"github.com/maxogod/distro-tp/src/common/models/raw"
 	"github.com/maxogod/distro-tp/src/common/models/reduced"
 	"github.com/maxogod/distro-tp/src/common/worker"
 )
@@ -18,18 +18,19 @@ type finishExecutor struct {
 	finishExecutors   map[enum.TaskType]func(clientID string) error
 	outputQueue       middleware.MessageMiddleware
 	limits            config.Limits
+	ackHandlers       *sync.Map // map[clientTask][]func(bool, bool) error
 }
 
-func NewFinishExecutor(address string, aggregatorService business.AggregatorService, outputQueue middleware.MessageMiddleware, limits config.Limits) FinishExecutor {
+func NewFinishExecutor(address string, aggregatorService business.AggregatorService, outputQueue middleware.MessageMiddleware, limits config.Limits, ackHandlers *sync.Map) FinishExecutor {
 	fe := finishExecutor{
 		address:           address,
 		aggregatorService: aggregatorService,
 		outputQueue:       outputQueue,
 		limits:            limits,
+		ackHandlers:       ackHandlers,
 	}
 
 	fe.finishExecutors = map[enum.TaskType]func(clientID string) error{
-		enum.T1: fe.finishTask1,
 		enum.T2: fe.finishTask2,
 		enum.T3: fe.finishTask3,
 		enum.T4: fe.finishTask4,
@@ -43,43 +44,37 @@ func (fe *finishExecutor) SendAllData(clientID string, taskType enum.TaskType) e
 		return fmt.Errorf("no finish executor found for task type: %v", taskType)
 	}
 
-	return finishFunc(clientID)
-}
-
-func (fe *finishExecutor) finishTask1(clientID string) error {
-	processedDataQueue := middleware.GetProcessedDataExchange(fe.address, clientID)
-	defer func() {
-		processedDataQueue.Close()
-		fe.aggregatorService.RemoveData(clientID)
-	}()
-
-	results, err := fe.aggregatorService.GetStoredTransactions(clientID)
-	if err != nil {
-		return fmt.Errorf("[TASK 1] failed to get results for client %s: %v", clientID, err)
-	}
-	index := 0
-	lenResults := len(results)
-	for index < lenResults {
-		endIndex := index + int(fe.limits.TransactionSendLimit)
-		if endIndex > lenResults {
-			endIndex = lenResults
-		}
-		transactionBatch := &raw.TransactionBatch{
-			Transactions: results[index:endIndex],
-		}
-		if err := worker.SendDataToMiddleware(transactionBatch, enum.T1, clientID, 0, processedDataQueue); err != nil {
-			return fmt.Errorf("failed to send data to middleware: %v", err)
-		}
-		index = endIndex
+	if err := finishFunc(clientID); err != nil {
+		return err
 	}
 
-	return worker.SendDone(clientID, enum.T1, processedDataQueue)
+	return fe.AckClientMessages(clientID)
 }
+
+func (fe *finishExecutor) AckClientMessages(clientID string) error {
+	value, ok := fe.ackHandlers.Load(clientID)
+	if !ok {
+		return nil
+	}
+	handlers, ok := value.([]func(bool, bool) error)
+	if !ok {
+		return fmt.Errorf("invalid ack handlers type for client %s", clientID)
+	}
+	for i, handler := range handlers {
+		if err := handler(true, false); err != nil {
+			return fmt.Errorf("error executing ack handler %d for client %s: %v", i, clientID, err)
+		}
+	}
+	fe.ackHandlers.Delete(clientID)
+
+	//logger.Logger.Debugf("[%s] Acked %d messages", clientID, len(handlers))
+
+	return nil
+}
+
+// ----------------- private finish handlers ----------------
 
 func (fe *finishExecutor) finishTask2(clientID string) error {
-	defer func() {
-		fe.aggregatorService.RemoveData(clientID)
-	}()
 	subtotalResults, quantityResults, err := fe.aggregatorService.GetStoredTotalItems(clientID)
 	if err != nil {
 		return fmt.Errorf("[TASK 2] failed to get results for client %s: %v", clientID, err)
@@ -94,9 +89,6 @@ func (fe *finishExecutor) finishTask2(clientID string) error {
 }
 
 func (fe *finishExecutor) finishTask3(clientID string) error {
-	defer func() {
-		fe.aggregatorService.RemoveData(clientID)
-	}()
 	results, err := fe.aggregatorService.GetStoredTotalPaymentValue(clientID)
 	if err != nil {
 		return fmt.Errorf("[TASK 3] failed to get results for client %s: %v", clientID, err)
@@ -110,9 +102,6 @@ func (fe *finishExecutor) finishTask3(clientID string) error {
 }
 
 func (fe *finishExecutor) finishTask4(clientID string) error {
-	defer func() {
-		fe.aggregatorService.RemoveData(clientID)
-	}()
 	topUsersPerStore, err := fe.aggregatorService.GetStoredCountedUserTransactions(clientID)
 	if err != nil {
 		return fmt.Errorf("[TASK 4] failed to get results for client %s: %v", clientID, err)

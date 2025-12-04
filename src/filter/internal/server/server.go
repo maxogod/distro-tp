@@ -8,6 +8,7 @@ import (
 	"github.com/maxogod/distro-tp/src/common/heartbeat"
 	"github.com/maxogod/distro-tp/src/common/logger"
 	"github.com/maxogod/distro-tp/src/common/middleware"
+	"github.com/maxogod/distro-tp/src/common/models/enum"
 	"github.com/maxogod/distro-tp/src/common/worker"
 	"github.com/maxogod/distro-tp/src/filter/business"
 	"github.com/maxogod/distro-tp/src/filter/config"
@@ -22,7 +23,6 @@ type Server struct {
 func InitServer(conf *config.Config) *Server {
 	// initiateOutputs
 	filterInputQueue := middleware.GetFilterQueue(conf.Address)
-	aggregatorOutputQueue := middleware.GetAggregatorQueue(conf.Address)
 	groupByOutputQueue := middleware.GetGroupByQueue(conf.Address)
 
 	// initiate internal components
@@ -34,6 +34,8 @@ func InitServer(conf *config.Config) *Server {
 		conf.TaskConfig.TotalAmountThreshold,
 	)
 	connectedClients := make(map[string]middleware.MessageMiddleware)
+	processedOutputQueue := make(map[string]middleware.MessageMiddleware)
+	finishExchange := middleware.GetFinishExchange(conf.Address, []string{string(enum.FilterWorker)}, conf.ID)
 
 	taskExecutor := task_executor.NewFilterExecutor(
 		conf.TaskConfig,
@@ -41,7 +43,7 @@ func InitServer(conf *config.Config) *Server {
 		filterService,
 		connectedClients,
 		groupByOutputQueue,
-		aggregatorOutputQueue,
+		processedOutputQueue, // To be used in T1
 	)
 
 	taskHandler := worker.NewTaskHandler(taskExecutor, true)
@@ -49,7 +51,7 @@ func InitServer(conf *config.Config) *Server {
 	messageHandler := worker.NewMessageHandler(
 		taskHandler,
 		[]middleware.MessageMiddleware{filterInputQueue},
-		nil,
+		finishExchange,
 	)
 
 	return &Server{

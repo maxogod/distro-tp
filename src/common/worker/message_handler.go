@@ -7,6 +7,7 @@ import (
 	"github.com/maxogod/distro-tp/src/common/middleware"
 	"github.com/maxogod/distro-tp/src/common/models/enum"
 	"github.com/maxogod/distro-tp/src/common/models/protocol"
+	"github.com/maxogod/distro-tp/src/common/poison"
 	"github.com/maxogod/distro-tp/src/common/utils"
 	"google.golang.org/protobuf/proto"
 )
@@ -85,9 +86,7 @@ func (mh *messageHandler) Start() error {
 		case message := <-mh.inputChannel:
 			if err := mh.dataHandler.HandleData(message.dataEnvelope, message.ackHandler); err != nil {
 				logger.Logger.Warnf("Failed to handle data batch: %v", err)
-				return err
 			}
-
 		case message := <-mh.finisherChannel:
 			logger.Logger.Debugf("Finishing Client with ID: [%s]", message.dataEnvelope.ClientId)
 			mh.dataHandler.HandleFinishClient(message.dataEnvelope, message.ackHandler)
@@ -165,30 +164,40 @@ func SendDataToMiddleware(data proto.Message, taskType enum.TaskType, clientID s
 		return fmt.Errorf("failed to envelope message: %v", err)
 	}
 
-	if e := outputQueue.Send(envelope); e != middleware.MessageMiddlewareSuccess {
-		return fmt.Errorf("failed to send message to output queue: %d", int(e))
+	dups := poison.DuplicateIfPoisoned() // CONDITIONAL COMPILATION FOR TESTING
+
+	for range dups {
+		if e := outputQueue.Send(envelope); e != middleware.MessageMiddlewareSuccess {
+			return fmt.Errorf("failed to send message to output queue: %d", int(e))
+		}
 	}
+
+	poison.ExitIfPoisoned() // CONDITIONAL COMPILATION FOR TESTING
 
 	return nil
 }
 
 // SendCounterMessage is a utility function to send counter messages to a middleware.
-func SendCounterMessage(clientID string, amount, seq int, from, next enum.WorkerType, counterExchange middleware.MessageMiddleware) error {
+func SendCounterMessage(taskType enum.TaskType, clientID string, amount, seq int, from, next enum.WorkerType, counterExchange middleware.MessageMiddleware) error {
 	counterMessage := &protocol.MessageCounter{
 		ClientId:       clientID,
 		AmountSent:     int32(amount),
 		From:           string(from),
 		Next:           string(next),
 		SequenceNumber: int32(seq),
+		TaskType:       int32(taskType),
 	}
 	counterBytes, err := proto.Marshal(counterMessage)
 	if err != nil {
 		return fmt.Errorf("error marshaling message counter: %v", err)
 	}
 
-	sendErr := counterExchange.Send(counterBytes)
-	if sendErr != middleware.MessageMiddlewareSuccess {
-		return fmt.Errorf("error sending message counter: %v", sendErr)
+	dups := poison.DuplicateIfPoisoned() // CONDITIONAL COMPILATION FOR TESTING
+
+	for range dups {
+		if sendErr := counterExchange.Send(counterBytes); sendErr != middleware.MessageMiddlewareSuccess {
+			return fmt.Errorf("error sending message counter: %v", sendErr)
+		}
 	}
 	return nil
 }
@@ -207,8 +216,12 @@ func SendDone(clientID string, taskType enum.TaskType, outputQueue middleware.Me
 		return fmt.Errorf("failed to serialize done message: %v", err)
 	}
 
-	if e := outputQueue.Send(data); e != middleware.MessageMiddlewareSuccess {
-		return fmt.Errorf("failed to send message to output queue: %d", int(e))
+	dups := poison.DuplicateIfPoisoned() // CONDITIONAL COMPILATION FOR TESTING
+
+	for range dups {
+		if e := outputQueue.Send(data); e != middleware.MessageMiddlewareSuccess {
+			return fmt.Errorf("failed to send message to output queue: %d", int(e))
+		}
 	}
 
 	return nil

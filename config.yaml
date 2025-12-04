@@ -1,6 +1,20 @@
 services:
-  - filter: 2
-  - group_by: 2
-  - reducer: 2
-  - joiner: 2
-  - client: 4
+  gateway:
+    instances: 2
+  controller:
+    instances: 2
+  filter:
+    instances: 2
+    tags: "poison low_prob"
+  group_by:
+    instances: 2
+    tags: "poison low_prob"
+  reducer:
+    instances: 2
+    tags: "poison low_prob"
+  aggregator:
+    instances: 3
+  joiner:
+    instances: 2
+  client:
+    instances: 4

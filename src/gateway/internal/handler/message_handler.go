@@ -2,7 +2,7 @@ package handler
 
 import (
 	"fmt"
-	"time"
+	"hash/crc32"
 
 	"github.com/maxogod/distro-tp/src/common/logger"
 	"github.com/maxogod/distro-tp/src/common/middleware"
@@ -11,8 +11,14 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
+const INITIAL_REF_DATA_SEQ_NUMBER = 1
+
+// TODO: Sacar a config
+const MaxControllerNodes = 2
+
 type messageHandler struct {
 	clientID string
+	taskType enum.TaskType
 
 	// Data forwarding middlewares
 	messagesSentToNextLayer int
@@ -26,32 +32,33 @@ type messageHandler struct {
 	// Controller middleware
 	initControlQueue     middleware.MessageMiddleware
 	controlReadyExchange middleware.MessageMiddleware
-	counterExchange      middleware.MessageMiddleware
 
 	startAwaitingAck chan bool
 	ackReceived      chan bool
 	routineReadyCh   chan bool
-	receivingTimeout time.Duration
+	refDataSeqNumber int32
+	middlewareUrl    string
 }
 
-func NewMessageHandler(middlewareUrl, clientID string, receivingTimeout int) MessageHandler {
+func NewMessageHandler(middlewareUrl, clientID string) MessageHandler {
 	h := &messageHandler{
-		clientID: clientID,
+		clientID:         clientID,
+		taskType:         enum.TaskType(0),
+		refDataSeqNumber: INITIAL_REF_DATA_SEQ_NUMBER,
+		middlewareUrl:    middlewareUrl,
 
 		filtersQueueMiddleware: middleware.GetFilterQueue(middlewareUrl),
-		joinerRefExchange:      middleware.GetRefDataExchange(middlewareUrl),
+		joinerRefExchange:      middleware.GetRefDataExchange(middlewareUrl, ""),
 
 		processedDataExchangeMiddleware: middleware.GetProcessedDataExchange(middlewareUrl, clientID),
 		processedCh:                     make(chan *protocol.DataEnvelope, 9999),
 
 		initControlQueue:     middleware.GetInitControlQueue(middlewareUrl),
 		controlReadyExchange: middleware.GetClientControlExchange(middlewareUrl, clientID),
-		counterExchange:      middleware.GetCounterExchange(middlewareUrl, clientID+"@"+string(enum.Gateway)),
 
 		startAwaitingAck: make(chan bool),
 		ackReceived:      make(chan bool),
 		routineReadyCh:   make(chan bool),
-		receivingTimeout: time.Duration(receivingTimeout) * time.Second,
 	}
 
 	go h.startReportDataListener()
@@ -63,26 +70,26 @@ func NewMessageHandler(middlewareUrl, clientID string, receivingTimeout int) Mes
 	return h
 }
 
-func (mh *messageHandler) AwaitControllerInit() error {
-	// Send init message to controller
+func (mh *messageHandler) SendControllerInit(taskType enum.TaskType) error {
+	mh.taskType = taskType
 	controlMessage := &protocol.ControlMessage{
-		ClientId: mh.clientID,
+		ClientId:     mh.clientID,
+		TaskType:     int32(taskType),
+		ControllerId: getControllerIDForClient(mh.clientID),
 	}
 	payload, err := proto.Marshal(controlMessage)
 	if err != nil {
 		return err
 	}
-	if err := mh.initControlQueue.Send(payload); err != middleware.MessageMiddlewareSuccess {
+	if sendErr := mh.initControlQueue.Send(payload); sendErr != middleware.MessageMiddlewareSuccess {
 		return fmt.Errorf("error sending init control message to controller")
 	}
+	return nil
+}
 
-	// Await ack from controller
+func (mh *messageHandler) AwaitControllerInit() error {
 	mh.startAwaitingAck <- true
-	ackReceived := <-mh.ackReceived
-	if !ackReceived {
-		return fmt.Errorf("did not receive ack from controller")
-	}
-
+	<-mh.ackReceived
 	return nil
 }
 
@@ -92,12 +99,43 @@ func (mh *messageHandler) NotifyClientMessagesCount() error {
 		From:       string(enum.Gateway),
 		Next:       string(enum.FilterWorker),
 		AmountSent: int32(mh.messagesSentToNextLayer),
+		TaskType:   int32(mh.taskType),
 	}
 	payload, err := proto.Marshal(countMessage)
 	if err != nil {
 		return err
 	}
-	if err := mh.counterExchange.Send(payload); err != middleware.MessageMiddlewareSuccess {
+
+	counterExchange := middleware.GetCounterExchange(mh.middlewareUrl, mh.clientID+"@"+string(enum.Gateway))
+	defer counterExchange.Close()
+
+	if sendErr := counterExchange.Send(payload); sendErr != middleware.MessageMiddlewareSuccess {
+		return fmt.Errorf("error sending messages count to controller")
+	}
+	return nil
+}
+
+func (mh *messageHandler) NotifyCompletion(clientId string, isAbort bool) error {
+	next := string(enum.None)
+	if isAbort {
+		next = string(enum.Controller)
+	}
+
+	countMessage := &protocol.MessageCounter{
+		ClientId: clientId,
+		From:     string(enum.Gateway),
+		Next:     next,
+		TaskType: int32(mh.taskType),
+	}
+	payload, err := proto.Marshal(countMessage)
+	if err != nil {
+		return err
+	}
+
+	counterExchange := middleware.GetCounterExchange(mh.middlewareUrl, clientId+"@"+string(enum.Gateway))
+	defer counterExchange.Close()
+
+	if sendErr := counterExchange.Send(payload); sendErr != middleware.MessageMiddlewareSuccess {
 		return fmt.Errorf("error sending messages count to controller")
 	}
 	return nil
@@ -122,6 +160,7 @@ func (mh *messageHandler) ForwardData(dataBatch *protocol.DataEnvelope) error {
 
 func (mh *messageHandler) ForwardReferenceData(dataBatch *protocol.DataEnvelope) error {
 	dataBatch.ClientId = mh.clientID
+	dataBatch.SequenceNumber = mh.refDataSeqNumber
 
 	dateBytes, err := proto.Marshal(dataBatch)
 	if err != nil {
@@ -132,6 +171,7 @@ func (mh *messageHandler) ForwardReferenceData(dataBatch *protocol.DataEnvelope)
 	if sendErr := mh.joinerRefExchange.Send(dateBytes); sendErr != middleware.MessageMiddlewareSuccess {
 		return fmt.Errorf("error sending reference data batch to joiner exchange")
 	}
+	mh.refDataSeqNumber++
 	return nil
 }
 
@@ -159,42 +199,21 @@ func (mh *messageHandler) startReportDataListener() {
 		logger.Logger.Debugf("[%s] Started listening for processed data", mh.clientID)
 		mh.routineReadyCh <- true
 		receiving := true
-		firstMessageReceived := false // To track if aggregator has started sending data
-
-		timer := time.NewTimer(mh.receivingTimeout)
-		defer timer.Stop()
 		defer close(mh.processedCh)
 
 		for receiving {
-			select {
-			case msg := <-msgs:
-				// Reset timer
-				if !timer.Stop() {
-					<-timer.C
-				}
-				timer.Reset(mh.receivingTimeout)
+			msg := <-msgs
+			envelope := &protocol.DataEnvelope{}
+			err := proto.Unmarshal(msg.Body, envelope)
+			if err != nil || envelope.GetClientId() != mh.clientID {
+				msg.Nack(false, false) // Discard unwanted messages
+				continue
+			}
 
-				envelope := &protocol.DataEnvelope{}
-				err := proto.Unmarshal(msg.Body, envelope)
-				if err != nil || envelope.GetClientId() != mh.clientID {
-					msg.Nack(false, false) // Discard unwanted messages
-					continue
-				}
-
-				mh.processedCh <- envelope
-				msg.Ack(false)
-				if envelope.GetIsDone() && enum.TaskType(envelope.GetTaskType()) != enum.T2_1 {
-					receiving = false
-				} else if !firstMessageReceived {
-					firstMessageReceived = true
-				}
-			case <-timer.C:
-				// Only stop receiving if at least one message was received before
-				if firstMessageReceived {
-					logger.Logger.Warnf("[%s] Timeout waiting for processed data", mh.clientID)
-					receiving = false
-				}
-				timer.Reset(mh.receivingTimeout)
+			mh.processedCh <- envelope
+			msg.Ack(false)
+			if envelope.GetIsDone() {
+				receiving = false
 			}
 		}
 		logger.Logger.Debugf("[%s] Finished listening for processed data", mh.clientID)
@@ -215,31 +234,30 @@ func (mh *messageHandler) awaitControllerAckListener() {
 		ackReceived := false
 
 		for waiting {
-			select {
-			case msg := <-msgs:
-				controlMessage := &protocol.ControlMessage{}
-				err := proto.Unmarshal(msg.Body, controlMessage)
-				if err != nil || controlMessage.GetClientId() != mh.clientID {
-					msg.Nack(false, false) // Discard unwanted messages
-					logger.Logger.Warnf("[%s] Received invalid control message while waiting for ack", mh.clientID)
-					continue
-				}
-
-				if controlMessage.GetIsAck() {
-					waiting = false
-					ackReceived = true
-					logger.Logger.Infof("[%s] Received controller ack for initialization", mh.clientID)
-				}
-				msg.Ack(false)
-			case <-time.After(mh.receivingTimeout):
-				waiting = false
-				ackReceived = false
-				logger.Logger.Warnf("[%s] Timeout waiting for controller ack after %v", mh.clientID, mh.receivingTimeout)
+			msg := <-msgs
+			controlMessage := &protocol.ControlMessage{}
+			err := proto.Unmarshal(msg.Body, controlMessage)
+			if err != nil || controlMessage.GetClientId() != mh.clientID {
+				msg.Nack(false, false) // Discard unwanted messages
+				logger.Logger.Warnf("[%s] Received invalid control message while waiting for ack", mh.clientID)
+				continue
 			}
+
+			if controlMessage.GetIsAck() {
+				waiting = false
+				ackReceived = true
+				logger.Logger.Infof("[%s] Received controller ack for initialization", mh.clientID)
+			}
+			msg.Ack(false)
 		}
 
 		mh.ackReceived <- ackReceived
 		done <- true
 	})
 	<-done
+}
+
+func getControllerIDForClient(clientID string) int32 {
+	hashValue := crc32.ChecksumIEEE([]byte(clientID))
+	return int32(hashValue%MaxControllerNodes) + 1
 }

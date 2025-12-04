@@ -3,6 +3,7 @@ package config
 import (
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/pkg/errors"
 	"github.com/spf13/viper"
@@ -11,10 +12,11 @@ import (
 type HeartbeatConfig struct {
 	Host     string
 	Port     int
-	Interval int
+	Interval time.Duration
 }
 
 type Config struct {
+	ID                   string
 	Address              string
 	LogLevel             string
 	AmountOfUsersPerFile int
@@ -47,13 +49,16 @@ func InitConfig(configFilePath string) (*Config, error) {
 		return nil, errors.Wrapf(err, "failed to read config file %s", configFile)
 	}
 
+	v.BindEnv("id", "ID")
+
 	heatbeatConf := HeartbeatConfig{
 		Host:     v.GetString("heartbeat.host"),
 		Port:     v.GetInt("heartbeat.port"),
-		Interval: v.GetInt("heartbeat.interval"),
+		Interval: time.Duration(v.GetInt("heartbeat.interval")) * time.Millisecond,
 	}
 
 	config := &Config{
+		ID:                   v.GetString("id"),
 		Address:              v.GetString("gateway.address"),
 		LogLevel:             v.GetString("log.level"),
 		AmountOfUsersPerFile: v.GetInt("amount_of_users_per_file"),

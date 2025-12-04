@@ -44,13 +44,30 @@ func TestSequentialRun(t *testing.T) {
 	aggregatorOutputQueue.Delete()
 }
 
-
-
 func t3JoinerMock(t *testing.T) {
 	joinerInputQueue := middleware.GetJoinerQueue(url)
 	finishExchange := middleware.GetFinishExchange(url, []string{string(enum.JoinerWorker)})
 	clientID := "test-client-3"
-	aggregatorOutputQueue := middleware.GetAggregatorQueue(url)
+	processDataQueue := middleware.GetProcessedDataExchange(url, clientID)
+
+	var tpvItems []*reduced.TotalPaymentValueBatch
+	done := make(chan bool, 1)
+	_ = processDataQueue.StartConsuming(func(consumeChannel middleware.ConsumeChannel, d chan error) {
+		t.Log("Starting to consume messages for T3")
+		for msg := range consumeChannel {
+			msg.Ack(false)
+			dataBatch, _ := utils.GetDataEnvelope(msg.Body)
+
+			t.Logf("Received TPV: %v", dataBatch)
+			tpv := &reduced.TotalPaymentValueBatch{}
+			err := proto.Unmarshal(dataBatch.Payload, tpv)
+			assert.Nil(t, err)
+			tpvItems = append(tpvItems, tpv)
+
+			break
+		}
+		done <- true
+	})
 
 	// --- Send T3 related data references to joiner ---
 	storeBatch := &raw.StoreBatch{
@@ -85,11 +102,7 @@ func t3JoinerMock(t *testing.T) {
 
 	// --- Send T3 data to joiner ---
 
-	batchTPV := &reduced.TotalPaymentValueBatch{
-		TotalPaymentValues: MockTPV,
-	}
-
-	serializedTPV, _ := proto.Marshal(batchTPV)
+	serializedTPV, _ := proto.Marshal(&MockTPV)
 	dataEnvelope := protocol.DataEnvelope{
 		ClientId: clientID,
 		TaskType: int32(enum.T3),
@@ -98,47 +111,24 @@ func t3JoinerMock(t *testing.T) {
 	serializedDataEnvelope, _ := proto.Marshal(&dataEnvelope)
 	joinerInputQueue.Send(serializedDataEnvelope)
 
-	tpvItems := []*reduced.TotalPaymentValueBatch{}
-
-	doneCounter := 1
-
-	done := make(chan bool, 1)
-	e = aggregatorOutputQueue.StartConsuming(func(consumeChannel middleware.ConsumeChannel, d chan error) {
-		t.Log("Starting to consume messages for T3")
-		for msg := range consumeChannel {
-			msg.Ack(false)
-			dataBatch, _ := utils.GetDataEnvelope(msg.Body)
-
-			tpv := &reduced.TotalPaymentValueBatch{}
-			err := proto.Unmarshal(dataBatch.Payload, tpv)
-			assert.Nil(t, err)
-			tpvItems = append(tpvItems, tpv)
-
-			doneCounter--
-			if doneCounter == 0 {
-				break
-			}
-		}
-		done <- true
-	})
 	select {
 	case <-done:
 	case <-time.After(30 * time.Second):
 		t.Error("Test timed out waiting for results")
 	}
 	assert.Equal(t, 0, int(e))
-	assert.Equal(t, len(MockTpvOutput), len(tpvItems[0].TotalPaymentValues), "Expected same amount of Total profit items after joining")
+	assert.Equal(t, len(MockTpvOutput.GetTotalPaymentValues()), len(tpvItems[0].TotalPaymentValues), "Expected same amount of Total profit items after joining")
 
 	for _, tpvBatch := range tpvItems {
 		for i, tq := range tpvBatch.TotalPaymentValues {
-			assert.Equal(t, MockTpvOutput[i].Semester, tq.Semester)
-			assert.Equal(t, MockTpvOutput[i].StoreId, tq.StoreId)
-			assert.Equal(t, MockTpvOutput[i].FinalAmount, tq.FinalAmount)
+			assert.Equal(t, MockTpvOutput.GetTotalPaymentValues()[i].Semester, tq.Semester)
+			assert.Equal(t, MockTpvOutput.GetTotalPaymentValues()[i].StoreId, tq.StoreId)
+			assert.Equal(t, MockTpvOutput.GetTotalPaymentValues()[i].FinalAmount, tq.FinalAmount)
 		}
 	}
 
-	aggregatorOutputQueue.StopConsuming()
-	aggregatorOutputQueue.Close()
+	processDataQueue.StopConsuming()
+	processDataQueue.Close()
 	joinerInputQueue.Close()
 	finishExchange.Close()
 }
@@ -147,7 +137,25 @@ func t4JoinerMock(t *testing.T) {
 	joinerInputQueue := middleware.GetJoinerQueue(url)
 	finishExchange := middleware.GetFinishExchange(url, []string{string(enum.JoinerWorker)})
 	clientID := "test-client-4"
-	aggregatorOutputQueue := middleware.GetAggregatorQueue(url)
+	processDataQueue := middleware.GetProcessedDataExchange(url, clientID)
+
+	var countedTransactionItems []*reduced.CountedUserTransactionBatch
+	done := make(chan bool, 1)
+	_ = processDataQueue.StartConsuming(func(consumeChannel middleware.ConsumeChannel, d chan error) {
+		t.Log("Starting to consume messages for T4")
+		for msg := range consumeChannel {
+			msg.Ack(false)
+			dataBatch, _ := utils.GetDataEnvelope(msg.Body)
+
+			ct := &reduced.CountedUserTransactionBatch{}
+			err := proto.Unmarshal(dataBatch.Payload, ct)
+			assert.Nil(t, err)
+			countedTransactionItems = append(countedTransactionItems, ct)
+
+			break
+		}
+		done <- true
+	})
 
 	// --- Send T4 related data references to joiner ---
 	// Send Stores:
@@ -205,11 +213,7 @@ func t4JoinerMock(t *testing.T) {
 
 	// --- Send T4 data to joiner ---
 
-	batchCT := &reduced.CountedUserTransactionBatch{
-		CountedUserTransactions: MockCountedUserTransactions,
-	}
-
-	serializedCT, _ := proto.Marshal(batchCT)
+	serializedCT, _ := proto.Marshal(&MockCountedUserTransactions)
 	dataEnvelope := protocol.DataEnvelope{
 		ClientId: clientID,
 		TaskType: int32(enum.T4),
@@ -218,47 +222,24 @@ func t4JoinerMock(t *testing.T) {
 	serializedDataEnvelope, _ := proto.Marshal(&dataEnvelope)
 	joinerInputQueue.Send(serializedDataEnvelope)
 
-	countedTransactionItems := []*reduced.CountedUserTransactionBatch{}
-
-	doneCounter := 1
-
-	done := make(chan bool, 1)
-	e = aggregatorOutputQueue.StartConsuming(func(consumeChannel middleware.ConsumeChannel, d chan error) {
-		t.Log("Starting to consume messages for T4")
-		for msg := range consumeChannel {
-			msg.Ack(false)
-			dataBatch, _ := utils.GetDataEnvelope(msg.Body)
-
-			ct := &reduced.CountedUserTransactionBatch{}
-			err := proto.Unmarshal(dataBatch.Payload, ct)
-			assert.Nil(t, err)
-			countedTransactionItems = append(countedTransactionItems, ct)
-
-			doneCounter--
-			if doneCounter == 0 {
-				break
-			}
-		}
-		done <- true
-	})
 	select {
 	case <-done:
 	case <-time.After(30 * time.Second):
 		t.Error("Test timed out waiting for results")
 	}
 	assert.Equal(t, 0, int(e))
-	assert.Equal(t, len(MockCountedUserTransactionsOutput), len(countedTransactionItems[0].CountedUserTransactions), "Expected same amount of Total profit items after joining")
+	assert.Equal(t, len(MockCountedUserTransactionsOutput.GetCountedUserTransactions()), len(countedTransactionItems[0].CountedUserTransactions), "Expected same amount of Total profit items after joining")
 
 	for _, ctBatch := range countedTransactionItems {
 		for i, tq := range ctBatch.CountedUserTransactions {
-			assert.Equal(t, MockCountedUserTransactionsOutput[i].UserId, tq.UserId)
-			assert.Equal(t, MockCountedUserTransactionsOutput[i].Birthdate, tq.Birthdate)
-			assert.Equal(t, MockCountedUserTransactionsOutput[i].StoreId, tq.StoreId)
+			assert.Equal(t, MockCountedUserTransactionsOutput.GetCountedUserTransactions()[i].UserId, tq.UserId)
+			assert.Equal(t, MockCountedUserTransactionsOutput.GetCountedUserTransactions()[i].Birthdate, tq.Birthdate)
+			assert.Equal(t, MockCountedUserTransactionsOutput.GetCountedUserTransactions()[i].StoreId, tq.StoreId)
 		}
 	}
 
-	aggregatorOutputQueue.StopConsuming()
-	aggregatorOutputQueue.Close()
+	processDataQueue.StopConsuming()
+	processDataQueue.Close()
 	joinerInputQueue.Close()
 	finishExchange.Close()
 }

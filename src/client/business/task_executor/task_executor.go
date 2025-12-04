@@ -1,9 +1,11 @@
 package task_executor
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 
+	"github.com/google/uuid"
 	"github.com/maxogod/distro-tp/src/client/business/file_service"
 	"github.com/maxogod/distro-tp/src/client/config"
 	"github.com/maxogod/distro-tp/src/client/internal/utils"
@@ -47,13 +49,12 @@ func (t *taskExecutor) Task1() error {
 		utils.TransactionBatchFromList,
 	)
 	if err != nil {
-		logger.Logger.Errorf("failed to send transactions data: %v", err)
 		return err
 	}
 
 	logger.Logger.Debug("All transactions data sent, waiting for results...")
 
-	t.receiveAndSaveResults(
+	return t.receiveAndSaveResults(
 		filepath.Join(t.outputPath, t.conf.OutputFiles.T1),
 		t.conf.Headers.T1,
 		func(dataBatch *protocol.DataEnvelope, ch chan string) {
@@ -69,8 +70,6 @@ func (t *taskExecutor) Task1() error {
 			}
 		},
 	)
-
-	return nil
 }
 
 func (t *taskExecutor) Task2() error {
@@ -84,7 +83,6 @@ func (t *taskExecutor) Task2() error {
 		utils.MenuItemBatchFromList,
 	)
 	if err != nil {
-		logger.Logger.Errorf("failed to send menu items data: %v", err)
 		return err
 	}
 
@@ -98,16 +96,16 @@ func (t *taskExecutor) Task2() error {
 		utils.TransactionItemsBatchFromList,
 	)
 	if err != nil {
-		logger.Logger.Errorf("failed to send transaction items data: %v", err)
 		return err
 	}
+
+	logger.Logger.Debug("All data sent, waiting for results...")
 
 	// Receive and save results
 
 	res, err := t.conn.ReceiveData()
 	if err != nil {
-		logger.Logger.Debugf("connection with server closed")
-		return nil
+		return err
 	}
 	dataEnvelope := &protocol.DataEnvelope{}
 	if err := proto.Unmarshal(res, dataEnvelope); err != nil {
@@ -120,27 +118,37 @@ func (t *taskExecutor) Task2() error {
 		return nil
 	}
 
+	logger.Logger.Debug("Saving results for T2_1")
+
 	t.saveEntireResults(
 		filepath.Join(t.outputPath, t.conf.OutputFiles.T2_1),
 		t.conf.Headers.T2_1,
 		func(ch chan string) {
+			logger.Logger.Debugf("Start generateString for T2_1")
 			for _, item := range data.GetTotalSumItemsBySubtotal() {
 				line := utils.MostProfitableItemsToCsv(item)
 				ch <- line
 			}
+			logger.Logger.Debugf("Finish generateString for T2_1")
 		},
 	)
+
+	logger.Logger.Debug("Saving results for T2_2")
 
 	t.saveEntireResults(
 		filepath.Join(t.outputPath, t.conf.OutputFiles.T2_2),
 		t.conf.Headers.T2_2,
 		func(ch chan string) {
+			logger.Logger.Debugf("Start generateString for T2_2")
 			for _, item := range data.GetTotalSumItemsByQuantity() {
 				line := utils.BestSellingItemsToCsv(item)
 				ch <- line
 			}
+			logger.Logger.Debugf("Finish generateString for T2_2")
 		},
 	)
+
+	logger.Logger.Debug("Saving results finished")
 
 	return nil
 }
@@ -156,7 +164,6 @@ func (t *taskExecutor) Task3() error {
 		utils.StoreBatchFromList,
 	)
 	if err != nil {
-		logger.Logger.Errorf("failed to send stores data: %v", err)
 		return err
 	}
 
@@ -170,16 +177,17 @@ func (t *taskExecutor) Task3() error {
 		utils.TransactionBatchFromList,
 	)
 	if err != nil {
-		logger.Logger.Errorf("failed to send transactions data: %v", err)
 		return err
 	}
 
-	t.receiveAndSaveEntireResults(
+	logger.Logger.Debug("All data sent, waiting for results...")
+
+	return t.receiveAndSaveResults(
 		filepath.Join(t.outputPath, t.conf.OutputFiles.T3),
 		t.conf.Headers.T3,
 		func(dataBatch *protocol.DataEnvelope, ch chan string) {
 			data := &reduced.TotalPaymentValueBatch{}
-			if err := proto.Unmarshal(dataBatch.Payload, data); err != nil {
+			if err = proto.Unmarshal(dataBatch.Payload, data); err != nil {
 				logger.Logger.Errorf("failed to unmarshal counted user transactions batch from server: %v", err)
 				return
 			}
@@ -189,8 +197,6 @@ func (t *taskExecutor) Task3() error {
 			}
 		},
 	)
-
-	return nil
 }
 
 func (t *taskExecutor) Task4() error {
@@ -204,7 +210,6 @@ func (t *taskExecutor) Task4() error {
 		utils.UserBatchFromList,
 	)
 	if err != nil {
-		logger.Logger.Errorf("failed to send users data: %v", err)
 		return err
 	}
 
@@ -218,7 +223,6 @@ func (t *taskExecutor) Task4() error {
 		utils.StoreBatchFromList,
 	)
 	if err != nil {
-		logger.Logger.Errorf("failed to send stores data: %v", err)
 		return err
 	}
 
@@ -232,18 +236,19 @@ func (t *taskExecutor) Task4() error {
 		utils.TransactionBatchFromList,
 	)
 	if err != nil {
-		logger.Logger.Errorf("failed to send transactions data: %v", err)
 		return err
 	}
 
+	logger.Logger.Debug("All data sent, waiting for results...")
+
 	// Receive and save results
 
-	t.receiveAndSaveEntireResults(
+	return t.receiveAndSaveResults(
 		filepath.Join(t.outputPath, t.conf.OutputFiles.T4),
 		t.conf.Headers.T4,
 		func(dataBatch *protocol.DataEnvelope, ch chan string) {
 			data := &reduced.CountedUserTransactionBatch{}
-			if err := proto.Unmarshal(dataBatch.Payload, data); err != nil {
+			if err = proto.Unmarshal(dataBatch.Payload, data); err != nil {
 				logger.Logger.Errorf("failed to unmarshal counted user transactions batch from server: %v", err)
 				return
 			}
@@ -253,13 +258,11 @@ func (t *taskExecutor) Task4() error {
 			}
 		},
 	)
-
-	return nil
 }
 
 /* --- UTILS --- */
 
-func (t taskExecutor) readAndSendData(
+func (t *taskExecutor) readAndSendData(
 	taskType enum.TaskType,
 	dataDir string,
 	isRef bool,
@@ -314,83 +317,100 @@ func (t taskExecutor) readAndSendData(
 	return nil
 }
 
-func (t taskExecutor) receiveAndSaveResults(
+func (t *taskExecutor) receiveAndSaveResults(
 	path,
 	header string,
 	generateStringObject func(*protocol.DataEnvelope, chan string),
 ) error {
 	batchesCh := make(chan string)
+	doneCh := make(chan bool)
 
-	go func() {
-		defer close(batchesCh)
-		for {
-			res, err := t.conn.ReceiveData()
-			if err != nil {
-				logger.Logger.Debugf("connection with server closed")
-				return
-			}
-			dataBatch := &protocol.DataEnvelope{}
-			if err := proto.Unmarshal(res, dataBatch); err != nil {
-				logger.Logger.Errorf("failed to unmarshal response from server: %v", err)
-				return
-			} else if dataBatch.GetIsDone() {
-				break // No more batches
-			}
+	go t.fs.SaveCsvAsBatches(path, batchesCh, header, doneCh)
 
-			generateStringObject(dataBatch, batchesCh)
+	for {
+		res, err := t.conn.ReceiveData()
+		if err != nil {
+			logger.Logger.Debugf("connection with server closed")
+			return err
 		}
-	}()
+		dataBatch := &protocol.DataEnvelope{}
+		if err = proto.Unmarshal(res, dataBatch); err != nil {
+			logger.Logger.Errorf("failed to unmarshal response from server: %v", err)
+			return err
+		} else if dataBatch.GetIsDone() {
+			break // No more batches
+		}
 
-	t.fs.SaveCsvAsBatches(path, batchesCh, header)
+		generateStringObject(dataBatch, batchesCh)
+	}
+
+	close(batchesCh)
+	<-doneCh
 	logger.Logger.Debug("Finished saving data")
 
 	return nil
 }
 
-func (t taskExecutor) receiveAndSaveEntireResults(
-	path,
-	header string,
-	generateStringObject func(*protocol.DataEnvelope, chan string),
-) error {
-	batchesCh := make(chan string)
-
-	res, err := t.conn.ReceiveData()
-	if err != nil {
-		logger.Logger.Debugf("connection with server closed")
-		return nil
-	}
-	dataEnvelope := &protocol.DataEnvelope{}
-	if err := proto.Unmarshal(res, dataEnvelope); err != nil {
-		logger.Logger.Errorf("failed to unmarshal response from server: %v", err)
-		return nil
-	}
-
-	go func() {
-		defer close(batchesCh)
-		generateStringObject(dataEnvelope, batchesCh)
-	}()
-
-	t.fs.SaveCsvAsBatches(path, batchesCh, header)
-	logger.Logger.Debug("Finished saving data")
-
-	return nil
-}
-
-func (t taskExecutor) saveEntireResults(
+func (t *taskExecutor) saveEntireResults(
 	path,
 	header string,
 	generateStringObject func(chan string),
 ) error {
 	batchesCh := make(chan string)
+	doneCh := make(chan bool, 9999)
+
 	go func() {
 		defer close(batchesCh)
 		generateStringObject(batchesCh)
 	}()
-	t.fs.SaveCsvAsBatches(path, batchesCh, header)
+	t.fs.SaveCsvAsBatches(path, batchesCh, header, doneCh)
+	<-doneCh
 	logger.Logger.Debug("Finished saving data")
 	return nil
 }
 
 func (t *taskExecutor) Close() {
 	t.fs.Close()
+}
+
+func (t *taskExecutor) SendRequestForTask(taskType enum.TaskType, clientId string) error {
+	if clientId == "" {
+		clientId = uuid.Nil.String()
+	}
+
+	msg := &protocol.ControlMessage{
+		TaskType: int32(taskType),
+		ClientId: clientId,
+	}
+	payload, err := proto.Marshal(msg)
+	if err != nil {
+		return err
+	}
+
+	return t.conn.SendData(payload)
+}
+
+func (t *taskExecutor) AwaitRequestAck(taskType enum.TaskType) (string, error) {
+	data, err := t.conn.ReceiveData()
+	if err != nil {
+		return "", err
+	}
+
+	controlMsg := &protocol.ControlMessage{}
+	if err = proto.Unmarshal(data, controlMsg); err != nil {
+		return "", err
+	}
+
+	if !controlMsg.GetIsAck() {
+		return "", fmt.Errorf("received non-ack control message for task %d", taskType)
+	}
+
+	if controlMsg.GetTaskType() != int32(taskType) {
+		return "", fmt.Errorf("received ack for unexpected task type %d", controlMsg.GetTaskType())
+	}
+
+	clientId := controlMsg.GetClientId()
+	logger.Logger.Debugf("Received ack from gateway for task %d with client ID %s", taskType, clientId)
+
+	return clientId, nil
 }

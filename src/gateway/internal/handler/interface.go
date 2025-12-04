@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"github.com/maxogod/distro-tp/src/common/models/enum"
 	"github.com/maxogod/distro-tp/src/common/models/protocol"
 )
 
@@ -8,13 +9,18 @@ import (
 // and managing client interactions.
 type MessageHandler interface {
 
-	// AwaitControllerInit comunicates with the controller to start a session and wait for it
-	// to be ready.
+	// SendControllerInit comunicates with the controller to start a session
+	SendControllerInit(taskType enum.TaskType) error
+
+	// AwaitControllerInit waits until the controller acknowledges the session start.
 	AwaitControllerInit() error
 
 	// NotifyClientMessagesCount notifies the controller about the total number of messages
 	// that was sent by the client for processing.
 	NotifyClientMessagesCount() error
+
+	// NotifyCompletion informs the controller that all processed data was received and forwarded.
+	NotifyCompletion(clientId string, isAbort bool) error
 
 	// ForwardData sends a given data envelope to the corresponding worker layer to start processing it.
 	ForwardData(dataBatch *protocol.DataEnvelope) error

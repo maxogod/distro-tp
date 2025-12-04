@@ -54,15 +54,13 @@ El worker ejecuta una reducción sobre transacciones y sus ítems según el tipo
 
 En esencia, lo que hace el Reducer (al igual que el resto de workers) es utilizar todos los componentes comunes definidos en `common/worker`, y definir su propia logica de negocio en el `TaskExecutor`.
 
-Dado que el Reducer solo va a comunicarse con los workers `Joiner`, iniciamos obteniendo la queue del `Joiner` (`joiner_queue`) y la queue donde le llegará la data al Reducer desde el `Group By` (`reducer_queue`).
+Dado que el Reducer solo va a comunicarse con los workers `Aggregator`, iniciamos obteniendo la queue del `Aggregator` (`aggregator_queue`) y la queue donde le llegará la data al Reducer desde el `Group By` (`reducer_queue`).
 
 Luego, inicializamos el `ReducerService` que contiene toda la logica de negocio de la reducción necesaria para realizar las tasks.
 
 Después, creamos el `TaskExecutor` propio del Reducer (`ReducerExecutor`), que implementa los metodos necesarios para cada task (2 a 4), y finalmente inicializamos el `MessageHandler` con la queue de input del Reducer y el `TaskHandler` creado a partir del `TaskExecutor`.
 
-Luego, simplemente llamamos al metodo `Start()` del `MessageHandler` para que comience a escuchar mensajes y procesarlos. Cada mensaje consumido de la input queue del Reducer (`reducer_queue`) le llegará al MessageHandler por medio de un channel, para que luego sea procesado por el método correspondiente del `ReducerExecutor`, que aplicará la reducción del batch (según lo indicado antes para cada task) y enviará el resultado a la queue correspondiente (`joiner_queue`) y se quedará con un batch por cada criterio definido en cada tarea. Luego, se envía cada batch reducido al `Joiner`. En el caso de la task 4, el Reducer recibe un único `GroupTransactionsBatch` con varios `GroupTransactions`. Por cada uno de estos, se aplica la reducción correspondiente (obteniendo un `CountedUserTransactions`) y se colocan todos juntos en un `CountedUserTransactionBatch`, y este último es enviado al Joiner.
-
-Hay un caso especial en la task 2 para este worker. Cada grupo que se generó en el Group By va a ser manejado dos veces, una vez bajo la task `2_1` y otra vez bajo la task `2_2`, ya que el `Reducer` necesita calcular por separado la suma de los montos de los ítems agrupados (`totalProfit`) y el conteo de los ítems agrupados (`totalSold`).
+Luego, simplemente llamamos al metodo `Start()` del `MessageHandler` para que comience a escuchar mensajes y procesarlos. Cada mensaje consumido de la input queue del Reducer (`reducer_queue`) le llegará al MessageHandler por medio de un channel, para que luego sea procesado por el método correspondiente del `ReducerExecutor`, que aplicará la reducción del batch (según lo indicado antes para cada task) y enviará el resultado a la queue correspondiente (`aggregator_queue`) y se quedará con un único batch. Luego, se envía ese batch reducido al `Agreggator`.
 
 ## Config
 

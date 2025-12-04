@@ -8,6 +8,7 @@ import (
 	"github.com/maxogod/distro-tp/src/common/heartbeat"
 	"github.com/maxogod/distro-tp/src/common/logger"
 	"github.com/maxogod/distro-tp/src/common/middleware"
+	"github.com/maxogod/distro-tp/src/common/models/enum"
 	"github.com/maxogod/distro-tp/src/common/worker"
 	"github.com/maxogod/distro-tp/src/reducer/business"
 	"github.com/maxogod/distro-tp/src/reducer/config"
@@ -20,10 +21,10 @@ type Server struct {
 }
 
 func InitServer(conf *config.Config) *Server {
-
 	// initiateOutputs
 	reducerInputQueue := middleware.GetReducerQueue(conf.Address)
-	aggregatorOutputQueue := middleware.GetAggregatorQueue(conf.Address)
+	aggregatorOutputQueue := middleware.GetAggregatorQueue(conf.Address, "")
+	finishExchange := middleware.GetFinishExchange(conf.Address, []string{string(enum.ReducerWorker)}, conf.ID)
 
 	// initiate internal components
 	service := business.NewReducerService()
@@ -39,7 +40,7 @@ func InitServer(conf *config.Config) *Server {
 	messageHandler := worker.NewMessageHandler(
 		taskHandler,
 		[]middleware.MessageMiddleware{reducerInputQueue},
-		nil,
+		finishExchange,
 	)
 
 	return &Server{
