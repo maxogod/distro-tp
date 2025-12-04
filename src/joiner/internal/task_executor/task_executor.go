@@ -211,6 +211,9 @@ func (je *joinerExecutor) HandleFinishClient(dataEnvelope *protocol.DataEnvelope
 	if err != nil {
 		return err
 	}
+	for _, ack := range je.ackHandlers {
+		ack(false, false)
+	}
 	ackHandler(true, false)
 	return nil
 }
