@@ -70,26 +70,24 @@ func (ae *AggregatorExecutor) HandleTask4(dataEnvelope *protocol.DataEnvelope, a
 }
 
 func (ae *AggregatorExecutor) HandleFinishClient(dataEnvelope *protocol.DataEnvelope, ackHandler func(bool, bool) error) error {
-	shouldAck := false
-	defer ackHandler(shouldAck, false)
 
 	clientID := dataEnvelope.GetClientId()
 
 	if dataEnvelope.GetSequenceNumber() == DELETE_ACTION {
 		logger.Logger.Debugf("Deleting client data for: %s", clientID)
 		ae.removeClientData(clientID)
-		shouldAck = true
+		ackHandler(true, false)
 		return nil
 	}
 
 	taskType := dataEnvelope.GetTaskType()
 
 	if taskType == int32(enum.T1) {
-		shouldAck = true
+		ackHandler(true, false)
 		return nil
 	}
 
-	logger.Logger.Debugf("Finishing client: %s | task-type: %d", clientID, taskType)
+	logger.Logger.Debugf("Finishing client: %s | task-type: T%d", clientID, taskType)
 
 	// we finish clients asynchronously to not block the ack of the finish message
 	go func() {
@@ -97,8 +95,8 @@ func (ae *AggregatorExecutor) HandleFinishClient(dataEnvelope *protocol.DataEnve
 		if err != nil {
 			logger.Logger.Errorf("Error finishing client %s for task %d: %v", clientID, taskType, err)
 		}
-		logger.Logger.Debug("Client Finished: ", clientID)
-		shouldAck = true
+		logger.Logger.Debugf("[%s] Client Finished", clientID)
+		ackHandler(true, false)
 	}()
 	return nil
 }
