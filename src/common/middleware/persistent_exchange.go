@@ -173,15 +173,15 @@ func (me *MessageMiddlewarePersistentExchange) Close() (e MessageMiddlewareError
 }
 
 func (me *MessageMiddlewarePersistentExchange) Delete() (e MessageMiddlewareError) {
-	err := me.channel.ExchangeDelete(
-		me.exchangeName, // name
-		false,           // if-unused
-		false,           // no-wait
-	)
-	if err != nil {
-		logger.Logger.Errorln("Failed to delete exchange:", err)
-		return MessageMiddlewareDeleteError
-	}
+	// err := me.channel.ExchangeDelete(
+	// 	me.exchangeName, // name
+	// 	false,           // if-unused
+	// 	false,           // no-wait
+	// )
+	// if err != nil {
+	// 	logger.Logger.Errorln("Failed to delete exchange:", err)
+	// 	return MessageMiddlewareDeleteError
+	// }
 
 	msg_count, err := me.channel.QueueDelete(
 		me.queueName, // name

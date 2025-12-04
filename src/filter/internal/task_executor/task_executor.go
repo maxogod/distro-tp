@@ -77,12 +77,13 @@ func (fe *FilterExecutor) HandleTask1(dataEnvelope *protocol.DataEnvelope, ackHa
 		}
 		amountSent = 1
 	}
-	shouldAck = true
 
 	if err := worker.SendCounterMessage(enum.TaskType(dataEnvelope.GetTaskType()), clientID, amountSent, int(dataEnvelope.SequenceNumber), enum.FilterWorker, enum.None, counterExchange); err != nil {
+		shouldRequeue = true
 		return err
 	}
 
+	shouldAck = true
 	return nil
 }
 
@@ -116,12 +117,13 @@ func (fe *FilterExecutor) HandleTask2(dataEnvelope *protocol.DataEnvelope, ackHa
 		}
 		amountSent = 1
 	}
-	shouldAck = true
 
 	if err := worker.SendCounterMessage(enum.TaskType(dataEnvelope.GetTaskType()), clientID, amountSent, int(dataEnvelope.SequenceNumber), enum.FilterWorker, enum.AggregatorWorker, counterExchange); err != nil {
+		shouldRequeue = true
 		return err
 	}
 
+	shouldAck = true
 	return nil
 }
 
@@ -156,12 +158,13 @@ func (fe *FilterExecutor) HandleTask3(dataEnvelope *protocol.DataEnvelope, ackHa
 		}
 		amountSent = 1
 	}
-	shouldAck = true
 
 	if err := worker.SendCounterMessage(enum.TaskType(dataEnvelope.GetTaskType()), clientID, amountSent, int(dataEnvelope.SequenceNumber), enum.FilterWorker, enum.AggregatorWorker, counterExchange); err != nil {
+		shouldRequeue = true
 		return err
 	}
 
+	shouldAck = true
 	return nil
 }
 
@@ -196,12 +199,13 @@ func (fe *FilterExecutor) HandleTask4(dataEnvelope *protocol.DataEnvelope, ackHa
 		}
 		amountSent = 1
 	}
-	shouldAck = true
 
 	if err := worker.SendCounterMessage(enum.TaskType(dataEnvelope.GetTaskType()), clientID, amountSent, int(dataEnvelope.SequenceNumber), enum.FilterWorker, enum.AggregatorWorker, counterExchange); err != nil {
+		shouldRequeue = true
 		return err
 	}
 
+	shouldAck = true
 	return nil
 }
 
