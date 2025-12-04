@@ -56,7 +56,6 @@ func NewClientSession(conn network.ConnectionInterface, config *config.Config) C
 		notifErr := cs.messageHandler.NotifyCompletion(oldClientId, true)
 		if notifErr != nil {
 			logger.Logger.Errorf("[%s] Error notifying controller about reconnection of clientId %s: %v", cs.clientId, oldClientId, notifErr)
-			return nil
 		}
 	}
 
@@ -90,20 +89,35 @@ func (cs *clientSession) ProcessRequest() error {
 
 	err = cs.sendClientRequestAck(cs.taskType)
 	if err != nil {
+		logger.Logger.Errorf("[%s] Error sending client request ack: %v", cs.clientId, err)
+
+		notifErr := cs.messageHandler.NotifyCompletion(cs.clientId, true)
+		if notifErr != nil {
+			logger.Logger.Errorf("[%s] Error notifying controller about abort of client: %v", cs.clientId, notifErr)
+			return notifErr
+		}
+
 		return err
 	}
 
 	// Start processing
 	processData := true
 	for processData {
-		request, err := cs.getRequest()
-		if err != nil {
+		request, getErr := cs.getRequest()
+		if getErr != nil {
 			if cs.IsFinished() {
 				logger.Logger.Infof("[%s] Client session is finished, stopping data request processing", cs.clientId)
 				return nil
 			}
-			logger.Logger.Errorf("[%s] Error getting request from client: %v", cs.clientId, err)
-			return err
+			logger.Logger.Errorf("[%s] Error getting request from client: %v", cs.clientId, getErr)
+
+			notifErr := cs.messageHandler.NotifyCompletion(cs.clientId, true)
+			if notifErr != nil {
+				logger.Logger.Errorf("[%s] Error notifying controller about abort of client: %v", cs.clientId, notifErr)
+				return notifErr
+			}
+
+			return getErr
 		}
 		request.ClientId = cs.clientId
 
@@ -123,7 +137,17 @@ func (cs *clientSession) ProcessRequest() error {
 	}
 
 	logger.Logger.Debugf("[%s] Starting to send report data to client", cs.clientId)
-	cs.processResponse()
+	err = cs.processResponse()
+	if err != nil {
+		logger.Logger.Errorf("[%s] Error processing report data: %v", cs.clientId, err)
+
+		notifErr := cs.messageHandler.NotifyCompletion(cs.clientId, true)
+		if notifErr != nil {
+			logger.Logger.Errorf("[%s] Error notifying controller about abort of client: %v", cs.clientId, notifErr)
+			return notifErr
+		}
+		return err
+	}
 
 	err = cs.messageHandler.NotifyCompletion(cs.clientId, false)
 	if err != nil {
@@ -168,7 +192,7 @@ func (cs *clientSession) Close() {
 
 /* --- PRIVATE METHODS --- */
 
-func (cs *clientSession) processResponse() {
+func (cs *clientSession) processResponse() error {
 	data := make(chan *protocol.DataEnvelope)
 	go cs.messageHandler.GetReportData(data)
 
@@ -186,8 +210,12 @@ func (cs *clientSession) processResponse() {
 			logger.Logger.Errorf("[%s] Error marshaling data to send to client: %v", cs.clientId, err)
 			continue
 		}
-		cs.clientConnection.SendData(dataBytes)
+		err = cs.clientConnection.SendData(dataBytes)
+		if err != nil {
+			return err
+		}
 	}
+	return nil
 }
 
 func (cs *clientSession) getRequest() (*protocol.DataEnvelope, error) {

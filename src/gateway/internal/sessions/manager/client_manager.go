@@ -23,6 +23,11 @@ func NewClientManager(conf *config.Config) ClientManager {
 
 func (cm *clientManager) AddClient(connection network.ConnectionInterface) clients.ClientSession {
 	session := clients.NewClientSession(connection, cm.config)
+
+	if session == nil {
+		return nil
+	}
+
 	cm.clients.Store(session.GetClientId(), session)
 	logger.Logger.Infof("Client connected with ID: %s", session.GetClientId())
 	return session
