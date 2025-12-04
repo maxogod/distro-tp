@@ -18,3 +18,6 @@ clean:
 
 check_clients:
 	docker compose logs | grep Pikachu
+
+create_dirs:
+	./scripts/create_dirs.sh ./config.yaml
