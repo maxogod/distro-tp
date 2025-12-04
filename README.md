@@ -8,6 +8,7 @@
 
 - [Entrega I: Diseño](./docs/diseño.pdf)
 - [Entrega II: Escalabilidad](./docs/escalabilidad.pdf)
-- [Entrega III: MUlticlient](./docs/multiclient.pdf)
+- [Entrega III: Multiclient](./docs/multiclient.pdf)
+- [Entrega IV: Tolerancia](./docs/tolerancia.pdf)
 
 Documentation in `./docs/`
