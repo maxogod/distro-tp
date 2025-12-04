@@ -30,6 +30,7 @@ type MessageMiddlewareQueue struct {
 }
 
 type MessageMiddlewareExchange struct {
+	url          string
 	exchangeName string
 	conn         MiddlewareConnection
 	channel      MiddlewareChannel

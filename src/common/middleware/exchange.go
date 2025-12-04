@@ -43,6 +43,7 @@ func NewExchangeMiddleware(url, exchangeName, exchangeType string, routingKeys [
 	}
 
 	m.exchangeName = exchangeName
+	m.url = url
 	m.routeKeys = routingKeys
 	m.conn = conn
 	m.channel = ch
@@ -123,7 +124,10 @@ func (me *MessageMiddlewareExchange) StopConsuming() (error MessageMiddlewareErr
 func (me *MessageMiddlewareExchange) Send(message []byte) MessageMiddlewareError {
 	if me.conn.IsClosed() {
 		logger.Logger.Errorln("Connection is closed")
-		return MessageMiddlewareDisconnectedError
+		if err := me.tryReconnect(); err != nil {
+			return MessageMiddlewareDisconnectedError
+		}
+		logger.Logger.Debugln("Reconnected to RabbitMQ")
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -174,4 +178,23 @@ func (me *MessageMiddlewareExchange) Delete() (error MessageMiddlewareError) {
 	logger.Logger.Debugln("Deleted exchange:", me.exchangeName)
 
 	return MessageMiddlewareSuccess
+}
+
+func (me *MessageMiddlewareExchange) tryReconnect() error {
+	conn, err := amqp.Dial(me.url)
+	if err != nil {
+		logger.Logger.Errorln("Failed to connect to RabbitMQ:", err)
+		return err
+	}
+
+	ch, err := conn.Channel()
+	if err != nil {
+		logger.Logger.Errorln("Failed to open a channel:", err)
+		return err
+	}
+
+	me.conn = conn
+	me.channel = ch
+
+	return nil
 }
