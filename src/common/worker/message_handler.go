@@ -86,9 +86,7 @@ func (mh *messageHandler) Start() error {
 		case message := <-mh.inputChannel:
 			if err := mh.dataHandler.HandleData(message.dataEnvelope, message.ackHandler); err != nil {
 				logger.Logger.Warnf("Failed to handle data batch: %v", err)
-				return err
 			}
-
 		case message := <-mh.finisherChannel:
 			logger.Logger.Debugf("Finishing Client with ID: [%s]", message.dataEnvelope.ClientId)
 			mh.dataHandler.HandleFinishClient(message.dataEnvelope, message.ackHandler)

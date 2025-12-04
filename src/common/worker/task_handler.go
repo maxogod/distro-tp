@@ -110,9 +110,12 @@ func NewTaskHandlerWithSeqs(taskExecutor TaskExecutor, shouldDropDuplicates bool
 				IsDone:   true,
 				TaskType: int32(client.taskType),
 			}
+			logger.Logger.Debugf("[%s] FOund finished client in disk, calling HandleFinishClient", clientID)
 			taskExecutor.HandleFinishClient(done, func(bool, bool) error { return nil })
 		}
 	}
+
+	logger.Logger.Debugf("Finished loading existing clients from disk")
 
 	return th
 }
@@ -206,14 +209,17 @@ func (th *taskHandler) HandleFinishClient(dataEnvelope *protocol.DataEnvelope, a
 	}
 
 	if dataEnvelope.GetTotalMessages() == 0 || count == dataEnvelope.GetTotalMessages() {
+		logger.Logger.Debugf("[%s] Calling HandleFinishClient", clientID)
 		th.finishedClients[clientID] = true
 		th.reapFinishedClients(false)
 		if err := th.taskExecutor.HandleFinishClient(dataEnvelope, ackHandler); err != nil {
+			logger.Logger.Errorf("[%s] Error handling finish for client %v", clientID, err)
 			return err
 		}
 		if err := th.removeTotalFile(clientID); err != nil {
 			logger.Logger.Errorf("[%s] Error removing progress file: %v", clientID, err)
 		}
+		return nil
 	}
 
 	if dataEnvelope.GetTotalMessages() != 0 {
@@ -233,6 +239,7 @@ func (th *taskHandler) createTotalFile(clientID string, total int32, task int32)
 	if !th.shouldPersistTotals {
 		return nil
 	}
+	logger.Logger.Debugf("[%s] Creating total file with total %d", clientID, total)
 
 	filePath := STORAGE_FOLDER_PATH + clientID + SEPARATOR + strconv.Itoa(int(total)) + SEPARATOR + strconv.Itoa(int(task)) + TOTAL_COUNT_FILE_EXTENSION
 	file, err := os.Create(filePath)
@@ -246,6 +253,8 @@ func (th *taskHandler) removeTotalFile(clientID string) error {
 	if !th.shouldPersistTotals {
 		return nil
 	}
+
+	logger.Logger.Debugf("[%s] Deleting total file", clientID)
 
 	pattern := STORAGE_FOLDER_PATH + clientID + SEPARATOR + "*" + TOTAL_COUNT_FILE_EXTENSION
 	files, err := filepath.Glob(pattern)

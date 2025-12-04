@@ -70,7 +70,6 @@ func (ae *AggregatorExecutor) HandleTask4(dataEnvelope *protocol.DataEnvelope, a
 }
 
 func (ae *AggregatorExecutor) HandleFinishClient(dataEnvelope *protocol.DataEnvelope, ackHandler func(bool, bool) error) error {
-
 	clientID := dataEnvelope.GetClientId()
 
 	if dataEnvelope.GetSequenceNumber() == DELETE_ACTION {
