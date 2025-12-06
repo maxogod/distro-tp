@@ -15,6 +15,14 @@ with open(config_file, "r") as f:
 # Extract service configuration
 services_config = config.get("services", {})
 
+controller_count = 0
+if "controller" in services_config:
+    controller_config = services_config.get("controller", {})
+    if isinstance(controller_config, dict):
+        controller_count = controller_config.get("instances", 0)
+    else:
+        controller_count = controller_config if isinstance(controller_config, int) else 0
+
 lines = []
 
 # ==============================
@@ -65,6 +73,7 @@ lines.append(
     environment:
       - NETWORK=distro_tp_net
       - HOST_PROJECT_PATH={"${PWD}"}
+      - MAX_CONTROLLER_NODES={controller_count}
     """
 )
 
@@ -88,9 +97,7 @@ def add_gateway(count, tags=None):
         service_def += f"""
     image: gateway:latest
     environment:
-      - LEADER_ELECTION_ID={i}
-      - LEADER_ELECTION_HOST=gateway{i}
-      - LEADER_ELECTION_PORT=9090
+      - MAX_CONTROLLER_NODES={controller_count}
     volumes:
       - ./src/gateway/config.yaml:/app/config.yaml
     depends_on:

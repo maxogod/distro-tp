@@ -81,8 +81,6 @@ func NewControlHandler(
 		<-h.routineReadyCh
 	}
 
-	h.SendControllerReady()
-
 	return h
 }
 

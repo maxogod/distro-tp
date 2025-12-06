@@ -5,6 +5,7 @@ package poison
 import (
 	"math/rand/v2"
 	"os"
+	"time"
 )
 
 // ExitIfPoisoned samples a bernoulli to determine if node should
@@ -15,6 +16,7 @@ func ExitIfPoisoned() {
 	if sample > PROBABILITY {
 		return
 	}
+	time.Sleep(2 * time.Second)
 	os.Exit(3) // Exit code for poisoned process
 }
 

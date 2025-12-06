@@ -8,4 +8,4 @@ heartbeat:
 middleware:
   address: "amqp://guest:guest@rabbitmq:5672/"
 log:
-  level: "production"
+  level: "development"

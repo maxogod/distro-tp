@@ -19,24 +19,22 @@ type clientSession struct {
 	clientConnection network.ConnectionInterface
 	messageHandler   handler.MessageHandler
 	running          atomic.Bool
+	config           *config.Config
 
 	seqNumsReceived map[int32]bool
 }
 
-func NewClientSession(conn network.ConnectionInterface, config *config.Config) ClientSession {
+func NewClientSession(conn network.ConnectionInterface, config *config.Config) (ClientSession, error) {
 	cs := &clientSession{
 		clientConnection: conn,
 		seqNumsReceived:  make(map[int32]bool),
+		config:           config,
 	}
 
 	controlMsg, err := cs.getControlRequest()
 	if err != nil {
-		if cs.IsFinished() {
-			logger.Logger.Infof("[%s] Client session is finished, stopping control request processing", cs.clientId)
-			return nil
-		}
 		logger.Logger.Errorf("[%s] Error getting task request: %v", cs.clientId, err)
-		return nil
+		return nil, err
 	}
 
 	oldClientId := controlMsg.GetClientId()
@@ -50,18 +48,17 @@ func NewClientSession(conn network.ConnectionInterface, config *config.Config) C
 		cs.clientId = oldClientId
 	}
 
-	cs.messageHandler = handler.NewMessageHandler(config.MiddlewareAddress, cs.clientId)
-	if oldClientId != uuid.Nil.String() && cs.taskType == enum.T1 {
+	cs.messageHandler = handler.NewMessageHandler(config.MiddlewareAddress, cs.clientId, cs.config)
+	if oldClientId != uuid.Nil.String() && cs.taskType == enum.T1 { // Abort old session if reconnecting for T1
 		logger.Logger.Debugf("Aborting client with ID: %s for task %s", oldClientId, string(cs.taskType))
 		notifErr := cs.messageHandler.NotifyCompletion(oldClientId, true)
 		if notifErr != nil {
 			logger.Logger.Errorf("[%s] Error notifying controller about reconnection of clientId %s: %v", cs.clientId, oldClientId, notifErr)
+			return nil, notifErr
 		}
 	}
 
-	cs.running.Store(true)
-
-	return cs
+	return cs, nil
 }
 
 func (cs *clientSession) GetClientId() string {
@@ -73,6 +70,8 @@ func (cs *clientSession) IsFinished() bool {
 }
 
 func (cs *clientSession) ProcessRequest() error {
+	cs.running.Store(true)
+
 	logger.Logger.Debugf("[%s] Starting to process client request", cs.clientId)
 
 	// Initialize session with controller

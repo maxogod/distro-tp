@@ -35,7 +35,7 @@ func NewServer(conf *config.Config) *Server {
 		config:                conf,
 		clientManager:         manager.NewClientManager(conf, counterStore),
 		newClientsChan:        make(chan *protocol.ControlMessage, conf.MaxClients),
-		initControlMiddleware: middleware.GetInitControlQueue(conf.MiddlewareAddress),
+		initControlMiddleware: middleware.GetInitControlQueue(conf.MiddlewareAddress, conf.ID),
 		finishAcceptingChan:   make(chan bool),
 		heartbeatSender:       heartbeat.NewHeartBeatHandler(conf.Heartbeat.Host, conf.Heartbeat.Port, conf.Heartbeat.Interval),
 		counterStore:          counterStore,
@@ -56,7 +56,7 @@ func (s *Server) Run() error {
 		logger.Logger.Errorf("action: start_heartbeat_sender | result: failed | error: %s", err.Error())
 	}
 
-	go s.restoreClientsFromStorage()
+	s.restoreClientsFromStorage()
 
 	for controlMsg := range s.newClientsChan {
 		if !s.running.Load() {
@@ -66,14 +66,12 @@ func (s *Server) Run() error {
 		s.clientManager.ReapStaleClients()
 
 		clientSession := s.clientManager.AddClient(controlMsg.GetClientId(), enum.TaskType(controlMsg.GetTaskType()), nil)
-		if clientSession != nil {
-			go func() {
-				err = clientSession.InitiateControlSequence()
-				if err != nil {
-					logger.Logger.Debugf("action: initiate_control_sequence | result: failed | error: %s", err.Error())
-				}
-			}()
-		}
+		go func() {
+			err = clientSession.InitiateControlSequence()
+			if err != nil {
+				logger.Logger.Debugf("action: initiate_control_sequence | result: failed | error: %s", err.Error())
+			}
+		}()
 
 		logger.Logger.Infof("action: add_client | client_id: %s | result: success", controlMsg.GetClientId())
 	}
@@ -201,14 +199,7 @@ func (s *Server) restoreClientsFromStorage() {
 		} else {
 			clientCounters = nil
 		}
-		clientSession := s.clientManager.AddClient(clientID, taskType, clientCounters)
-		if clientSession != nil {
-			go func() {
-				if err = clientSession.InitiateControlSequence(); err != nil {
-					logger.Logger.Debugf("action: restore_initiate_control_sequence | client_id: %s | result: failed | error: %s", clientID, err.Error())
-				}
-			}()
-		}
+		s.clientManager.AddClient(clientID, taskType, clientCounters)
 		logger.Logger.Infof("action: restore_client | client_id: %s | result: success", clientID)
 	}
 }

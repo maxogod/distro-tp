@@ -28,6 +28,7 @@ func (cs *clientSession) IsFinished() bool {
 }
 
 func (cs *clientSession) InitiateControlSequence() error {
+	cs.controlHandler.SendControllerReady()
 	logger.Logger.Debugf("[%s] Starting EOF control sequence", cs.Id)
 
 	err := cs.controlHandler.AwaitForWorkers()
@@ -54,10 +55,6 @@ func (cs *clientSession) InitiateControlSequence() error {
 	logger.Logger.Debugf("[%s] EOF delivered, and session closed", cs.Id)
 
 	return nil
-}
-
-func (cs *clientSession) SendControllerReady() {
-	cs.controlHandler.SendControllerReady()
 }
 
 func (cs *clientSession) Close() {

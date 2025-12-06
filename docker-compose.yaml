@@ -32,6 +32,7 @@ services:
     environment:
       - NETWORK=distro_tp_net
       - HOST_PROJECT_PATH=${PWD}
+      - MAX_CONTROLLER_NODES=2
     
   gateway1:
     container_name: gateway1
@@ -39,9 +40,7 @@ services:
       dockerfile: ./src/gateway/Dockerfile
     image: gateway:latest
     environment:
-      - LEADER_ELECTION_ID=1
-      - LEADER_ELECTION_HOST=gateway1
-      - LEADER_ELECTION_PORT=9090
+      - MAX_CONTROLLER_NODES=2
     volumes:
       - ./src/gateway/config.yaml:/app/config.yaml
     depends_on:
@@ -62,9 +61,7 @@ services:
       dockerfile: ./src/gateway/Dockerfile
     image: gateway:latest
     environment:
-      - LEADER_ELECTION_ID=2
-      - LEADER_ELECTION_HOST=gateway2
-      - LEADER_ELECTION_PORT=9090
+      - MAX_CONTROLLER_NODES=2
     volumes:
       - ./src/gateway/config.yaml:/app/config.yaml
     depends_on:
@@ -195,8 +192,6 @@ services:
     container_name: filter1
     build:
       dockerfile: ./src/filter/Dockerfile
-      args:
-        BUILD_TAGS: "poison low_prob" 
     image: filter:latest
     networks:
       - tp_net
@@ -212,8 +207,6 @@ services:
     container_name: filter2
     build:
       dockerfile: ./src/filter/Dockerfile
-      args:
-        BUILD_TAGS: "poison low_prob" 
     image: filter:latest
     networks:
       - tp_net
@@ -229,8 +222,6 @@ services:
     container_name: reducer1
     build:
       dockerfile: ./src/reducer/Dockerfile
-      args:
-        BUILD_TAGS: "poison low_prob" 
     image: reducer:latest
     networks:
       - tp_net
@@ -246,8 +237,6 @@ services:
     container_name: reducer2
     build:
       dockerfile: ./src/reducer/Dockerfile
-      args:
-        BUILD_TAGS: "poison low_prob" 
     image: reducer:latest
     networks:
       - tp_net
@@ -263,8 +252,6 @@ services:
     container_name: group_by1
     build:
       dockerfile: ./src/group_by/Dockerfile
-      args:
-        BUILD_TAGS: "poison low_prob" 
     image: group_by:latest
     networks:
       - tp_net
@@ -280,8 +267,6 @@ services:
     container_name: group_by2
     build:
       dockerfile: ./src/group_by/Dockerfile
-      args:
-        BUILD_TAGS: "poison low_prob" 
     image: group_by:latest
     networks:
       - tp_net

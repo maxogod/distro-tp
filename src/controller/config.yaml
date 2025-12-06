@@ -6,7 +6,7 @@ heartbeat:
   port: 7777
   interval: 200
 log:
-  level: "production"
+  level: "development"
 max:
   clients: 100
   unacked_counters: 1000

@@ -3,22 +3,22 @@ package handler
 import (
 	"fmt"
 	"hash/crc32"
+	"strconv"
 
 	"github.com/maxogod/distro-tp/src/common/logger"
 	"github.com/maxogod/distro-tp/src/common/middleware"
 	"github.com/maxogod/distro-tp/src/common/models/enum"
 	"github.com/maxogod/distro-tp/src/common/models/protocol"
+	"github.com/maxogod/distro-tp/src/gateway/config"
 	"google.golang.org/protobuf/proto"
 )
 
 const INITIAL_REF_DATA_SEQ_NUMBER = 1
 
-// TODO: Sacar a config
-const MaxControllerNodes = 2
-
 type messageHandler struct {
-	clientID string
-	taskType enum.TaskType
+	clientID     string
+	controllerID int32
+	taskType     enum.TaskType
 
 	// Data forwarding middlewares
 	messagesSentToNextLayer int
@@ -38,11 +38,14 @@ type messageHandler struct {
 	routineReadyCh   chan bool
 	refDataSeqNumber int32
 	middlewareUrl    string
+	config           *config.Config
 }
 
-func NewMessageHandler(middlewareUrl, clientID string) MessageHandler {
+func NewMessageHandler(middlewareUrl, clientID string, config *config.Config) MessageHandler {
+	controllerID := getControllerIDForClient(clientID, config.MaxControllerNodes)
 	h := &messageHandler{
 		clientID:         clientID,
+		controllerID:     controllerID,
 		taskType:         enum.TaskType(0),
 		refDataSeqNumber: INITIAL_REF_DATA_SEQ_NUMBER,
 		middlewareUrl:    middlewareUrl,
@@ -53,12 +56,13 @@ func NewMessageHandler(middlewareUrl, clientID string) MessageHandler {
 		processedDataExchangeMiddleware: middleware.GetProcessedDataExchange(middlewareUrl, clientID),
 		processedCh:                     make(chan *protocol.DataEnvelope, 9999),
 
-		initControlQueue:     middleware.GetInitControlQueue(middlewareUrl),
+		initControlQueue:     middleware.GetInitControlQueue(middlewareUrl, "controller"+strconv.Itoa(int(controllerID))),
 		controlReadyExchange: middleware.GetClientControlExchange(middlewareUrl, clientID),
 
 		startAwaitingAck: make(chan bool),
 		ackReceived:      make(chan bool),
 		routineReadyCh:   make(chan bool),
+		config:           config,
 	}
 
 	go h.startReportDataListener()
@@ -75,7 +79,7 @@ func (mh *messageHandler) SendControllerInit(taskType enum.TaskType) error {
 	controlMessage := &protocol.ControlMessage{
 		ClientId:     mh.clientID,
 		TaskType:     int32(taskType),
-		ControllerId: getControllerIDForClient(mh.clientID),
+		ControllerId: mh.controllerID,
 	}
 	payload, err := proto.Marshal(controlMessage)
 	if err != nil {
@@ -257,7 +261,7 @@ func (mh *messageHandler) awaitControllerAckListener() {
 	<-done
 }
 
-func getControllerIDForClient(clientID string) int32 {
-	hashValue := crc32.ChecksumIEEE([]byte(clientID))
-	return int32(hashValue%MaxControllerNodes) + 1
+func getControllerIDForClient(clientID string, maxControllers int) int32 {
+	hashValue := (crc32.ChecksumIEEE([]byte(clientID)))
+	return int32(int(hashValue)%maxControllers) + 1
 }

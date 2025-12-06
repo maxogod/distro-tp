@@ -16,9 +16,9 @@ CONFIG_PATH="/app/config.yaml"
 
 
 class RevivalChansey:
-    def __init__(self, port: int, timeout_interval: int, check_interval: int, docker_network: str, host_path: str):
+    def __init__(self, port: int, timeout_interval: int, check_interval: int, docker_network: str, host_path: str, controller_count: int):
         self._server = UDPServer(port=port)
-        self._docker_runner = DockerRunner(docker_network, host_path)
+        self._docker_runner = DockerRunner(docker_network, host_path, controller_count)
 
         self._timeout_interval = timeout_interval
         self._check_interval = check_interval
@@ -117,6 +117,7 @@ def main():
     check_interval = 5
     docker_network = os.getenv("NETWORK", "bridge")
     host_path = os.getenv("HOST_PROJECT_PATH", "")
+    controller_count = int(os.getenv("MAX_CONTROLLER_NODES", "0"))
     if os.path.exists(CONFIG_PATH):
         with open(CONFIG_PATH, "r") as f:
             cfg = yaml.safe_load(f)
@@ -124,7 +125,10 @@ def main():
             cfg.get("timeout_interval", timeout_interval)
             cfg.get("check_interval", check_interval)
 
-    rc = RevivalChansey(port, timeout_interval, check_interval, docker_network, host_path)
+    print(f"Starting Revival Chansey on port {port} with timeout {timeout_interval}s and check interval {check_interval}s")
+    print(f"Docker network: {docker_network}, Host path: {host_path}, Max controllers: {controller_count}")
+
+    rc = RevivalChansey(port, timeout_interval, check_interval, docker_network, host_path, controller_count)
 
     setup_signal_handlers(rc)
 

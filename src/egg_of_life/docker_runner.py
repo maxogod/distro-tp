@@ -7,9 +7,10 @@ PROJECT="distro"
 CLOSE_SIGNAL=""
 
 class DockerRunner:
-    def __init__(self, network: str, host_path: str) -> None:
+    def __init__(self, network: str, host_path: str, controller_count: int) -> None:
         self._network = network
         self._host_path = host_path
+        self._controller_count = controller_count
 
         self.running = threading.Event()
         self.running.set()
@@ -38,7 +39,7 @@ class DockerRunner:
             f"--label {CREATOR_LABEL} "
             f"--label com.docker.compose.project={PROJECT} "
             f"-v {self._host_path}/src/{folder_name}/config.yaml:/app/config.yaml "
-            f"-e ID={name} "
+            f"-e ID={name} -e MAX_CONTROLLER_NODES={self._controller_count} "
         )
         if folder_name in ["joiner", "aggregator", "controller"]:
             cmd += f"-v {self._host_path}/.storage/{name}:/app/storage "

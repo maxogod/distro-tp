@@ -5,13 +5,13 @@ services:
     instances: 2
   filter:
     instances: 2
-    tags: "poison low_prob"
+    # tags: "poison mid_prob"
   group_by:
     instances: 2
-    tags: "poison low_prob"
+    # tags: "poison mid_prob"
   reducer:
     instances: 2
-    tags: "poison low_prob"
+    # tags: "poison mid_prob"
   aggregator:
     instances: 3
   joiner:
