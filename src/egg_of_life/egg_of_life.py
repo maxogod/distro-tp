@@ -6,17 +6,27 @@ import signal
 import time
 import yaml
 import os
+from egg_of_life.leader_election import leader_election
 from udp_server import UDPServer
 from docker_runner import DockerRunner
 from protocol.heartbeat_pb2 import HeartBeat
 from google.protobuf.message import DecodeError
 
 # Config
-CONFIG_PATH="/app/config.yaml"
+CONFIG_PATH = "/app/config.yaml"
 
 
 class RevivalChansey:
-    def __init__(self, port: int, timeout_interval: int, check_interval: int, docker_network: str, host_path: str, controller_count: int):
+    def __init__(
+        self,
+        port: int,
+        timeout_interval: int,
+        check_interval: int,
+        docker_network: str,
+        host_path: str,
+        controller_count: int,
+        leader_election: leader_election.LeaderElection = None,
+    ):
         self._server = UDPServer(port=port)
         self._docker_runner = DockerRunner(docker_network, host_path, controller_count)
 
@@ -30,11 +40,23 @@ class RevivalChansey:
         self._last_heartbeat: dict[str, float] = {}
         self._heartbeat_lock = threading.Lock()
 
+        # Leader Election
+        self._leader_election = leader_election
+
+        # Nodes to revive
+        self.revive_set = set()
+
     def start(self):
         print("Revival Chansey ready")
-        self._monitor_thread = threading.Thread(target=self._monitor_timeouts, daemon=True)
+        self._monitor_thread = threading.Thread(
+            target=self._monitor_timeouts, daemon=True
+        )
         self._monitor_thread.start()
         self._docker_runner.start()
+        threading.Thread(
+            target=self._send_heartbeats, daemon=True
+        ).start()  # we start hb sending thread
+        self._leader_election.start()  # start leader election
 
         while self.running.is_set():
             try:
@@ -42,21 +64,36 @@ class RevivalChansey:
                 if hostname:
                     nodename = hostname.split(".")[0]
                     self._update_timestamp(nodename)
+                    if nodename in self.revive_set:
+                        print(f"Node {nodename} revived")
+                        self.revive_set.remove(nodename)
             except OSError:
                 print(f"Socket closed, shutting down")
                 self.shutdown()
 
     def shutdown(self):
-        if not self.running.is_set(): return
-        self.running.clear() # Sets flag to false
+        if not self.running.is_set():
+            return
+        self.running.clear()  # Sets flag to false
         self._server.close()
         self._monitor_thread.join()
         self._docker_runner.shutdown()
         print("Revival Chansey finished")
 
+    def _send_heartbeats(self):
+        connectedNodes = self._leader_election.get_nodes()
+
+        while True:
+            if not self._leader_election.i_am_leader():  # only the leader sends hb
+                continue
+            hb = HeartBeat()
+            data = hb.SerializeToString()
+            for node in connectedNodes:
+                self._server.send(node, data)
+            time.sleep(self._leader_election.sending_interval / 1000)
+
     def _get_heartbeat(self) -> str:
         data, hostname = self._server.receive()
-
         hb = HeartBeat()
         try:
             hb.ParseFromString(data)
@@ -67,7 +104,7 @@ class RevivalChansey:
         return hostname
 
     def _get_image_name(self, container_name) -> str:
-        return re.sub(r'\d+$', '', container_name) + ":latest"
+        return re.sub(r"\d+$", "", container_name) + ":latest"
 
     def _update_timestamp(self, hostname):
         with self._heartbeat_lock:
@@ -77,28 +114,46 @@ class RevivalChansey:
 
     def _on_timeout(self, hostname):
         print(f"Timeout detected for {hostname}")
-        
+
+        if hostname == self._leader_election.get_leader():
+            self._leader_election.start_election()
+            print(f"Leader node {hostname} timed out, starting election")
+
+        if not self._leader_election.i_am_leader():
+            print(f"Not the leader, skipping revival of {hostname}")
+            self.revive_set.add(hostname)
+            return
+
         # Cleanup and restart
         image = self._get_image_name(hostname)
         self._docker_runner.cleanup_container(hostname)
         self._docker_runner.restart_container(hostname, image)
 
     def _monitor_timeouts(self):
-        """ Monitor heartbeats and handle timeouts on another Thread """
+        """Monitor heartbeats and handle timeouts on another Thread"""
         while self.running.is_set():
             current_time = time.time()
             timed_out = []
-            
+
             with self._heartbeat_lock:
                 for hostname, last_time in list(self._last_heartbeat.items()):
                     if current_time - last_time > self._timeout_interval:
                         timed_out.append(hostname)
                         del self._last_heartbeat[hostname]
-            
+
             for hostname in timed_out:
                 self._on_timeout(hostname)
-            
+
             time.sleep(self._check_interval)
+
+    def revive_remaninig_nodes(self):
+        for node in self.revive_set:
+            print(f"Also reviving previously timed out node {node}")
+            image = self._get_image_name(node)
+            self._docker_runner.cleanup_container(node)
+            self._docker_runner.restart_container(node, image)
+        self.revive_set.clear()
+
 
 def setup_signal_handlers(rc: RevivalChansey):
     def signal_handler(_sig, _frame):
@@ -113,22 +168,50 @@ def main():
     # protoc --python_out=./src/egg_of_life ./src/common/protobufs/protocol/heartbeat.proto
 
     port = 7777
+    leader_election_port = 6666
     timeout_interval = 10
     check_interval = 5
+    heartbeat_interval = 200
+    leader_election_host = "egg_of_life"
+
     docker_network = os.getenv("NETWORK", "bridge")
     host_path = os.getenv("HOST_PROJECT_PATH", "")
     controller_count = int(os.getenv("MAX_CONTROLLER_NODES", "0"))
+    amount_of_nodes = int(os.getenv("AMOUNT_OF_NODES", "1"))
+    id = int(os.getenv("ID", ""))
     if os.path.exists(CONFIG_PATH):
         with open(CONFIG_PATH, "r") as f:
             cfg = yaml.safe_load(f)
             cfg.get("port", port)
             cfg.get("timeout_interval", timeout_interval)
             cfg.get("check_interval", check_interval)
+            cfg.get("leader_election.port", leader_election_port)
+            cfg.get("leader_election.interval", heartbeat_interval)
 
-    print(f"Starting Revival Chansey on port {port} with timeout {timeout_interval}s and check interval {check_interval}s")
-    print(f"Docker network: {docker_network}, Host path: {host_path}, Max controllers: {controller_count}")
+    print(
+        f"Starting Revival Chansey on port {port} with timeout {timeout_interval}s and check interval {check_interval}s"
+    )
+    print(
+        f"Docker network: {docker_network}, Host path: {host_path}, Max controllers: {controller_count}, Amount of nodes: {amount_of_nodes}, ID: {id}"
+    )
 
-    rc = RevivalChansey(port, timeout_interval, check_interval, docker_network, host_path, controller_count)
+    le = leader_election.LeaderElection(
+        id=id,
+        amount_of_nodes=amount_of_nodes,
+        host=leader_election_host,
+        port=leader_election_port,
+        sending_interval=heartbeat_interval,
+    )
+
+    rc = RevivalChansey(
+        port,
+        timeout_interval,
+        check_interval,
+        docker_network,
+        host_path,
+        controller_count,
+        le,
+    )
 
     setup_signal_handlers(rc)
 
