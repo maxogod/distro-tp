@@ -134,6 +134,12 @@ func (s *Server) acceptNewClients() {
 				continue
 			}
 
+			if controlMsg.GetClientId() == "" {
+				logger.Logger.Errorf("action: accept_new_clients | result: failed | error: client id cannot be empty")
+				msg.Nack(false, false)
+				continue
+			}
+
 			if controlMsg.GetControllerId() != 0 && controlMsg.GetControllerId() != s.config.NumericID {
 				logger.Logger.Debugf(
 					"action: accept_new_clients | client_id: %s | controller_id: %d | result: not_mine",
