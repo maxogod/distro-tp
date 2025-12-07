@@ -263,6 +263,10 @@ func (ch *controlHandler) startCounterListener(workerRoute enum.WorkerType) {
 				continue
 			}
 
+			if len(msg.Body) == 0 {
+				msg.Nack(false, false)
+				continue
+			}
 			counter := &protocol.MessageCounter{}
 			err := proto.Unmarshal(msg.Body, counter)
 			if err != nil {
