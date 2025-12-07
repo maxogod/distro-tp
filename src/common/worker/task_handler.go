@@ -99,7 +99,7 @@ func NewTaskHandlerWithSeqs(taskExecutor TaskExecutor, shouldDropDuplicates bool
 	for clientID, client := range totals {
 		currentSeqs, ok := th.sequencesPerClient[clientID]
 		if !ok {
-			// TODO: remove bad total file?
+			th.removeTotalFile(clientID)
 			logger.Logger.Warnf("[%s] No sequences found for client with total file. Ignoring total file.", clientID)
 			continue
 		}
@@ -112,7 +112,7 @@ func NewTaskHandlerWithSeqs(taskExecutor TaskExecutor, shouldDropDuplicates bool
 				IsDone:   true,
 				TaskType: int32(client.taskType),
 			}
-			logger.Logger.Debugf("[%s] FOund finished client in disk, calling HandleFinishClient", clientID)
+			logger.Logger.Debugf("[%s] Found finished client in disk, calling HandleFinishClient", clientID)
 			taskExecutor.HandleFinishClient(done, func(bool, bool) error { return nil })
 		}
 	}
@@ -137,7 +137,6 @@ func (th *taskHandler) HandleData(dataEnvelope *protocol.DataEnvelope, ackHandle
 			th.sequencesPerClient[clientID] = seqs
 		}
 		if seqs[seqNum] {
-			logger.Logger.Debugf("[%s] Duplicate sequence number %d. Ignoring message.", clientID, seqNum)
 			return ackHandler(false, false)
 		}
 
@@ -150,12 +149,10 @@ func (th *taskHandler) HandleData(dataEnvelope *protocol.DataEnvelope, ackHandle
 		return err
 	}
 
-	// logger.Logger.Debugf("[%s] COUNT - Messages received: %d", clientID, th.messagesReceived[clientID])
 	if total, exists := th.totalMessagesToReceive[clientID]; exists && total != 0 && len(th.sequencesPerClient[clientID]) == int(total) {
 		logger.Logger.Debugf("[%s] All messages received for client. Cleaning up.", clientID)
 		th.finishedClients[clientID] = true
 		th.reapFinishedClients(false)
-		// TODO: what if it dies here?
 		if err := th.HandleFinishClient(dataEnvelope, func(bool, bool) error { return nil }); err != nil {
 			return err
 		}

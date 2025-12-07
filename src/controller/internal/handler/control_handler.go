@@ -102,31 +102,9 @@ func (ch *controlHandler) AwaitForWorkers() error {
 		counterMsg := <-ch.counterCh
 		counter := counterMsg.counter
 
-		if enum.WorkerType(counter.GetFrom()) == enum.Gateway && enum.WorkerType(counter.GetNext()) == enum.Controller {
-			logger.Logger.Debugf("[%s] Receive Gateway abort for client %s", ch.clientID, ch.clientID)
-
-			for _, monitor := range ch.workersMonitoring {
-				monitor.startOrFinishCh <- false
-				monitor.queue.Delete()
-				monitor.queue.Close()
-			}
-
-			err := ch.counterStore.RemoveClient(ch.clientID)
-			if err != nil {
-				logger.Logger.Errorf("[%s] Error removing client from storage: %v", ch.clientID, err)
-			}
-
-			if counterMsg.ackHandler != nil {
-				counterMsg.ackHandler(true, false)
-			}
-			return nil
-		}
-
 		seqNum := counter.GetSequenceNumber()
 
 		if _, ok := ch.sequencesSeen[seqNum]; ok {
-			logger.Logger.Debugf("[%s] Duplicate counter message received from %s workers with seq num %d, dropping",
-				ch.clientID, currentWorkerType, seqNum)
 			if counterMsg.ackHandler != nil {
 				counterMsg.ackHandler(true, false)
 			}
@@ -223,14 +201,12 @@ func (ch *controlHandler) SendDone(worker enum.WorkerType, totalMsgs int, delete
 func (ch *controlHandler) Close() {
 	for _, monitor := range ch.workersMonitoring {
 		monitor.startOrFinishCh <- false
+		monitor.queue.Delete()
 		monitor.queue.Close()
 	}
-}
-
-func (ch *controlHandler) CleanupStorage() {
-	logger.Logger.Debugf("[%s] Cleaning up storage", ch.clientID)
-	if ch.counterStore != nil {
-		_ = ch.counterStore.RemoveClient(ch.clientID)
+	err := ch.counterStore.RemoveClient(ch.clientID)
+	if err != nil {
+		logger.Logger.Errorf("[%s] Error removing client from storage: %v", ch.clientID, err)
 	}
 }
 

@@ -8,9 +8,11 @@ import (
 // MessageHandler interface defines methods for forwarding tasks to be processed by workers
 // and managing client interactions.
 type MessageHandler interface {
+	// SetClientID updates the current client ID for the handler.
+	SetClientID(clientID string)
 
 	// SendControllerInit comunicates with the controller to start a session
-	SendControllerInit(taskType enum.TaskType) error
+	SendControllerInit(taskType enum.TaskType, isAbort bool) error
 
 	// AwaitControllerInit waits until the controller acknowledges the session start.
 	AwaitControllerInit() error
@@ -20,7 +22,7 @@ type MessageHandler interface {
 	NotifyClientMessagesCount() error
 
 	// NotifyCompletion informs the controller that all processed data was received and forwarded.
-	NotifyCompletion(clientId string, isAbort bool) error
+	NotifyCompletion(clientId string) error
 
 	// ForwardData sends a given data envelope to the corresponding worker layer to start processing it.
 	ForwardData(dataBatch *protocol.DataEnvelope) error

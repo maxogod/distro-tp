@@ -37,26 +37,27 @@ func NewClientSession(conn network.ConnectionInterface, config *config.Config) (
 		return nil, err
 	}
 
+	var newClientId string
 	oldClientId := controlMsg.GetClientId()
 	cs.taskType = enum.TaskType(controlMsg.GetTaskType())
 
 	if oldClientId == uuid.Nil.String() || cs.taskType == enum.T1 {
-		cs.clientId = uuid.New().String()
 		logger.Logger.Debugf("New client connected, ID: %s", cs.clientId)
+		newClientId = uuid.New().String()
 	} else {
 		logger.Logger.Debugf("Reconnected client with ID: %s", cs.clientId)
-		cs.clientId = oldClientId
+		newClientId = oldClientId
 	}
 
-	cs.messageHandler = handler.NewMessageHandler(config.MiddlewareAddress, cs.clientId, cs.config)
+	cs.messageHandler = handler.NewMessageHandler(config.MiddlewareAddress, newClientId, cs.config)
 	if oldClientId != uuid.Nil.String() && cs.taskType == enum.T1 { // Abort old session if reconnecting for T1
 		logger.Logger.Debugf("Aborting client with ID: %s for task %s", oldClientId, string(cs.taskType))
-		notifErr := cs.messageHandler.NotifyCompletion(oldClientId, true)
-		if notifErr != nil {
-			logger.Logger.Errorf("[%s] Error notifying controller about reconnection of clientId %s: %v", cs.clientId, oldClientId, notifErr)
-			return nil, notifErr
-		}
+		cs.messageHandler.SetClientID(oldClientId)
+		cs.messageHandler.SendControllerInit(cs.taskType, true)
 	}
+
+	cs.clientId = newClientId
+	cs.messageHandler.SetClientID(cs.clientId)
 
 	return cs, nil
 }
@@ -75,7 +76,7 @@ func (cs *clientSession) ProcessRequest() error {
 	logger.Logger.Debugf("[%s] Starting to process client request", cs.clientId)
 
 	// Initialize session with controller
-	err := cs.messageHandler.SendControllerInit(cs.taskType)
+	err := cs.messageHandler.SendControllerInit(cs.taskType, false)
 	if err != nil {
 		return err
 	}
@@ -89,13 +90,7 @@ func (cs *clientSession) ProcessRequest() error {
 	err = cs.sendClientRequestAck(cs.taskType)
 	if err != nil {
 		logger.Logger.Errorf("[%s] Error sending client request ack: %v", cs.clientId, err)
-
-		notifErr := cs.messageHandler.NotifyCompletion(cs.clientId, true)
-		if notifErr != nil {
-			logger.Logger.Errorf("[%s] Error notifying controller about abort of client: %v", cs.clientId, notifErr)
-			return notifErr
-		}
-
+		cs.messageHandler.SendControllerInit(cs.taskType, true) // Abort session
 		return err
 	}
 
@@ -110,7 +105,7 @@ func (cs *clientSession) ProcessRequest() error {
 			}
 			logger.Logger.Errorf("[%s] Error getting request from client: %v", cs.clientId, getErr)
 
-			notifErr := cs.messageHandler.NotifyCompletion(cs.clientId, true)
+			notifErr := cs.messageHandler.NotifyCompletion(cs.clientId)
 			if notifErr != nil {
 				logger.Logger.Errorf("[%s] Error notifying controller about abort of client: %v", cs.clientId, notifErr)
 				return notifErr
@@ -139,24 +134,19 @@ func (cs *clientSession) ProcessRequest() error {
 	err = cs.processResponse()
 	if err != nil {
 		logger.Logger.Errorf("[%s] Error processing report data: %v", cs.clientId, err)
-
-		notifErr := cs.messageHandler.NotifyCompletion(cs.clientId, true)
-		if notifErr != nil {
-			logger.Logger.Errorf("[%s] Error notifying controller about abort of client: %v", cs.clientId, notifErr)
-			return notifErr
-		}
+		cs.messageHandler.SendControllerInit(cs.taskType, true) // Abort session
 		return err
 	}
 
-	err = cs.messageHandler.NotifyCompletion(cs.clientId, false)
+	err = cs.messageHandler.NotifyCompletion(cs.clientId)
 	if err != nil {
 		logger.Logger.Errorf("[%s] Error notifying controller about client completion: %v", cs.clientId, err)
 		return err
 	}
 
 	cs.Close()
-	logger.Logger.Debugf("[%s] All report data sent to client, and session closed", cs.clientId)
 
+	logger.Logger.Debugf("[%s] All report data sent to client, and session closed", cs.clientId)
 	return nil
 }
 
@@ -183,7 +173,7 @@ func (cs *clientSession) sendClientRequestAck(taskType enum.TaskType) error {
 func (cs *clientSession) Close() {
 	if !cs.IsFinished() {
 		cs.running.Store(false)
-		//cs.clientConnection.Close()
+		//cs.clientConnection.Close() // TODO: Close connection?
 		cs.messageHandler.Close()
 		logger.Logger.Debugf("[%s] Closed client session", cs.clientId)
 	}

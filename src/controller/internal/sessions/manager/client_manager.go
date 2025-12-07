@@ -44,6 +44,12 @@ func (cm *clientManager) AddClient(id string, taskType enum.TaskType, storedCoun
 }
 
 func (cm *clientManager) RemoveClient(id string) {
+	session, ok := cm.clients[id]
+	if !ok {
+		return
+	}
+
+	session.Close()
 	delete(cm.clients, id)
 }
 
