@@ -87,7 +87,7 @@ func (me *MessageMiddlewareExchange) StartConsuming(onMessageCallback onMessageC
 		q.Name,      // queue
 		consumerTag, // consumer
 		false,       // auto-ack
-		true,        // exclusive
+		false,       // exclusive
 		false,       // no-local
 		false,       // no-wait
 		nil,         // args

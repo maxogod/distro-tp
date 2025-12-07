@@ -95,7 +95,7 @@ func (me *MessageMiddlewarePersistentExchange) StartConsuming(onMessageCallback 
 		me.queueName, // queue
 		consumerTag,  // consumer
 		false,        // auto-ack
-		true,         // exclusive
+		false,        // exclusive
 		false,        // no-local
 		false,        // no-wait
 		nil,          // args
