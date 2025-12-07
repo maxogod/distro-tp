@@ -302,20 +302,28 @@ func (ch *controlHandler) flushPendingCounters(pendingCounters *[]counterMessage
 		return
 	}
 
+	// Collect counters to append
+	countersToAppend := make([]*protocol.MessageCounter, 0, len(*pendingCounters))
 	for _, counterMsg := range *pendingCounters {
-		counter := counterMsg.counter
-		err := ch.counterStore.AppendCounter(ch.clientID, counter)
-		if err != nil {
-			logger.Logger.Errorf("[%s] failed to persist counter: %v. Requeuing message", ch.clientID, err)
-			counterBytes, _ := proto.Marshal(counter)
+		countersToAppend = append(countersToAppend, counterMsg.counter)
+	}
 
-			if monitor, ok := ch.workersMonitoring[enum.WorkerType(counter.GetFrom())]; ok {
+	// Batch append all counters
+	err := ch.counterStore.AppendCounters(ch.clientID, countersToAppend, ch.taskType)
+	if err != nil {
+		logger.Logger.Errorf("[%s] failed to persist counters: %v. Requeuing messages", ch.clientID, err)
+		for _, counterMsg := range *pendingCounters {
+			counterBytes, _ := proto.Marshal(counterMsg.counter)
+			if monitor, ok := ch.workersMonitoring[enum.WorkerType(counterMsg.counter.GetFrom())]; ok {
 				monitor.queue.Send(counterBytes)
 			}
 		}
-
-		if counterMsg.ackHandler != nil {
-			counterMsg.ackHandler(true, false)
+	} else {
+		// Ack all messages
+		for _, counterMsg := range *pendingCounters {
+			if counterMsg.ackHandler != nil {
+				counterMsg.ackHandler(true, false)
+			}
 		}
 	}
 

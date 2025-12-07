@@ -1,6 +1,7 @@
 package server
 
 import (
+	"fmt"
 	"os"
 	"os/signal"
 	"sync/atomic"
@@ -29,8 +30,11 @@ type Server struct {
 	heartbeatSender       heartbeat.HeartBeatHandler
 }
 
-func NewServer(conf *config.Config) *Server {
-	counterStore := storage.NewCounterStorage(conf.StoragePath)
+func NewServer(conf *config.Config) (*Server, error) {
+	counterStore, err := storage.NewCounterStorage(conf.StoragePath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create counter storage: %w", err)
+	}
 	s := &Server{
 		config:                conf,
 		clientManager:         manager.NewClientManager(conf, counterStore),
@@ -44,7 +48,7 @@ func NewServer(conf *config.Config) *Server {
 
 	go s.acceptNewClients()
 
-	return s
+	return s, nil
 }
 
 func (s *Server) Run() error {
