@@ -8,8 +8,8 @@ services:
     image: rabbitmq:latest
     command: sh -c "rabbitmq-server > /dev/null 2>&1"
     ports:
-      - '5670:5672'
-      - '15670:15672'
+      - "5670:5672"
+      - "15670:15672"
     healthcheck:
       test: ["CMD", "rabbitmq-diagnostics", "ping"]
       interval: 10s
@@ -18,28 +18,14 @@ services:
       retries: 5
     networks:
       - tp_net
-    
-  egg_of_life:
-    container_name: egg_of_life
-    build:
-      dockerfile: ./src/egg_of_life/Dockerfile
-    image: egg_of_life:latest
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
-      - ./src/egg_of_life/config.yaml:/app/config.yaml
-    networks:
-      - tp_net
-    environment:
-      - NETWORK=distro_tp_net
-      - HOST_PROJECT_PATH=${PWD}
-      - MAX_CONTROLLER_NODES=2
-    
+
   gateway1:
     container_name: gateway1
     build:
       dockerfile: ./src/gateway/Dockerfile
     image: gateway:latest
     environment:
+      - AMOUNT_EGG_OF_LIFE_NODES=3
       - MAX_CONTROLLER_NODES=2
     volumes:
       - ./src/gateway/config.yaml:/app/config.yaml
@@ -54,13 +40,14 @@ services:
       start_period: 10s
     networks:
       - tp_net
-        
+
   gateway2:
     container_name: gateway2
     build:
       dockerfile: ./src/gateway/Dockerfile
     image: gateway:latest
     environment:
+      - AMOUNT_EGG_OF_LIFE_NODES=3
       - MAX_CONTROLLER_NODES=2
     volumes:
       - ./src/gateway/config.yaml:/app/config.yaml
@@ -75,7 +62,7 @@ services:
       start_period: 10s
     networks:
       - tp_net
-        
+
   controller1:
     container_name: controller1
     build:
@@ -85,13 +72,14 @@ services:
       - ./src/controller/config.yaml:/app/config.yaml
       - ./.storage/controller1:/app/storage
     environment:
+      - AMOUNT_EGG_OF_LIFE_NODES=3
       - ID=controller1
     depends_on:
       rabbitmq:
         condition: service_healthy
     networks:
       - tp_net
-        
+
   controller2:
     container_name: controller2
     build:
@@ -101,13 +89,14 @@ services:
       - ./src/controller/config.yaml:/app/config.yaml
       - ./.storage/controller2:/app/storage
     environment:
+      - AMOUNT_EGG_OF_LIFE_NODES=3
       - ID=controller2
     depends_on:
       rabbitmq:
         condition: service_healthy
     networks:
       - tp_net
-        
+
   aggregator1:
     container_name: aggregator1
     build:
@@ -123,7 +112,7 @@ services:
     depends_on:
       rabbitmq:
         condition: service_healthy
-        
+
   aggregator2:
     container_name: aggregator2
     build:
@@ -139,7 +128,7 @@ services:
     depends_on:
       rabbitmq:
         condition: service_healthy
-        
+
   aggregator3:
     container_name: aggregator3
     build:
@@ -155,7 +144,7 @@ services:
     depends_on:
       rabbitmq:
         condition: service_healthy
-        
+
   joiner1:
     container_name: joiner1
     build:
@@ -164,6 +153,7 @@ services:
     networks:
       - tp_net
     environment:
+      - AMOUNT_EGG_OF_LIFE_NODES=3
       - ID=joiner1
     volumes:
       - ./src/joiner/config.yaml:/app/config.yaml
@@ -171,7 +161,7 @@ services:
     depends_on:
       rabbitmq:
         condition: service_healthy
-        
+
   joiner2:
     container_name: joiner2
     build:
@@ -180,6 +170,7 @@ services:
     networks:
       - tp_net
     environment:
+      - AMOUNT_EGG_OF_LIFE_NODES=3
       - ID=joiner2
     volumes:
       - ./src/joiner/config.yaml:/app/config.yaml
@@ -187,7 +178,55 @@ services:
     depends_on:
       rabbitmq:
         condition: service_healthy
-        
+
+  egg_of_life1:
+    container_name: egg_of_life1
+    build:
+      dockerfile: ./src/egg_of_life/Dockerfile
+    image: egg_of_life:latest
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./src/egg_of_life/config.yaml:/app/config.yaml
+    networks:
+      - tp_net
+    environment:
+      - NETWORK=distro_tp_net
+      - HOST_PROJECT_PATH=${PWD}
+      - MAX_CONTROLLER_NODES=2
+      - AMOUNT_OF_NODES=3
+
+  egg_of_life2:
+    container_name: egg_of_life2
+    build:
+      dockerfile: ./src/egg_of_life/Dockerfile
+    image: egg_of_life:latest
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./src/egg_of_life/config.yaml:/app/config.yaml
+    networks:
+      - tp_net
+    environment:
+      - NETWORK=distro_tp_net
+      - HOST_PROJECT_PATH=${PWD}
+      - MAX_CONTROLLER_NODES=2
+      - AMOUNT_OF_NODES=3
+
+  egg_of_life3:
+    container_name: egg_of_life3
+    build:
+      dockerfile: ./src/egg_of_life/Dockerfile
+    image: egg_of_life:latest
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./src/egg_of_life/config.yaml:/app/config.yaml
+    networks:
+      - tp_net
+    environment:
+      - NETWORK=distro_tp_net
+      - HOST_PROJECT_PATH=${PWD}
+      - MAX_CONTROLLER_NODES=2
+      - AMOUNT_OF_NODES=3
+
   filter1:
     container_name: filter1
     build:
@@ -198,11 +237,12 @@ services:
     volumes:
       - ./src/filter/config.yaml:/app/config.yaml
     environment:
+      - AMOUNT_EGG_OF_LIFE_NODES=3
       - ID=filter1
     depends_on:
       rabbitmq:
         condition: service_healthy
-        
+
   filter2:
     container_name: filter2
     build:
@@ -213,11 +253,12 @@ services:
     volumes:
       - ./src/filter/config.yaml:/app/config.yaml
     environment:
+      - AMOUNT_EGG_OF_LIFE_NODES=3
       - ID=filter2
     depends_on:
       rabbitmq:
         condition: service_healthy
-        
+
   reducer1:
     container_name: reducer1
     build:
@@ -228,11 +269,12 @@ services:
     volumes:
       - ./src/reducer/config.yaml:/app/config.yaml
     environment:
+      - AMOUNT_EGG_OF_LIFE_NODES=3
       - ID=reducer1
     depends_on:
       rabbitmq:
         condition: service_healthy
-        
+
   reducer2:
     container_name: reducer2
     build:
@@ -243,11 +285,12 @@ services:
     volumes:
       - ./src/reducer/config.yaml:/app/config.yaml
     environment:
+      - AMOUNT_EGG_OF_LIFE_NODES=3
       - ID=reducer2
     depends_on:
       rabbitmq:
         condition: service_healthy
-        
+
   group_by1:
     container_name: group_by1
     build:
@@ -258,11 +301,12 @@ services:
     volumes:
       - ./src/group_by/config.yaml:/app/config.yaml
     environment:
+      - AMOUNT_EGG_OF_LIFE_NODES=3
       - ID=group_by1
     depends_on:
       rabbitmq:
         condition: service_healthy
-        
+
   group_by2:
     container_name: group_by2
     build:
@@ -273,11 +317,12 @@ services:
     volumes:
       - ./src/group_by/config.yaml:/app/config.yaml
     environment:
+      - AMOUNT_EGG_OF_LIFE_NODES=3
       - ID=group_by2
     depends_on:
       rabbitmq:
         condition: service_healthy
-        
+
   client1:
     container_name: client1
     entrypoint: ["/app/app", "t1"]
@@ -293,7 +338,7 @@ services:
     depends_on:
       gateway1:
         condition: service_healthy
-        
+
   client2:
     container_name: client2
     entrypoint: ["/app/app", "t2"]
@@ -309,7 +354,7 @@ services:
     depends_on:
       gateway1:
         condition: service_healthy
-        
+
   client3:
     container_name: client3
     entrypoint: ["/app/app", "t3"]
@@ -325,7 +370,7 @@ services:
     depends_on:
       gateway1:
         condition: service_healthy
-        
+
   client4:
     container_name: client4
     entrypoint: ["/app/app", "t4"]
@@ -341,7 +386,7 @@ services:
     depends_on:
       gateway1:
         condition: service_healthy
-        
+
 networks:
   tp_net:
     ipam:

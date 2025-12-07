@@ -18,3 +18,5 @@ services:
     instances: 2
   client:
     instances: 4
+  egg_of_life:
+    instances: 3

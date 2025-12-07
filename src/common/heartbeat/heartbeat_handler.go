@@ -18,8 +18,6 @@ type heartbeatHandler struct {
 	port     int
 	interval time.Duration
 
-	conn *net.UDPConn
-
 	ctx    context.Context
 	cancel context.CancelFunc
 }
@@ -51,6 +49,21 @@ func (h *heartbeatHandler) StartSending() error {
 		return fmt.Errorf("failed to dial UDP: %w", err)
 	}
 	go h.sendAtIntervals(conn)
+	return nil
+}
+
+func (h *heartbeatHandler) StartSendingToAll(destinationAddrs []string) error {
+	for _, addr := range destinationAddrs {
+		udpAddr, err := net.ResolveUDPAddr("udp", addr)
+		if err != nil {
+			continue
+		}
+		conn, err := net.DialUDP("udp", nil, udpAddr)
+		if err != nil {
+			continue
+		}
+		go h.sendAtIntervals(conn)
+	}
 	return nil
 }
 
