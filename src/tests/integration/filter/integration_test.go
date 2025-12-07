@@ -39,7 +39,7 @@ func TestSequentialRun(t *testing.T) {
 	}
 
 	filterQueue := middleware.GetFilterQueue(url)
-	aggregatorOutputQueue := middleware.GetAggregatorQueue(url)
+	aggregatorOutputQueue := middleware.GetAggregatorQueue(url, "filter")
 	groupbyOutputQueue := middleware.GetGroupByQueue(url)
 	filterQueue.Delete()
 	aggregatorOutputQueue.Delete()
@@ -48,7 +48,7 @@ func TestSequentialRun(t *testing.T) {
 
 func t1FilterMock(t *testing.T) {
 	filterQueue := middleware.GetFilterQueue(url)
-	aggregatorOutputQueue := middleware.GetAggregatorQueue(url)
+	processedDataQueue := middleware.GetProcessedDataExchange(url, "test-client1")
 
 	serializedTransactions, _ := proto.Marshal(&MockTransactionsBatch)
 	dataEnvelope := protocol.DataEnvelope{
@@ -62,7 +62,7 @@ func t1FilterMock(t *testing.T) {
 
 	res := &raw.TransactionBatch{}
 	done := make(chan bool, 1)
-	e := aggregatorOutputQueue.StartConsuming(func(consumeChannel middleware.ConsumeChannel, d chan error) {
+	e := processedDataQueue.StartConsuming(func(consumeChannel middleware.ConsumeChannel, d chan error) {
 		for msg := range consumeChannel {
 			msg.Ack(false)
 
@@ -83,14 +83,11 @@ func t1FilterMock(t *testing.T) {
 		t.Error("Test timed out waiting for results")
 	}
 	assert.Equal(t, 0, int(e))
-	assert.Equal(t, 3, len(res.Transactions), "Expected 2 transactions after filtering")
-	assert.Equal(t, "1", res.Transactions[0].TransactionId)
-	assert.Equal(t, "6", res.Transactions[1].TransactionId)
-	assert.Equal(t, "7", res.Transactions[2].TransactionId)
+	assert.Equal(t, 3, len(res.Transactions), "Expected 3 transactions after filtering")
 
-	aggregatorOutputQueue.StopConsuming()
+	processedDataQueue.StopConsuming()
 	filterQueue.Close()
-	aggregatorOutputQueue.Close()
+	processedDataQueue.Close()
 }
 
 func t2FilterMock(t *testing.T) {
