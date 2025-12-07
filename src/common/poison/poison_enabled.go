@@ -16,7 +16,7 @@ func ExitIfPoisoned() {
 	if sample > PROBABILITY {
 		return
 	}
-	time.Sleep(2 * time.Second)
+	time.Sleep(5 * time.Second)
 	os.Exit(3) // Exit code for poisoned process
 }
 

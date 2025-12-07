@@ -173,7 +173,7 @@ func (cs *clientSession) sendClientRequestAck(taskType enum.TaskType) error {
 func (cs *clientSession) Close() {
 	if !cs.IsFinished() {
 		cs.running.Store(false)
-		// cs.clientConnection.Close() // TODO: Close connection?
+		cs.clientConnection.Close()
 		cs.messageHandler.Close()
 		logger.Logger.Debugf("[%s] Closed client session", cs.clientId)
 	}
