@@ -309,7 +309,7 @@ services:
         
   client1:
     container_name: client1
-    entrypoint: ["/app/app", "t1", "t2", "t3", "t4"]
+    entrypoint: ["/app/app", "t1", "t2"]
     build:
       dockerfile: ./src/client/Dockerfile
     image: client:latest
@@ -318,6 +318,54 @@ services:
     volumes:
       - ./.data:/app/.data
       - ./.output1:/app/.output
+      - ./src/client/config.yaml:/app/config.yaml
+    depends_on:
+      gateway1:
+        condition: service_healthy
+        
+  client2:
+    container_name: client2
+    entrypoint: ["/app/app", "t2", "t3"]
+    build:
+      dockerfile: ./src/client/Dockerfile
+    image: client:latest
+    networks:
+      - tp_net
+    volumes:
+      - ./.data:/app/.data
+      - ./.output2:/app/.output
+      - ./src/client/config.yaml:/app/config.yaml
+    depends_on:
+      gateway1:
+        condition: service_healthy
+        
+  client3:
+    container_name: client3
+    entrypoint: ["/app/app", "t3", "t4"]
+    build:
+      dockerfile: ./src/client/Dockerfile
+    image: client:latest
+    networks:
+      - tp_net
+    volumes:
+      - ./.data:/app/.data
+      - ./.output3:/app/.output
+      - ./src/client/config.yaml:/app/config.yaml
+    depends_on:
+      gateway1:
+        condition: service_healthy
+        
+  client4:
+    container_name: client4
+    entrypoint: ["/app/app", "t4", "t1"]
+    build:
+      dockerfile: ./src/client/Dockerfile
+    image: client:latest
+    networks:
+      - tp_net
+    volumes:
+      - ./.data:/app/.data
+      - ./.output4:/app/.output
       - ./src/client/config.yaml:/app/config.yaml
     depends_on:
       gateway1:
