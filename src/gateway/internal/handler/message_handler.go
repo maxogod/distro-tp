@@ -86,7 +86,6 @@ func (mh *messageHandler) SendControllerInit(taskType enum.TaskType, isAbort boo
 		ControllerId: mh.controllerID,
 		IsAbort:      isAbort,
 	}
-	logger.Logger.Infof("[%s] Sending init control message to controller %d for task %s (abort: %t)", mh.clientID, mh.controllerID, string(taskType), isAbort)
 	payload, err := proto.Marshal(controlMessage)
 	if err != nil {
 		return err
@@ -98,6 +97,7 @@ func (mh *messageHandler) SendControllerInit(taskType enum.TaskType, isAbort boo
 }
 
 func (mh *messageHandler) AwaitControllerInit() error {
+	logger.Logger.Infof("[%s] Awaiting controller ack for initialization", mh.clientID)
 	mh.startAwaitingAck <- true
 	<-mh.ackReceived
 	return nil

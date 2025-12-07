@@ -91,8 +91,8 @@ func (s *Server) Shutdown() {
 	}
 
 	s.running.Store(false)
-	s.clientManager.Close()
 	s.finishAcceptingChan <- true // Stop accepting new clients
+	s.clientManager.Close()
 	s.initControlMiddleware.Close()
 
 	s.heartbeatSender.Close()
@@ -116,7 +116,7 @@ func (s *Server) acceptNewClients() {
 	done := make(chan bool)
 	e := s.initControlMiddleware.StartConsuming(func(msgs middleware.ConsumeChannel, d chan error) {
 		running := true
-		for running {
+		for running && s.running.Load() {
 			var msg middleware.MessageDelivery
 			select {
 			case m := <-msgs:
@@ -146,12 +146,6 @@ func (s *Server) acceptNewClients() {
 					controlMsg.GetClientId(),
 					controlMsg.GetControllerId(),
 				)
-				msg.Nack(false, true)
-				continue
-			}
-
-			if err = s.counterStore.InitializeClientCounter(controlMsg.GetClientId(), enum.TaskType(controlMsg.GetTaskType())); err != nil {
-				logger.Logger.Debugf("action: ensure_client_storage | client_id: %s | result: failed | error: %s", controlMsg.GetClientId(), err.Error())
 				msg.Nack(false, true)
 				continue
 			}
