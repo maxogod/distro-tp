@@ -6,7 +6,7 @@ import signal
 import time
 import yaml
 import os
-from egg_of_life.leader_election import leader_election
+from leader_election.leader_election import LeaderElection
 from udp_server import UDPServer
 from docker_runner import DockerRunner
 from protocol.heartbeat_pb2 import HeartBeat
@@ -25,7 +25,7 @@ class RevivalChansey:
         docker_network: str,
         host_path: str,
         controller_count: int,
-        leader_election: leader_election.LeaderElection = None,
+        leader_election: LeaderElection = None,
     ):
         self._server = UDPServer(port=port)
         self._docker_runner = DockerRunner(docker_network, host_path, controller_count)
@@ -85,11 +85,19 @@ class RevivalChansey:
 
         while True:
             if not self._leader_election.i_am_leader():  # only the leader sends hb
+                time.sleep(0.1)
                 continue
             hb = HeartBeat()
             data = hb.SerializeToString()
             for node in connectedNodes:
-                self._server.send(node, data)
+                try:
+                    self._server.send(
+                        data,
+                        node,
+                    )  # UDP send, node is hostname, data is bytes
+                except Exception as e:
+                    print(f"Could not send heartbeat to {node}: {e}")
+                    pass  # Silently ignore if nodes not reachable yet
             time.sleep(self._leader_election.sending_interval / 1000)
 
     def _get_heartbeat(self) -> str:
@@ -172,7 +180,6 @@ def main():
     timeout_interval = 10
     check_interval = 5
     heartbeat_interval = 200
-    leader_election_host = "egg_of_life"
 
     docker_network = os.getenv("NETWORK", "bridge")
     host_path = os.getenv("HOST_PROJECT_PATH", "")
@@ -192,13 +199,12 @@ def main():
         f"Starting Revival Chansey on port {port} with timeout {timeout_interval}s and check interval {check_interval}s"
     )
     print(
-        f"Docker network: {docker_network}, Host path: {host_path}, Max controllers: {controller_count}, Amount of nodes: {amount_of_nodes}, ID: {id}"
+        f"Docker network: {docker_network}, Host path: {host_path}, Max controllers: {controller_count}"
     )
 
-    le = leader_election.LeaderElection(
+    le = LeaderElection(
         id=id,
         amount_of_nodes=amount_of_nodes,
-        host=leader_election_host,
         port=leader_election_port,
         sending_interval=heartbeat_interval,
     )

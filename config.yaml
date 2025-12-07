@@ -1,22 +1,3 @@
 services:
-  gateway:
-    instances: 2
-  controller:
-    instances: 2
-  filter:
-    instances: 2
-    # tags: "poison mid_prob"
-  group_by:
-    instances: 2
-    # tags: "poison mid_prob"
-  reducer:
-    instances: 2
-    # tags: "poison mid_prob"
-  aggregator:
-    instances: 3
-  joiner:
-    instances: 2
-  client:
-    instances: 4
   egg_of_life:
     instances: 3

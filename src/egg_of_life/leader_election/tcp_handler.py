@@ -45,7 +45,6 @@ class TCPHandler:
                 data = conn.recv(self.buffer_size)
                 if not data:
                     break
-                print(f"Received from {hostname}: {data}")
                 # Send data through channel (queue)
                 with self.queue_lock:
                     self.message_queue.append((hostname, data))
@@ -69,15 +68,20 @@ class TCPHandler:
             # Wait for new data
             self.queue_event.wait()
 
-    def send(self, data: bytes, hostname: str):
+    def send(self, data: bytes, hostname: str) -> bool:
         """Send data to a specific host"""
-        if hostname in self.connections:
-            try:
-                self.connections[hostname].sendall(data)
-            except Exception as e:
-                print(f"Error sending to {hostname}: {e}")
-        else:
-            print(f"Not connected to {hostname}")
+        if hostname not in self.connections:
+            return False
+        try:
+            self.connections[hostname].sendall(data)
+            return True
+        except Exception as e:
+            print(f"Error sending to {hostname}: {e}")
+            # Remove from connections if send failed
+            with self.queue_lock:
+                if hostname in self.connections:
+                    del self.connections[hostname]
+            return False
 
     def connect_to(self, host: str, port: int):
         """Actively connect to another TCP server"""

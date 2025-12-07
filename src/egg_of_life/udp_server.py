@@ -23,7 +23,7 @@ class UDPServer:
 
         return data, hostname
 
-    def send(self, data: bytes, host: str, port: int):
+    def send(self, data: bytes, host: str, port=7777):
         self.sock.sendto(data, (host, port))
 
     def close(self):

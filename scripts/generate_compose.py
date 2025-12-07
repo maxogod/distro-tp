@@ -71,7 +71,7 @@ lines.append(
 # ==============================
 def add_egg_of_life(count, controller_count):
     for i in range(1, count + 1):
-        cname = f"egg_of_life{i}" if count > 1 else "egg_of_life"
+        cname = f"egg_of_life{i}"
         service_def = f"""  {cname}:
     container_name: {cname}
     build:
@@ -83,6 +83,7 @@ def add_egg_of_life(count, controller_count):
     networks:
       - tp_net
     environment:
+      - ID={i}
       - NETWORK=distro_tp_net
       - HOST_PROJECT_PATH={"${PWD}"}
       - MAX_CONTROLLER_NODES={controller_count}
@@ -110,7 +111,7 @@ def add_gateway(count, tags=None):
         service_def += f"""
     image: gateway:latest
     environment:
-      - AMOUNT_EGG_OF_LIFE_NODES={eol_count}
+      - EOL_NODES={eol_count}
       - MAX_CONTROLLER_NODES={controller_count}
     volumes:
       - ./src/gateway/config.yaml:/app/config.yaml
@@ -151,7 +152,7 @@ def add_controller(count, tags=None):
       - ./src/controller/config.yaml:/app/config.yaml
       - ./.storage/{cname}:/app/storage
     environment:
-      - AMOUNT_EGG_OF_LIFE_NODES={eol_count}
+      - EOL_NODES={eol_count}
       - ID={cname}
     depends_on:
       rabbitmq:
@@ -218,7 +219,7 @@ def add_services(name, count, tags=None):
     volumes:
       - ./src/{name}/config.yaml:/app/config.yaml
     environment:
-      - AMOUNT_EGG_OF_LIFE_NODES={eol_count}
+      - EOL_NODES={eol_count}
       - ID={cname}
     depends_on:
       rabbitmq:
@@ -248,7 +249,7 @@ def add_joiner(count, tags=None):
     networks:
       - tp_net
     environment:
-      - AMOUNT_EGG_OF_LIFE_NODES={eol_count}
+      - EOL_NODES={eol_count}
       - ID={cname}
     volumes:
       - ./src/joiner/config.yaml:/app/config.yaml

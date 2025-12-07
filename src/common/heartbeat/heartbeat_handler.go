@@ -52,8 +52,11 @@ func (h *heartbeatHandler) StartSending() error {
 	return nil
 }
 
-func (h *heartbeatHandler) StartSendingToAll(destinationAddrs []string) error {
-	for _, addr := range destinationAddrs {
+func (h *heartbeatHandler) StartSendingToAll(amount int) error {
+	for i := range amount {
+
+		addr := fmt.Sprintf("%s%d:%d", h.host, i+1, h.port)
+
 		udpAddr, err := net.ResolveUDPAddr("udp", addr)
 		if err != nil {
 			continue
