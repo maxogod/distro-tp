@@ -10,8 +10,17 @@ import (
 	amqp "github.com/rabbitmq/amqp091-go"
 )
 
+type messageMiddlewareQueue struct {
+	conn    MiddlewareConnection
+	channel MiddlewareChannel
+
+	queueName      string
+	consumeChannel ConsumeChannel
+	consumerTag    string
+}
+
 func NewQueueMiddleware(url, queueName string) (MessageMiddleware, error) {
-	m := &MessageMiddlewareQueue{}
+	m := &messageMiddlewareQueue{}
 
 	conn, err := amqp.Dial(url)
 	if err != nil {
@@ -45,7 +54,7 @@ func NewQueueMiddleware(url, queueName string) (MessageMiddleware, error) {
 	return m, nil
 }
 
-func (mq *MessageMiddlewareQueue) StartConsuming(onMessageCallback onMessageCallback) (e MessageMiddlewareError) {
+func (mq *messageMiddlewareQueue) StartConsuming(onMessageCallback onMessageCallback) (e MessageMiddlewareError) {
 	if mq.conn.IsClosed() {
 		logger.Logger.Errorln("Connection is closed")
 		return MessageMiddlewareDisconnectedError
@@ -75,7 +84,11 @@ func (mq *MessageMiddlewareQueue) StartConsuming(onMessageCallback onMessageCall
 	return MessageMiddlewareSuccess
 }
 
-func (mq *MessageMiddlewareQueue) StopConsuming() (e MessageMiddlewareError) {
+func (mq *messageMiddlewareQueue) StopConsuming() (e MessageMiddlewareError) {
+	if mq.conn.IsClosed() {
+		return MessageMiddlewareDisconnectedError
+	}
+
 	if mq.consumerTag == "" {
 		logger.Logger.Warnln("StopConsuming called but no consumer is active")
 		return MessageMiddlewareSuccess
@@ -91,7 +104,7 @@ func (mq *MessageMiddlewareQueue) StopConsuming() (e MessageMiddlewareError) {
 	return MessageMiddlewareSuccess
 }
 
-func (mq *MessageMiddlewareQueue) Send(message []byte) (e MessageMiddlewareError) {
+func (mq *messageMiddlewareQueue) Send(message []byte) (e MessageMiddlewareError) {
 	if mq.conn.IsClosed() {
 		logger.Logger.Errorln("Connection is closed")
 		return MessageMiddlewareDisconnectedError
@@ -115,23 +128,28 @@ func (mq *MessageMiddlewareQueue) Send(message []byte) (e MessageMiddlewareError
 		return MessageMiddlewareMessageError
 	}
 
-	//logger.Logger.Debugln("Sent message:", string(message))
-
 	return MessageMiddlewareSuccess
 }
 
-func (mq *MessageMiddlewareQueue) Close() (e MessageMiddlewareError) {
-	errCh := mq.channel.Close()
-	errConn := mq.conn.Close()
-	if errCh != nil || errConn != nil {
-		logger.Logger.Errorln("Failed to close middleware connection")
-		return MessageMiddlewareCloseError
+func (mq *messageMiddlewareQueue) Close() (e MessageMiddlewareError) {
+	if !mq.channel.IsClosed() {
+		if err := mq.channel.Close(); err != nil {
+			logger.Logger.Errorln("Failed to close channel:", err)
+			return MessageMiddlewareCloseError
+		}
+	}
+
+	if !mq.conn.IsClosed() {
+		if err := mq.conn.Close(); err != nil {
+			logger.Logger.Errorln("Failed to close connection:", err)
+			return MessageMiddlewareCloseError
+		}
 	}
 
 	return MessageMiddlewareSuccess
 }
 
-func (mq *MessageMiddlewareQueue) Delete() (e MessageMiddlewareError) {
+func (mq *messageMiddlewareQueue) Delete() (e MessageMiddlewareError) {
 	msg_count, err := mq.channel.QueueDelete(
 		mq.queueName, // name
 		false,        // ifUnused

@@ -65,19 +65,24 @@ func (s *Server) Run() error {
 
 		s.clientManager.ReapStaleClients()
 
-		clientSession := s.clientManager.AddClient(controlMsg.GetClientId(), enum.TaskType(controlMsg.GetTaskType()), nil)
+		clientSession, open := s.clientManager.AddClient(controlMsg.GetClientId(), enum.TaskType(controlMsg.GetTaskType()), nil)
 
 		if controlMsg.GetIsAbort() {
 			s.clientManager.RemoveClient(controlMsg.GetClientId())
 			logger.Logger.Infof("action: remove_client | client_id: %s | result: success", controlMsg.GetClientId())
 			continue
 		}
-		go func() {
-			err = clientSession.InitiateControlSequence()
-			if err != nil {
-				logger.Logger.Debugf("action: initiate_control_sequence | result: failed | error: %s", err.Error())
-			}
-		}()
+		if open {
+			// If session is already open, just notify ready
+			clientSession.NotifyControllerReady()
+		} else {
+			go func() {
+				err = clientSession.InitiateControlSequence()
+				if err != nil {
+					logger.Logger.Debugf("action: initiate_control_sequence | result: failed | error: %s", err.Error())
+				}
+			}()
+		}
 
 		logger.Logger.Infof("action: add_client | client_id: %s | result: success", controlMsg.GetClientId())
 	}

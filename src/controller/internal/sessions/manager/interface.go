@@ -8,8 +8,8 @@ import (
 
 // ClientManager defines the interface for managing client sessions.
 type ClientManager interface {
-	// AddClient creates and registers a new client session.
-	AddClient(id string, taskType enum.TaskType, storedCounters []*protocol.MessageCounter) clients.ClientSession
+	// AddClient creates and registers a new client session and whether it was open or not.
+	AddClient(id string, taskType enum.TaskType, storedCounters []*protocol.MessageCounter) (clients.ClientSession, bool)
 
 	// RemoveClient removes a client session by its ID.
 	RemoveClient(id string)

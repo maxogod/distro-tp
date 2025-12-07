@@ -9,8 +9,19 @@ import (
 	amqp "github.com/rabbitmq/amqp091-go"
 )
 
+type messageMiddlewareExchange struct {
+	url          string
+	exchangeName string
+	conn         MiddlewareConnection
+	channel      MiddlewareChannel
+	routeKeys    []string
+
+	consumeChannel ConsumeChannel
+	consumerTag    string
+}
+
 func NewExchangeMiddleware(url, exchangeName, exchangeType string, routingKeys []string) (MessageMiddleware, error) {
-	m := &MessageMiddlewareExchange{}
+	m := &messageMiddlewareExchange{}
 
 	if len(routingKeys) == 0 {
 		routingKeys = []string{""} // Default
@@ -51,7 +62,7 @@ func NewExchangeMiddleware(url, exchangeName, exchangeType string, routingKeys [
 	return m, nil
 }
 
-func (me *MessageMiddlewareExchange) StartConsuming(onMessageCallback onMessageCallback) (e MessageMiddlewareError) {
+func (me *messageMiddlewareExchange) StartConsuming(onMessageCallback onMessageCallback) (e MessageMiddlewareError) {
 	q, err := me.channel.QueueDeclare(
 		"",    // name
 		false, // durable
@@ -105,7 +116,11 @@ func (me *MessageMiddlewareExchange) StartConsuming(onMessageCallback onMessageC
 	return MessageMiddlewareSuccess
 }
 
-func (me *MessageMiddlewareExchange) StopConsuming() (error MessageMiddlewareError) {
+func (me *messageMiddlewareExchange) StopConsuming() (error MessageMiddlewareError) {
+	if me.conn.IsClosed() {
+		return MessageMiddlewareDisconnectedError
+	}
+
 	if me.consumerTag == "" {
 		logger.Logger.Warnln("StopConsuming called but no consumer is active")
 		return MessageMiddlewareSuccess
@@ -121,7 +136,7 @@ func (me *MessageMiddlewareExchange) StopConsuming() (error MessageMiddlewareErr
 	return MessageMiddlewareSuccess
 }
 
-func (me *MessageMiddlewareExchange) Send(message []byte) MessageMiddlewareError {
+func (me *messageMiddlewareExchange) Send(message []byte) MessageMiddlewareError {
 	if me.conn.IsClosed() {
 		logger.Logger.Errorln("Connection is closed")
 		if err := me.tryReconnect(); err != nil {
@@ -153,18 +168,25 @@ func (me *MessageMiddlewareExchange) Send(message []byte) MessageMiddlewareError
 	return MessageMiddlewareSuccess
 }
 
-func (me *MessageMiddlewareExchange) Close() (error MessageMiddlewareError) {
-	errCh := me.channel.Close()
-	errConn := me.conn.Close()
-	if errCh != nil || errConn != nil {
-		logger.Logger.Errorln("Failed to close middleware connection")
-		return MessageMiddlewareCloseError
+func (me *messageMiddlewareExchange) Close() (error MessageMiddlewareError) {
+	if !me.channel.IsClosed() {
+		if err := me.channel.Close(); err != nil {
+			logger.Logger.Errorln("Failed to close channel:", err)
+			return MessageMiddlewareCloseError
+		}
+	}
+
+	if !me.conn.IsClosed() {
+		if err := me.conn.Close(); err != nil {
+			logger.Logger.Errorln("Failed to close connection:", err)
+			return MessageMiddlewareCloseError
+		}
 	}
 
 	return MessageMiddlewareSuccess
 }
 
-func (me *MessageMiddlewareExchange) Delete() (error MessageMiddlewareError) {
+func (me *messageMiddlewareExchange) Delete() (error MessageMiddlewareError) {
 	err := me.channel.ExchangeDelete(
 		me.exchangeName, // name
 		false,           // ifUnused
@@ -180,7 +202,7 @@ func (me *MessageMiddlewareExchange) Delete() (error MessageMiddlewareError) {
 	return MessageMiddlewareSuccess
 }
 
-func (me *MessageMiddlewareExchange) tryReconnect() error {
+func (me *messageMiddlewareExchange) tryReconnect() error {
 	conn, err := amqp.Dial(me.url)
 	if err != nil {
 		logger.Logger.Errorln("Failed to connect to RabbitMQ:", err)

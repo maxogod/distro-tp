@@ -27,8 +27,12 @@ func (cs *clientSession) IsFinished() bool {
 	return !cs.running.Load()
 }
 
-func (cs *clientSession) InitiateControlSequence() error {
+func (cs *clientSession) NotifyControllerReady() {
 	cs.controlHandler.SendControllerReady()
+}
+
+func (cs *clientSession) InitiateControlSequence() error {
+	cs.NotifyControllerReady()
 	logger.Logger.Debugf("[%s] Starting EOF control sequence", cs.Id)
 
 	err := cs.controlHandler.AwaitForWorkers()
