@@ -361,7 +361,7 @@ services:
         
   client1:
     container_name: client1
-    entrypoint: ["/app/app", "t1"]
+    entrypoint: ["/app/app", "t1", "t2"]
     build:
       dockerfile: ./src/client/Dockerfile
     image: client:latest
@@ -377,7 +377,7 @@ services:
         
   client2:
     container_name: client2
-    entrypoint: ["/app/app", "t2"]
+    entrypoint: ["/app/app", "t2", "t3"]
     build:
       dockerfile: ./src/client/Dockerfile
     image: client:latest
@@ -393,7 +393,7 @@ services:
         
   client3:
     container_name: client3
-    entrypoint: ["/app/app", "t3"]
+    entrypoint: ["/app/app", "t3", "t4"]
     build:
       dockerfile: ./src/client/Dockerfile
     image: client:latest
@@ -409,7 +409,7 @@ services:
         
   client4:
     container_name: client4
-    entrypoint: ["/app/app", "t4"]
+    entrypoint: ["/app/app", "t4", "t1"]
     build:
       dockerfile: ./src/client/Dockerfile
     image: client:latest

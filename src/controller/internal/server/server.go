@@ -196,6 +196,7 @@ func (s *Server) restoreClientsFromStorage() {
 			clientCounters = nil
 		}
 		clientSession, open := s.clientManager.AddClient(clientID, taskType, clientCounters)
+		clientSession.NotifyControllerReady()
 		if !open {
 			go func() {
 				err := clientSession.InitiateControlSequence()
