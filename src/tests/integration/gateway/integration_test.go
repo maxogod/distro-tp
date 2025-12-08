@@ -94,10 +94,12 @@ receiveLoop:
 		}
 	}
 
-	require.Len(t, received, 3, "expected first unique message, second unique message, and done")
+	require.Len(t, received, 4, "expected duplicates not dropped, unique message, and done")
 	require.Equal(t, payload, received[0].GetPayload())
 	require.EqualValues(t, 1, received[0].GetSequenceNumber())
-	require.Equal(t, []byte("another-payload"), received[1].GetPayload())
-	require.EqualValues(t, 2, received[1].GetSequenceNumber())
-	require.True(t, received[2].GetIsDone())
+	require.Equal(t, payload, received[1].GetPayload())
+	require.EqualValues(t, 1, received[1].GetSequenceNumber())
+	require.Equal(t, []byte("another-payload"), received[2].GetPayload())
+	require.EqualValues(t, 2, received[2].GetSequenceNumber())
+	require.True(t, received[3].GetIsDone())
 }

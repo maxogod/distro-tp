@@ -129,8 +129,15 @@ func TestJoinTotalSumItems(t *testing.T) {
 
 	service.StoreMenuItems(clientID, MenuItemsList)
 	service.FinishStoringRefData(clientID)
+	service.SyncData()
 
-	for _, item := range TotalItemSumData {
+	for _, originalItem := range TotalItemSumData {
+		item := &reduced.TotalSumItem{
+			ItemId:    originalItem.ItemId,
+			YearMonth: originalItem.YearMonth,
+			Subtotal:  originalItem.Subtotal,
+			Quantity:  originalItem.Quantity,
+		}
 
 		originalId := item.ItemId
 
@@ -152,6 +159,7 @@ func TestJoinTotalPaymentValueData(t *testing.T) {
 
 	service.StoreShops(clientID, StoresList)
 	service.FinishStoringRefData(clientID)
+	service.SyncData()
 
 	for _, item := range TPVData {
 
@@ -176,6 +184,7 @@ func TestJoinCountedUserTransactionData(t *testing.T) {
 	service.StoreShops(clientID, StoresList)
 	service.StoreUsers(clientID, UsersList)
 	service.FinishStoringRefData(clientID)
+	service.SyncData()
 
 	for _, item := range CountedUserTransactionsData {
 
@@ -204,8 +213,15 @@ func TestDontJoinUntilAllDataIsPresent(t *testing.T) {
 	assert.Error(t, service.JoinTotalSumItem(TotalItemSumData[0], clientID))
 
 	service.FinishStoringRefData(clientID)
+	service.SyncData()
 
-	for _, item := range TotalItemSumData {
+	for _, originalItem := range TotalItemSumData {
+		item := &reduced.TotalSumItem{
+			ItemId:    originalItem.ItemId,
+			YearMonth: originalItem.YearMonth,
+			Subtotal:  originalItem.Subtotal,
+			Quantity:  originalItem.Quantity,
+		}
 
 		originalId := item.ItemId
 

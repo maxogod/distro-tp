@@ -12,6 +12,8 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
+const NULL_TASK = 0
+
 // message represents a message received from middleware
 // it contains the data envelope and an ack handler function
 // this will be delegated to the DataHandler implementation
@@ -84,6 +86,9 @@ func (mh *messageHandler) Start() error {
 	for mh.isRunning {
 		select {
 		case message := <-mh.inputChannel:
+			if message.dataEnvelope.GetTaskType() == int32(NULL_TASK) {
+				continue
+			}
 			if err := mh.dataHandler.HandleData(message.dataEnvelope, message.ackHandler); err != nil {
 				logger.Logger.Warnf("Failed to handle data batch: %v", err)
 			}

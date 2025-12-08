@@ -28,10 +28,6 @@ func (cm *clientManager) AddClient(connection network.ConnectionInterface) clien
 		return nil
 	}
 
-	if session == nil {
-		return nil
-	}
-
 	cm.clients.Store(session.GetClientId(), session)
 	logger.Logger.Infof("Client connected with ID: %s", session.GetClientId())
 	return session

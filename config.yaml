@@ -1,3 +1,22 @@
 services:
   egg_of_life:
     instances: 3
+  gateway:
+    instances: 2
+  controller:
+    instances: 3
+  filter:
+    instances: 3
+    tags: "poison low_prob"
+  group_by:
+    instances: 2
+    tags: "poison low_prob"
+  reducer:
+    instances: 2
+    tags: "poison low_prob"
+  aggregator:
+    instances: 2
+  joiner:
+    instances: 2
+  client:
+    instances: 4

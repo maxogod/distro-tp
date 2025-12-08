@@ -27,8 +27,12 @@ func (cs *clientSession) IsFinished() bool {
 	return !cs.running.Load()
 }
 
-func (cs *clientSession) InitiateControlSequence() error {
+func (cs *clientSession) NotifyControllerReady() {
 	cs.controlHandler.SendControllerReady()
+}
+
+func (cs *clientSession) InitiateControlSequence() error {
+	cs.NotifyControllerReady()
 	logger.Logger.Debugf("[%s] Starting EOF control sequence", cs.Id)
 
 	err := cs.controlHandler.AwaitForWorkers()
@@ -50,7 +54,6 @@ func (cs *clientSession) InitiateControlSequence() error {
 			return err
 		}
 	}
-	cs.controlHandler.CleanupStorage()
 	cs.Close()
 	logger.Logger.Debugf("[%s] EOF delivered, and session closed", cs.Id)
 
@@ -59,7 +62,6 @@ func (cs *clientSession) InitiateControlSequence() error {
 
 func (cs *clientSession) Close() {
 	if !cs.IsFinished() {
-		cs.controlHandler.CleanupStorage()
 		cs.controlHandler.Close()
 		cs.running.Store(false)
 		logger.Logger.Debugf("[%s] Closed client session", cs.Id)

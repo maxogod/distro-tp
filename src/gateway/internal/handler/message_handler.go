@@ -74,12 +74,17 @@ func NewMessageHandler(middlewareUrl, clientID string, config *config.Config) Me
 	return h
 }
 
-func (mh *messageHandler) SendControllerInit(taskType enum.TaskType) error {
+func (mh *messageHandler) SetClientID(clientID string) {
+	mh.clientID = clientID
+}
+
+func (mh *messageHandler) SendControllerInit(taskType enum.TaskType, isAbort bool) error {
 	mh.taskType = taskType
 	controlMessage := &protocol.ControlMessage{
 		ClientId:     mh.clientID,
 		TaskType:     int32(taskType),
 		ControllerId: mh.controllerID,
+		IsAbort:      isAbort,
 	}
 	payload, err := proto.Marshal(controlMessage)
 	if err != nil {
@@ -92,6 +97,7 @@ func (mh *messageHandler) SendControllerInit(taskType enum.TaskType) error {
 }
 
 func (mh *messageHandler) AwaitControllerInit() error {
+	logger.Logger.Infof("[%s] Awaiting controller ack for initialization", mh.clientID)
 	mh.startAwaitingAck <- true
 	<-mh.ackReceived
 	return nil
@@ -119,16 +125,11 @@ func (mh *messageHandler) NotifyClientMessagesCount() error {
 	return nil
 }
 
-func (mh *messageHandler) NotifyCompletion(clientId string, isAbort bool) error {
-	next := string(enum.None)
-	if isAbort {
-		next = string(enum.Controller)
-	}
-
+func (mh *messageHandler) NotifyCompletion(clientId string) error {
 	countMessage := &protocol.MessageCounter{
 		ClientId: clientId,
 		From:     string(enum.Gateway),
-		Next:     next,
+		Next:     string(enum.None),
 		TaskType: int32(mh.taskType),
 	}
 	payload, err := proto.Marshal(countMessage)

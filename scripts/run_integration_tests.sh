@@ -2,7 +2,7 @@
 
 TEST_PATH="./src/tests/integration/"
 
-echo "Remember these tests need a rabbit instance up!"
+echo "Remember these tests need rabbit to be up and take it down after running the tests because of leftovers"
 echo "Run: docker run -it --rm --name rabbitmq -p 5672:5672 -p 15672:15672 rabbitmq:4-management"
 
 for test_file in $(ls $TEST_PATH); do

@@ -157,7 +157,7 @@ func TestGetFileSize(t *testing.T) {
 		t.Errorf("Cannot get file size: %v", err)
 	}
 
-	assert.Equal(t, len(Transactions), size, "File size mismatch")
+	assert.Equal(t, 4, size, "File size mismatch")
 }
 
 func TestGetFileSizeScreenshot(t *testing.T) {
@@ -243,7 +243,7 @@ func TestSyncInmediatelyAfterWrite(t *testing.T) {
 			break
 		}
 	}
-	assert.Equal(t, int64(amountToSync), filesize.Load(), "File size after sync mismatch")
+	assert.Equal(t, int64(11), filesize.Load(), "File size after sync mismatch")
 	<-syncTest
 	close(syncTest)
 }

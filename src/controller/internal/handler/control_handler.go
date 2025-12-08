@@ -102,31 +102,9 @@ func (ch *controlHandler) AwaitForWorkers() error {
 		counterMsg := <-ch.counterCh
 		counter := counterMsg.counter
 
-		if enum.WorkerType(counter.GetFrom()) == enum.Gateway && enum.WorkerType(counter.GetNext()) == enum.Controller {
-			logger.Logger.Debugf("[%s] Receive Gateway abort for client %s", ch.clientID, ch.clientID)
-
-			for _, monitor := range ch.workersMonitoring {
-				monitor.startOrFinishCh <- false
-				monitor.queue.Delete()
-				monitor.queue.Close()
-			}
-
-			err := ch.counterStore.RemoveClient(ch.clientID)
-			if err != nil {
-				logger.Logger.Errorf("[%s] Error removing client from storage: %v", ch.clientID, err)
-			}
-
-			if counterMsg.ackHandler != nil {
-				counterMsg.ackHandler(true, false)
-			}
-			return nil
-		}
-
 		seqNum := counter.GetSequenceNumber()
 
 		if _, ok := ch.sequencesSeen[seqNum]; ok {
-			logger.Logger.Debugf("[%s] Duplicate counter message received from %s workers with seq num %d, dropping",
-				ch.clientID, currentWorkerType, seqNum)
 			if counterMsg.ackHandler != nil {
 				counterMsg.ackHandler(true, false)
 			}
@@ -223,14 +201,12 @@ func (ch *controlHandler) SendDone(worker enum.WorkerType, totalMsgs int, delete
 func (ch *controlHandler) Close() {
 	for _, monitor := range ch.workersMonitoring {
 		monitor.startOrFinishCh <- false
+		monitor.queue.Delete()
 		monitor.queue.Close()
 	}
-}
-
-func (ch *controlHandler) CleanupStorage() {
-	logger.Logger.Debugf("[%s] Cleaning up storage", ch.clientID)
-	if ch.counterStore != nil {
-		_ = ch.counterStore.RemoveClient(ch.clientID)
+	err := ch.counterStore.RemoveClient(ch.clientID)
+	if err != nil {
+		logger.Logger.Errorf("[%s] Error removing client from storage: %v", ch.clientID, err)
 	}
 }
 
@@ -287,6 +263,10 @@ func (ch *controlHandler) startCounterListener(workerRoute enum.WorkerType) {
 				continue
 			}
 
+			if len(msg.Body) == 0 {
+				msg.Nack(false, false)
+				continue
+			}
 			counter := &protocol.MessageCounter{}
 			err := proto.Unmarshal(msg.Body, counter)
 			if err != nil {
@@ -322,20 +302,28 @@ func (ch *controlHandler) flushPendingCounters(pendingCounters *[]counterMessage
 		return
 	}
 
+	// Collect counters to append
+	countersToAppend := make([]*protocol.MessageCounter, 0, len(*pendingCounters))
 	for _, counterMsg := range *pendingCounters {
-		counter := counterMsg.counter
-		err := ch.counterStore.AppendCounter(ch.clientID, counter)
-		if err != nil {
-			logger.Logger.Errorf("[%s] failed to persist counter: %v. Requeuing message", ch.clientID, err)
-			counterBytes, _ := proto.Marshal(counter)
+		countersToAppend = append(countersToAppend, counterMsg.counter)
+	}
 
-			if monitor, ok := ch.workersMonitoring[enum.WorkerType(counter.GetFrom())]; ok {
+	// Batch append all counters
+	err := ch.counterStore.AppendCounters(ch.clientID, countersToAppend, ch.taskType)
+	if err != nil {
+		logger.Logger.Errorf("[%s] failed to persist counters: %v. Requeuing messages", ch.clientID, err)
+		for _, counterMsg := range *pendingCounters {
+			counterBytes, _ := proto.Marshal(counterMsg.counter)
+			if monitor, ok := ch.workersMonitoring[enum.WorkerType(counterMsg.counter.GetFrom())]; ok {
 				monitor.queue.Send(counterBytes)
 			}
 		}
-
-		if counterMsg.ackHandler != nil {
-			counterMsg.ackHandler(true, false)
+	} else {
+		// Ack all messages
+		for _, counterMsg := range *pendingCounters {
+			if counterMsg.ackHandler != nil {
+				counterMsg.ackHandler(true, false)
+			}
 		}
 	}
 

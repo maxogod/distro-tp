@@ -24,10 +24,10 @@ func NewClientManager(conf *config.Config, storage storage.CounterStorage) Clien
 	}
 }
 
-func (cm *clientManager) AddClient(id string, taskType enum.TaskType, storedCounters []*protocol.MessageCounter) clients.ClientSession {
+func (cm *clientManager) AddClient(id string, taskType enum.TaskType, storedCounters []*protocol.MessageCounter) (clients.ClientSession, bool) {
 	if _, exists := cm.clients[id]; exists {
 		logger.Logger.Debugf("action: add_client | client_id: %s already exists for tasktype %s", id, string(taskType))
-		return cm.clients[id]
+		return cm.clients[id], true
 	}
 
 	controlHandler := handler.NewControlHandler(
@@ -40,10 +40,16 @@ func (cm *clientManager) AddClient(id string, taskType enum.TaskType, storedCoun
 	)
 	session := clients.NewClientSession(id, controlHandler)
 	cm.clients[id] = session
-	return session
+	return session, false
 }
 
 func (cm *clientManager) RemoveClient(id string) {
+	session, ok := cm.clients[id]
+	if !ok {
+		return
+	}
+
+	session.Close()
 	delete(cm.clients, id)
 }
 

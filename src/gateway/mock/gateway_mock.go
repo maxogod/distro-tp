@@ -17,10 +17,14 @@ func StartGatewayMock(configPath, clientID string) (*MockGateway, error) {
 		return nil, err
 	}
 
+	if conf.MaxControllerNodes == 0 {
+		conf.MaxControllerNodes = 1
+	}
+
 	logger.InitLogger(logger.LoggerEnvDevelopment)
 
 	return &MockGateway{
-		handler: handler.NewMessageHandler(conf.MiddlewareAddress, clientID),
+		handler: handler.NewMessageHandler(conf.MiddlewareAddress, clientID, conf),
 	}, nil
 }
 

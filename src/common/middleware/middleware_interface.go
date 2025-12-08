@@ -9,7 +9,6 @@ type MiddlewareChannel = *amqp.Channel
 type MessageDelivery = amqp.Delivery
 type ConsumeChannel = <-chan MessageDelivery
 
-// TODO: why not use the actual error type?
 type MessageMiddlewareError int
 
 const (
@@ -20,73 +19,40 @@ const (
 	MessageMiddlewareDeleteError
 )
 
-type MessageMiddlewareQueue struct {
-	conn    MiddlewareConnection
-	channel MiddlewareChannel
-
-	queueName      string
-	consumeChannel ConsumeChannel
-	consumerTag    string
-}
-
-type MessageMiddlewareExchange struct {
-	url          string
-	exchangeName string
-	conn         MiddlewareConnection
-	channel      MiddlewareChannel
-	routeKeys    []string
-
-	consumeChannel ConsumeChannel
-	consumerTag    string
-}
-
-type MessageMiddlewarePersistentExchange struct {
-	exchangeName string
-	queueName    string
-	conn         MiddlewareConnection
-	channel      MiddlewareChannel
-	routeKeys    []string
-
-	consumeChannel ConsumeChannel
-	consumerTag    string
-}
-
-// TODO: check if done channel is really necessary (probably not)
 type onMessageCallback func(consumeChannel ConsumeChannel, done chan error)
 
-// Puede especificarse un tipo más específico para T si se desea
 type MessageMiddleware interface {
 	/*
-	   Comienza a escuchar a la cola/exchange e invoca a onMessageCallback tras
-	   cada mensaje de datos o de control.
-	   Si se pierde la conexión con el middleware eleva MessageMiddlewareDisconnectedError.
-	   Si ocurre un error interno que no puede resolverse eleva MessageMiddlewareMessageError.
+	   Starts listening to the queue/exchange and invokes the onMessageCallback
+	   after each data or control message.
+	   If the connection to the middleware is lost, it raises MessageMiddlewareDisconnectedError.
+	   If an internal error occurs that cannot be resolved, it raises MessageMiddlewareMessageError.
 	*/
 	StartConsuming(onMessageCallback onMessageCallback) (e MessageMiddlewareError)
 
 	/*
-	   Si se estaba consumiendo desde la cola/exchange, se detiene la escucha. Si
-	   no se estaba consumiendo de la cola/exchange, no tiene efecto, ni levanta
-	   Si se pierde la conexión con el middleware eleva MessageMiddlewareDisconnectedError.
+	   If it was consuming from the queue/exchange, it stops listening.
+	   If it was not consuming from the queue/exchange, it has no effect and does not raise any error.
+	   If the connection to the middleware is lost, it raises MessageMiddlewareDisconnectedError.
 	*/
 	StopConsuming() (e MessageMiddlewareError)
 
 	/*
-	   Envía un mensaje a la cola o al tópico con el que se inicializó el exchange.
-	   Si se pierde la conexión con el middleware eleva MessageMiddlewareDisconnectedError.
-	   Si ocurre un error interno que no puede resolverse eleva MessageMiddlewareMessageError.
+	   Sends a message to the queue or topic with which the exchange was initialized.
+	   If the connection to the middleware is lost, it raises MessageMiddlewareDisconnectedError.
+	   If an internal error occurs that cannot be resolved, it raises MessageMiddlewareMessageError.
 	*/
 	Send(message []byte) (e MessageMiddlewareError)
 
 	/*
-	   Se desconecta de la cola o exchange al que estaba conectado.
-	   Si ocurre un error interno que no puede resolverse eleva MessageMiddlewareCloseError.
+	   Disconnects from the queue or exchange to which it was connected.
+	   If an internal error occurs that cannot be resolved, it raises MessageMiddlewareCloseError.
 	*/
 	Close() (e MessageMiddlewareError)
 
 	/*
-	   Se fuerza la eliminación remota de la cola o exchange.
-	   Si ocurre un error interno que no puede resolverse eleva MessageMiddlewareDeleteError.
+	   Forces the remote deletion of the queue or exchange.
+	   If an internal error occurs that cannot be resolved, it raises MessageMiddlewareDeleteError.
 	*/
 	Delete() (e MessageMiddlewareError)
 }

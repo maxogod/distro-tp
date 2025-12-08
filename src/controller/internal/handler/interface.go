@@ -15,13 +15,10 @@ type ControlHandler interface {
 	// SendDone notifies the
 	SendDone(worker enum.WorkerType, totalMsgs int, deleteAction bool) error
 
-	// Close releases any resources held by the handler.
-	// e.g. middleware queues or exchanges instantiation.
-	Close()
-
 	// SendControllerReady notifies the gateway that the controller is ready to receive messages
 	SendControllerReady()
 
-	// CleanupStorage removes any persisted counters for the client
-	CleanupStorage()
+	// Close releases any resources held by the handler.
+	// e.g. middleware queues or exchanges instantiation.
+	Close()
 }
