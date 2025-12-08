@@ -19,166 +19,166 @@ services:
     networks:
       - tp_net
 
-  gateway1:
-    container_name: gateway1
-    build:
-      dockerfile: ./src/gateway/Dockerfile
-    image: gateway:latest
-    environment:
-      - EOL_NODES=3
-      - MAX_CONTROLLER_NODES=3
-    volumes:
-      - ./src/gateway/config.yaml:/app/config.yaml
-    depends_on:
-      rabbitmq:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8081/ping"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 10s
-    networks:
-      - tp_net
+  # gateway1:
+  #   container_name: gateway1
+  #   build:
+  #     dockerfile: ./src/gateway/Dockerfile
+  #   image: gateway:latest
+  #   environment:
+  #     - EOL_NODES=3
+  #     - MAX_CONTROLLER_NODES=3
+  #   volumes:
+  #     - ./src/gateway/config.yaml:/app/config.yaml
+  #   depends_on:
+  #     rabbitmq:
+  #       condition: service_healthy
+  #   healthcheck:
+  #     test: ["CMD", "curl", "-f", "http://localhost:8081/ping"]
+  #     interval: 10s
+  #     timeout: 5s
+  #     retries: 5
+  #     start_period: 10s
+  #   networks:
+  #     - tp_net
 
-  gateway2:
-    container_name: gateway2
-    build:
-      dockerfile: ./src/gateway/Dockerfile
-    image: gateway:latest
-    environment:
-      - EOL_NODES=3
-      - MAX_CONTROLLER_NODES=3
-    volumes:
-      - ./src/gateway/config.yaml:/app/config.yaml
-    depends_on:
-      rabbitmq:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8081/ping"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 10s
-    networks:
-      - tp_net
+  # gateway2:
+  #   container_name: gateway2
+  #   build:
+  #     dockerfile: ./src/gateway/Dockerfile
+  #   image: gateway:latest
+  #   environment:
+  #     - EOL_NODES=3
+  #     - MAX_CONTROLLER_NODES=3
+  #   volumes:
+  #     - ./src/gateway/config.yaml:/app/config.yaml
+  #   depends_on:
+  #     rabbitmq:
+  #       condition: service_healthy
+  #   healthcheck:
+  #     test: ["CMD", "curl", "-f", "http://localhost:8081/ping"]
+  #     interval: 10s
+  #     timeout: 5s
+  #     retries: 5
+  #     start_period: 10s
+  #   networks:
+  #     - tp_net
 
-  controller1:
-    container_name: controller1
-    build:
-      dockerfile: ./src/controller/Dockerfile
-    image: controller:latest
-    volumes:
-      - ./src/controller/config.yaml:/app/config.yaml
-      - ./.storage/controller1:/app/storage
-    environment:
-      - EOL_NODES=3
-      - ID=controller1
-    depends_on:
-      rabbitmq:
-        condition: service_healthy
-    networks:
-      - tp_net
+  # controller1:
+  #   container_name: controller1
+  #   build:
+  #     dockerfile: ./src/controller/Dockerfile
+  #   image: controller:latest
+  #   volumes:
+  #     - ./src/controller/config.yaml:/app/config.yaml
+  #     - ./.storage/controller1:/app/storage
+  #   environment:
+  #     - EOL_NODES=3
+  #     - ID=controller1
+  #   depends_on:
+  #     rabbitmq:
+  #       condition: service_healthy
+  #   networks:
+  #     - tp_net
 
-  controller2:
-    container_name: controller2
-    build:
-      dockerfile: ./src/controller/Dockerfile
-    image: controller:latest
-    volumes:
-      - ./src/controller/config.yaml:/app/config.yaml
-      - ./.storage/controller2:/app/storage
-    environment:
-      - EOL_NODES=3
-      - ID=controller2
-    depends_on:
-      rabbitmq:
-        condition: service_healthy
-    networks:
-      - tp_net
+  # controller2:
+  #   container_name: controller2
+  #   build:
+  #     dockerfile: ./src/controller/Dockerfile
+  #   image: controller:latest
+  #   volumes:
+  #     - ./src/controller/config.yaml:/app/config.yaml
+  #     - ./.storage/controller2:/app/storage
+  #   environment:
+  #     - EOL_NODES=3
+  #     - ID=controller2
+  #   depends_on:
+  #     rabbitmq:
+  #       condition: service_healthy
+  #   networks:
+  #     - tp_net
 
-  controller3:
-    container_name: controller3
-    build:
-      dockerfile: ./src/controller/Dockerfile
-    image: controller:latest
-    volumes:
-      - ./src/controller/config.yaml:/app/config.yaml
-      - ./.storage/controller3:/app/storage
-    environment:
-      - EOL_NODES=3
-      - ID=controller3
-    depends_on:
-      rabbitmq:
-        condition: service_healthy
-    networks:
-      - tp_net
+  # controller3:
+  #   container_name: controller3
+  #   build:
+  #     dockerfile: ./src/controller/Dockerfile
+  #   image: controller:latest
+  #   volumes:
+  #     - ./src/controller/config.yaml:/app/config.yaml
+  #     - ./.storage/controller3:/app/storage
+  #   environment:
+  #     - EOL_NODES=3
+  #     - ID=controller3
+  #   depends_on:
+  #     rabbitmq:
+  #       condition: service_healthy
+  #   networks:
+  #     - tp_net
 
-  aggregator1:
-    container_name: aggregator1
-    build:
-      dockerfile: ./src/aggregator/Dockerfile
-    image: aggregator:latest
-    networks:
-      - tp_net
-    environment:
-      - ID=aggregator1
-    volumes:
-      - ./src/aggregator/config.yaml:/app/config.yaml
-      - ./.storage/aggregator1:/app/storage
-    depends_on:
-      rabbitmq:
-        condition: service_healthy
+  # aggregator1:
+  #   container_name: aggregator1
+  #   build:
+  #     dockerfile: ./src/aggregator/Dockerfile
+  #   image: aggregator:latest
+  #   networks:
+  #     - tp_net
+  #   environment:
+  #     - ID=aggregator1
+  #   volumes:
+  #     - ./src/aggregator/config.yaml:/app/config.yaml
+  #     - ./.storage/aggregator1:/app/storage
+  #   depends_on:
+  #     rabbitmq:
+  #       condition: service_healthy
 
-  aggregator2:
-    container_name: aggregator2
-    build:
-      dockerfile: ./src/aggregator/Dockerfile
-    image: aggregator:latest
-    networks:
-      - tp_net
-    environment:
-      - ID=aggregator2
-    volumes:
-      - ./src/aggregator/config.yaml:/app/config.yaml
-      - ./.storage/aggregator2:/app/storage
-    depends_on:
-      rabbitmq:
-        condition: service_healthy
+  # aggregator2:
+  #   container_name: aggregator2
+  #   build:
+  #     dockerfile: ./src/aggregator/Dockerfile
+  #   image: aggregator:latest
+  #   networks:
+  #     - tp_net
+  #   environment:
+  #     - ID=aggregator2
+  #   volumes:
+  #     - ./src/aggregator/config.yaml:/app/config.yaml
+  #     - ./.storage/aggregator2:/app/storage
+  #   depends_on:
+  #     rabbitmq:
+  #       condition: service_healthy
 
-  joiner1:
-    container_name: joiner1
-    build:
-      dockerfile: ./src/joiner/Dockerfile
-    image: joiner:latest
-    networks:
-      - tp_net
-    environment:
-      - EOL_NODES=3
-      - ID=joiner1
-    volumes:
-      - ./src/joiner/config.yaml:/app/config.yaml
-      - ./.storage/joiner1:/app/storage
-    depends_on:
-      rabbitmq:
-        condition: service_healthy
+  # joiner1:
+  #   container_name: joiner1
+  #   build:
+  #     dockerfile: ./src/joiner/Dockerfile
+  #   image: joiner:latest
+  #   networks:
+  #     - tp_net
+  #   environment:
+  #     - EOL_NODES=3
+  #     - ID=joiner1
+  #   volumes:
+  #     - ./src/joiner/config.yaml:/app/config.yaml
+  #     - ./.storage/joiner1:/app/storage
+  #   depends_on:
+  #     rabbitmq:
+  #       condition: service_healthy
 
-  joiner2:
-    container_name: joiner2
-    build:
-      dockerfile: ./src/joiner/Dockerfile
-    image: joiner:latest
-    networks:
-      - tp_net
-    environment:
-      - EOL_NODES=3
-      - ID=joiner2
-    volumes:
-      - ./src/joiner/config.yaml:/app/config.yaml
-      - ./.storage/joiner2:/app/storage
-    depends_on:
-      rabbitmq:
-        condition: service_healthy
+  # joiner2:
+  #   container_name: joiner2
+  #   build:
+  #     dockerfile: ./src/joiner/Dockerfile
+  #   image: joiner:latest
+  #   networks:
+  #     - tp_net
+  #   environment:
+  #     - EOL_NODES=3
+  #     - ID=joiner2
+  #   volumes:
+  #     - ./src/joiner/config.yaml:/app/config.yaml
+  #     - ./.storage/joiner2:/app/storage
+  #   depends_on:
+  #     rabbitmq:
+  #       condition: service_healthy
 
   egg_of_life1:
     container_name: egg_of_life1
@@ -249,177 +249,177 @@ services:
       rabbitmq:
         condition: service_healthy
 
-  filter2:
-    container_name: filter2
-    build:
-      dockerfile: ./src/filter/Dockerfile
-      args:
-        BUILD_TAGS: "poison low_prob"
-    image: filter:latest
-    networks:
-      - tp_net
-    volumes:
-      - ./src/filter/config.yaml:/app/config.yaml
-    environment:
-      - EOL_NODES=3
-      - ID=filter2
-    depends_on:
-      rabbitmq:
-        condition: service_healthy
+  # filter2:
+  #   container_name: filter2
+  #   build:
+  #     dockerfile: ./src/filter/Dockerfile
+  #     args:
+  #       BUILD_TAGS: "poison low_prob"
+  #   image: filter:latest
+  #   networks:
+  #     - tp_net
+  #   volumes:
+  #     - ./src/filter/config.yaml:/app/config.yaml
+  #   environment:
+  #     - EOL_NODES=3
+  #     - ID=filter2
+  #   depends_on:
+  #     rabbitmq:
+  #       condition: service_healthy
 
-  filter3:
-    container_name: filter3
-    build:
-      dockerfile: ./src/filter/Dockerfile
-      args:
-        BUILD_TAGS: "poison low_prob"
-    image: filter:latest
-    networks:
-      - tp_net
-    volumes:
-      - ./src/filter/config.yaml:/app/config.yaml
-    environment:
-      - EOL_NODES=3
-      - ID=filter3
-    depends_on:
-      rabbitmq:
-        condition: service_healthy
+  # filter3:
+  #   container_name: filter3
+  #   build:
+  #     dockerfile: ./src/filter/Dockerfile
+  #     args:
+  #       BUILD_TAGS: "poison low_prob"
+  #   image: filter:latest
+  #   networks:
+  #     - tp_net
+  #   volumes:
+  #     - ./src/filter/config.yaml:/app/config.yaml
+  #   environment:
+  #     - EOL_NODES=3
+  #     - ID=filter3
+  #   depends_on:
+  #     rabbitmq:
+  #       condition: service_healthy
 
-  reducer1:
-    container_name: reducer1
-    build:
-      dockerfile: ./src/reducer/Dockerfile
-      args:
-        BUILD_TAGS: "poison low_prob"
-    image: reducer:latest
-    networks:
-      - tp_net
-    volumes:
-      - ./src/reducer/config.yaml:/app/config.yaml
-    environment:
-      - EOL_NODES=3
-      - ID=reducer1
-    depends_on:
-      rabbitmq:
-        condition: service_healthy
+  # reducer1:
+  #   container_name: reducer1
+  #   build:
+  #     dockerfile: ./src/reducer/Dockerfile
+  #     args:
+  #       BUILD_TAGS: "poison low_prob"
+  #   image: reducer:latest
+  #   networks:
+  #     - tp_net
+  #   volumes:
+  #     - ./src/reducer/config.yaml:/app/config.yaml
+  #   environment:
+  #     - EOL_NODES=3
+  #     - ID=reducer1
+  #   depends_on:
+  #     rabbitmq:
+  #       condition: service_healthy
 
-  reducer2:
-    container_name: reducer2
-    build:
-      dockerfile: ./src/reducer/Dockerfile
-      args:
-        BUILD_TAGS: "poison low_prob"
-    image: reducer:latest
-    networks:
-      - tp_net
-    volumes:
-      - ./src/reducer/config.yaml:/app/config.yaml
-    environment:
-      - EOL_NODES=3
-      - ID=reducer2
-    depends_on:
-      rabbitmq:
-        condition: service_healthy
+  # reducer2:
+  #   container_name: reducer2
+  #   build:
+  #     dockerfile: ./src/reducer/Dockerfile
+  #     args:
+  #       BUILD_TAGS: "poison low_prob"
+  #   image: reducer:latest
+  #   networks:
+  #     - tp_net
+  #   volumes:
+  #     - ./src/reducer/config.yaml:/app/config.yaml
+  #   environment:
+  #     - EOL_NODES=3
+  #     - ID=reducer2
+  #   depends_on:
+  #     rabbitmq:
+  #       condition: service_healthy
 
-  group_by1:
-    container_name: group_by1
-    build:
-      dockerfile: ./src/group_by/Dockerfile
-      args:
-        BUILD_TAGS: "poison low_prob"
-    image: group_by:latest
-    networks:
-      - tp_net
-    volumes:
-      - ./src/group_by/config.yaml:/app/config.yaml
-    environment:
-      - EOL_NODES=3
-      - ID=group_by1
-    depends_on:
-      rabbitmq:
-        condition: service_healthy
+  # group_by1:
+  #   container_name: group_by1
+  #   build:
+  #     dockerfile: ./src/group_by/Dockerfile
+  #     args:
+  #       BUILD_TAGS: "poison low_prob"
+  #   image: group_by:latest
+  #   networks:
+  #     - tp_net
+  #   volumes:
+  #     - ./src/group_by/config.yaml:/app/config.yaml
+  #   environment:
+  #     - EOL_NODES=3
+  #     - ID=group_by1
+  #   depends_on:
+  #     rabbitmq:
+  #       condition: service_healthy
 
-  group_by2:
-    container_name: group_by2
-    build:
-      dockerfile: ./src/group_by/Dockerfile
-      args:
-        BUILD_TAGS: "poison low_prob"
-    image: group_by:latest
-    networks:
-      - tp_net
-    volumes:
-      - ./src/group_by/config.yaml:/app/config.yaml
-    environment:
-      - EOL_NODES=3
-      - ID=group_by2
-    depends_on:
-      rabbitmq:
-        condition: service_healthy
+  # group_by2:
+  #   container_name: group_by2
+  #   build:
+  #     dockerfile: ./src/group_by/Dockerfile
+  #     args:
+  #       BUILD_TAGS: "poison low_prob"
+  #   image: group_by:latest
+  #   networks:
+  #     - tp_net
+  #   volumes:
+  #     - ./src/group_by/config.yaml:/app/config.yaml
+  #   environment:
+  #     - EOL_NODES=3
+  #     - ID=group_by2
+  #   depends_on:
+  #     rabbitmq:
+  #       condition: service_healthy
 
-  client1:
-    container_name: client1
-    entrypoint: ["/app/app", "t1"]
-    build:
-      dockerfile: ./src/client/Dockerfile
-    image: client:latest
-    networks:
-      - tp_net
-    volumes:
-      - ./.data:/app/.data
-      - ./.output1:/app/.output
-      - ./src/client/config.yaml:/app/config.yaml
-    depends_on:
-      gateway1:
-        condition: service_healthy
+  # client1:
+  #   container_name: client1
+  #   entrypoint: ["/app/app", "t1"]
+  #   build:
+  #     dockerfile: ./src/client/Dockerfile
+  #   image: client:latest
+  #   networks:
+  #     - tp_net
+  #   volumes:
+  #     - ./.data:/app/.data
+  #     - ./.output1:/app/.output
+  #     - ./src/client/config.yaml:/app/config.yaml
+  #   depends_on:
+  #     gateway1:
+  #       condition: service_healthy
 
-  client2:
-    container_name: client2
-    entrypoint: ["/app/app", "t2"]
-    build:
-      dockerfile: ./src/client/Dockerfile
-    image: client:latest
-    networks:
-      - tp_net
-    volumes:
-      - ./.data:/app/.data
-      - ./.output2:/app/.output
-      - ./src/client/config.yaml:/app/config.yaml
-    depends_on:
-      gateway1:
-        condition: service_healthy
+  # client2:
+  #   container_name: client2
+  #   entrypoint: ["/app/app", "t2"]
+  #   build:
+  #     dockerfile: ./src/client/Dockerfile
+  #   image: client:latest
+  #   networks:
+  #     - tp_net
+  #   volumes:
+  #     - ./.data:/app/.data
+  #     - ./.output2:/app/.output
+  #     - ./src/client/config.yaml:/app/config.yaml
+  #   depends_on:
+  #     gateway1:
+  #       condition: service_healthy
 
-  client3:
-    container_name: client3
-    entrypoint: ["/app/app", "t3"]
-    build:
-      dockerfile: ./src/client/Dockerfile
-    image: client:latest
-    networks:
-      - tp_net
-    volumes:
-      - ./.data:/app/.data
-      - ./.output3:/app/.output
-      - ./src/client/config.yaml:/app/config.yaml
-    depends_on:
-      gateway1:
-        condition: service_healthy
+  # client3:
+  #   container_name: client3
+  #   entrypoint: ["/app/app", "t3"]
+  #   build:
+  #     dockerfile: ./src/client/Dockerfile
+  #   image: client:latest
+  #   networks:
+  #     - tp_net
+  #   volumes:
+  #     - ./.data:/app/.data
+  #     - ./.output3:/app/.output
+  #     - ./src/client/config.yaml:/app/config.yaml
+  #   depends_on:
+  #     gateway1:
+  #       condition: service_healthy
 
-  client4:
-    container_name: client4
-    entrypoint: ["/app/app", "t4"]
-    build:
-      dockerfile: ./src/client/Dockerfile
-    image: client:latest
-    networks:
-      - tp_net
-    volumes:
-      - ./.data:/app/.data
-      - ./.output4:/app/.output
-      - ./src/client/config.yaml:/app/config.yaml
-    depends_on:
-      gateway1:
-        condition: service_healthy
+  # client4:
+  #   container_name: client4
+  #   entrypoint: ["/app/app", "t4"]
+  #   build:
+  #     dockerfile: ./src/client/Dockerfile
+  #   image: client:latest
+  #   networks:
+  #     - tp_net
+  #   volumes:
+  #     - ./.data:/app/.data
+  #     - ./.output4:/app/.output
+  #     - ./src/client/config.yaml:/app/config.yaml
+  #   depends_on:
+  #     gateway1:
+  #       condition: service_healthy
 
 networks:
   tp_net:

@@ -50,7 +50,7 @@ class DockerRunner:
             f"--label {CREATOR_LABEL} "
             f"--label com.docker.compose.project={PROJECT} "
             f"-v {self.config.host_path}/src/{folder_name}/config.yaml:/app/config.yaml "
-            f"-e ID={name} -e MAX_CONTROLLER_NODES={self.config.controller_count} "
+            f"-e ID={name} -e MAX_CONTROLLER_NODES={self.config.controller_count} -e EOL_NODES={self.config.amount_of_nodes} "
         )
         if folder_name in ["joiner", "aggregator", "controller"]:
             cmd += f"-v {self.config.host_path}/.storage/{name}:/app/storage "
