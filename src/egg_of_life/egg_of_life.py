@@ -20,22 +20,15 @@ CONFIG_PATH = "/app/config.yaml"
 class RevivalChansey:
     def __init__(
         self,
-        timeout_interval: int,
-        check_interval: int,
-        docker_network: str,
-        host_path: str,
-        amount_of_nodes: int,
-        controller_count: int,
+        config: Config,
         leader_election: LeaderElection,
         heartbeatConn: UDPServer,
     ):
         self._server = heartbeatConn
-        self._docker_runner = DockerRunner(
-            docker_network, host_path, controller_count, amount_of_nodes
-        )
+        self._docker_runner = DockerRunner(config)
 
-        self._timeout_interval = timeout_interval
-        self._check_interval = check_interval
+        self._timeout_interval = config.timeout_interval
+        self._check_interval = config.check_interval
 
         self.running = threading.Event()
         self.running.set()
@@ -79,7 +72,7 @@ class RevivalChansey:
         self._server.close()
         self._monitor_thread.join()
         self._heartbeat_thread.join()
-        self._docker_runner.shutdown()
+        self._docker_runner.shutdown(self._leader_election.i_am_leader())
         self._leader_election.shutdown()
         print("Revival Chansey finished")
 
@@ -165,9 +158,9 @@ class RevivalChansey:
             self.revive_set.clear()
 
     def _on_became_leader(self, old_leader=None):
-        if old_leader:
-            with self._state_lock:
-                self.revive_set.add(old_leader)
+        # if old_leader:
+        #     with self._state_lock:
+        #         self.revive_set.add(old_leader)
         self.revive_remaining_nodes()
 
 
@@ -199,12 +192,7 @@ def main():
     )
 
     rc = RevivalChansey(
-        config.timeout_interval,
-        config.check_interval,
-        config.docker_network,
-        config.host_path,
-        config.amount_of_nodes,
-        config.controller_count,
+        config,
         le,
         heartbeatConn,
     )

@@ -1,6 +1,7 @@
 import subprocess
 import threading
 from queue import Queue
+from utils.config import Config
 
 CREATOR_LABEL = "revived_by=revival_chansey"
 PROJECT = "distro"
@@ -8,13 +9,8 @@ CLOSE_SIGNAL = ""
 
 
 class DockerRunner:
-    def __init__(
-        self, network: str, host_path: str, controller_count: int, amount_of_nodes: int
-    ) -> None:
-        self._network = network
-        self._host_path = host_path
-        self._controller_count = controller_count
-        self._amount_of_nodes = amount_of_nodes
+    def __init__(self, config: Config) -> None:
+        self.config = config
 
         self.running = threading.Event()
         self.running.set()
@@ -25,8 +21,9 @@ class DockerRunner:
         self._runner_thread = threading.Thread(target=self._run_commands, daemon=True)
         self._runner_thread.start()
 
-    def shutdown(self):
-        self._stop_created_containers()
+    def shutdown(self, stop_containers: bool):
+        if stop_containers:
+            self._stop_created_containers()
         self._commands_queue.join()
         self.running.clear()
         self._commands_queue.put(CLOSE_SIGNAL)  # Unblock queue
@@ -34,7 +31,7 @@ class DockerRunner:
 
     def restart_container(self, name: str, image: str):
         print(
-            f"Launching new container {name} (image: {image}) on network {self._network}"
+            f"Launching new container {name} (image: {image}) on network {self.config.docker_network}"
         )
 
         if "egg_of_life" in image:
@@ -46,14 +43,14 @@ class DockerRunner:
 
         cmd = (
             f"docker run -d --name {name} "
-            f"--network {self._network} "
+            f"--network {self.config.docker_network} "
             f"--label {CREATOR_LABEL} "
             f"--label com.docker.compose.project={PROJECT} "
-            f"-v {self._host_path}/src/{folder_name}/config.yaml:/app/config.yaml "
-            f"-e ID={name} -e MAX_CONTROLLER_NODES={self._controller_count} "
+            f"-v {self.config.host_path}/src/{folder_name}/config.yaml:/app/config.yaml "
+            f"-e ID={name} -e MAX_CONTROLLER_NODES={self.config.controller_count} "
         )
         if folder_name in ["joiner", "aggregator", "controller"]:
-            cmd += f"-v {self._host_path}/.storage/{name}:/app/storage "
+            cmd += f"-v {self.config.host_path}/.storage/{name}:/app/storage "
         cmd += image
         print(cmd)
         self._commands_queue.put(cmd)
@@ -103,16 +100,16 @@ class DockerRunner:
         """Generate docker run command for egg_of_life container"""
         cmd = (
             f"docker run -d --name {ID} "
-            f"--network {self._network} "
+            f"--network {self.config.docker_network} "
             f"--label {CREATOR_LABEL} "
             f"--label com.docker.compose.project={PROJECT} "
             f"-v /var/run/docker.sock:/var/run/docker.sock "
-            f"-v {self._host_path}/src/egg_of_life/config.yaml:/app/config.yaml "
+            f"-v {self.config.host_path}/src/egg_of_life/config.yaml:/app/config.yaml "
             f"-e ID={ID} "
-            f"-e NETWORK={self._network} "
-            f"-e HOST_PROJECT_PATH={self._host_path} "
-            f"-e MAX_CONTROLLER_NODES={self._controller_count} "
-            f"-e AMOUNT_OF_NODES={self._amount_of_nodes} "
+            f"-e NETWORK={self.config.docker_network} "
+            f"-e HOST_PROJECT_PATH={self.config.host_path} "
+            f"-e MAX_CONTROLLER_NODES={self.config.controller_count} "
+            f"-e AMOUNT_OF_NODES={self.config.amount_of_nodes} "
             f"egg_of_life:latest"
         )
         return cmd
