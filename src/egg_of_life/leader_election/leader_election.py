@@ -2,9 +2,7 @@ import threading
 
 from utils.logger import Logger
 from .tcp_handler import TCPHandler
-from protocol.leader_election_pb2 import (
-    LeaderElection as LeaderElectionMsg,
-)
+from protocol.leader_election_pb2 import LeaderElection as LeaderElectionMsg
 
 ELECTION_MESSAGE = 1
 COORDINATOR_MESSAGE = 2
@@ -33,6 +31,7 @@ class LeaderElection:
         self.port = port
         self._server = TCPHandler(port=self.port)
         self.election_event = threading.Event()
+        self.coordinator_event = threading.Event()
 
     # ----------------- election listener -----------------
 
@@ -43,13 +42,16 @@ class LeaderElection:
                 hostname, data = self._server.receive()
                 msg = LeaderElectionMsg()
                 msg.ParseFromString(data)
+                self.logger.info(
+                    f"Node {self.id} received message type {msg.message_type} from {hostname}"
+                )
 
                 if msg.message_type == ELECTION_MESSAGE:
                     self._handle_election_message(msg, hostname)
                 elif msg.message_type == CANDIDATE_MESSAGE:
                     self._handle_candidate_message(msg, hostname)
                 elif msg.message_type == COORDINATOR_MESSAGE:
-                    self._handle_coordinate_message(msg, hostname)
+                    self._handle_coordinator_message(msg, hostname)
                 else:
                     raise ValueError(
                         f"Unknown message type {msg.message_type} from {hostname}"
@@ -76,13 +78,12 @@ class LeaderElection:
         self.logger.info(f"Received CANDIDATE from {hostname} with id={msg.id}")
         self.election_event.set()
 
-    def _handle_coordinate_message(self, msg: LeaderElectionMsg, hostname: str) -> None:
-        sender_id = int(msg.id)
+    def _handle_coordinator_message(
+        self, msg: LeaderElectionMsg, hostname: str
+    ) -> None:
         self.logger.info(f"Received COORDINATOR from {hostname} with id={msg.id}")
-        if sender_id > self.leader and sender_id > self.id:
-            self.leader = msg.id
-            self.election_event.set()
-            self.logger.info(f"Node {self.id}: New leader is {self.leader}")
+        self.coordinator_event.set()
+        self.leader = msg.id
 
     def _election_timeout_handler(self) -> None:
         """Handle election timeout - if no higher node responds, assume leadership"""
@@ -91,7 +92,15 @@ class LeaderElection:
             self.logger.info(f"Node {self.id}: Election timeout - assuming leadership")
             self.leader = self.id
             # Broadcast that we are the leader
-            self._send_coordinate_message()
+            self._send_coordinator_message()
+
+    def _coordinator_timeout_handler(self) -> None:
+        """Handle coordinator timeout - if no coordinator message is received, start a new election"""
+        if not self.coordinator_event.wait(timeout=ELECTION_TIMEOUT):
+            self.logger.info(
+                f"Node {self.id}: Coordinator timeout - starting new election"
+            )
+            self.start_election()
 
     # ----------------- message senders -----------------
 
@@ -101,7 +110,7 @@ class LeaderElection:
         msg.id = self.id
         msg.message_type = ELECTION_MESSAGE
 
-        for node in self.connected_nodes.values():
+        for node in self.connected_nodes:
             node_id = self._get_connection_id(node)
             if node_id > self.id:
                 self.logger.info(f"Sending ELECTION to {node}")
@@ -117,13 +126,13 @@ class LeaderElection:
         self._server.send(msg.SerializeToString(), target)
         return
 
-    def _send_coordinate_message(self) -> None:
+    def _send_coordinator_message(self) -> None:
         """Send coordinator message to all nodes"""
         msg = LeaderElectionMsg()
         msg.id = self.id
         msg.message_type = COORDINATOR_MESSAGE
 
-        for node in self.connected_nodes.values():
+        for node in self.connected_nodes:
             self.logger.info(f"Sending COORDINATOR to {node}")
             self._server.send(msg.SerializeToString(), node)
 
@@ -146,10 +155,7 @@ class LeaderElection:
         self.logger.info(f"Node {self.id} is starting on port {self.port}")
 
         # Start accepting incoming TCP connections
-        self.accept_thread = threading.Thread(
-            target=self._server.accept_connections, daemon=True
-        )
-        self.accept_thread.start()
+        threading.Thread(target=self._server.accept_connections, daemon=True).start()
 
         # Actively connect to other nodes
         for node_id in range(1, self.amount_of_nodes + 1):
@@ -161,19 +167,14 @@ class LeaderElection:
         while True:
             connections = set(self._server.connections.keys())
             if len(connections) == self.amount_of_nodes - 1:
-                for conn in connections:
-                    hostname = self._get_hostname(conn)
-                    self.connected_nodes[hostname] = conn
+                self.connected_nodes = connections
                 break
         self.logger.info(
             f"Node {self.id}: all peers connected: {self.connected_nodes.values()}"
         )
 
         # Start message listener
-        self.listener_thread = threading.Thread(
-            target=self._election_listener, daemon=True
-        )
-        self.listener_thread.start()
+        threading.Thread(target=self._election_listener, daemon=True).start()
 
         self.start_election()
 
