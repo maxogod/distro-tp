@@ -87,6 +87,9 @@ func (mh *messageHandler) Start() error {
 		select {
 		case message := <-mh.inputChannel:
 			if message.dataEnvelope.GetTaskType() == int32(NULL_TASK) {
+				if message.ackHandler != nil {
+					message.ackHandler(false, false)
+				}
 				continue
 			}
 			if err := mh.dataHandler.HandleData(message.dataEnvelope, message.ackHandler); err != nil {
