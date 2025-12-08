@@ -1,23 +1,23 @@
 name: distro
 services:
-  # rabbitmq:
-  #   container_name: rabbitmq
-  #   build:
-  #     context: ./src/rabbitmq
-  #     dockerfile: Dockerfile
-  #   image: rabbitmq:latest
-  #   command: sh -c "rabbitmq-server > /dev/null 2>&1"
-  #   ports:
-  #     - '5670:5672'
-  #     - '15670:15672'
-  #   healthcheck:
-  #     test: ["CMD", "rabbitmq-diagnostics", "ping"]
-  #     interval: 10s
-  #     timeout: 10s
-  #     start_period: 15s
-  #     retries: 5
-  #   networks:
-  #     - tp_net
+  rabbitmq:
+    container_name: rabbitmq
+    build:
+      context: ./src/rabbitmq
+      dockerfile: Dockerfile
+    image: rabbitmq:latest
+    command: sh -c "rabbitmq-server > /dev/null 2>&1"
+    ports:
+      - '5670:5672'
+      - '15670:15672'
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 10s
+      timeout: 10s
+      start_period: 15s
+      retries: 5
+    networks:
+      - tp_net
 
   # gateway1:
   #   container_name: gateway1
@@ -231,23 +231,23 @@ services:
       - MAX_CONTROLLER_NODES=3
       - AMOUNT_OF_NODES=3
 
-  # filter1:
-  #   container_name: filter1
-  #   build:
-  #     dockerfile: ./src/filter/Dockerfile
-  #     args:
-  #       BUILD_TAGS: "poison low_prob"
-  #   image: filter:latest
-  #   networks:
-  #     - tp_net
-  #   volumes:
-  #     - ./src/filter/config.yaml:/app/config.yaml
-  #   environment:
-  #     - EOL_NODES=3
-  #     - ID=filter1
-  #   depends_on:
-  #     rabbitmq:
-  #       condition: service_healthy
+  filter1:
+    container_name: filter1
+    build:
+      dockerfile: ./src/filter/Dockerfile
+      args:
+        BUILD_TAGS: "poison low_prob"
+    image: filter:latest
+    networks:
+      - tp_net
+    volumes:
+      - ./src/filter/config.yaml:/app/config.yaml
+    environment:
+      - EOL_NODES=3
+      - ID=filter1
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
 
   # filter2:
   #   container_name: filter2

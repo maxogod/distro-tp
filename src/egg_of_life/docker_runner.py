@@ -96,20 +96,22 @@ class DockerRunner:
             raise RuntimeError(f"Command failed: {cmd_str}\n{res.stderr}")
         return res.stdout.strip()
 
-    def _get_eol_container(self, ID: str) -> str:
+    def _get_eol_container(self, name: str) -> str:
         """Generate docker run command for egg_of_life container"""
+        id_num = name.split('egg_of_life')[1]
         cmd = (
-            f"docker run -d --name {ID} "
+            f"docker run -d --name {name} "
             f"--network {self.config.docker_network} "
             f"--label {CREATOR_LABEL} "
             f"--label com.docker.compose.project={PROJECT} "
             f"-v /var/run/docker.sock:/var/run/docker.sock "
             f"-v {self.config.host_path}/src/egg_of_life/config.yaml:/app/config.yaml "
-            f"-e ID={ID} "
+            f"-e ID={id_num} "
             f"-e NETWORK={self.config.docker_network} "
             f"-e HOST_PROJECT_PATH={self.config.host_path} "
             f"-e MAX_CONTROLLER_NODES={self.config.controller_count} "
             f"-e AMOUNT_OF_NODES={self.config.amount_of_nodes} "
             f"egg_of_life:latest"
         )
+        print(cmd)
         return cmd
