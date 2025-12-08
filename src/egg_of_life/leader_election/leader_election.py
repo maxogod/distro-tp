@@ -1,9 +1,11 @@
 import threading
+import time
 from typing import Optional
 
+from egg_of_life.udp_server import UDPServer
 from utils.logger import Logger
 from .tcp_handler import TCPHandler
-from protocol.leader_election_pb2 import LeaderElection as LeaderElectionMsg
+from protocol.leader_election_pb2 import LeaderElection as LeaderElectionMsg, HeartBeat
 
 ELECTION_MESSAGE = 1
 COORDINATOR_MESSAGE = 2
@@ -21,6 +23,7 @@ class LeaderElection:
         id: int,
         port=6666,
         sending_interval=200,
+        heartbeatConn: UDPServer = None,
     ):
         self.id = id
         self.logger = Logger("LE")
@@ -35,6 +38,7 @@ class LeaderElection:
         self.coordinator_event = threading.Event()
         self.stop_event = threading.Event()
         self.threads = []
+        self._heartbeatConn = heartbeatConn
 
     # ----------------- election listener -----------------
 
@@ -94,7 +98,9 @@ class LeaderElection:
         if not self.election_event.wait(timeout=ELECTION_TIMEOUT):
             # Timeout occurred - no higher node responded
             if not self.coordinator_event.is_set():
-                self.logger.info(f"Node {self.id}: Election timeout - assuming leadership")
+                self.logger.info(
+                    f"Node {self.id}: Election timeout - assuming leadership"
+                )
                 self.leader = self.id
                 # Broadcast that we are the leader
                 self._send_coordinator_message()
@@ -140,6 +146,22 @@ class LeaderElection:
         for node in self.connected_nodes:
             self.logger.info(f"Sending COORDINATOR to {node}")
             self._server.send(msg.SerializeToString(), node)
+        self._send_heartbeats()
+
+    def _send_heartbeats(self) -> None:
+        while self.i_am_leader():
+            hb = HeartBeat()
+            data = hb.SerializeToString()
+            for node in self.connected_nodes:
+                try:
+                    self._server.send(
+                        data,
+                        node,
+                    )  # UDP send, node is hostname, data is bytes
+                except Exception as e:
+                    print(f"Could not send heartbeat to {node}: {e}")
+                    pass  # Silently ignore if nodes not reachable yet
+            time.sleep(self.sending_interval / 1000)
 
     # ----------------- helper methods -----------------
 

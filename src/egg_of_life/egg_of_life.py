@@ -27,8 +27,9 @@ class RevivalChansey:
         host_path: str,
         controller_count: int,
         leader_election: LeaderElection,
+        heartbeatConn: UDPServer,
     ):
-        self._server = UDPServer(port=port)
+        self._server = heartbeatConn
         self._docker_runner = DockerRunner(docker_network, host_path, controller_count)
 
         self._timeout_interval = timeout_interval
@@ -47,8 +48,12 @@ class RevivalChansey:
 
     def start(self):
         print("Revival Chansey ready")
-        self._monitor_thread = threading.Thread(target=self._monitor_timeouts, daemon=True)
-        self._heartbeat_thread = threading.Thread(target=self._send_heartbeats, daemon=True)
+        self._monitor_thread = threading.Thread(
+            target=self._monitor_timeouts, daemon=True
+        )
+        self._heartbeat_thread = threading.Thread(
+            target=self._send_heartbeats, daemon=True
+        )
         self._monitor_thread.start()
         self._docker_runner.start()
         self._heartbeat_thread.start()  # we start hb sending thread
@@ -174,6 +179,9 @@ def main():
     # protoc --python_out=./src/egg_of_life ./src/common/protobufs/protocol/leader_election.proto
 
     config = Config(CONFIG_PATH)
+
+    heartbeatConn = UDPServer(port=config.port)
+
     print(config)
 
     le = LeaderElection(
@@ -181,6 +189,7 @@ def main():
         amount_of_nodes=config.amount_of_nodes,
         port=config.leader_election_port,
         sending_interval=config.heartbeat_interval,
+        heartbeatConn=heartbeatConn,
     )
 
     rc = RevivalChansey(
@@ -191,6 +200,7 @@ def main():
         config.host_path,
         config.controller_count,
         le,
+        heartbeatConn,
     )
 
     setup_signal_handlers(rc)
