@@ -7,8 +7,9 @@ from protocol.leader_election_pb2 import (
 )
 
 ELECTION_MESSAGE = 1
-CANDIDATE_MESSAGE = 2
-ELECTION_TIMEOUT = 2  # seconds
+COORDINATOR_MESSAGE = 2
+CANDIDATE_MESSAGE = 3
+ELECTION_TIMEOUT = 10  # seconds
 
 HOSTNAME = "egg_of_life"
 
@@ -47,6 +48,8 @@ class LeaderElection:
                     self._handle_election_message(msg, hostname)
                 elif msg.message_type == CANDIDATE_MESSAGE:
                     self._handle_candidate_message(msg, hostname)
+                elif msg.message_type == COORDINATOR_MESSAGE:
+                    self._handle_coordinate_message(msg, hostname)
                 else:
                     raise ValueError(
                         f"Unknown message type {msg.message_type} from {hostname}"
@@ -70,8 +73,12 @@ class LeaderElection:
             self.start_election()
 
     def _handle_candidate_message(self, msg: LeaderElectionMsg, hostname: str) -> None:
-        sender_id = int(msg.id)
         self.logger.info(f"Received CANDIDATE from {hostname} with id={msg.id}")
+        self.election_event.set()
+
+    def _handle_coordinate_message(self, msg: LeaderElectionMsg, hostname: str) -> None:
+        sender_id = int(msg.id)
+        self.logger.info(f"Received COORDINATOR from {hostname} with id={msg.id}")
         if sender_id > self.leader and sender_id > self.id:
             self.leader = msg.id
             self.election_event.set()
@@ -84,7 +91,7 @@ class LeaderElection:
             self.logger.info(f"Node {self.id}: Election timeout - assuming leadership")
             self.leader = self.id
             # Broadcast that we are the leader
-            self._send_candidate_message()
+            self._send_coordinate_message()
 
     # ----------------- message senders -----------------
 
@@ -100,19 +107,24 @@ class LeaderElection:
                 self.logger.info(f"Sending ELECTION to {node}")
                 self._server.send(msg.SerializeToString(), node)
 
-    def _send_candidate_message(self, target=None) -> None:
+    def _send_candidate_message(self, target) -> None:
         """Send candidate message to specific node or all nodes"""
         msg = LeaderElectionMsg()
         msg.id = self.id
         msg.message_type = CANDIDATE_MESSAGE
 
-        if target:
-            self.logger.info(f"Replying to {target} with CANDIDATE")
-            self._server.send(msg.SerializeToString(), target)
-            return
+        self.logger.info(f"Replying to {target} with CANDIDATE")
+        self._server.send(msg.SerializeToString(), target)
+        return
+
+    def _send_coordinate_message(self) -> None:
+        """Send coordinator message to all nodes"""
+        msg = LeaderElectionMsg()
+        msg.id = self.id
+        msg.message_type = COORDINATOR_MESSAGE
 
         for node in self.connected_nodes.values():
-            self.logger.info(f"Sending CANDIDATE to {node}")
+            self.logger.info(f"Sending COORDINATOR to {node}")
             self._server.send(msg.SerializeToString(), node)
 
     # ----------------- helper methods -----------------
@@ -153,7 +165,9 @@ class LeaderElection:
                     hostname = self._get_hostname(conn)
                     self.connected_nodes[hostname] = conn
                 break
-        self.logger.info(f"Node {self.id}: all peers connected: {self.connected_nodes.values()}")
+        self.logger.info(
+            f"Node {self.id}: all peers connected: {self.connected_nodes.values()}"
+        )
 
         # Start message listener
         self.listener_thread = threading.Thread(

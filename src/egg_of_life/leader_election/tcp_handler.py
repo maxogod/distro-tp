@@ -18,25 +18,22 @@ class TCPHandler:
         self.queue_event = threading.Event()
 
     def accept_connections(self):
-        """Accept incoming connections (run in separate thread)"""
         while True:
+            conn, addr = self.sock.accept()
+            ip, port = addr
             try:
-                conn, addr = self.sock.accept()
-                ip, port = addr
-                try:
-                    hostname = socket.gethostbyaddr(ip)[0]
-                except socket.herror:
-                    hostname = ip
+                hostname = socket.gethostbyaddr(ip)[0]
+            except socket.herror:
+                hostname = ip
 
-                print(f"Connected to {hostname}:{port}")
-                self.connections[hostname] = conn
+            normalized = hostname.split(".")[0]
+            print(f"Connected to {hostname}:{port}")
 
-                # Handle incoming messages from this connection
-                threading.Thread(
-                    target=self._handle_client, args=(conn, hostname), daemon=True
-                ).start()
-            except OSError:
-                break
+            self.connections[normalized] = conn
+
+            threading.Thread(
+                target=self._handle_client, args=(conn, normalized), daemon=True
+            ).start()
 
     def _handle_client(self, conn: socket.socket, hostname: str):
         """Handle messages from a single client"""
@@ -88,7 +85,8 @@ class TCPHandler:
         try:
             sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             sock.connect((host, port))
-            self.connections[host] = sock
+            normalized = host.split(".")[0]
+            self.connections[normalized] = sock
             print(f"Connected to {host}:{port}")
             return sock
         except Exception as e:
