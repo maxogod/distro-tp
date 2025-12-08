@@ -184,6 +184,7 @@ def add_aggregator(count, tags=None):
     networks:
       - tp_net
     environment:
+      - EOL_NODES={eol_count}
       - ID={cname}
     volumes:
       - ./src/aggregator/config.yaml:/app/config.yaml
