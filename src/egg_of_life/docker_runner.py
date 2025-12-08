@@ -24,9 +24,6 @@ class DockerRunner:
     def shutdown(self, stop_containers: bool):
         if stop_containers:
             self._stop_created_containers()
-            for i in range(1, self.config.amount_of_nodes + 1):
-                name = f"egg_of_life{i}"
-                self.cleanup_container(name)
         self._commands_queue.join()
         self.running.clear()
         self._commands_queue.put(CLOSE_SIGNAL)  # Unblock queue
@@ -82,7 +79,7 @@ class DockerRunner:
             )
             container_names = out.splitlines()
             for name in container_names:
-                if "egg_of_life" in name:
+                if name == self.config.name:
                     continue
                 self.cleanup_container(name)
         except:

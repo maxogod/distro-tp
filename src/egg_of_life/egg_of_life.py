@@ -148,18 +148,24 @@ class RevivalChansey:
             time.sleep(self._check_interval)
 
     def revive_remaining_nodes(self):
+        eols = []
         with self._state_lock:
             for node in list(self.revive_set):
-                print(f"Also reviving previously timed out node {node}")
+                if "egg_of_life" in node:
+                    eols.append(node)
+                    continue
+                print(f"Reviving previously timed out node {node}")
                 image = self._get_image_name(node)
                 self._docker_runner.cleanup_container(node)
                 self._docker_runner.restart_container(node, image)
             self.revive_set.clear()
+        for eol in eols:
+            print(f"Reviving previously timed out Egg of Life node {eol}")
+            image = self._get_image_name(eol)
+            self._docker_runner.cleanup_container(eol)
+            self._docker_runner.restart_container(eol, image)
 
     def _on_became_leader(self, old_leader=None):
-        # if old_leader:
-        #     with self._state_lock:
-        #         self.revive_set.add(old_leader)
         self.revive_remaining_nodes()
 
 
