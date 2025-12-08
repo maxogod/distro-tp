@@ -1,8 +1,10 @@
 from queue import Queue
 import socket
 import threading
+import time
 
 CLOSE_SIGNAL = ("DONE", b"")
+
 
 class TCPHandler:
     def __init__(self, host="0.0.0.0", port=6666, buffer_size=1024):
@@ -16,7 +18,6 @@ class TCPHandler:
         self.sock.bind((self.host, self.port))
         self.connections: dict[str, socket.socket] = {}
         self.message_queue: Queue[tuple[str, bytes]] = Queue()
-        self.connections_condition = threading.Condition()
         self.client_threads: list[threading.Thread] = []
 
     def _normalize_hostname(self, hostname: str) -> str:
@@ -32,10 +33,8 @@ class TCPHandler:
                 hostname = socket.gethostbyaddr(ip)[0]
                 hostname = self._normalize_hostname(hostname)
 
-                print(f"Accepted from {hostname}:{port}")
+                # print(f"Accepted from {hostname}:{port}")
                 self.connections[hostname] = conn
-                with self.connections_condition:
-                    self.connections_condition.notify_all()
 
                 # Handle incoming messages from this connection
                 thread = threading.Thread(
@@ -78,30 +77,25 @@ class TCPHandler:
             return
         self.connections[normalized_hostname].sendall(data)
 
-    def connect_to(self, host: str, port: int):
+    def connect_to(self, host: str, port: int, retries: int = 5):
         """Actively connect to another TCP server"""
-        try:
-            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            sock.connect((host, port))
-            normalized_host = self._normalize_hostname(host)
-            self.connections[normalized_host] = sock
-            thread = threading.Thread(
-                target=self._handle_client, args=(sock, normalized_host)
-            )
-            self.client_threads.append(thread)
-            thread.start()
-            with self.connections_condition:
-                self.connections_condition.notify_all()
-            print(f"Connected to {host}:{port}")
-            return sock
-        except Exception as e:
-            print(f"Failed to connect to {host}:{port}: {e}")
-            return None
-
-    def wait_for_connections(self, count: int):
-        with self.connections_condition:
-            while len(self.connections) < count:
-                self.connections_condition.wait()
+        for attempt in range(1, retries + 1):
+            try:
+                sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                sock.connect((host, port))
+                normalized_host = self._normalize_hostname(host)
+                self.connections[normalized_host] = sock
+                thread = threading.Thread(
+                    target=self._handle_client, args=(sock, normalized_host)
+                )
+                self.client_threads.append(thread)
+                thread.start()
+                # print(f"Connected to {host}:{port}")
+                return sock
+            except Exception as e:
+                if attempt < retries:
+                    time.sleep(2)
+                    # print(f"Retrying connection to {host}:{port} (attempt {attempt})")
 
     def shutdown(self):
         """Close all connections and the server socket"""

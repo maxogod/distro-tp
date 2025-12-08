@@ -2,10 +2,11 @@ import threading
 import time
 from typing import Optional
 
-from egg_of_life.udp_server import UDPServer
+from udp_server import UDPServer
 from utils.logger import Logger
 from .tcp_handler import TCPHandler
-from protocol.leader_election_pb2 import LeaderElection as LeaderElectionMsg, HeartBeat
+from protocol.leader_election_pb2 import LeaderElection as LeaderElectionMsg
+from protocol.heartbeat_pb2 import HeartBeat
 
 ELECTION_MESSAGE = 1
 COORDINATOR_MESSAGE = 2
@@ -49,9 +50,6 @@ class LeaderElection:
                 hostname, data = self._server.receive()
                 msg = LeaderElectionMsg()
                 msg.ParseFromString(data)
-                self.logger.info(
-                    f"Node {self.id} received message type {msg.message_type} from {hostname}"
-                )
 
                 if msg.message_type == ELECTION_MESSAGE:
                     self._handle_election_message(msg, hostname)
@@ -88,10 +86,10 @@ class LeaderElection:
     def _handle_coordinator_message(
         self, msg: LeaderElectionMsg, hostname: str
     ) -> None:
-        self.logger.info(f"Received COORDINATOR from {hostname} with id={msg.id}")
+        self.logger.info(f"Received COORDINATOR from {hostname}{msg.id} | Leader ID: {msg.id}")
         self.coordinator_event.set()
         self.election_event.set()
-        self.leader = msg.id
+        self.leader = int(msg.id)
 
     def _election_timeout_handler(self) -> None:
         """Handle election timeout - if no higher node responds, assume leadership"""
@@ -172,30 +170,23 @@ class LeaderElection:
     # ----------------- public methods -----------------
 
     def start(self):
-        self.logger.info(f"Node {self.id} is starting on port {self.port}")
-
         # Start accepting incoming TCP connections
         thread = threading.Thread(target=self._server.accept_connections)
         self.threads.append(thread)
         thread.start()
 
-        # Actively connect to other nodes
+        # Actively connect to as many nodes as possible
         for node_id in range(1, self.amount_of_nodes + 1):
             node = f"{self.host_name}{node_id}"
             if node_id != self.id:
                 self._server.connect_to(node, self.port)
 
-        # Wait until all expected peers are connected
-        self._server.wait_for_connections(self.amount_of_nodes - 1)
+        self.logger.info(f"connected nodes: {list(self._server.connections.keys())}")
         self.connected_nodes = set(self._server.connections.keys())
-        self.logger.info(
-            f"Node {self.id}: all peers connected: {list(self.connected_nodes)}"
-        )
-
-        # Start message listener
-        thread = threading.Thread(target=self._election_listener)
-        self.threads.append(thread)
-        thread.start()
+        # Start election listener
+        listener_thread = threading.Thread(target=self._election_listener, daemon=True)
+        self.threads.append(listener_thread)
+        listener_thread.start()
 
         self.start_election()
 
