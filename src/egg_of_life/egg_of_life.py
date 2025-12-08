@@ -11,6 +11,7 @@ from udp_server import UDPServer
 from docker_runner import DockerRunner
 from protocol.heartbeat_pb2 import HeartBeat
 from google.protobuf.message import DecodeError
+from utils.config import Config
 
 # Config
 CONFIG_PATH = "/app/config.yaml"
@@ -25,7 +26,7 @@ class RevivalChansey:
         docker_network: str,
         host_path: str,
         controller_count: int,
-        leader_election: LeaderElection = None,
+        leader_election: LeaderElection,
     ):
         self._server = UDPServer(port=port)
         self._docker_runner = DockerRunner(docker_network, host_path, controller_count)
@@ -39,23 +40,18 @@ class RevivalChansey:
         # Track last heartbeat timestamps
         self._last_heartbeat: dict[str, float] = {}
         self._heartbeat_lock = threading.Lock()
+        self.revive_set = set()
 
         # Leader Election
         self._leader_election = leader_election
 
-        # Nodes to revive
-        self.revive_set = set()
-
     def start(self):
         print("Revival Chansey ready")
-        self._monitor_thread = threading.Thread(
-            target=self._monitor_timeouts, daemon=True
-        )
+        self._monitor_thread = threading.Thread(target=self._monitor_timeouts, daemon=True)
+        self._heartbeat_thread = threading.Thread(target=self._send_heartbeats, daemon=True)
         self._monitor_thread.start()
         self._docker_runner.start()
-        threading.Thread(
-            target=self._send_heartbeats, daemon=True
-        ).start()  # we start hb sending thread
+        self._heartbeat_thread.start()  # we start hb sending thread
         self._leader_election.start()  # start leader election
 
         while self.running.is_set():
@@ -77,6 +73,7 @@ class RevivalChansey:
         self.running.clear()  # Sets flag to false
         self._server.close()
         self._monitor_thread.join()
+        self._heartbeat_thread.join()
         self._docker_runner.shutdown()
         print("Revival Chansey finished")
 
@@ -172,50 +169,27 @@ def setup_signal_handlers(rc: RevivalChansey):
 
 
 def main():
-    # Requires protobuf to exist in ./protocol/heartbeat_pb2.py
+    # Requires protobufs to exist in ./protocol/
     # protoc --python_out=./src/egg_of_life ./src/common/protobufs/protocol/heartbeat.proto
+    # protoc --python_out=./src/egg_of_life ./src/common/protobufs/protocol/leader_election.proto
 
-    port = 7777
-    leader_election_port = 6666
-    timeout_interval = 10
-    check_interval = 5
-    heartbeat_interval = 200
-
-    docker_network = os.getenv("NETWORK", "bridge")
-    host_path = os.getenv("HOST_PROJECT_PATH", "")
-    controller_count = int(os.getenv("MAX_CONTROLLER_NODES", "0"))
-    amount_of_nodes = int(os.getenv("AMOUNT_OF_NODES", "1"))
-    id = int(os.getenv("ID", ""))
-    if os.path.exists(CONFIG_PATH):
-        with open(CONFIG_PATH, "r") as f:
-            cfg = yaml.safe_load(f)
-            cfg.get("port", port)
-            cfg.get("timeout_interval", timeout_interval)
-            cfg.get("check_interval", check_interval)
-            cfg.get("leader_election.port", leader_election_port)
-            cfg.get("leader_election.interval", heartbeat_interval)
-
-    print(
-        f"Starting Revival Chansey on port {port} with timeout {timeout_interval}s and check interval {check_interval}s"
-    )
-    print(
-        f"Docker network: {docker_network}, Host path: {host_path}, Max controllers: {controller_count}"
-    )
+    config = Config(CONFIG_PATH)
+    print(config)
 
     le = LeaderElection(
-        id=id,
-        amount_of_nodes=amount_of_nodes,
-        port=leader_election_port,
-        sending_interval=heartbeat_interval,
+        id=config.id,
+        amount_of_nodes=config.amount_of_nodes,
+        port=config.leader_election_port,
+        sending_interval=config.heartbeat_interval,
     )
 
     rc = RevivalChansey(
-        port,
-        timeout_interval,
-        check_interval,
-        docker_network,
-        host_path,
-        controller_count,
+        config.port,
+        config.timeout_interval,
+        config.check_interval,
+        config.docker_network,
+        config.host_path,
+        config.controller_count,
         le,
     )
 

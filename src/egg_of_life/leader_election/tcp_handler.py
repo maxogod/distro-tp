@@ -1,9 +1,8 @@
-from multiprocessing import Queue
+from queue import Queue
 import socket
 import threading
 
 CLOSE_SIGNAL = ("DONE", b"")
-
 
 class TCPHandler:
     def __init__(self, host="0.0.0.0", port=6666, buffer_size=1024):
@@ -18,6 +17,9 @@ class TCPHandler:
         self.connections: dict[str, socket.socket] = {}
         self.message_queue: Queue[tuple[str, bytes]] = Queue()
 
+    def _normalize_hostname(self, hostname: str) -> str:
+        return hostname.split(".")[0].split(":")[0]
+
     def accept_connections(self):
         """Accept incoming connections (run in separate thread)"""
         self.sock.listen()
@@ -26,6 +28,7 @@ class TCPHandler:
                 conn, addr = self.sock.accept()
                 ip, port = addr
                 hostname = socket.gethostbyaddr(ip)[0]
+                hostname = self._normalize_hostname(hostname)
 
                 print(f"Accepted from {hostname}:{port}")
                 self.connections[hostname] = conn
@@ -59,21 +62,26 @@ class TCPHandler:
             if (hostname, data) == CLOSE_SIGNAL:
                 break
             return hostname, data
+        return CLOSE_SIGNAL
 
     def send(self, data: bytes, hostname: str):
         """Send data to a specific host"""
-
-        print(f"Sending data to {hostname}")
-        print(f"is {hostname} in connections? {hostname in self.connections}")
-
-        self.connections[hostname].sendall(data)
+        normalized_hostname = self._normalize_hostname(hostname)
+        if normalized_hostname not in self.connections:
+            print(f"Not connected to {normalized_hostname}, skipping send")
+            return
+        self.connections[normalized_hostname].sendall(data)
 
     def connect_to(self, host: str, port: int):
         """Actively connect to another TCP server"""
         try:
             sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             sock.connect((host, port))
-            self.connections[host] = sock
+            normalized_host = self._normalize_hostname(host)
+            self.connections[normalized_host] = sock
+            threading.Thread(
+                target=self._handle_client, args=(sock, normalized_host), daemon=True
+            ).start()
             print(f"Connected to {host}:{port}")
             return sock
         except Exception as e:

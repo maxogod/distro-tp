@@ -1,4 +1,5 @@
 import threading
+from typing import Optional
 
 from utils.logger import Logger
 from .tcp_handler import TCPHandler
@@ -7,7 +8,7 @@ from protocol.leader_election_pb2 import LeaderElection as LeaderElectionMsg
 ELECTION_MESSAGE = 1
 COORDINATOR_MESSAGE = 2
 CANDIDATE_MESSAGE = 3
-ELECTION_TIMEOUT = 10  # seconds
+ELECTION_TIMEOUT = 2  # seconds
 
 HOSTNAME = "egg_of_life"
 
@@ -27,7 +28,7 @@ class LeaderElection:
         self.sending_interval = sending_interval
         self.leader = 0
         self.amount_of_nodes = amount_of_nodes
-        self.connected_nodes: dict[str, str] = dict()
+        self.connected_nodes: set[str] = set()
         self.port = port
         self._server = TCPHandler(port=self.port)
         self.election_event = threading.Event()
@@ -83,16 +84,18 @@ class LeaderElection:
     ) -> None:
         self.logger.info(f"Received COORDINATOR from {hostname} with id={msg.id}")
         self.coordinator_event.set()
+        self.election_event.set()
         self.leader = msg.id
 
     def _election_timeout_handler(self) -> None:
         """Handle election timeout - if no higher node responds, assume leadership"""
         if not self.election_event.wait(timeout=ELECTION_TIMEOUT):
             # Timeout occurred - no higher node responded
-            self.logger.info(f"Node {self.id}: Election timeout - assuming leadership")
-            self.leader = self.id
-            # Broadcast that we are the leader
-            self._send_coordinator_message()
+            if not self.coordinator_event.is_set():
+                self.logger.info(f"Node {self.id}: Election timeout - assuming leadership")
+                self.leader = self.id
+                # Broadcast that we are the leader
+                self._send_coordinator_message()
 
     def _coordinator_timeout_handler(self) -> None:
         """Handle coordinator timeout - if no coordinator message is received, start a new election"""
@@ -170,7 +173,7 @@ class LeaderElection:
                 self.connected_nodes = connections
                 break
         self.logger.info(
-            f"Node {self.id}: all peers connected: {self.connected_nodes.values()}"
+            f"Node {self.id}: all peers connected: {list(self.connected_nodes)}"
         )
 
         # Start message listener
@@ -187,10 +190,10 @@ class LeaderElection:
         threading.Thread(target=self._election_timeout_handler, daemon=True).start()
 
     def i_am_leader(self) -> bool:
-        return self.leader and self.leader == self.id
+        return self.leader != 0 and self.leader == self.id
 
     def get_nodes(self) -> list[str]:
-        return list(self.connected_nodes.keys())
+        return list(self.connected_nodes)
 
-    def get_leader(self) -> str:
+    def get_leader(self) -> Optional[str]:
         return f"{self.host_name}{self.leader}" if self.leader else None
