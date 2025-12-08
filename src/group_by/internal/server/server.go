@@ -45,7 +45,7 @@ func InitServer(conf *config.Config) *Server {
 
 	return &Server{
 		messageHandler:  messageHandler,
-		heartbeatSender: heartbeat.NewHeartBeatHandler(conf.Heartbeat.Host, conf.Heartbeat.Port, conf.Heartbeat.Interval),
+		heartbeatSender: heartbeat.NewHeartBeatHandler(conf.Heartbeat.Host, conf.Heartbeat.Port, conf.Heartbeat.Interval, conf.Heartbeat.Amount),
 	}
 }
 

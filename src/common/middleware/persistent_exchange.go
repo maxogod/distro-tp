@@ -10,8 +10,19 @@ import (
 	amqp "github.com/rabbitmq/amqp091-go"
 )
 
+type messageMiddlewarePersistentExchange struct {
+	exchangeName string
+	queueName    string
+	conn         MiddlewareConnection
+	channel      MiddlewareChannel
+	routeKeys    []string
+
+	consumeChannel ConsumeChannel
+	consumerTag    string
+}
+
 func NewPersistentExchangeMiddleware(url, exchangeName, exchangeType string, routingKeys []string, queueName string) (MessageMiddleware, error) {
-	m := &MessageMiddlewarePersistentExchange{
+	m := &messageMiddlewarePersistentExchange{
 		exchangeName: exchangeName,
 		queueName:    queueName,
 		routeKeys:    routingKeys,
@@ -82,7 +93,7 @@ func NewPersistentExchangeMiddleware(url, exchangeName, exchangeType string, rou
 	return m, nil
 }
 
-func (me *MessageMiddlewarePersistentExchange) StartConsuming(onMessageCallback onMessageCallback) (e MessageMiddlewareError) {
+func (me *messageMiddlewarePersistentExchange) StartConsuming(onMessageCallback onMessageCallback) (e MessageMiddlewareError) {
 	if me.queueName == "" {
 		logger.Logger.Errorln("Cannot start consuming: no queue name specified on constructor")
 		return MessageMiddlewareMessageError
@@ -95,7 +106,7 @@ func (me *MessageMiddlewarePersistentExchange) StartConsuming(onMessageCallback 
 		me.queueName, // queue
 		consumerTag,  // consumer
 		false,        // auto-ack
-		true,         // exclusive
+		false,        // exclusive
 		false,        // no-local
 		false,        // no-wait
 		nil,          // args
@@ -113,7 +124,11 @@ func (me *MessageMiddlewarePersistentExchange) StartConsuming(onMessageCallback 
 	return MessageMiddlewareSuccess
 }
 
-func (me *MessageMiddlewarePersistentExchange) StopConsuming() (e MessageMiddlewareError) {
+func (me *messageMiddlewarePersistentExchange) StopConsuming() (e MessageMiddlewareError) {
+	if me.conn.IsClosed() {
+		return MessageMiddlewareDisconnectedError
+	}
+
 	if me.consumerTag == "" {
 		logger.Logger.Warnln("StopConsuming called but no consumer is active")
 		return MessageMiddlewareSuccess
@@ -129,7 +144,7 @@ func (me *MessageMiddlewarePersistentExchange) StopConsuming() (e MessageMiddlew
 	return MessageMiddlewareSuccess
 }
 
-func (me *MessageMiddlewarePersistentExchange) Send(message []byte) (e MessageMiddlewareError) {
+func (me *messageMiddlewarePersistentExchange) Send(message []byte) (e MessageMiddlewareError) {
 	if me.conn.IsClosed() {
 		logger.Logger.Errorln("Connection is closed")
 		return MessageMiddlewareDisconnectedError
@@ -158,31 +173,25 @@ func (me *MessageMiddlewarePersistentExchange) Send(message []byte) (e MessageMi
 	return MessageMiddlewareSuccess
 }
 
-func (me *MessageMiddlewarePersistentExchange) Close() (e MessageMiddlewareError) {
-	if err := me.channel.Close(); err != nil {
-		logger.Logger.Errorln("Failed to close channel:", err)
-		return MessageMiddlewareCloseError
+func (me *messageMiddlewarePersistentExchange) Close() (e MessageMiddlewareError) {
+	if !me.channel.IsClosed() {
+		if err := me.channel.Close(); err != nil {
+			logger.Logger.Errorln("Failed to close channel:", err)
+			return MessageMiddlewareCloseError
+		}
 	}
 
-	if err := me.conn.Close(); err != nil {
-		logger.Logger.Errorln("Failed to close connection:", err)
-		return MessageMiddlewareCloseError
+	if !me.conn.IsClosed() {
+		if err := me.conn.Close(); err != nil {
+			logger.Logger.Errorln("Failed to close connection:", err)
+			return MessageMiddlewareCloseError
+		}
 	}
 
 	return MessageMiddlewareSuccess
 }
 
-func (me *MessageMiddlewarePersistentExchange) Delete() (e MessageMiddlewareError) {
-	// err := me.channel.ExchangeDelete(
-	// 	me.exchangeName, // name
-	// 	false,           // if-unused
-	// 	false,           // no-wait
-	// )
-	// if err != nil {
-	// 	logger.Logger.Errorln("Failed to delete exchange:", err)
-	// 	return MessageMiddlewareDeleteError
-	// }
-
+func (me *messageMiddlewarePersistentExchange) Delete() (e MessageMiddlewareError) {
 	msg_count, err := me.channel.QueueDelete(
 		me.queueName, // name
 		false,        // ifUnused

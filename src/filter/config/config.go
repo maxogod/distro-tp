@@ -13,7 +13,18 @@ import (
 type HeartbeatConfig struct {
 	Host     string
 	Port     int
+	Amount   int
 	Interval time.Duration
+}
+
+func (h HeartbeatConfig) String() string {
+	return fmt.Sprintf(
+		"Host: %s | Port: %d | Amount: %d | Interval(ms): %d",
+		h.Host,
+		h.Port,
+		h.Amount,
+		h.Interval.Milliseconds(),
+	)
 }
 
 type Config struct {
@@ -26,10 +37,11 @@ type Config struct {
 
 func (c Config) String() string {
 	return fmt.Sprintf(
-		"Address: %s | LogLevel: %s | TaskConfig: [%s]",
+		"Address: %s | LogLevel: %s | TaskConfig: [%s] | Heartbeat: [%s]",
 		c.Address,
 		c.LogLevel,
 		c.TaskConfig.String(),
+		c.Heartbeat.String(),
 	)
 }
 
@@ -52,10 +64,12 @@ func InitConfig(configFilePath string) (*Config, error) {
 	}
 
 	v.BindEnv("id", "ID")
+	v.BindEnv("heartbeat.amount", "EOL_NODES")
 
 	heatbeatConf := HeartbeatConfig{
 		Host:     v.GetString("heartbeat.host"),
 		Port:     v.GetInt("heartbeat.port"),
+		Amount:   v.GetInt("heartbeat.amount"),
 		Interval: time.Duration(v.GetInt("heartbeat.interval")) * time.Millisecond,
 	}
 

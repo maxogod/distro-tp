@@ -15,6 +15,23 @@ with open(config_file, "r") as f:
 # Extract service configuration
 services_config = config.get("services", {})
 
+controller_count = 0
+if "controller" in services_config:
+    controller_config = services_config.get("controller", {})
+    if isinstance(controller_config, dict):
+        controller_count = controller_config.get("instances", 0)
+    else:
+        controller_count = (
+            controller_config if isinstance(controller_config, int) else 0
+        )
+
+# Get egg_of_life count
+eol_config = services_config.get("egg_of_life", {})
+if isinstance(eol_config, dict):
+    eol_count = eol_config.get("instances", 1)
+else:
+    eol_count = eol_config if isinstance(eol_config, int) else 1
+
 lines = []
 
 # ==============================
@@ -48,12 +65,15 @@ lines.append(
     """
 )
 
+
 # ==============================
-# Egg of life
+# Function to add egg of life
 # ==============================
-lines.append(
-    f"""  egg_of_life:
-    container_name: egg_of_life
+def add_egg_of_life(count, controller_count):
+    for i in range(1, count + 1):
+        cname = f"egg_of_life{i}"
+        service_def = f"""  {cname}:
+    container_name: {cname}
     build:
       dockerfile: ./src/egg_of_life/Dockerfile
     image: egg_of_life:latest
@@ -63,10 +83,13 @@ lines.append(
     networks:
       - tp_net
     environment:
+      - ID={i}
       - NETWORK=distro_tp_net
       - HOST_PROJECT_PATH={"${PWD}"}
+      - MAX_CONTROLLER_NODES={controller_count}
+      - AMOUNT_OF_NODES={eol_count}
     """
-)
+        lines.append(service_def)
 
 
 # ==============================
@@ -88,9 +111,8 @@ def add_gateway(count, tags=None):
         service_def += f"""
     image: gateway:latest
     environment:
-      - LEADER_ELECTION_ID={i}
-      - LEADER_ELECTION_HOST=gateway{i}
-      - LEADER_ELECTION_PORT=9090
+      - EOL_NODES={eol_count}
+      - MAX_CONTROLLER_NODES={controller_count}
     volumes:
       - ./src/gateway/config.yaml:/app/config.yaml
     depends_on:
@@ -130,6 +152,7 @@ def add_controller(count, tags=None):
       - ./src/controller/config.yaml:/app/config.yaml
       - ./.storage/{cname}:/app/storage
     environment:
+      - EOL_NODES={eol_count}
       - ID={cname}
     depends_on:
       rabbitmq:
@@ -196,6 +219,7 @@ def add_services(name, count, tags=None):
     volumes:
       - ./src/{name}/config.yaml:/app/config.yaml
     environment:
+      - EOL_NODES={eol_count}
       - ID={cname}
     depends_on:
       rabbitmq:
@@ -225,6 +249,7 @@ def add_joiner(count, tags=None):
     networks:
       - tp_net
     environment:
+      - EOL_NODES={eol_count}
       - ID={cname}
     volumes:
       - ./src/joiner/config.yaml:/app/config.yaml
@@ -234,6 +259,7 @@ def add_joiner(count, tags=None):
         condition: service_healthy
         """
         lines.append(service_def)
+
 
 # ==============================
 # Add gateway
@@ -298,6 +324,19 @@ if count > 0:
     tag_info = f" with tags '{tags}'" if tags else ""
     print(f"Adding {count} joiner(s){tag_info}")
     add_joiner(count, tags)
+
+# ==============================
+# Add egg of life
+# ==============================
+eol_config = services_config.get("egg_of_life", {})
+if isinstance(eol_config, dict):
+    count = eol_config.get("instances", 1)
+else:
+    count = eol_config if isinstance(eol_config, int) else 1
+
+if count > 0:
+    print(f"Adding {count} egg_of_life instance(s)")
+    add_egg_of_life(count, controller_count)
 
 # ==============================
 # Add other services

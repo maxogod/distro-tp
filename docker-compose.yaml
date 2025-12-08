@@ -19,29 +19,14 @@ services:
     networks:
       - tp_net
     
-  egg_of_life:
-    container_name: egg_of_life
-    build:
-      dockerfile: ./src/egg_of_life/Dockerfile
-    image: egg_of_life:latest
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
-      - ./src/egg_of_life/config.yaml:/app/config.yaml
-    networks:
-      - tp_net
-    environment:
-      - NETWORK=distro_tp_net
-      - HOST_PROJECT_PATH=${PWD}
-    
   gateway1:
     container_name: gateway1
     build:
       dockerfile: ./src/gateway/Dockerfile
     image: gateway:latest
     environment:
-      - LEADER_ELECTION_ID=1
-      - LEADER_ELECTION_HOST=gateway1
-      - LEADER_ELECTION_PORT=9090
+      - EOL_NODES=3
+      - MAX_CONTROLLER_NODES=3
     volumes:
       - ./src/gateway/config.yaml:/app/config.yaml
     depends_on:
@@ -62,9 +47,8 @@ services:
       dockerfile: ./src/gateway/Dockerfile
     image: gateway:latest
     environment:
-      - LEADER_ELECTION_ID=2
-      - LEADER_ELECTION_HOST=gateway2
-      - LEADER_ELECTION_PORT=9090
+      - EOL_NODES=3
+      - MAX_CONTROLLER_NODES=3
     volumes:
       - ./src/gateway/config.yaml:/app/config.yaml
     depends_on:
@@ -88,6 +72,7 @@ services:
       - ./src/controller/config.yaml:/app/config.yaml
       - ./.storage/controller1:/app/storage
     environment:
+      - EOL_NODES=3
       - ID=controller1
     depends_on:
       rabbitmq:
@@ -104,7 +89,25 @@ services:
       - ./src/controller/config.yaml:/app/config.yaml
       - ./.storage/controller2:/app/storage
     environment:
+      - EOL_NODES=3
       - ID=controller2
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - tp_net
+        
+  controller3:
+    container_name: controller3
+    build:
+      dockerfile: ./src/controller/Dockerfile
+    image: controller:latest
+    volumes:
+      - ./src/controller/config.yaml:/app/config.yaml
+      - ./.storage/controller3:/app/storage
+    environment:
+      - EOL_NODES=3
+      - ID=controller3
     depends_on:
       rabbitmq:
         condition: service_healthy
@@ -143,22 +146,6 @@ services:
       rabbitmq:
         condition: service_healthy
         
-  aggregator3:
-    container_name: aggregator3
-    build:
-      dockerfile: ./src/aggregator/Dockerfile
-    image: aggregator:latest
-    networks:
-      - tp_net
-    environment:
-      - ID=aggregator3
-    volumes:
-      - ./src/aggregator/config.yaml:/app/config.yaml
-      - ./.storage/aggregator3:/app/storage
-    depends_on:
-      rabbitmq:
-        condition: service_healthy
-        
   joiner1:
     container_name: joiner1
     build:
@@ -167,6 +154,7 @@ services:
     networks:
       - tp_net
     environment:
+      - EOL_NODES=3
       - ID=joiner1
     volumes:
       - ./src/joiner/config.yaml:/app/config.yaml
@@ -183,6 +171,7 @@ services:
     networks:
       - tp_net
     environment:
+      - EOL_NODES=3
       - ID=joiner2
     volumes:
       - ./src/joiner/config.yaml:/app/config.yaml
@@ -191,6 +180,57 @@ services:
       rabbitmq:
         condition: service_healthy
         
+  egg_of_life1:
+    container_name: egg_of_life1
+    build:
+      dockerfile: ./src/egg_of_life/Dockerfile
+    image: egg_of_life:latest
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./src/egg_of_life/config.yaml:/app/config.yaml
+    networks:
+      - tp_net
+    environment:
+      - ID=1
+      - NETWORK=distro_tp_net
+      - HOST_PROJECT_PATH=${PWD}
+      - MAX_CONTROLLER_NODES=3
+      - AMOUNT_OF_NODES=3
+    
+  egg_of_life2:
+    container_name: egg_of_life2
+    build:
+      dockerfile: ./src/egg_of_life/Dockerfile
+    image: egg_of_life:latest
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./src/egg_of_life/config.yaml:/app/config.yaml
+    networks:
+      - tp_net
+    environment:
+      - ID=2
+      - NETWORK=distro_tp_net
+      - HOST_PROJECT_PATH=${PWD}
+      - MAX_CONTROLLER_NODES=3
+      - AMOUNT_OF_NODES=3
+    
+  egg_of_life3:
+    container_name: egg_of_life3
+    build:
+      dockerfile: ./src/egg_of_life/Dockerfile
+    image: egg_of_life:latest
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./src/egg_of_life/config.yaml:/app/config.yaml
+    networks:
+      - tp_net
+    environment:
+      - ID=3
+      - NETWORK=distro_tp_net
+      - HOST_PROJECT_PATH=${PWD}
+      - MAX_CONTROLLER_NODES=3
+      - AMOUNT_OF_NODES=3
+    
   filter1:
     container_name: filter1
     build:
@@ -203,6 +243,7 @@ services:
     volumes:
       - ./src/filter/config.yaml:/app/config.yaml
     environment:
+      - EOL_NODES=3
       - ID=filter1
     depends_on:
       rabbitmq:
@@ -220,7 +261,26 @@ services:
     volumes:
       - ./src/filter/config.yaml:/app/config.yaml
     environment:
+      - EOL_NODES=3
       - ID=filter2
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+        
+  filter3:
+    container_name: filter3
+    build:
+      dockerfile: ./src/filter/Dockerfile
+      args:
+        BUILD_TAGS: "poison low_prob" 
+    image: filter:latest
+    networks:
+      - tp_net
+    volumes:
+      - ./src/filter/config.yaml:/app/config.yaml
+    environment:
+      - EOL_NODES=3
+      - ID=filter3
     depends_on:
       rabbitmq:
         condition: service_healthy
@@ -237,6 +297,7 @@ services:
     volumes:
       - ./src/reducer/config.yaml:/app/config.yaml
     environment:
+      - EOL_NODES=3
       - ID=reducer1
     depends_on:
       rabbitmq:
@@ -254,6 +315,7 @@ services:
     volumes:
       - ./src/reducer/config.yaml:/app/config.yaml
     environment:
+      - EOL_NODES=3
       - ID=reducer2
     depends_on:
       rabbitmq:
@@ -271,6 +333,7 @@ services:
     volumes:
       - ./src/group_by/config.yaml:/app/config.yaml
     environment:
+      - EOL_NODES=3
       - ID=group_by1
     depends_on:
       rabbitmq:
@@ -288,6 +351,7 @@ services:
     volumes:
       - ./src/group_by/config.yaml:/app/config.yaml
     environment:
+      - EOL_NODES=3
       - ID=group_by2
     depends_on:
       rabbitmq:
@@ -295,7 +359,7 @@ services:
         
   client1:
     container_name: client1
-    entrypoint: ["/app/app", "t1"]
+    entrypoint: ["/app/app", "t1", "t2"]
     build:
       dockerfile: ./src/client/Dockerfile
     image: client:latest
@@ -311,7 +375,7 @@ services:
         
   client2:
     container_name: client2
-    entrypoint: ["/app/app", "t2"]
+    entrypoint: ["/app/app", "t2", "t3"]
     build:
       dockerfile: ./src/client/Dockerfile
     image: client:latest
@@ -327,7 +391,7 @@ services:
         
   client3:
     container_name: client3
-    entrypoint: ["/app/app", "t3"]
+    entrypoint: ["/app/app", "t3", "t4"]
     build:
       dockerfile: ./src/client/Dockerfile
     image: client:latest
@@ -343,7 +407,7 @@ services:
         
   client4:
     container_name: client4
-    entrypoint: ["/app/app", "t4"]
+    entrypoint: ["/app/app", "t4", "t1"]
     build:
       dockerfile: ./src/client/Dockerfile
     image: client:latest

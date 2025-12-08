@@ -209,8 +209,8 @@ func TestDiskMemoryCache_TempFileStorage(t *testing.T) {
 	storage.StoreTempBatch(c, cacheRef, Transactions)
 	assert.FileExists(t, "storage/TEMP%test.cache", "test_temp file should exist in the current directory")
 
-	savedRef := c.SaveTempFile(cacheRef)
-	assert.Equal(t, cacheRef, savedRef, "Saved cache reference should match original")
+	err := c.SaveTempFile(cacheRef)
+	assert.NoError(t, err)
 
 	assert.NoError(t, c.Close())
 }

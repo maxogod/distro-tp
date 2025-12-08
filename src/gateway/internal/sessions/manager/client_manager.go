@@ -22,9 +22,9 @@ func NewClientManager(conf *config.Config) ClientManager {
 }
 
 func (cm *clientManager) AddClient(connection network.ConnectionInterface) clients.ClientSession {
-	session := clients.NewClientSession(connection, cm.config)
-
-	if session == nil {
+	session, err := clients.NewClientSession(connection, cm.config)
+	if err != nil {
+		logger.Logger.Errorf("Error creating client session: %v", err)
 		return nil
 	}
 

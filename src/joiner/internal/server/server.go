@@ -49,7 +49,7 @@ func InitServer(conf *config.Config) *Server {
 
 	return &Server{
 		messageHandler: messageHandler,
-		heatbeatSender: heartbeat.NewHeartBeatHandler(conf.Heartbeat.Host, conf.Heartbeat.Port, conf.Heartbeat.Interval),
+		heatbeatSender: heartbeat.NewHeartBeatHandler(conf.Heartbeat.Host, conf.Heartbeat.Port, conf.Heartbeat.Interval, conf.Heartbeat.Amount),
 	}
 }
 

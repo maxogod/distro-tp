@@ -12,12 +12,9 @@ type CounterStorage interface {
 	// ReadClientCounters returns the list of counters for the given client
 	ReadClientCounters(clientID string) ([]*protocol.MessageCounter, error)
 
-	// AppendCounter appends the given counter to the counter file for the given client
-	AppendCounter(clientID string, counter *protocol.MessageCounter) error
+	// AppendCounters appends the given counters to the counter file for the given client
+	AppendCounters(clientID string, counters []*protocol.MessageCounter, taskType enum.TaskType) error
 
 	// RemoveClient removes the counter file for the given client
 	RemoveClient(clientID string) error
-
-	// InitializeClientCounter creates a new counter file for the given client with the given task type
-	InitializeClientCounter(clientID string, taskType enum.TaskType) error
 }
