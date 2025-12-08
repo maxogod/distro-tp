@@ -64,6 +64,7 @@ class TCPHandler:
         """Receive data from any connected client (blocking)"""
         while self.is_running.is_set():
             hostname, data = self.message_queue.get()
+            self.message_queue.task_done()
             if (hostname, data) == CLOSE_SIGNAL:
                 break
             return hostname, data
@@ -102,8 +103,20 @@ class TCPHandler:
         self.message_queue.join()
         self.is_running.clear()
         self.message_queue.put(CLOSE_SIGNAL)
-        for conn in self.connections.values():
-            conn.close()
+
+        try:
+            self.sock.shutdown(socket.SHUT_RDWR)
+        except OSError:
+            pass
         self.sock.close()
+
+        for conn in self.connections.values():
+            try:
+                conn.shutdown(socket.SHUT_RDWR)
+            except OSError:
+                pass
+            conn.close()
+            
+        print("Joining client threads...")
         for thread in self.client_threads:
             thread.join()
