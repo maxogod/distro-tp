@@ -17,6 +17,7 @@ class TCPHandler:
         self.connections: dict[str, socket.socket] = {}
         self.message_queue: Queue[tuple[str, bytes]] = Queue()
         self.connections_condition = threading.Condition()
+        self.client_threads: list[threading.Thread] = []
 
     def _normalize_hostname(self, hostname: str) -> str:
         return hostname.split(".")[0].split(":")[0]
@@ -37,9 +38,11 @@ class TCPHandler:
                     self.connections_condition.notify_all()
 
                 # Handle incoming messages from this connection
-                threading.Thread(
-                    target=self._handle_client, args=(conn, hostname), daemon=True
-                ).start()
+                thread = threading.Thread(
+                    target=self._handle_client, args=(conn, hostname)
+                )
+                self.client_threads.append(thread)
+                thread.start()
             except OSError:
                 break
 
@@ -82,9 +85,11 @@ class TCPHandler:
             sock.connect((host, port))
             normalized_host = self._normalize_hostname(host)
             self.connections[normalized_host] = sock
-            threading.Thread(
-                target=self._handle_client, args=(sock, normalized_host), daemon=True
-            ).start()
+            thread = threading.Thread(
+                target=self._handle_client, args=(sock, normalized_host)
+            )
+            self.client_threads.append(thread)
+            thread.start()
             with self.connections_condition:
                 self.connections_condition.notify_all()
             print(f"Connected to {host}:{port}")
@@ -106,3 +111,5 @@ class TCPHandler:
         for conn in self.connections.values():
             conn.close()
         self.sock.close()
+        for thread in self.client_threads:
+            thread.join()

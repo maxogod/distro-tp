@@ -33,12 +33,14 @@ class LeaderElection:
         self._server = TCPHandler(port=self.port)
         self.election_event = threading.Event()
         self.coordinator_event = threading.Event()
+        self.stop_event = threading.Event()
+        self.threads = []
 
     # ----------------- election listener -----------------
 
     def _election_listener(self) -> None:
         """Listen for incoming leader election messages"""
-        while True:
+        while not self.stop_event.is_set():
             try:
                 hostname, data = self._server.receive()
                 msg = LeaderElectionMsg()
@@ -141,15 +143,8 @@ class LeaderElection:
 
     # ----------------- helper methods -----------------
 
-    def _get_hostname(self, raw: str) -> str:
-        """Convert raw TCP name (may include domain or port) to canonical node name."""
-        raw = raw.split(":")[0]  # strip port
-        raw = raw.split(".")[0]  # strip domain
-        return raw
-
     def _get_connection_id(self, hostname: str) -> int:
         """Get connection by hostname"""
-        hostname = self._get_hostname(hostname)
         return int(hostname.split(HOSTNAME)[-1])
 
     # ----------------- public methods -----------------
@@ -158,7 +153,9 @@ class LeaderElection:
         self.logger.info(f"Node {self.id} is starting on port {self.port}")
 
         # Start accepting incoming TCP connections
-        threading.Thread(target=self._server.accept_connections, daemon=True).start()
+        thread = threading.Thread(target=self._server.accept_connections)
+        self.threads.append(thread)
+        thread.start()
 
         # Actively connect to other nodes
         for node_id in range(1, self.amount_of_nodes + 1):
@@ -174,7 +171,9 @@ class LeaderElection:
         )
 
         # Start message listener
-        threading.Thread(target=self._election_listener, daemon=True).start()
+        thread = threading.Thread(target=self._election_listener)
+        self.threads.append(thread)
+        thread.start()
 
         self.start_election()
 
@@ -184,7 +183,9 @@ class LeaderElection:
         self.election_event.clear()
         self._send_election_messages()
         # Start timeout handler
-        threading.Thread(target=self._election_timeout_handler, daemon=True).start()
+        thread = threading.Thread(target=self._election_timeout_handler)
+        self.threads.append(thread)
+        thread.start()
 
     def i_am_leader(self) -> bool:
         return self.leader != 0 and self.leader == self.id
@@ -194,3 +195,11 @@ class LeaderElection:
 
     def get_leader(self) -> Optional[str]:
         return f"{self.host_name}{self.leader}" if self.leader else None
+
+    def shutdown(self):
+        """Shutdown the leader election and join all threads"""
+        self.stop_event.set()
+        self._server.shutdown()
+        for thread in self.threads:
+            if thread.is_alive():
+                thread.join(timeout=5.0)
