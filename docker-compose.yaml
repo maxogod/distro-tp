@@ -18,7 +18,7 @@ services:
   #     retries: 5
   #   networks:
   #     - tp_net
-    
+
   # gateway1:
   #   container_name: gateway1
   #   build:
@@ -40,7 +40,7 @@ services:
   #     start_period: 10s
   #   networks:
   #     - tp_net
-        
+
   # gateway2:
   #   container_name: gateway2
   #   build:
@@ -62,7 +62,7 @@ services:
   #     start_period: 10s
   #   networks:
   #     - tp_net
-        
+
   # controller1:
   #   container_name: controller1
   #   build:
@@ -79,7 +79,7 @@ services:
   #       condition: service_healthy
   #   networks:
   #     - tp_net
-        
+
   # controller2:
   #   container_name: controller2
   #   build:
@@ -96,7 +96,7 @@ services:
   #       condition: service_healthy
   #   networks:
   #     - tp_net
-        
+
   # controller3:
   #   container_name: controller3
   #   build:
@@ -113,7 +113,7 @@ services:
   #       condition: service_healthy
   #   networks:
   #     - tp_net
-        
+
   # aggregator1:
   #   container_name: aggregator1
   #   build:
@@ -129,7 +129,7 @@ services:
   #   depends_on:
   #     rabbitmq:
   #       condition: service_healthy
-        
+
   # aggregator2:
   #   container_name: aggregator2
   #   build:
@@ -145,7 +145,7 @@ services:
   #   depends_on:
   #     rabbitmq:
   #       condition: service_healthy
-        
+
   # joiner1:
   #   container_name: joiner1
   #   build:
@@ -162,7 +162,7 @@ services:
   #   depends_on:
   #     rabbitmq:
   #       condition: service_healthy
-        
+
   # joiner2:
   #   container_name: joiner2
   #   build:
@@ -179,7 +179,7 @@ services:
   #   depends_on:
   #     rabbitmq:
   #       condition: service_healthy
-        
+
   egg_of_life1:
     container_name: egg_of_life1
     build:
@@ -196,7 +196,7 @@ services:
       - HOST_PROJECT_PATH=${PWD}
       - MAX_CONTROLLER_NODES=3
       - AMOUNT_OF_NODES=3
-    
+
   egg_of_life2:
     container_name: egg_of_life2
     build:
@@ -213,7 +213,7 @@ services:
       - HOST_PROJECT_PATH=${PWD}
       - MAX_CONTROLLER_NODES=3
       - AMOUNT_OF_NODES=3
-    
+
   egg_of_life3:
     container_name: egg_of_life3
     build:
@@ -230,13 +230,13 @@ services:
       - HOST_PROJECT_PATH=${PWD}
       - MAX_CONTROLLER_NODES=3
       - AMOUNT_OF_NODES=3
-    
+
   # filter1:
   #   container_name: filter1
   #   build:
   #     dockerfile: ./src/filter/Dockerfile
   #     args:
-  #       BUILD_TAGS: "poison low_prob" 
+  #       BUILD_TAGS: "poison low_prob"
   #   image: filter:latest
   #   networks:
   #     - tp_net
@@ -248,13 +248,13 @@ services:
   #   depends_on:
   #     rabbitmq:
   #       condition: service_healthy
-        
+
   # filter2:
   #   container_name: filter2
   #   build:
   #     dockerfile: ./src/filter/Dockerfile
   #     args:
-  #       BUILD_TAGS: "poison low_prob" 
+  #       BUILD_TAGS: "poison low_prob"
   #   image: filter:latest
   #   networks:
   #     - tp_net
@@ -266,13 +266,13 @@ services:
   #   depends_on:
   #     rabbitmq:
   #       condition: service_healthy
-        
+
   # filter3:
   #   container_name: filter3
   #   build:
   #     dockerfile: ./src/filter/Dockerfile
   #     args:
-  #       BUILD_TAGS: "poison low_prob" 
+  #       BUILD_TAGS: "poison low_prob"
   #   image: filter:latest
   #   networks:
   #     - tp_net
@@ -284,13 +284,13 @@ services:
   #   depends_on:
   #     rabbitmq:
   #       condition: service_healthy
-        
+
   # reducer1:
   #   container_name: reducer1
   #   build:
   #     dockerfile: ./src/reducer/Dockerfile
   #     args:
-  #       BUILD_TAGS: "poison low_prob" 
+  #       BUILD_TAGS: "poison low_prob"
   #   image: reducer:latest
   #   networks:
   #     - tp_net
@@ -302,13 +302,13 @@ services:
   #   depends_on:
   #     rabbitmq:
   #       condition: service_healthy
-        
+
   # reducer2:
   #   container_name: reducer2
   #   build:
   #     dockerfile: ./src/reducer/Dockerfile
   #     args:
-  #       BUILD_TAGS: "poison low_prob" 
+  #       BUILD_TAGS: "poison low_prob"
   #   image: reducer:latest
   #   networks:
   #     - tp_net
@@ -320,13 +320,13 @@ services:
   #   depends_on:
   #     rabbitmq:
   #       condition: service_healthy
-        
+
   # group_by1:
   #   container_name: group_by1
   #   build:
   #     dockerfile: ./src/group_by/Dockerfile
   #     args:
-  #       BUILD_TAGS: "poison low_prob" 
+  #       BUILD_TAGS: "poison low_prob"
   #   image: group_by:latest
   #   networks:
   #     - tp_net
@@ -338,13 +338,13 @@ services:
   #   depends_on:
   #     rabbitmq:
   #       condition: service_healthy
-        
+
   # group_by2:
   #   container_name: group_by2
   #   build:
   #     dockerfile: ./src/group_by/Dockerfile
   #     args:
-  #       BUILD_TAGS: "poison low_prob" 
+  #       BUILD_TAGS: "poison low_prob"
   #   image: group_by:latest
   #   networks:
   #     - tp_net
@@ -356,7 +356,7 @@ services:
   #   depends_on:
   #     rabbitmq:
   #       condition: service_healthy
-        
+
   # client1:
   #   container_name: client1
   #   entrypoint: ["/app/app", "t1"]
@@ -372,7 +372,7 @@ services:
   #   depends_on:
   #     gateway1:
   #       condition: service_healthy
-        
+
   # client2:
   #   container_name: client2
   #   entrypoint: ["/app/app", "t2"]
@@ -388,7 +388,7 @@ services:
   #   depends_on:
   #     gateway1:
   #       condition: service_healthy
-        
+
   # client3:
   #   container_name: client3
   #   entrypoint: ["/app/app", "t3"]
@@ -404,7 +404,7 @@ services:
   #   depends_on:
   #     gateway1:
   #       condition: service_healthy
-        
+
   # client4:
   #   container_name: client4
   #   entrypoint: ["/app/app", "t4"]
@@ -420,7 +420,7 @@ services:
   #   depends_on:
   #     gateway1:
   #       condition: service_healthy
-        
+
 networks:
   tp_net:
     ipam:

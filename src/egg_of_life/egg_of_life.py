@@ -20,17 +20,19 @@ CONFIG_PATH = "/app/config.yaml"
 class RevivalChansey:
     def __init__(
         self,
-        port: int,
         timeout_interval: int,
         check_interval: int,
         docker_network: str,
         host_path: str,
+        amount_of_nodes: int,
         controller_count: int,
         leader_election: LeaderElection,
         heartbeatConn: UDPServer,
     ):
         self._server = heartbeatConn
-        self._docker_runner = DockerRunner(docker_network, host_path, controller_count)
+        self._docker_runner = DockerRunner(
+            docker_network, host_path, controller_count, amount_of_nodes
+        )
 
         self._timeout_interval = timeout_interval
         self._check_interval = check_interval
@@ -80,6 +82,7 @@ class RevivalChansey:
         self._monitor_thread.join()
         self._heartbeat_thread.join()
         self._docker_runner.shutdown()
+        self._leader_election.shutdown()
         print("Revival Chansey finished")
 
     def _send_heartbeats(self):
@@ -105,6 +108,7 @@ class RevivalChansey:
     def _get_heartbeat(self) -> str:
         data, hostname = self._server.receive()
         hb = HeartBeat()
+
         try:
             hb.ParseFromString(data)
         except DecodeError:
@@ -127,7 +131,9 @@ class RevivalChansey:
 
         if hostname == self._leader_election.get_leader():
             self._leader_election.start_election()
-            print(f"Leader node {hostname} timed out, starting election")
+
+        # Wait for election to resolve
+        self._leader_election.wait_for_election_resolution()
 
         if not self._leader_election.i_am_leader():
             print(f"Not the leader, skipping revival of {hostname}")
@@ -135,9 +141,11 @@ class RevivalChansey:
             return
 
         # Cleanup and restart
+        print(f"Reviving node {hostname}")
         image = self._get_image_name(hostname)
         self._docker_runner.cleanup_container(hostname)
         self._docker_runner.restart_container(hostname, image)
+        self.revive_remaining_nodes()
 
     def _monitor_timeouts(self):
         """Monitor heartbeats and handle timeouts on another Thread"""
@@ -156,7 +164,7 @@ class RevivalChansey:
 
             time.sleep(self._check_interval)
 
-    def revive_remaninig_nodes(self):
+    def revive_remaining_nodes(self):
         for node in self.revive_set:
             print(f"Also reviving previously timed out node {node}")
             image = self._get_image_name(node)
@@ -193,11 +201,11 @@ def main():
     )
 
     rc = RevivalChansey(
-        config.port,
         config.timeout_interval,
         config.check_interval,
         config.docker_network,
         config.host_path,
+        config.amount_of_nodes,
         config.controller_count,
         le,
         heartbeatConn,

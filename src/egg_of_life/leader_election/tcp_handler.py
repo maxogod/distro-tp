@@ -20,7 +20,7 @@ class TCPHandler:
         self.message_queue: Queue[tuple[str, bytes]] = Queue()
         self.client_threads: list[threading.Thread] = []
 
-    def _normalize_hostname(self, hostname: str) -> str:
+    def normalize_hostname(self, hostname: str) -> str:
         return hostname.split(".")[0].split(":")[0]
 
     def accept_connections(self):
@@ -31,7 +31,7 @@ class TCPHandler:
                 conn, addr = self.sock.accept()
                 ip, port = addr
                 hostname = socket.gethostbyaddr(ip)[0]
-                hostname = self._normalize_hostname(hostname)
+                hostname = self.normalize_hostname(hostname)
 
                 # print(f"Accepted from {hostname}:{port}")
                 self.connections[hostname] = conn
@@ -71,7 +71,7 @@ class TCPHandler:
 
     def send(self, data: bytes, hostname: str):
         """Send data to a specific host"""
-        normalized_hostname = self._normalize_hostname(hostname)
+        normalized_hostname = self.normalize_hostname(hostname)
         if normalized_hostname not in self.connections:
             print(f"Not connected to {normalized_hostname}, skipping send")
             return
@@ -83,7 +83,7 @@ class TCPHandler:
             try:
                 sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                 sock.connect((host, port))
-                normalized_host = self._normalize_hostname(host)
+                normalized_host = self.normalize_hostname(host)
                 self.connections[normalized_host] = sock
                 thread = threading.Thread(
                     target=self._handle_client, args=(sock, normalized_host)

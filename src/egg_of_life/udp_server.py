@@ -24,7 +24,10 @@ class UDPServer:
         return data, hostname
 
     def send(self, data: bytes, host: str, port=7777):
-        self.sock.sendto(data, (host, port))
+        try:
+            self.sock.sendto(data, (host, port))
+        except (socket.gaierror, OSError):
+            pass
 
     def close(self):
         self.sock.close()

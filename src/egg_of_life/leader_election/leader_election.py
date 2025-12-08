@@ -11,7 +11,8 @@ from protocol.heartbeat_pb2 import HeartBeat
 ELECTION_MESSAGE = 1
 COORDINATOR_MESSAGE = 2
 CANDIDATE_MESSAGE = 3
-ELECTION_TIMEOUT = 2  # seconds
+ELECTION_TIMEOUT = 3  # seconds
+COORDINATOR_TIMEOUT = 9 # seconds
 
 HOSTNAME = "egg_of_life"
 
@@ -40,6 +41,8 @@ class LeaderElection:
         self.stop_event = threading.Event()
         self.threads = []
         self._heartbeatConn = heartbeatConn
+
+        self.election_resolved = threading.Condition()
 
     # ----------------- election listener -----------------
 
@@ -82,14 +85,19 @@ class LeaderElection:
     def _handle_candidate_message(self, msg: LeaderElectionMsg, hostname: str) -> None:
         self.logger.info(f"Received CANDIDATE from {hostname} with id={msg.id}")
         self.election_event.set()
+        thread = threading.Thread(target=self._coordinator_timeout_handler)
+        self.threads.append(thread)
+        thread.start()
 
     def _handle_coordinator_message(
         self, msg: LeaderElectionMsg, hostname: str
     ) -> None:
-        self.logger.info(f"Received COORDINATOR from {hostname}{msg.id} | Leader ID: {msg.id}")
+        if self.leader == int(msg.id):
+            return  # already know the leader
+        self.logger.info(f"Received COORDINATOR from {hostname} | Leader ID: {msg.id}")
         self.coordinator_event.set()
-        self.election_event.set()
         self.leader = int(msg.id)
+        self._notify_election_resolved()
 
     def _election_timeout_handler(self) -> None:
         """Handle election timeout - if no higher node responds, assume leadership"""
@@ -105,7 +113,7 @@ class LeaderElection:
 
     def _coordinator_timeout_handler(self) -> None:
         """Handle coordinator timeout - if no coordinator message is received, start a new election"""
-        if not self.coordinator_event.wait(timeout=ELECTION_TIMEOUT):
+        if not self.coordinator_event.wait(timeout=COORDINATOR_TIMEOUT):
             self.logger.info(
                 f"Node {self.id}: Coordinator timeout - starting new election"
             )
@@ -137,6 +145,7 @@ class LeaderElection:
 
     def _send_coordinator_message(self) -> None:
         """Send coordinator message to all nodes"""
+
         msg = LeaderElectionMsg()
         msg.id = self.id
         msg.message_type = COORDINATOR_MESSAGE
@@ -144,17 +153,22 @@ class LeaderElection:
         for node in self.connected_nodes:
             self.logger.info(f"Sending COORDINATOR to {node}")
             self._server.send(msg.SerializeToString(), node)
+
+        self.leader = self.id
         self._send_heartbeats()
+        self._notify_election_resolved()
 
     def _send_heartbeats(self) -> None:
+        print("Starting to send heartbeats")
         while self.i_am_leader():
             hb = HeartBeat()
             data = hb.SerializeToString()
             for node in self.connected_nodes:
+                normalized_hostname = self._server.normalize_hostname(node)
                 try:
-                    self._server.send(
+                    self._heartbeatConn.send(
                         data,
-                        node,
+                        normalized_hostname,
                     )  # UDP send, node is hostname, data is bytes
                 except Exception as e:
                     print(f"Could not send heartbeat to {node}: {e}")
@@ -193,12 +207,26 @@ class LeaderElection:
     def start_election(self) -> None:
         """Start the election process"""
         self.logger.info(f"Node {self.id} starting election")
+        # Reset events / flags
         self.election_event.clear()
+        self.coordinator_event.clear()
+        self.election_resolved = threading.Condition()
+        # Send election messages
         self._send_election_messages()
         # Start timeout handler
         thread = threading.Thread(target=self._election_timeout_handler)
         self.threads.append(thread)
         thread.start()
+
+    def _notify_election_resolved(self) -> None:
+        """Notify all waiting threads that the election is resolved"""
+        # TODO: notify waiting threads
+
+    def wait_for_election_resolution(self) -> None:
+        """Block until the election is resolved"""
+        with self.election_resolved:
+            self.election_resolved.wait()
+        self.logger.info(f"Node {self.id}: Election resolved, leader is {self.leader}")
 
     def i_am_leader(self) -> bool:
         return self.leader != 0 and self.leader == self.id
