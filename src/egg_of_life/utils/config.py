@@ -24,6 +24,7 @@ class Config:
         if not id_str:
             raise ValueError("ID environment variable not set")
         self.id = int(id_str)
+        self.name = f"egg_of_life{self.id}"
 
     def __str__(self):
         return (

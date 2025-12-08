@@ -52,6 +52,8 @@ class LeaderElection:
         while not self.stop_event.is_set():
             try:
                 hostname, data = self._server.receive()
+                if hostname == "DONE" and data == b"":
+                    break
                 msg = LeaderElectionMsg()
                 msg.ParseFromString(data)
 

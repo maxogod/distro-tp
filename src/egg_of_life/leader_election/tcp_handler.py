@@ -18,7 +18,6 @@ class TCPHandler:
         self.sock.bind((self.host, self.port))
         self.connections: dict[str, socket.socket] = {}
         self.message_queue: Queue[tuple[str, bytes]] = Queue()
-        self.client_threads: list[threading.Thread] = []
 
     def normalize_hostname(self, hostname: str) -> str:
         return hostname.split(".")[0].split(":")[0]
@@ -29,19 +28,16 @@ class TCPHandler:
         while self.is_running.is_set():
             try:
                 conn, addr = self.sock.accept()
-                ip, port = addr
+                ip, _ = addr
                 hostname = socket.gethostbyaddr(ip)[0]
                 hostname = self.normalize_hostname(hostname)
 
-                # print(f"Accepted from {hostname}:{port}")
                 self.connections[hostname] = conn
 
                 # Handle incoming messages from this connection
-                thread = threading.Thread(
-                    target=self._handle_client, args=(conn, hostname)
-                )
-                self.client_threads.append(thread)
-                thread.start()
+                threading.Thread(
+                    target=self._handle_client, args=(conn, hostname), daemon=True
+                ).start()
             except OSError:
                 break
 
@@ -86,17 +82,13 @@ class TCPHandler:
                 sock.connect((host, port))
                 normalized_host = self.normalize_hostname(host)
                 self.connections[normalized_host] = sock
-                thread = threading.Thread(
-                    target=self._handle_client, args=(sock, normalized_host)
-                )
-                self.client_threads.append(thread)
-                thread.start()
-                # print(f"Connected to {host}:{port}")
+                threading.Thread(
+                    target=self._handle_client, args=(sock, normalized_host), daemon=True
+                ).start()
                 return sock
-            except Exception as e:
+            except Exception:
                 if attempt < retries:
                     time.sleep(2)
-                    # print(f"Retrying connection to {host}:{port} (attempt {attempt})")
 
     def shutdown(self):
         """Close all connections and the server socket"""
@@ -110,13 +102,9 @@ class TCPHandler:
             pass
         self.sock.close()
 
-        for conn in self.connections.values():
+        for conn in list(self.connections.values()):
             try:
                 conn.shutdown(socket.SHUT_RDWR)
             except OSError:
                 pass
             conn.close()
-            
-        print("Joining client threads...")
-        for thread in self.client_threads:
-            thread.join()

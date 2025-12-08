@@ -62,7 +62,6 @@ class RevivalChansey:
                     nodename = hostname.split(".")[0]
                     self._update_timestamp(nodename)
             except OSError:
-                print(f"Socket closed, shutting down")
                 self.shutdown()
 
     def shutdown(self):
