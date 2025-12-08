@@ -42,11 +42,12 @@ class RevivalChansey:
 
         # Track last heartbeat timestamps
         self._last_heartbeat: dict[str, float] = {}
-        self._heartbeat_lock = threading.Lock()
         self.revive_set = set()
+        self._state_lock = threading.Lock()
 
         # Leader Election
         self._leader_election = leader_election
+        self._leader_election.set_on_became_leader_callback(self._on_became_leader)
 
     def start(self):
         print("Revival Chansey ready")
@@ -67,9 +68,6 @@ class RevivalChansey:
                 if hostname:
                     nodename = hostname.split(".")[0]
                     self._update_timestamp(nodename)
-                    if nodename in self.revive_set:
-                        print(f"Node {nodename} revived")
-                        self.revive_set.remove(nodename)
             except OSError:
                 print(f"Socket closed, shutting down")
                 self.shutdown()
@@ -86,23 +84,16 @@ class RevivalChansey:
         print("Revival Chansey finished")
 
     def _send_heartbeats(self):
-        connectedNodes = self._leader_election.get_nodes()
+        print("Starting to send heartbeats to peers")
 
-        while True:
-            if not self._leader_election.i_am_leader():  # only the leader sends hb
-                time.sleep(0.1)
-                continue
+        while self.running.is_set():
             hb = HeartBeat()
             data = hb.SerializeToString()
-            for node in connectedNodes:
+            for node in self._leader_election.get_nodes():
                 try:
-                    self._server.send(
-                        data,
-                        node,
-                    )  # UDP send, node is hostname, data is bytes
+                    self._server.send(data, node)
                 except Exception as e:
-                    print(f"Could not send heartbeat to {node}: {e}")
-                    pass  # Silently ignore if nodes not reachable yet
+                    print(f"Error sending heartbeat to {node}: {e}")
             time.sleep(self._leader_election.sending_interval / 1000)
 
     def _get_heartbeat(self) -> str:
@@ -121,7 +112,10 @@ class RevivalChansey:
         return re.sub(r"\d+$", "", container_name) + ":latest"
 
     def _update_timestamp(self, hostname):
-        with self._heartbeat_lock:
+        with self._state_lock:
+            if hostname in self.revive_set:
+                print(f"Node {hostname} revived")
+                self.revive_set.remove(hostname)
             if not hostname in self._last_heartbeat:
                 print(f"Registering {hostname}")
             self._last_heartbeat[hostname] = time.time()
@@ -132,13 +126,10 @@ class RevivalChansey:
         if hostname == self._leader_election.get_leader():
             self._leader_election.start_election()
 
-        # Wait for election to resolve
-        self._leader_election.wait_for_election_resolution()
-
-        if not self._leader_election.i_am_leader():
-            print(f"Not the leader, skipping revival of {hostname}")
-            self.revive_set.add(hostname)
-            return
+        with self._state_lock:
+            if not self._leader_election.i_am_leader():
+                self.revive_set.add(hostname)
+                return
 
         # Cleanup and restart
         print(f"Reviving node {hostname}")
@@ -153,7 +144,7 @@ class RevivalChansey:
             current_time = time.time()
             timed_out = []
 
-            with self._heartbeat_lock:
+            with self._state_lock:
                 for hostname, last_time in list(self._last_heartbeat.items()):
                     if current_time - last_time > self._timeout_interval:
                         timed_out.append(hostname)
@@ -165,12 +156,19 @@ class RevivalChansey:
             time.sleep(self._check_interval)
 
     def revive_remaining_nodes(self):
-        for node in self.revive_set:
-            print(f"Also reviving previously timed out node {node}")
-            image = self._get_image_name(node)
-            self._docker_runner.cleanup_container(node)
-            self._docker_runner.restart_container(node, image)
-        self.revive_set.clear()
+        with self._state_lock:
+            for node in list(self.revive_set):
+                print(f"Also reviving previously timed out node {node}")
+                image = self._get_image_name(node)
+                self._docker_runner.cleanup_container(node)
+                self._docker_runner.restart_container(node, image)
+            self.revive_set.clear()
+
+    def _on_became_leader(self, old_leader=None):
+        if old_leader:
+            with self._state_lock:
+                self.revive_set.add(old_leader)
+        self.revive_remaining_nodes()
 
 
 def setup_signal_handlers(rc: RevivalChansey):

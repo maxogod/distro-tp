@@ -23,9 +23,9 @@ class LeaderElection:
         self,
         amount_of_nodes: int,
         id: int,
-        port=6666,
-        sending_interval=200,
-        heartbeatConn: UDPServer = None,
+        port,
+        sending_interval,
+        heartbeatConn: UDPServer,
     ):
         self.id = id
         self.logger = Logger("LE")
@@ -43,6 +43,10 @@ class LeaderElection:
         self._heartbeatConn = heartbeatConn
 
         self.election_resolved = threading.Condition()
+        self._on_became_leader_callback = None
+
+    def set_on_became_leader_callback(self, callback):
+        self._on_became_leader_callback = callback
 
     # ----------------- election listener -----------------
 
@@ -98,6 +102,8 @@ class LeaderElection:
         self.coordinator_event.set()
         self.leader = int(msg.id)
         self._notify_election_resolved()
+        if self.leader == self.id and self._on_became_leader_callback:
+            self._on_became_leader_callback()
 
     def _election_timeout_handler(self) -> None:
         """Handle election timeout - if no higher node responds, assume leadership"""
@@ -117,6 +123,9 @@ class LeaderElection:
             self.logger.info(
                 f"Node {self.id}: Coordinator timeout - starting new election"
             )
+            # Notify RevivalChansey to add the old leader to revive_set
+            if self._on_became_leader_callback:
+                self._on_became_leader_callback(self.leader)
             self.start_election()
 
     # ----------------- message senders -----------------
@@ -155,25 +164,9 @@ class LeaderElection:
             self._server.send(msg.SerializeToString(), node)
 
         self.leader = self.id
-        self._send_heartbeats()
         self._notify_election_resolved()
-
-    def _send_heartbeats(self) -> None:
-        print("Starting to send heartbeats")
-        while self.i_am_leader():
-            hb = HeartBeat()
-            data = hb.SerializeToString()
-            for node in self.connected_nodes:
-                normalized_hostname = self._server.normalize_hostname(node)
-                try:
-                    self._heartbeatConn.send(
-                        data,
-                        normalized_hostname,
-                    )  # UDP send, node is hostname, data is bytes
-                except Exception as e:
-                    print(f"Could not send heartbeat to {node}: {e}")
-                    pass  # Silently ignore if nodes not reachable yet
-            time.sleep(self.sending_interval / 1000)
+        if self._on_became_leader_callback:
+            self._on_became_leader_callback()
 
     # ----------------- helper methods -----------------
 
@@ -220,7 +213,8 @@ class LeaderElection:
 
     def _notify_election_resolved(self) -> None:
         """Notify all waiting threads that the election is resolved"""
-        # TODO: notify waiting threads
+        with self.election_resolved:
+            self.election_resolved.notify_all()
 
     def wait_for_election_resolution(self) -> None:
         """Block until the election is resolved"""
@@ -243,4 +237,4 @@ class LeaderElection:
         self._server.shutdown()
         for thread in self.threads:
             if thread.is_alive():
-                thread.join(timeout=5.0)
+                thread.join()

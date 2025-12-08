@@ -19,7 +19,7 @@ class UDPServer:
         try:
             hostname = socket.gethostbyaddr(ip)[0]
         except socket.herror:
-            hostname = ""  # Couldnt reverse DNS
+            hostname = ip  # Use IP as fallback if reverse DNS fails
 
         return data, hostname
 
