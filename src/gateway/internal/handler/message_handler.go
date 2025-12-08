@@ -103,7 +103,16 @@ func (mh *messageHandler) AwaitControllerInit() error {
 	return nil
 }
 
+func (mh *messageHandler) reconnectIfFail() {
+	go mh.awaitControllerAckListener()
+	<-mh.routineReadyCh
+
+	mh.SendControllerInit(mh.taskType, false)
+	mh.AwaitControllerInit()
+}
+
 func (mh *messageHandler) NotifyClientMessagesCount() error {
+	mh.reconnectIfFail()
 	countMessage := &protocol.MessageCounter{
 		ClientId:   mh.clientID,
 		From:       string(enum.Gateway),
@@ -126,6 +135,7 @@ func (mh *messageHandler) NotifyClientMessagesCount() error {
 }
 
 func (mh *messageHandler) NotifyCompletion(clientId string) error {
+	mh.reconnectIfFail()
 	countMessage := &protocol.MessageCounter{
 		ClientId: clientId,
 		From:     string(enum.Gateway),

@@ -76,10 +76,8 @@ func (s *Server) Run() error {
 			logger.Logger.Infof("action: remove_client | client_id: %s | result: success", controlMsg.GetClientId())
 			continue
 		}
-		if open {
-			// If session is already open, just notify ready
-			clientSession.NotifyControllerReady()
-		} else {
+		clientSession.NotifyControllerReady()
+		if !open { // No session open
 			go func() {
 				err = clientSession.InitiateControlSequence()
 				if err != nil {
@@ -197,7 +195,15 @@ func (s *Server) restoreClientsFromStorage() {
 		} else {
 			clientCounters = nil
 		}
-		s.clientManager.AddClient(clientID, taskType, clientCounters)
+		clientSession, open := s.clientManager.AddClient(clientID, taskType, clientCounters)
+		if !open {
+			go func() {
+				err := clientSession.InitiateControlSequence()
+				if err != nil {
+					logger.Logger.Debugf("action: initiate_control_sequence | result: failed | error: %s", err.Error())
+				}
+			}()
+		}
 		logger.Logger.Infof("action: restore_client | client_id: %s | result: success", clientID)
 	}
 }

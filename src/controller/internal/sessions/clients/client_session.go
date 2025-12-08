@@ -32,7 +32,6 @@ func (cs *clientSession) NotifyControllerReady() {
 }
 
 func (cs *clientSession) InitiateControlSequence() error {
-	cs.NotifyControllerReady()
 	logger.Logger.Debugf("[%s] Starting EOF control sequence", cs.Id)
 
 	err := cs.controlHandler.AwaitForWorkers()
