@@ -41,7 +41,7 @@ func NewServer(conf *config.Config) (*Server, error) {
 		newClientsChan:        make(chan *protocol.ControlMessage, conf.MaxClients),
 		initControlMiddleware: middleware.GetInitControlQueue(conf.MiddlewareAddress, conf.ID),
 		finishAcceptingChan:   make(chan bool),
-		heartbeatSender:       heartbeat.NewHeartBeatHandler(conf.Heartbeat.Host, conf.Heartbeat.Port, conf.Heartbeat.Interval),
+		heartbeatSender:       heartbeat.NewHeartBeatHandler(conf.Heartbeat.Host, conf.Heartbeat.Port, conf.Heartbeat.Interval, conf.Heartbeat.Amount),
 		counterStore:          counterStore,
 	}
 	s.running.Store(true)

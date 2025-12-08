@@ -17,6 +17,7 @@ type heartbeatHandler struct {
 	host     string
 	port     int
 	interval time.Duration
+	amount   int
 
 	ctx    context.Context
 	cancel context.CancelFunc
@@ -24,12 +25,13 @@ type heartbeatHandler struct {
 
 // NewHeartBeatHandler creates a new instance of HeartBeatHandler.
 // The host and port specify the address to receive heartbeats from or send heartbeats to
-func NewHeartBeatHandler(host string, port int, interval time.Duration) HeartBeatHandler {
+func NewHeartBeatHandler(host string, port int, interval time.Duration, amount int) HeartBeatHandler {
 	ctx, cancel := context.WithCancel(context.Background())
 	h := &heartbeatHandler{
 		host:     host,
 		port:     port,
 		interval: interval,
+		amount:   amount,
 
 		ctx:    ctx,
 		cancel: cancel,
@@ -38,25 +40,9 @@ func NewHeartBeatHandler(host string, port int, interval time.Duration) HeartBea
 }
 
 func (h *heartbeatHandler) StartSending() error {
-	addr := fmt.Sprintf("%s:%d", h.host, h.port)
-	udpAddr, err := net.ResolveUDPAddr("udp", addr)
-	if err != nil {
-		return fmt.Errorf("failed to resolve UDP address: %w", err)
-	}
 
-	conn, err := net.DialUDP("udp", nil, udpAddr)
-	if err != nil {
-		return fmt.Errorf("failed to dial UDP: %w", err)
-	}
-	go h.sendAtIntervals(conn)
-	return nil
-}
-
-func (h *heartbeatHandler) StartSendingToAll(amount int) error {
-	for i := range amount {
-
+	for i := range h.amount {
 		addr := fmt.Sprintf("%s%d:%d", h.host, i+1, h.port)
-
 		udpAddr, err := net.ResolveUDPAddr("udp", addr)
 		if err != nil {
 			continue

@@ -64,7 +64,7 @@ func InitConfig(configFilePath string) (*Config, error) {
 	}
 
 	v.BindEnv("id", "ID")
-	v.BindEnv("heartbeat.amount", "EOL_AMOUNT")
+	v.BindEnv("heartbeat.amount", "EOL_NODES")
 
 	heatbeatConf := HeartbeatConfig{
 		Host:     v.GetString("heartbeat.host"),

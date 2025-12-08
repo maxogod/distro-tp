@@ -12,6 +12,7 @@ import (
 type HeartbeatConfig struct {
 	Host     string
 	Port     int
+	Amount   int
 	Interval time.Duration
 }
 
@@ -63,10 +64,12 @@ func initConfig(configFilePath string) (*Config, error) {
 	v.BindEnv("healthcheck.port", "HEALTHCHECK_PORT")
 	v.BindEnv("log.level", "LOG_LEVEL")
 	v.BindEnv("max_controller_nodes", "MAX_CONTROLLER_NODES")
+	v.BindEnv("heartbeat.amount", "EOL_NODES")
 
 	heatbeatConf := HeartbeatConfig{
 		Host:     v.GetString("heartbeat.host"),
 		Port:     v.GetInt("heartbeat.port"),
+		Amount:   v.GetInt("heartbeat.amount"),
 		Interval: time.Duration(v.GetInt("heartbeat.interval")) * time.Millisecond,
 	}
 
