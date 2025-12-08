@@ -9,7 +9,7 @@ from protocol.leader_election_pb2 import LeaderElection as LeaderElectionMsg
 ELECTION_MESSAGE = 1
 COORDINATOR_MESSAGE = 2
 CANDIDATE_MESSAGE = 3
-ELECTION_TIMEOUT = 3  # seconds
+ELECTION_TIMEOUT = 5  # seconds
 COORDINATOR_TIMEOUT = 9 # seconds
 
 HOSTNAME = "egg_of_life"
