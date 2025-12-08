@@ -167,11 +167,8 @@ class LeaderElection:
                 self._server.connect_to(node, self.port)
 
         # Wait until all expected peers are connected
-        while True:
-            connections = set(self._server.connections.keys())
-            if len(connections) == self.amount_of_nodes - 1:
-                self.connected_nodes = connections
-                break
+        self._server.wait_for_connections(self.amount_of_nodes - 1)
+        self.connected_nodes = set(self._server.connections.keys())
         self.logger.info(
             f"Node {self.id}: all peers connected: {list(self.connected_nodes)}"
         )

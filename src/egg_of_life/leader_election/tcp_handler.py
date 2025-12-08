@@ -16,6 +16,7 @@ class TCPHandler:
         self.sock.bind((self.host, self.port))
         self.connections: dict[str, socket.socket] = {}
         self.message_queue: Queue[tuple[str, bytes]] = Queue()
+        self.connections_condition = threading.Condition()
 
     def _normalize_hostname(self, hostname: str) -> str:
         return hostname.split(".")[0].split(":")[0]
@@ -32,6 +33,8 @@ class TCPHandler:
 
                 print(f"Accepted from {hostname}:{port}")
                 self.connections[hostname] = conn
+                with self.connections_condition:
+                    self.connections_condition.notify_all()
 
                 # Handle incoming messages from this connection
                 threading.Thread(
@@ -82,11 +85,18 @@ class TCPHandler:
             threading.Thread(
                 target=self._handle_client, args=(sock, normalized_host), daemon=True
             ).start()
+            with self.connections_condition:
+                self.connections_condition.notify_all()
             print(f"Connected to {host}:{port}")
             return sock
         except Exception as e:
             print(f"Failed to connect to {host}:{port}: {e}")
             return None
+
+    def wait_for_connections(self, count: int):
+        with self.connections_condition:
+            while len(self.connections) < count:
+                self.connections_condition.wait()
 
     def shutdown(self):
         """Close all connections and the server socket"""
