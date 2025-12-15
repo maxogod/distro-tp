@@ -147,9 +147,29 @@ Se implementó el algoritmo **Bully** para formar una red de monitoreo entre los
 
 ---
 
+## Documentación de Componentes
+
+### Nodos
+
+-   [Client](./docs/client.md)
+-   [Gateway](./docs/gateway.md)
+-   [Controller](./docs/controller.md)
+-   [Filter](./docs/filter.md)
+-   [Group By](./docs/group_by.md)
+-   [Reducer](./docs/reducer.md)
+-   [Aggregator](./docs/aggregator.md)
+-   [Joiner](./docs/joiner.md)
+-   [Egg of Life](./docs/egg_of_life.md)
+
+### Mecanismos
+
+-   [Worker Common](./docs/worker_common.md)
+-   [Middleware](./docs/middleware.md)
+-   [EOF](./docs/EOF.md)
+
+---
+
 ## Referencias
 
 -   [Kaggle: G Coffee Shop Transaction Dataset](https://www.kaggle.com/datasets/geraldooizx/g-coffee-shop-transaction-202307-to-202506)
 -   [Notebook de validación FIUBA – Sistemas Distribuidos I](https://www.kaggle.com/code/gabrielrobles/fiuba-distribuidos-1-coffee-shop-analysis)
-
-~ Mas documentos en [`./docs/`](./docs)
