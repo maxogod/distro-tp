@@ -1,5 +1,9 @@
 # Sistema Distribuido para Análisis de Ventas con Tolerancia a Fallos & Escalabilidad horizontal
 
+## Language
+
+📖 **Disponible en**: Español | [English](./README.en.md)
+
 | Equipo          |
 | --------------- |
 | Federico Genaro |
