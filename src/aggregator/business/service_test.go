@@ -113,7 +113,8 @@ func TestAggregatorService_StoreAggregatedAndReadTotalSoldQuantity(t *testing.T)
 	clientID := "client2"
 	c := storage.NewDiskMemoryStorage()
 	service := business.NewAggregatorService(c)
-	//defer service.RemoveData(clientID)
+	service.RemoveData(clientID) // Clean any old data
+	defer service.RemoveData(clientID)
 
 	// we store 1 data envelope with all the data
 	var dataEnvelope *protocol.DataEnvelope

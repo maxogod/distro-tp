@@ -75,6 +75,7 @@ func (ae *AggregatorExecutor) HandleFinishClient(dataEnvelope *protocol.DataEnve
 	if dataEnvelope.GetSequenceNumber() == DELETE_ACTION {
 		logger.Logger.Debugf("Deleting client data for: %s", clientID)
 		ae.removeClientData(clientID)
+		ae.finishExecutor.AckClientMessages(clientID)
 		ackHandler(true, false)
 		return nil
 	}

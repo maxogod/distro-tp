@@ -5,4 +5,4 @@ heartbeat:
   port: 7777
   interval: 200
 log:
-  level: "production"
+  level: "development"

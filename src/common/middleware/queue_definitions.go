@@ -77,9 +77,9 @@ func GetProcessedDataExchange(url, clientID string) MessageMiddleware {
 
 // GetInitControlQueue retrieves the middleware for the given exchange
 // to send or receive control messages for initialization.
-func GetInitControlQueue(url string) MessageMiddleware {
+func GetInitControlQueue(url, controllerName string) MessageMiddleware {
 	return retryMiddlewareCreation(MIDDLEWARE_CONNECTION_RETRIES, WAIT_INTERVAL, func() (MessageMiddleware, error) {
-		return NewQueueMiddleware(url, "init_control_queue")
+		return NewQueueMiddleware(url, "init-"+controllerName)
 	})
 }
 

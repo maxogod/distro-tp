@@ -1,5 +1,6 @@
 import socket
 
+
 class UDPServer:
     def __init__(self, host="0.0.0.0", port=7777, buffer_size=1024):
         self.host = host
@@ -18,10 +19,15 @@ class UDPServer:
         try:
             hostname = socket.gethostbyaddr(ip)[0]
         except socket.herror:
-            hostname = "" # Couldnt reverse DNS
+            hostname = ip  # Use IP as fallback if reverse DNS fails
 
         return data, hostname
 
+    def send(self, data: bytes, host: str, port=7777):
+        try:
+            self.sock.sendto(data, (host, port))
+        except (socket.gaierror, OSError):
+            pass
+
     def close(self):
         self.sock.close()
-

@@ -11,8 +11,8 @@ DEFAULT_EXEPTIONS = "none"
 RABBITMQ_CONTAINER = "rabbitmq"
 EGG_OF_LIFE_CONTAINER = "egg_of_life"
 
-MIN_SLEEP_INTERVAL=5
-MAX_SLEEP_INTERVAL=7
+MIN_SLEEP_INTERVAL=20
+MAX_SLEEP_INTERVAL=30
 
 def run_cmd(cmd_str):
     arg_list = cmd_str.split(" ")

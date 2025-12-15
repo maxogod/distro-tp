@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 
 	"github.com/maxogod/distro-tp/src/common/logger"
 	"github.com/maxogod/distro-tp/src/common/models/enum"
@@ -21,20 +22,21 @@ const (
 )
 
 type diskCounterStorage struct {
-	basePath string
+	basePath  string
+	openFiles sync.Map
 }
 
-func NewCounterStorage(basePath string) CounterStorage {
-	return &diskCounterStorage{basePath: basePath}
+func NewCounterStorage(basePath string) (CounterStorage, error) {
+	if err := os.MkdirAll(basePath, 0o755); err != nil {
+		return nil, fmt.Errorf("failed to create storage directory: %w", err)
+	}
+	return &diskCounterStorage{
+		basePath: basePath,
+	}, nil
 }
 
-// GetClientIds returns the list of client IDs stored in the storage, based on the files in the storage directory
 func (cs *diskCounterStorage) GetClientIds() ([]string, error) {
 	logger.Logger.Debugf("Listing clients in storage at %s", cs.basePath)
-
-	if err := os.MkdirAll(cs.basePath, 0o755); err != nil {
-		return nil, fmt.Errorf("unable to create counter storage dir: %w", err)
-	}
 
 	counterFiles, err := cs.getFiles()
 	if err != nil {
@@ -43,28 +45,44 @@ func (cs *diskCounterStorage) GetClientIds() ([]string, error) {
 
 	clients := make([]string, 0, len(counterFiles))
 	for _, counterFile := range counterFiles {
-		clients = append(clients, getBaseFileName(counterFile))
+		file := filepath.Base(counterFile)
+		fileName := strings.TrimSuffix(file, counterExtension)
+		clients = append(clients, fileName)
 	}
 
 	logger.Logger.Debugf("Found %d clients in storage: %v", len(clients), clients)
 	return clients, nil
 }
 
-// ReadClientCounters returns the list of counters for the given client
 func (cs *diskCounterStorage) ReadClientCounters(clientID string) ([]*protocol.MessageCounter, error) {
 	logger.Logger.Debugf("Reading counters for client %s", clientID)
 
-	path := cs.getFilePath(clientID)
-	counterFile, err := os.Open(path)
-	if err != nil {
-		if errors.Is(err, os.ErrNotExist) {
-			return nil, fmt.Errorf("counter file for client %s does not exist: %v", clientID, err)
+	val, exists := cs.openFiles.Load(clientID)
+	var file *os.File
+	if !exists {
+		var err error
+		file, err = os.OpenFile(cs.getFilePath(clientID), os.O_CREATE|os.O_RDWR|os.O_APPEND, 0o644)
+		if err != nil {
+			if errors.Is(err, os.ErrNotExist) {
+				return nil, fmt.Errorf("counter file for client %s does not exist: %v", clientID, err)
+			}
+			return nil, fmt.Errorf("failed to open counter file: %w", err)
 		}
-		return nil, fmt.Errorf("failed to open counter file: %w", err)
+		cs.openFiles.Store(clientID, file)
+	} else {
+		var ok bool
+		file, ok = val.(*os.File)
+		if !ok {
+			return nil, fmt.Errorf("invalid file handle for client %s", clientID)
+		}
 	}
-	defer counterFile.Close()
 
-	fileScanner := bufio.NewScanner(counterFile)
+	// Seek to beginning for reading
+	if _, seekErr := file.Seek(0, 0); seekErr != nil {
+		return nil, fmt.Errorf("failed to seek to beginning of file: %w", seekErr)
+	}
+
+	fileScanner := bufio.NewScanner(file)
 	counters := make([]*protocol.MessageCounter, 0)
 
 	for fileScanner.Scan() {
@@ -73,11 +91,16 @@ func (cs *diskCounterStorage) ReadClientCounters(clientID string) ([]*protocol.M
 			continue
 		}
 
-		// If we get an error, we return the counters we have read so far
-		counter, getErr := cs.getCounterFromLine(clientID, counterLine, counters, err)
-		if getErr != nil {
-			logger.Logger.Warnf("failed to read counter for client %s: %v", clientID, getErr)
-			return counters, getErr
+		decoded, decodeErr := base64.StdEncoding.DecodeString(string(counterLine))
+		if decodeErr != nil {
+			logger.Logger.Warnf("failed to decode counter for client %s: %v", clientID, decodeErr)
+			return counters, fmt.Errorf("failed to decode counter entry: %w", decodeErr)
+		}
+
+		counter := &protocol.MessageCounter{}
+		if err := proto.Unmarshal(decoded, counter); err != nil {
+			logger.Logger.Warnf("failed to unmarshal counter for client %s: %v", clientID, err)
+			return counters, fmt.Errorf("failed to unmarshal counter entry: %w", err)
 		}
 		counters = append(counters, counter)
 	}
@@ -90,41 +113,84 @@ func (cs *diskCounterStorage) ReadClientCounters(clientID string) ([]*protocol.M
 	return counters, nil
 }
 
-// AppendCounter appends the given counter to the counter file for the given client
-func (cs *diskCounterStorage) AppendCounter(clientID string, messageCounter *protocol.MessageCounter) error {
-	if messageCounter == nil {
-		return fmt.Errorf("cannot persist nil counter for client %s", clientID)
+func (cs *diskCounterStorage) AppendCounters(clientID string, messageCounters []*protocol.MessageCounter, taskType enum.TaskType) error {
+	if len(messageCounters) == 0 {
+		return nil
 	}
 
-	if err := os.MkdirAll(cs.basePath, 0o755); err != nil {
-		return fmt.Errorf("failed to create storage dir: %w", err)
+	for _, counter := range messageCounters {
+		if counter == nil {
+			return fmt.Errorf("cannot persist nil counter for client %s", clientID)
+		}
 	}
 
-	counterBytes, err := proto.Marshal(messageCounter)
-	if err != nil {
-		return fmt.Errorf("failed to marshal counter: %w", err)
+	val, exists := cs.openFiles.Load(clientID)
+	var file *os.File
+	if !exists {
+		var err error
+		file, err = os.OpenFile(cs.getFilePath(clientID), os.O_CREATE|os.O_RDWR|os.O_APPEND, 0o644)
+		if err != nil {
+			logger.Logger.Errorf("failed to open counter file: %v", err)
+			return fmt.Errorf("failed to open counter file: %w", err)
+		}
+		cs.openFiles.Store(clientID, file)
+
+		// if new file write initial counter
+		stat, statErr := file.Stat()
+		if statErr == nil && stat.Size() == 0 {
+			initialCounter := &protocol.MessageCounter{
+				ClientId: clientID,
+				TaskType: int32(taskType),
+			}
+			initialBytes, marshalErr := proto.Marshal(initialCounter)
+			if marshalErr != nil {
+				return fmt.Errorf("failed to marshal initial counter: %w", marshalErr)
+			}
+			encodedInitial := base64.StdEncoding.EncodeToString(initialBytes) + "\n"
+			if _, writeErr := file.WriteString(encodedInitial); writeErr != nil {
+				return fmt.Errorf("failed to write initial counter: %w", writeErr)
+			}
+		}
+	} else {
+		var ok bool
+		file, ok = val.(*os.File)
+		if !ok {
+			return fmt.Errorf("invalid file handle for client %s", clientID)
+		}
 	}
 
-	encodedCounter := base64.StdEncoding.EncodeToString(counterBytes) + "\n"
-	file, err := os.OpenFile(cs.getFilePath(clientID), os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o644)
-	if err != nil {
-		logger.Logger.Errorf("failed to open counter file: %v", err)
-		return fmt.Errorf("failed to open counter file: %w", err)
-	}
-	defer file.Close()
+	writer := bufio.NewWriter(file)
+	for _, messageCounter := range messageCounters {
+		counterBytes, err := proto.Marshal(messageCounter)
+		if err != nil {
+			return fmt.Errorf("failed to marshal counter: %w", err)
+		}
 
-	if _, err = file.WriteString(encodedCounter); err != nil {
-		return fmt.Errorf("failed to write counter: %w", err)
+		encodedCounter := base64.StdEncoding.EncodeToString(counterBytes) + "\n"
+		if _, err = writer.WriteString(encodedCounter); err != nil {
+			return fmt.Errorf("failed to write counter: %w", err)
+		}
 	}
-	if err = file.Sync(); err != nil {
+
+	if err := writer.Flush(); err != nil {
+		return fmt.Errorf("failed to flush counter file: %w", err)
+	}
+	if err := file.Sync(); err != nil {
 		return fmt.Errorf("failed to sync counter file: %w", err)
 	}
 
 	return nil
 }
 
-// RemoveClient removes the counter file for the given client
 func (cs *diskCounterStorage) RemoveClient(clientID string) error {
+	// Close the file if open
+	if val, exists := cs.openFiles.Load(clientID); exists {
+		if file, ok := val.(*os.File); ok {
+			file.Close()
+		}
+		cs.openFiles.Delete(clientID)
+	}
+
 	if err := os.Remove(cs.getFilePath(clientID)); err != nil && !errors.Is(err, os.ErrNotExist) {
 		return fmt.Errorf("failed to remove counter file: %w", err)
 	}
@@ -132,103 +198,6 @@ func (cs *diskCounterStorage) RemoveClient(clientID string) error {
 	return nil
 }
 
-// InitializeClientCounter creates a new counter file for the given client with the given task type
-func (cs *diskCounterStorage) InitializeClientCounter(clientID string, taskType enum.TaskType) error {
-	logger.Logger.Debugf("initializing counter for client %s", clientID)
-
-	if clientID == "" {
-		return fmt.Errorf("client id cannot be empty")
-	}
-
-	if err := os.MkdirAll(cs.basePath, 0o755); err != nil {
-		return fmt.Errorf("failed to create storage dir: %w", err)
-	}
-
-	if err := cs.touchFiles(clientID); err != nil {
-		return err
-	}
-
-	counter := &protocol.MessageCounter{
-		ClientId: clientID,
-		TaskType: int32(taskType),
-	}
-
-	counterBytes, err := proto.Marshal(counter)
-	if err != nil {
-		return fmt.Errorf("failed to marshal initial counter: %w", err)
-	}
-	encoded := base64.StdEncoding.EncodeToString(counterBytes) + "\n"
-
-	return os.WriteFile(cs.getFilePath(clientID), []byte(encoded), 0o644)
-}
-
-// ==== Helper functions ====
-
-// rewriteClientFile replaces the counter file for the given client with a new one containing the given counters
-func (cs *diskCounterStorage) rewriteClientFile(clientID string, counters []*protocol.MessageCounter) error {
-	if err := os.MkdirAll(cs.basePath, 0o755); err != nil {
-		return fmt.Errorf("failed to prepare storage dir: %w", err)
-	}
-
-	path := cs.getFilePath(clientID)
-	tempPath := path + ".tmp"
-	file, err := os.OpenFile(tempPath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o644)
-	if err != nil {
-		return fmt.Errorf("failed to open temp counter file: %w", err)
-	}
-
-	writer := bufio.NewWriter(file)
-	for _, counter := range counters {
-		if err = cs.writeCounter(counter, file, err, writer); err != nil {
-			return err
-		}
-	}
-
-	if err = writer.Flush(); err != nil {
-		file.Close()
-		return fmt.Errorf("failed to flush rewrite file: %w", err)
-	}
-	if err = file.Sync(); err != nil {
-		file.Close()
-		return fmt.Errorf("failed to sync rewrite file: %w", err)
-	}
-	file.Close()
-
-	if err = os.Rename(tempPath, path); err != nil {
-		return fmt.Errorf("failed to replace counter file: %w", err)
-	}
-
-	logger.Logger.Debugf("rewritten counters for client %s", clientID)
-	return nil
-}
-
-func (cs *diskCounterStorage) getCounterFromLine(clientID string, counterLine []byte, counters []*protocol.MessageCounter, err error) (*protocol.MessageCounter, error) {
-	decoded, decodeErr := base64.StdEncoding.DecodeString(string(counterLine))
-	if decodeErr != nil {
-		return nil, cs.handleCorruption(clientID, counters, decodeErr, "failed to decode counter entry")
-	}
-
-	counter := &protocol.MessageCounter{}
-	if err = proto.Unmarshal(decoded, counter); err != nil {
-		return nil, cs.handleCorruption(clientID, counters, err, "failed to unmarshal counter entry")
-	}
-	return counter, nil
-}
-
-func (cs *diskCounterStorage) writeCounter(counter *protocol.MessageCounter, file *os.File, err error, writer *bufio.Writer) error {
-	counterBytes, marshalErr := proto.Marshal(counter)
-	if marshalErr != nil {
-		file.Close()
-		return fmt.Errorf("failed to marshal counter during rewrite: %w", marshalErr)
-	}
-
-	encodedCounter := base64.StdEncoding.EncodeToString(counterBytes) + "\n"
-	if _, err = writer.WriteString(encodedCounter); err != nil {
-		file.Close()
-		return fmt.Errorf("failed to rewrite counter entry: %w", err)
-	}
-	return nil
-}
 
 func (cs *diskCounterStorage) getFilePath(clientID string) string {
 	return filepath.Join(cs.basePath, clientID+counterExtension)
@@ -237,36 +206,4 @@ func (cs *diskCounterStorage) getFilePath(clientID string) string {
 func (cs *diskCounterStorage) getFiles() ([]string, error) {
 	pattern := filepath.Join(cs.basePath, "*"+counterExtension)
 	return filepath.Glob(pattern)
-}
-
-func (cs *diskCounterStorage) handleCorruption(clientID string, counters []*protocol.MessageCounter, cause error, msg string) error {
-	logger.Logger.Warnf("[%s] counter file corrupted, rewriting file: %v", clientID, cause)
-	if writeErr := cs.rewriteClientFile(clientID, counters); writeErr != nil {
-		return fmt.Errorf("[%s] failed to rewrite corrupted counter file: %w", clientID, writeErr)
-	}
-	return fmt.Errorf("%s: %w", msg, cause)
-}
-
-func (cs *diskCounterStorage) touchFiles(clientID string) error {
-	if err := os.MkdirAll(cs.basePath, 0o755); err != nil {
-		return fmt.Errorf("failed to create storage dir: %w", err)
-	}
-
-	if _, err := os.Stat(cs.getFilePath(clientID)); errors.Is(err, os.ErrNotExist) {
-		file, createErr := os.OpenFile(cs.getFilePath(clientID), os.O_CREATE|os.O_WRONLY, 0o644)
-		if createErr != nil {
-			return fmt.Errorf("failed to create counter file: %w", createErr)
-		}
-		file.Close()
-	} else if err != nil {
-		return fmt.Errorf("failed to stat counter file: %w", err)
-	}
-
-	return nil
-}
-
-func getBaseFileName(path string) string {
-	file := filepath.Base(path)
-	fileName := strings.TrimSuffix(file, counterExtension)
-	return fileName
 }

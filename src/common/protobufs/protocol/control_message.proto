@@ -8,6 +8,7 @@ message ControlMessage {
   string client_id = 1;
   int32 taskType = 2;
   bool is_ack = 3;
-  string error = 4;
-  int32 controller_id = 5;
+  bool is_abort = 4;
+  string error = 5;
+  int32 controller_id = 6;
 }

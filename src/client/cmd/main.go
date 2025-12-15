@@ -2,6 +2,7 @@ package main
 
 import (
 	"os"
+	"sync"
 	"time"
 
 	"github.com/maxogod/distro-tp/src/client/config"
@@ -21,6 +22,8 @@ func main() {
 	}
 
 	logger.Logger.Infof("Client will do tasks: %v", os.Args[1:])
+
+	var wg sync.WaitGroup
 	for _, t := range os.Args[1:] {
 		c, err := client.NewClient(conf)
 		if err != nil {
@@ -28,10 +31,16 @@ func main() {
 			continue
 		}
 
-		if err = c.Start(t); err != nil {
-			logger.Logger.Debugf("Client error: %v", err)
-		}
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			if err = c.Start(t); err != nil {
+				logger.Logger.Debugf("Client error: %v", err)
+			}
+		}()
 	}
+
+	wg.Wait()
 
 	after := time.Now()
 

@@ -1,6 +1,7 @@
 package server
 
 import (
+	"fmt"
 	"os"
 	"os/signal"
 	"sync/atomic"
@@ -29,22 +30,25 @@ type Server struct {
 	heartbeatSender       heartbeat.HeartBeatHandler
 }
 
-func NewServer(conf *config.Config) *Server {
-	counterStore := storage.NewCounterStorage(conf.StoragePath)
+func NewServer(conf *config.Config) (*Server, error) {
+	counterStore, err := storage.NewCounterStorage(conf.StoragePath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create counter storage: %w", err)
+	}
 	s := &Server{
 		config:                conf,
 		clientManager:         manager.NewClientManager(conf, counterStore),
 		newClientsChan:        make(chan *protocol.ControlMessage, conf.MaxClients),
-		initControlMiddleware: middleware.GetInitControlQueue(conf.MiddlewareAddress),
+		initControlMiddleware: middleware.GetInitControlQueue(conf.MiddlewareAddress, conf.ID),
 		finishAcceptingChan:   make(chan bool),
-		heartbeatSender:       heartbeat.NewHeartBeatHandler(conf.Heartbeat.Host, conf.Heartbeat.Port, conf.Heartbeat.Interval),
+		heartbeatSender:       heartbeat.NewHeartBeatHandler(conf.Heartbeat.Host, conf.Heartbeat.Port, conf.Heartbeat.Interval, conf.Heartbeat.Amount),
 		counterStore:          counterStore,
 	}
 	s.running.Store(true)
 
 	go s.acceptNewClients()
 
-	return s
+	return s, nil
 }
 
 func (s *Server) Run() error {
@@ -56,7 +60,7 @@ func (s *Server) Run() error {
 		logger.Logger.Errorf("action: start_heartbeat_sender | result: failed | error: %s", err.Error())
 	}
 
-	go s.restoreClientsFromStorage()
+	s.restoreClientsFromStorage()
 
 	for controlMsg := range s.newClientsChan {
 		if !s.running.Load() {
@@ -65,8 +69,15 @@ func (s *Server) Run() error {
 
 		s.clientManager.ReapStaleClients()
 
-		clientSession := s.clientManager.AddClient(controlMsg.GetClientId(), enum.TaskType(controlMsg.GetTaskType()), nil)
-		if clientSession != nil {
+		clientSession, open := s.clientManager.AddClient(controlMsg.GetClientId(), enum.TaskType(controlMsg.GetTaskType()), nil)
+
+		if controlMsg.GetIsAbort() {
+			s.clientManager.RemoveClient(controlMsg.GetClientId())
+			logger.Logger.Infof("action: remove_client | client_id: %s | result: success", controlMsg.GetClientId())
+			continue
+		}
+		clientSession.NotifyControllerReady()
+		if !open { // No session open
 			go func() {
 				err = clientSession.InitiateControlSequence()
 				if err != nil {
@@ -87,8 +98,8 @@ func (s *Server) Shutdown() {
 	}
 
 	s.running.Store(false)
-	s.clientManager.Close()
 	s.finishAcceptingChan <- true // Stop accepting new clients
+	s.clientManager.Close()
 	s.initControlMiddleware.Close()
 
 	s.heartbeatSender.Close()
@@ -112,7 +123,7 @@ func (s *Server) acceptNewClients() {
 	done := make(chan bool)
 	e := s.initControlMiddleware.StartConsuming(func(msgs middleware.ConsumeChannel, d chan error) {
 		running := true
-		for running {
+		for running && s.running.Load() {
 			var msg middleware.MessageDelivery
 			select {
 			case m := <-msgs:
@@ -124,25 +135,8 @@ func (s *Server) acceptNewClients() {
 
 			controlMsg := protocol.ControlMessage{}
 			err := proto.Unmarshal(msg.Body, &controlMsg)
-			if err != nil {
-				logger.Logger.Errorf("action: accept_new_clients | result: failed | error: %s", err.Error())
+			if err != nil || controlMsg.GetClientId() == "" {
 				msg.Nack(false, false)
-				continue
-			}
-
-			if controlMsg.GetControllerId() != 0 && controlMsg.GetControllerId() != s.config.NumericID {
-				logger.Logger.Debugf(
-					"action: accept_new_clients | client_id: %s | controller_id: %d | result: not_mine",
-					controlMsg.GetClientId(),
-					controlMsg.GetControllerId(),
-				)
-				msg.Nack(false, true)
-				continue
-			}
-
-			if err = s.counterStore.InitializeClientCounter(controlMsg.GetClientId(), enum.TaskType(controlMsg.GetTaskType())); err != nil {
-				logger.Logger.Debugf("action: ensure_client_storage | client_id: %s | result: failed | error: %s", controlMsg.GetClientId(), err.Error())
-				msg.Nack(false, true)
 				continue
 			}
 
@@ -201,11 +195,13 @@ func (s *Server) restoreClientsFromStorage() {
 		} else {
 			clientCounters = nil
 		}
-		clientSession := s.clientManager.AddClient(clientID, taskType, clientCounters)
-		if clientSession != nil {
+		clientSession, open := s.clientManager.AddClient(clientID, taskType, clientCounters)
+		clientSession.NotifyControllerReady()
+		if !open {
 			go func() {
-				if err = clientSession.InitiateControlSequence(); err != nil {
-					logger.Logger.Debugf("action: restore_initiate_control_sequence | client_id: %s | result: failed | error: %s", clientID, err.Error())
+				err := clientSession.InitiateControlSequence()
+				if err != nil {
+					logger.Logger.Debugf("action: initiate_control_sequence | result: failed | error: %s", err.Error())
 				}
 			}()
 		}

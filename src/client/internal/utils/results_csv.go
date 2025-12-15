@@ -7,7 +7,6 @@ import (
 	"github.com/maxogod/distro-tp/src/common/models/reduced"
 )
 
-// TODO: new proto to match the appropiate name of the fields
 func TransactionToCsv(record *raw.Transaction) string {
 	csvStr := fmt.Sprintf("%s,%.2f\n", record.TransactionId, record.FinalAmount)
 	return csvStr

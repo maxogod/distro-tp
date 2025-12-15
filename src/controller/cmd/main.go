@@ -12,8 +12,11 @@ func main() {
 	logger.InitLogger(logger.LoggerEnvironment(conf.LogLevel))
 
 	logger.Logger.Infof("Controller server starting")
-	server := server.NewServer(conf)
-	err := server.Run()
+	server, err := server.NewServer(conf)
+	if err != nil {
+		logger.Logger.Fatalf("Failed to create server: %v", err)
+	}
+	err = server.Run()
 	if err != nil {
 		logger.Logger.Fatalf("Failed to run server: %v", err)
 	}

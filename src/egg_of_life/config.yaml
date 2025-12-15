@@ -1,3 +1,6 @@
-port: 8080
-timeout_interval: 10
+port: 7777
+timeout_interval: 2
 check_interval: 1
+leader_election:
+  port: 6666
+  interval: 200

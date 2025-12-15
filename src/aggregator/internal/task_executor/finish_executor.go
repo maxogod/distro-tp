@@ -67,8 +67,6 @@ func (fe *finishExecutor) AckClientMessages(clientID string) error {
 	}
 	fe.ackHandlers.Delete(clientID)
 
-	//logger.Logger.Debugf("[%s] Acked %d messages", clientID, len(handlers))
-
 	return nil
 }
 

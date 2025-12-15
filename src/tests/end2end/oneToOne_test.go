@@ -21,14 +21,28 @@ func testOnetoOneEof(t *testing.T) {
 	}
 	defer clientConnection.Close()
 
+	// Send task request and get client ID
+	clientID := sendTaskRequest(t, clientConnection, enum.T1)
+
 	// We begin to send data for task type 1
 	// This demonstrates a one-to-one communication because
 	// there is only one client and one node that handles the EOF (aggregator)
 	dataBytes := getDataBytes(t, &mock.MockTransactionsBatchT1, enum.T1)
+	// Set client ID
+	envelope := protocol.DataEnvelope{}
+	proto.Unmarshal(dataBytes, &envelope)
+	envelope.ClientId = clientID
+	dataBytes, _ = proto.Marshal(&envelope)
+
 	doneData := getEOFDataBytes(t, enum.T1, false)
+	// Set client ID
+	doneEnvelope := protocol.DataEnvelope{}
+	proto.Unmarshal(doneData, &doneEnvelope)
+	doneEnvelope.ClientId = clientID
+	doneData, _ = proto.Marshal(&doneEnvelope)
+
 	clientConnection.SendData(dataBytes)
 	clientConnection.SendData(doneData)
-	var clientID string
 
 	t.Log("Sent all data and EOF signal, waiting for output...")
 	output := []*raw.Transaction{}

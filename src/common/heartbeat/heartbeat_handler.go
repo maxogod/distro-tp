@@ -17,8 +17,7 @@ type heartbeatHandler struct {
 	host     string
 	port     int
 	interval time.Duration
-
-	conn *net.UDPConn
+	amount   int
 
 	ctx    context.Context
 	cancel context.CancelFunc
@@ -26,12 +25,13 @@ type heartbeatHandler struct {
 
 // NewHeartBeatHandler creates a new instance of HeartBeatHandler.
 // The host and port specify the address to receive heartbeats from or send heartbeats to
-func NewHeartBeatHandler(host string, port int, interval time.Duration) HeartBeatHandler {
+func NewHeartBeatHandler(host string, port int, interval time.Duration, amount int) HeartBeatHandler {
 	ctx, cancel := context.WithCancel(context.Background())
 	h := &heartbeatHandler{
 		host:     host,
 		port:     port,
 		interval: interval,
+		amount:   amount,
 
 		ctx:    ctx,
 		cancel: cancel,
@@ -40,17 +40,11 @@ func NewHeartBeatHandler(host string, port int, interval time.Duration) HeartBea
 }
 
 func (h *heartbeatHandler) StartSending() error {
-	addr := fmt.Sprintf("%s:%d", h.host, h.port)
-	udpAddr, err := net.ResolveUDPAddr("udp", addr)
-	if err != nil {
-		return fmt.Errorf("failed to resolve UDP address: %w", err)
-	}
 
-	conn, err := net.DialUDP("udp", nil, udpAddr)
-	if err != nil {
-		return fmt.Errorf("failed to dial UDP: %w", err)
+	for i := range h.amount {
+		addr := fmt.Sprintf("%s%d:%d", h.host, i+1, h.port)
+		go h.sendAtIntervals(addr)
 	}
-	go h.sendAtIntervals(conn)
 	return nil
 }
 
@@ -62,9 +56,23 @@ func (h *heartbeatHandler) Close() {
 
 // ------------ Private Methods ------------
 
-func (h *heartbeatHandler) sendAtIntervals(conn *net.UDPConn) {
-	ticker := time.NewTicker(h.interval)
-	defer ticker.Stop()
+func (h *heartbeatHandler) sendAtIntervals(addr string) {
+	sendTicker := time.NewTicker(h.interval)
+	defer sendTicker.Stop()
+	resolutionTicker := time.NewTicker(2 * time.Second)
+	defer resolutionTicker.Stop()
+
+	udpAddr, err := net.ResolveUDPAddr("udp", addr)
+	if err != nil {
+		logger.Logger.Errorf("Error resolving addr: %v\n", err)
+		return
+	}
+	conn, err := net.DialUDP("udp", nil, udpAddr)
+	if err != nil {
+		logger.Logger.Errorf("Error dialing: %v\n", err)
+		return
+	}
+	defer conn.Close()
 
 	if err := h.sendHeartbeat(conn); err != nil {
 		logger.Logger.Errorf("Error sending initial heartbeat: %v\n", err)
@@ -73,9 +81,21 @@ func (h *heartbeatHandler) sendAtIntervals(conn *net.UDPConn) {
 	for {
 		select {
 		case <-h.ctx.Done():
-			conn.Close()
 			return
-		case <-ticker.C:
+		case <-resolutionTicker.C:
+			newUdpAddr, err := net.ResolveUDPAddr("udp", addr)
+			if err != nil {
+				continue
+			}
+			if newUdpAddr.IP.String() != udpAddr.IP.String() || newUdpAddr.Port != udpAddr.Port {
+				conn.Close()
+				conn, err = net.DialUDP("udp", nil, newUdpAddr)
+				if err != nil {
+					continue
+				}
+				udpAddr = newUdpAddr
+			}
+		case <-sendTicker.C:
 			if err := h.sendHeartbeat(conn); err != nil {
 				logger.Logger.Errorf("Error sending heartbeat: %v\n", err)
 			}

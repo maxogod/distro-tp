@@ -5,6 +5,6 @@ heartbeat:
   port: 7777
   interval: 200
 log:
-  level: "production"
+  level: "development"
 amount_of_users_per_file: 3_000_000
 
